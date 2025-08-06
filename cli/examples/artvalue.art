@@ -1,0 +1,9 @@
+let a = 42;
+let b = 3.14;
+let c = "Artcode!";
+let d = true;
+
+println(a);
+println(b);
+println(c);
+println(d);

@@ -1,6 +1,6 @@
 
-use crate::ast::{Expr, LiteralValue, Program, Stmt};
-use crate::lexer::{Token, TokenType};
+use ast::{Expr, LiteralValue, Program, Stmt};
+use lexer::{Token, TokenType};
 
 pub struct Parser {
     tokens: Vec<Token>,

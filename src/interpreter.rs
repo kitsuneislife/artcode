@@ -1,5 +1,5 @@
 
-use crate::ast::{Expr, LiteralValue, Program, Stmt};
+use ast::{Expr, LiteralValue, Program, Stmt};
 
 pub struct Interpreter {}
 

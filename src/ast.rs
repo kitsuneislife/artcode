@@ -1,5 +1,5 @@
 
-use crate::lexer::Token;
+use lexer::Token;
 
 pub type Program = Vec<Stmt>;
 

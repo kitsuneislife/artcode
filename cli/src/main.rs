@@ -1,8 +1,6 @@
-
 use clap::Parser;
 use std::fs;
 use std::path::PathBuf;
-
 use lexer::Lexer;
 use parser::Parser as ArtParser;
 use interpreter::Interpreter;
@@ -48,5 +46,8 @@ fn run(source: String) {
     let ast = parser.parse();
 
     let mut interpreter = Interpreter::new();
-    interpreter.interpret(ast);
+    if let Err(e) = interpreter.interpret(ast) {
+        eprintln!("Erro de execução: {}", e);
+        std::process::exit(1);
+    }
 }

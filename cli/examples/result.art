@@ -1,0 +1,40 @@
+enum ErroDeDivisao {
+    DivisaoPorZero
+}
+
+func dividir(a: Int, b: Int) -> Result<Int, ErroDeDivisao> {
+    if b == 0 { return .Err(.DivisaoPorZero) }
+    return .Ok(a / b)
+}
+
+func calcular_media(valores: [Int]) -> Result<Int, ErroDeDivisao> {
+    let soma = valores.sum()
+    let media = dividir(soma, valores.count)?
+    return .Ok(media)
+}
+
+let nums = [10, 20, 30, 40, 50]
+let resultado = calcular_media(nums)
+
+match resultado {
+    case .Ok(let valor):
+        println(f"Média: {valor}")
+    case .Err(let erro):
+        match erro {
+            case .DivisaoPorZero:
+                println("Erro: divisão por zero")
+        }
+}
+
+let nums_vazios = []
+let resultado_vazio = calcular_media(nums_vazios)
+
+match resultado_vazio {
+    case .Ok(let valor):
+        println(f"Média (lista vazia): {valor}")
+    case .Err(let erro):
+        match erro {
+            case .DivisaoPorZero:
+                println("Erro: divisão por zero ao calcular a média de uma lista vazia!")
+        }
+}
