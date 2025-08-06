@@ -1,7 +1,16 @@
-[package]
-name = "artcode"
-version = "0.1.0"
-edition = "2024"
 
-[dependencies]
-clap = { version = "4.5.4", features = ["derive"] }
+[workspace]
+
+resolver = "2"
+
+members = [
+    "crates/core",
+    "crates/lexer",
+    "crates/parser",
+    "crates/interpreter",
+    "cli",
+]
+
+[profile.release]
+lto = true
+strip = true

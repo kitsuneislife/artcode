@@ -1,20 +1,5 @@
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum TokenType {
-    LeftParen, RightParen,
-
-    Identifier,
-    String(String),
-
-    Eof,
-}
-
-#[derive(Debug, Clone)]
-pub struct Token {
-    pub token_type: TokenType,
-    pub lexeme: String,
-    pub line: usize,
-}
+use core::{Token, TokenType};
 
 pub struct Lexer<'a> {
     source: &'a str,
@@ -58,17 +43,39 @@ impl<'a> Lexer<'a> {
         match c {
             '(' => self.add_token(TokenType::LeftParen),
             ')' => self.add_token(TokenType::RightParen),
+            '-' => self.add_token(TokenType::Minus),
+            '+' => self.add_token(TokenType::Plus),
+            '/' => self.add_token(TokenType::Slash),
+            '*' => self.add_token(TokenType::Star),
+
             ' ' | '\r' | '\t' => (),
             '\n' => self.line += 1,
             '"' => self.string(),
             _ => {
-                if c.is_alphabetic() {
+                if c.is_digit(10) {
+                    self.number();
+                } else if c.is_alphabetic() {
                     self.identifier();
-                } else {
-
                 }
             }
         }
+    }
+
+    fn number(&mut self) {
+        while self.peek().is_digit(10) {
+            self.advance();
+        }
+
+        if self.peek() == '.' && self.peek_next().is_digit(10) {
+            self.advance();
+            while self.peek().is_digit(10) {
+                self.advance();
+            }
+        }
+
+        let value_str = &self.source[self.start..self.current];
+        let value: f64 = value_str.parse().unwrap();
+        self.add_token(TokenType::Number(value));
     }
 
     fn advance(&mut self) -> char {
@@ -91,10 +98,7 @@ impl<'a> Lexer<'a> {
             self.advance();
         }
 
-        if self.is_at_end() {
-            return;
-        }
-
+        if self.is_at_end() { return; }
         self.advance();
 
         let value = self.source[self.start + 1..self.current - 1].to_string();
@@ -111,5 +115,10 @@ impl<'a> Lexer<'a> {
     fn peek(&self) -> char {
         if self.is_at_end() { return '\0'; }
         self.source.chars().nth(self.current).unwrap()
+    }
+
+    fn peek_next(&self) -> char {
+        if self.current + 1 >= self.source.len() { return '\0'; }
+        self.source.chars().nth(self.current + 1).unwrap()
     }
 }

@@ -51,11 +51,11 @@ fn main() {
 fn run(source: String) {
     let mut lexer = lexer::Lexer::new(&source);
     let tokens = lexer.scan_tokens();
-    println!("-> Tokens: {:?}", tokens); // Debug: mostra os tokens
+    println!("-> Tokens: {:?}", tokens);
 
     let mut parser = parser::Parser::new(tokens);
     let ast = parser.parse();
-    println!("-> AST: {:?}", ast); // Debug: mostra a AST
+    println!("-> AST: {:?}", ast);
 
     let mut interpreter = interpreter::Interpreter::new();
     interpreter.interpret(ast);

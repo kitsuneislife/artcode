@@ -5,18 +5,41 @@
   </component>
   <component name="CargoProjects">
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml">
-      <package file="$PROJECT_DIR$">
+      <package file="$PROJECT_DIR$/cli">
+        <enabledFeature name="default" />
+      </package>
+      <package file="$PROJECT_DIR$/crates/core">
+        <enabledFeature name="default" />
+      </package>
+      <package file="$PROJECT_DIR$/crates/interpreter">
+        <enabledFeature name="default" />
+      </package>
+      <package file="$PROJECT_DIR$/crates/lexer">
+        <enabledFeature name="default" />
+      </package>
+      <package file="$PROJECT_DIR$/crates/parser">
         <enabledFeature name="default" />
       </package>
     </cargoProject>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="173405a5-46fa-4f3f-bc62-4423b343dcfe" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/examples/hello.art" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/ast.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/interpreter.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/lexer.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/parser.rs" afterDir="false" />
+    <list default="true" id="173405a5-46fa-4f3f-bc62-4423b343dcfe" name="Changes" comment="Initial commit">
+      <change afterPath="$PROJECT_DIR$/cli/examples/math.art" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/cli/examples/numbers.art" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/cli/src/main.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/core/Cargo.toml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/core/src/ast.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/core/src/lib.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/interpreter/Cargo.toml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/interpreter/src/lib.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/lexer/src/lib.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/parser/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/hello.art" beforeDir="false" afterPath="$PROJECT_DIR$/cli/examples/hello.art" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lexer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lexer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -33,6 +56,18 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;kitsuneislife&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/kitsuneislife/artcode.git&quot;,
+    &quot;accountId&quot;: &quot;db93b996-1dd0-4567-9a24-1e60b8fec63d&quot;
+  }
+}</component>
   <component name="MacroExpansionManager">
     <option name="directoryName" value="ewrRR9KM" />
   </component>
@@ -44,29 +79,37 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.rust.reset.selective.auto.import": "true",
-    "git-widget-placeholder": "main",
-    "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "/home/Lukas/Projects/artcode",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
-    "org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon": "",
-    "org.rust.first.attach.projects": "true",
-    "settings.editor.selected.configurable": "preferences.pluginManager",
-    "to.speed.mode.migration.done": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.rust.reset.selective.auto.import&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/Lukas/Projects/artcode&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;org.rust.cargo.project.model.PROJECT_DISCOVERY&quot;: &quot;true&quot;,
+    &quot;org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon&quot;: &quot;&quot;,
+    &quot;org.rust.disableDetachedFileInspection/home/Lukas/Projects/artcode/crates/lexer/src/lib.rs&quot;: &quot;true&quot;,
+    &quot;org.rust.first.attach.projects&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/crates/core/src" />
+      <recent name="$PROJECT_DIR$/cli" />
+      <recent name="$PROJECT_DIR$/crates" />
+    </key>
+  </component>
   <component name="RustProjectSettings">
     <option name="toolchainHomeDirectory" value="/usr/bin" />
   </component>
@@ -78,11 +121,33 @@
       <option name="presentableId" value="Default" />
       <updated>1754440095157</updated>
       <workItem from="1754440097777" duration="478000" />
-      <workItem from="1754440599236" duration="314000" />
+      <workItem from="1754440599236" duration="1531000" />
+      <workItem from="1754442141403" duration="1320000" />
     </task>
+    <task id="LOCAL-00001" summary="Initial commit">
+      <option name="closed" value="true" />
+      <created>1754441055634</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1754441055635</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Initial commit">
+      <option name="closed" value="true" />
+      <created>1754441095271</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1754441095271</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Initial commit" />
+    <option name="LAST_COMMIT_MESSAGE" value="Initial commit" />
   </component>
 </project>
