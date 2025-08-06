@@ -1,0 +1,16 @@
+
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "art"
+path = "src/main.rs"
+
+[dependencies]
+lexer = { path = "../crates/lexer" }
+parser = { path = "../crates/parser" }
+interpreter = { path = "../crates/interpreter" }
+
+clap = { version = "4.5.4", features = ["derive"] }
