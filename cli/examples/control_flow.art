@@ -1,0 +1,28 @@
+let a = 10;
+let b = 20;
+
+if (a > b) {
+    println("a é maior que b");
+} else {
+    println("a não é maior que b");
+}
+
+if (a < b and b > 15) {
+    println("Ambas as condições são verdadeiras!");
+}
+
+let tem_sol = true;
+if (tem_sol) {
+    println("Vamos à praia!");
+}
+
+if (!tem_sol or a == 10) {
+    println("Pelo menos uma condição é verdadeira.");
+}
+
+let escopo_fora = "global";
+{
+    let escopo_fora = "local";
+    println(escopo_fora);
+}
+println(escopo_fora);

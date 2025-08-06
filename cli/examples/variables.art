@@ -1,0 +1,7 @@
+let a = 10;
+let b = a * 2;
+println(b + 5);
+
+let message = "The result is: ";
+println(message);
+println(b + 5);

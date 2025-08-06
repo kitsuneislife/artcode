@@ -1,10 +1,19 @@
-
 pub mod ast;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
-    LeftParen, RightParen,
+    LeftParen, RightParen, LeftBrace, RightBrace,
     Minus, Plus, Slash, Star,
+    Equal, Semicolon,
+
+    Bang, BangEqual,
+    EqualEqual,
+    Greater, GreaterEqual,
+    Less, LessEqual,
+
+    Let, If, Else,
+    True, False,
+    And, Or,
 
     Identifier,
     String(String),

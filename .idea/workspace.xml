@@ -23,23 +23,24 @@
     </cargoProject>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="173405a5-46fa-4f3f-bc62-4423b343dcfe" name="Changes" comment="Initial commit">
-      <change afterPath="$PROJECT_DIR$/cli/examples/math.art" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/cli/examples/numbers.art" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/cli/src/main.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/crates/core/Cargo.toml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/crates/core/src/ast.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/crates/core/src/lib.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/crates/interpreter/Cargo.toml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/crates/interpreter/src/lib.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/crates/lexer/src/lib.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/crates/parser/src/lib.rs" afterDir="false" />
+    <list default="true" id="173405a5-46fa-4f3f-bc62-4423b343dcfe" name="Changes" comment="Add initial project structure with lexer, parser, and interpreter modules">
+      <change afterPath="$PROJECT_DIR$/cli/examples/control_flow.art" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/cli/examples/variables.art" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/interpreter/src/environment.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/interpreter/src/interpreter.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/interpreter/src/values.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/lexer/src/keywords.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/lexer/src/lexer.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/parser/src/expressions.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/parser/src/parser.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/parser/src/precedence.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/crates/parser/src/statements.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/hello.art" beforeDir="false" afterPath="$PROJECT_DIR$/cli/examples/hello.art" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lexer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lexer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/core/src/ast.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/core/src/ast.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/core/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/core/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/interpreter/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/interpreter/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/lexer/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/lexer/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crates/parser/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/parser/src/lib.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -75,6 +76,9 @@
   &quot;associatedIndex&quot;: 6
 }</component>
   <component name="ProjectId" id="30tHklz9WEB7PpxyyEYXiMBb7l8" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -123,6 +127,7 @@
       <workItem from="1754440097777" duration="478000" />
       <workItem from="1754440599236" duration="1531000" />
       <workItem from="1754442141403" duration="1320000" />
+      <workItem from="1754479297902" duration="3670000" />
     </task>
     <task id="LOCAL-00001" summary="Initial commit">
       <option name="closed" value="true" />
@@ -140,7 +145,23 @@
       <option name="project" value="LOCAL" />
       <updated>1754441095271</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Add initial project structure with lexer, parser, and interpreter modules">
+      <option name="closed" value="true" />
+      <created>1754479386603</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1754479386603</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Add initial project structure with lexer, parser, and interpreter modules">
+      <option name="closed" value="true" />
+      <created>1754479396876</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1754479396876</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -148,6 +169,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Initial commit" />
-    <option name="LAST_COMMIT_MESSAGE" value="Initial commit" />
+    <MESSAGE value="Add initial project structure with lexer, parser, and interpreter modules" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add initial project structure with lexer, parser, and interpreter modules" />
   </component>
 </project>
