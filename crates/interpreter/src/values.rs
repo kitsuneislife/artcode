@@ -1,3 +1,4 @@
+use core::ast::ArtValue;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -10,6 +11,7 @@ pub enum RuntimeError {
     InvalidEnumVariant(String),
     WrongNumberOfArguments,
     Other(String),
+    Return(ArtValue),
 }
 
 impl fmt::Display for RuntimeError {
@@ -23,6 +25,7 @@ impl fmt::Display for RuntimeError {
             RuntimeError::InvalidEnumVariant(variant) => write!(f, "Invalid enum variant '{}'.", variant),
             RuntimeError::WrongNumberOfArguments => write!(f, "Wrong number of arguments."),
             RuntimeError::Other(msg) => write!(f, "{}", msg),
+            RuntimeError::Return(val) => write!(f, "Function returned a value (this should not be seen by user): {}", val),
         }
     }
 }

@@ -11,14 +11,23 @@ pub fn parse_precedence(parser: &mut Parser, precedence: u8) -> Expr {
     let mut left = parse_prefix(parser);
     loop {
         let peek_prec = parser.peek_precedence();
-        if precedence > peek_prec || parser.is_at_end() {
+        if precedence >= peek_prec || parser.is_at_end() {
             break;
         }
+
         let operator = parser.advance();
+
         if operator.token_type == TokenType::Question {
             left = Expr::Try(Box::new(left));
             continue;
         }
+
+        if operator.token_type == TokenType::As {
+            let type_name = parser.parse_type();
+            left = Expr::Cast { object: Box::new(left), target_type: type_name };
+            continue;
+        }
+
         left = parse_infix(parser, left, operator);
     }
     left
@@ -40,9 +49,7 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
         TokenType::False => Expr::Literal(core::ast::ArtValue::Bool(false)),
         TokenType::None => Expr::Literal(core::ast::ArtValue::Optional(Box::new(None))),
         TokenType::Dot => {
-            // Handle dot notation for enum variants like .Ok(value) or .Err(error)
             let variant_name = parser.consume(TokenType::Identifier, "Expect enum variant name after '.'");
-            // Check if it's a variant call with arguments
             if parser.match_token(TokenType::LeftParen) {
                 let mut values = Vec::new();
                 if !parser.check(&TokenType::RightParen) {
@@ -54,24 +61,14 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
                     }
                 }
                 parser.consume(TokenType::RightParen, "Expect ')' after enum variant values.");
-                let enum_name = Token {
-                    token_type: TokenType::Identifier,
-                    lexeme: "Result".to_string(),
-                    line: variant_name.line,
-                };
                 Expr::EnumInit {
-                    name: enum_name,
+                    name: None,
                     variant: variant_name,
                     values,
                 }
             } else {
-                let enum_name = Token {
-                    token_type: TokenType::Identifier,
-                    lexeme: "Result".to_string(),
-                    line: variant_name.line,
-                };
                 Expr::EnumInit {
-                    name: enum_name,
+                    name: None,
                     variant: variant_name,
                     values: Vec::new(),
                 }
@@ -82,18 +79,13 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
             if !parser.check(&TokenType::RightBracket) {
                 loop {
                     elements.push(expression(parser));
-                    if parser.match_token(TokenType::Comma) {
-                        continue;
+                    if !parser.match_token(TokenType::Comma) {
+                        break;
                     }
-                    break;
                 }
             }
             parser.consume(TokenType::RightBracket, "Expect ']' after array elements.");
-            let arr = elements.into_iter().map(|e| match e {
-                Expr::Literal(v) => v,
-                other => panic!("Only literal values allowed in arrays for now: {:?}", other),
-            }).collect();
-            Expr::Literal(core::ast::ArtValue::Array(arr))
+            Expr::Array(elements)
         }
         TokenType::LeftParen => {
             let expr = expression(parser);
@@ -107,42 +99,18 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
         }
         TokenType::Identifier => {
             let ident_token = token.clone();
-            if parser.check(&TokenType::LeftBrace) {
-                parser.advance();
-                let mut fields = Vec::new();
-                while !parser.check(&TokenType::RightBrace) {
-                    if parser.check(&TokenType::Identifier) {
-                        let field_name = parser.advance();
-                        parser.consume(TokenType::Colon, "Expect ':' after field name.");
-                        let value = expression(parser);
-                        fields.push((field_name, value));
-                        if !parser.check(&TokenType::RightBrace) {
-                            parser.match_token(TokenType::Comma);
-                        }
-                    } else {
-                        panic!("Expect field name, got {:?}", parser.peek().token_type);
-                    }
-                }
-                parser.consume(TokenType::RightBrace, "Expect '}' after struct fields.");
-                Expr::StructInit { name: ident_token, fields }
-            } else if parser.check(&TokenType::LeftParen) {
+            if parser.check(&TokenType::LeftParen) {
                 parser.advance();
                 finish_call(parser, Expr::Variable { name: token })
             } else {
-                Expr::Variable { name: token }
+                Expr::Variable { name: ident_token }
             }
         }
         TokenType::Bang | TokenType::Minus => {
             let right = parse_precedence(parser, Precedence::Unary as u8);
             Expr::Unary { operator: token, right: Box::new(right) }
         }
-        TokenType::Func => {
-            Expr::Variable { name: Token { token_type: TokenType::Identifier, lexeme: "func".to_string(), line: token.line } }
-        }
-        TokenType::Return => {
-            Expr::Variable { name: Token { token_type: TokenType::Identifier, lexeme: "return".to_string(), line: token.line } }
-        }
-        _ => panic!("Unexpected token: {:?}", token),
+        _ => panic!("Unexpected token for prefix expression: {:?}", token),
     }
 }
 
@@ -154,18 +122,7 @@ pub fn parse_infix(parser: &mut Parser, left: Expr, operator: Token) -> Expr {
             Expr::Logical { left: Box::new(left), operator, right: Box::new(right) }
         }
         TokenType::Dot => {
-            let field_name;
-            if parser.check(&TokenType::Identifier) {
-                field_name = parser.advance();
-            } else if parser.match_token(TokenType::None) {
-                field_name = Token {
-                    token_type: TokenType::Identifier,
-                    lexeme: "None".to_string(),
-                    line: parser.previous().line,
-                };
-            } else {
-                panic!("Expect field name after '.', got {:?}", parser.peek().token_type);
-            }
+            let field_name = parser.consume(TokenType::Identifier, "Expect field name after '.'");
             if parser.check(&TokenType::LeftParen) {
                 parser.advance();
                 let mut arguments = Vec::new();
@@ -202,7 +159,7 @@ pub fn parse_infix(parser: &mut Parser, left: Expr, operator: Token) -> Expr {
             }
         }
         _ => {
-            let right = parse_precedence(parser, precedence + 1);
+            let right = parse_precedence(parser, precedence);
             Expr::Binary { left: Box::new(left), operator, right: Box::new(right) }
         }
     }

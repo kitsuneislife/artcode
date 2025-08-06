@@ -44,6 +44,7 @@ pub enum TokenType {
     Number(f64),
     None,
     Question,
+    As,
     Eof,
 }
 

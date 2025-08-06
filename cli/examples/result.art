@@ -19,22 +19,16 @@ let resultado = calcular_media(nums)
 match resultado {
     case .Ok(let valor):
         println(f"Média: {valor}")
-    case .Err(let erro):
-        match erro {
-            case .DivisaoPorZero:
-                println("Erro: divisão por zero")
-        }
+    case .Err(.DivisaoPorZero):
+        println("Erro: divisão por zero")
 }
 
-let nums_vazios = []
+let nums_vazios: [Int] = []
 let resultado_vazio = calcular_media(nums_vazios)
 
 match resultado_vazio {
     case .Ok(let valor):
         println(f"Média (lista vazia): {valor}")
-    case .Err(let erro):
-        match erro {
-            case .DivisaoPorZero:
-                println("Erro: divisão por zero ao calcular a média de uma lista vazia!")
-        }
+    case .Err(.DivisaoPorZero):
+        println("Erro: divisão por zero ao calcular a média de uma lista vazia!")
 }

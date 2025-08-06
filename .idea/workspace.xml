@@ -23,36 +23,16 @@
     </cargoProject>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="173405a5-46fa-4f3f-bc62-4423b343dcfe" name="Changes" comment="Implement AST structure and interpreter logic for variable declarations, control flow, and expressions">
-      <change afterPath="$PROJECT_DIR$/cli/examples/arr_opt.art" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/cli/examples/artvalue.art" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/cli/examples/match.art" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/cli/examples/result.art" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/cli/examples/result_propagation.art" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/cli/examples/struct_enum.art" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/crates/interpreter/src/type_registry.rs" afterDir="false" />
+    <list default="true" id="173405a5-46fa-4f3f-bc62-4423b343dcfe" name="Changes" comment="Implement AST structure for structs, enums, and match statements; update interpreter and parser logic">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cli/examples/variables.art" beforeDir="false" afterPath="$PROJECT_DIR$/cli/examples/variables.art" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cli/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/cli/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cli/examples/result.art" beforeDir="false" afterPath="$PROJECT_DIR$/cli/examples/result.art" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/crates/core/src/ast.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/core/src/ast.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/crates/core/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/core/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/interpreter/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/crates/interpreter/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/interpreter/src/environment.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/interpreter/src/environment.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/crates/interpreter/src/interpreter.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/interpreter/src/interpreter.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/interpreter/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/interpreter/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/crates/interpreter/src/values.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/interpreter/src/values.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/lexer/src/keywords.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/lexer/src/keywords.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/lexer/src/lexer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/lexer/src/lexer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/lexer/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/lexer/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/crates/parser/src/expressions.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/parser/src/expressions.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/parser/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/parser/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/crates/parser/src/parser.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/parser/src/parser.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/crates/parser/src/precedence.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/parser/src/precedence.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/crates/parser/src/statements.rs" beforeDir="false" afterPath="$PROJECT_DIR$/crates/parser/src/statements.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ast.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/ast.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/interpreter.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/interpreter.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/parser.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/parser.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -146,7 +126,7 @@
       <workItem from="1754484201100" duration="2844000" />
       <workItem from="1754491084786" duration="5434000" />
       <workItem from="1754506140533" duration="4721000" />
-      <workItem from="1754517316747" duration="800000" />
+      <workItem from="1754517316747" duration="2160000" />
     </task>
     <task id="LOCAL-00001" summary="Initial commit">
       <option name="closed" value="true" />
@@ -188,7 +168,15 @@
       <option name="project" value="LOCAL" />
       <updated>1754483058134</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="Implement AST structure for structs, enums, and match statements; update interpreter and parser logic">
+      <option name="closed" value="true" />
+      <created>1754518334636</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1754518334636</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -198,7 +186,8 @@
     <MESSAGE value="Initial commit" />
     <MESSAGE value="Add initial project structure with lexer, parser, and interpreter modules" />
     <MESSAGE value="Implement AST structure and interpreter logic for variable declarations, control flow, and expressions" />
-    <option name="LAST_COMMIT_MESSAGE" value="Implement AST structure and interpreter logic for variable declarations, control flow, and expressions" />
+    <MESSAGE value="Implement AST structure for structs, enums, and match statements; update interpreter and parser logic" />
+    <option name="LAST_COMMIT_MESSAGE" value="Implement AST structure for structs, enums, and match statements; update interpreter and parser logic" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

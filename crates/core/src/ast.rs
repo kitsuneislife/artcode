@@ -1,4 +1,5 @@
 use crate::Token;
+use std::fmt;
 
 pub type Program = Vec<Stmt>;
 
@@ -7,6 +8,7 @@ pub enum Stmt {
     Expression(Expr),
     Let {
         name: Token,
+        ty: Option<String>,
         initializer: Expr,
     },
     Block {
@@ -78,7 +80,7 @@ pub enum Expr {
         fields: Vec<(Token, Expr)>,
     },
     EnumInit {
-        name: Token,
+        name: Option<Token>,
         variant: Token,
         values: Vec<Expr>,
     },
@@ -87,6 +89,11 @@ pub enum Expr {
         field: Token,
     },
     Try(Box<Expr>),
+    Array(Vec<Expr>),
+    Cast {
+        object: Box<Expr>,
+        target_type: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -107,6 +114,41 @@ pub enum ArtValue {
         values: Vec<ArtValue>,
     },
 }
+
+impl fmt::Display for ArtValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ArtValue::Int(n) => write!(f, "{}", n),
+            ArtValue::Float(n) => write!(f, "{}", n),
+            ArtValue::String(s) => write!(f, "{}", s),
+            ArtValue::Bool(b) => write!(f, "{}", b),
+            ArtValue::Optional(opt) => match &**opt {
+                Some(val) => write!(f, "Some({})", val),
+                None => write!(f, "None"),
+            },
+            ArtValue::Array(arr) => {
+                let elems: Vec<String> = arr.iter().map(|item| item.to_string()).collect();
+                write!(f, "[{}]", elems.join(", "))
+            }
+            ArtValue::StructInstance { struct_name, fields } => {
+                let field_strs: Vec<String> = fields
+                    .iter()
+                    .map(|(k, v)| format!("{}: {}", k, v))
+                    .collect();
+                write!(f, "{} {{ {} }}", struct_name, field_strs.join(", "))
+            }
+            ArtValue::EnumInstance { enum_name, variant, values } => {
+                if values.is_empty() {
+                    write!(f, "{}.{}", enum_name, variant)
+                } else {
+                    let value_strs: Vec<String> = values.iter().map(|v| v.to_string()).collect();
+                    write!(f, "{}.{}({})", enum_name, variant, value_strs.join(", "))
+                }
+            }
+        }
+    }
+}
+
 
 impl From<bool> for ArtValue {
     fn from(b: bool) -> Self {
@@ -130,9 +172,10 @@ impl From<i64> for ArtValue {
 pub enum MatchPattern {
     EnumVariant {
         variant: Token,
-        params: Option<Vec<Token>>,
+        params: Option<Vec<MatchPattern>>,
     },
     Literal(ArtValue),
     Variable(Token),
+    Binding(Token),
     Wildcard,
 }
