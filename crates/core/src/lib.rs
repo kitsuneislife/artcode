@@ -1,56 +1,6 @@
 pub mod ast;
+pub mod environment;
+pub mod token;
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum TokenType {
-    LeftParen,
-    RightParen,
-    LeftBrace,
-    RightBrace,
-    LeftBracket,
-    RightBracket,
-    Comma,
-    Semicolon,
-    Colon,
-    Dot,
-    Arrow,
-    Minus,
-    Plus,
-    Star,
-    Slash,
-    Bang,
-    BangEqual,
-    Equal,
-    EqualEqual,
-    Greater,
-    GreaterEqual,
-    Less,
-    LessEqual,
-    Let,
-    If,
-    Else,
-    True,
-    False,
-    Struct,
-    Enum,
-    And,
-    Or,
-    Match,
-    Case,
-    Underscore,
-    Func,
-    Return,
-    Identifier,
-    String(String),
-    Number(f64),
-    None,
-    Question,
-    As,
-    Eof,
-}
-
-#[derive(Debug, Clone)]
-pub struct Token {
-    pub token_type: TokenType,
-    pub lexeme: String,
-    pub line: usize,
-}
+pub use ast::*;
+pub use token::*;

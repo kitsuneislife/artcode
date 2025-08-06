@@ -1,8 +1,9 @@
-use core::{Token, TokenType};
 use core::ast::{Expr, Program, Stmt};
-use crate::statements;
+use core::{Token, TokenType};
 use crate::expressions;
 use crate::precedence::Precedence;
+use crate::statements;
+use std::rc::Rc;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -11,7 +12,10 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Parser { tokens, current: 0 }
+        Parser {
+            tokens,
+            current: 0,
+        }
     }
 
     pub fn parse(&mut self) -> Program {
@@ -130,10 +134,12 @@ impl Parser {
             TokenType::And => Precedence::And as u8,
             TokenType::Or => Precedence::Or as u8,
             TokenType::EqualEqual | TokenType::BangEqual => Precedence::Equality as u8,
-            TokenType::Greater | TokenType::GreaterEqual | TokenType::Less | TokenType::LessEqual => Precedence::Comparison as u8,
+            TokenType::Greater | TokenType::GreaterEqual | TokenType::Less | TokenType::LessEqual => {
+                Precedence::Comparison as u8
+            }
             TokenType::Plus | TokenType::Minus => Precedence::Term as u8,
             TokenType::Star | TokenType::Slash => Precedence::Factor as u8,
-            TokenType::Dot => Precedence::Call as u8,
+            TokenType::LeftParen | TokenType::Dot => Precedence::Call as u8,
             TokenType::As => Precedence::Call as u8,
             TokenType::Question => Precedence::Try as u8,
             _ => Precedence::None as u8,
@@ -153,16 +159,25 @@ impl Parser {
         if self.check(&tt) {
             return self.advance();
         }
-        panic!("{}: Expected {:?}, got {:?}", message, tt, self.peek().token_type);
+        panic!(
+            "{}: Expected {:?}, got {:?}",
+            message,
+            tt,
+            self.peek().token_type
+        );
     }
 
     pub fn check(&self, tt: &TokenType) -> bool {
-        if self.is_at_end() { return false; }
+        if self.is_at_end() {
+            return false;
+        }
         std::mem::discriminant(&self.peek().token_type) == std::mem::discriminant(tt)
     }
 
     pub fn advance(&mut self) -> Token {
-        if !self.is_at_end() { self.current += 1; }
+        if !self.is_at_end() {
+            self.current += 1;
+        }
         self.previous()
     }
 
@@ -183,7 +198,10 @@ impl Parser {
         if self.match_token(TokenType::LeftBracket) {
             type_str.push('[');
             type_str.push_str(&self.parse_type());
-            self.consume(TokenType::RightBracket, "Expect ']' after array element type.");
+            self.consume(
+                TokenType::RightBracket,
+                "Expect ']' after array element type.",
+            );
             type_str.push(']');
         } else {
             let type_name = self.consume(TokenType::Identifier, "Expect type name.");
@@ -234,7 +252,9 @@ impl Parser {
             None
         };
         self.consume(TokenType::LeftBrace, "Expect '{' before function body.");
-        let body = Box::new(Stmt::Block { statements: self.block() });
+        let body = Rc::new(Stmt::Block {
+            statements: self.block(),
+        });
         Stmt::Function {
             name,
             params,

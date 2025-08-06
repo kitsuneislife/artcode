@@ -1,4 +1,3 @@
-pub mod environment;
 pub mod interpreter;
 pub mod type_registry;
 pub mod values;

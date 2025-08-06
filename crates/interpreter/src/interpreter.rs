@@ -1,11 +1,10 @@
-use core::ast::{Expr, ArtValue, Program, Stmt, MatchPattern};
-use core::TokenType;
-use crate::environment::Environment;
+use core::ast::{Expr, ArtValue, Program, Stmt, MatchPattern, Function, FunctionParam};
+use core::environment::Environment;
 use crate::type_registry::TypeRegistry;
 use crate::values::{Result, RuntimeError};
-use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
@@ -14,8 +13,21 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new() -> Self {
+        let global_env = Rc::new(RefCell::new(Environment::new(None)));
+
+        let println_func = ArtValue::Function(Rc::new(Function {
+            name: Some("println".to_string()),
+            params: vec![FunctionParam {
+                name: core::Token::dummy("value"),
+                ty: None,
+            }],
+            body: Rc::new(Stmt::Expression(Expr::Literal(ArtValue::Bool(true)))),
+            closure: global_env.clone(),
+        }));
+        global_env.borrow_mut().define("println".to_string(), println_func);
+
         Interpreter {
-            environment: Rc::new(RefCell::new(Environment::new(None))),
+            environment: global_env,
             type_registry: TypeRegistry::new(),
         }
     }
@@ -25,7 +37,6 @@ impl Interpreter {
             match self.execute(statement) {
                 Ok(()) => {}
                 Err(RuntimeError::Return(_)) => {
-                    // In a script context, a return at the top level just stops execution.
                     break;
                 }
                 Err(e) => return Err(e),
@@ -45,9 +56,7 @@ impl Interpreter {
                 self.environment.borrow_mut().define(name.lexeme, value);
                 Ok(())
             }
-            Stmt::Block { statements } => {
-                self.execute_block(statements, Some(self.environment.clone()))
-            }
+            Stmt::Block { statements } => self.execute_block(statements, Some(self.environment.clone())),
             Stmt::If { condition, then_branch, else_branch } => {
                 let condition_value = self.evaluate(condition)?;
                 if self.is_truthy(&condition_value) {
@@ -68,29 +77,32 @@ impl Interpreter {
             }
             Stmt::Match { expr, cases } => {
                 let match_value = self.evaluate(expr)?;
-                let mut matched = false;
                 for (pattern, stmt) in cases {
                     if let Some(bindings) = self.pattern_matches(&pattern, &match_value) {
                         let previous_env = self.environment.clone();
-                        let new_env = Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
+                        let new_env =
+                            Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
                         self.environment = new_env;
                         for (name, value) in bindings {
                             self.environment.borrow_mut().define(name, value);
                         }
                         let result = self.execute(stmt);
                         self.environment = previous_env;
-                        matched = true;
                         return result;
                     }
                 }
-                if !matched {
-                    // In a real implementation, you might want a runtime error
-                    // if a match is not exhaustive. For now, we do nothing.
-                }
                 Ok(())
             }
-            Stmt::Function { name, params: _, return_type: _, body: _ } => {
-                self.environment.borrow_mut().define(name.lexeme, ArtValue::Bool(false));
+            Stmt::Function { name, params, body, .. } => {
+                let function = Function {
+                    name: Some(name.lexeme.clone()),
+                    params,
+                    body,
+                    closure: self.environment.clone(),
+                };
+                self.environment
+                    .borrow_mut()
+                    .define(name.lexeme, ArtValue::Function(Rc::new(function)));
                 Ok(())
             }
             Stmt::Return { value } => {
@@ -103,37 +115,50 @@ impl Interpreter {
         }
     }
 
-    fn pattern_matches(&self, pattern: &MatchPattern, value: &ArtValue) -> Option<Vec<(String, ArtValue)>> {
+    fn pattern_matches(
+        &self,
+        pattern: &MatchPattern,
+        value: &ArtValue,
+    ) -> Option<Vec<(String, ArtValue)>> {
         match (pattern, value) {
             (MatchPattern::Literal(lit), _) if lit == value => Some(vec![]),
             (MatchPattern::Wildcard, _) => Some(vec![]),
             (MatchPattern::Binding(name), _) => Some(vec![(name.lexeme.clone(), value.clone())]),
-            (MatchPattern::EnumVariant { variant, params }, ArtValue::EnumInstance { variant: v_name, values, .. }) if &variant.lexeme == v_name => {
-                match params {
-                    Some(param_patterns) => {
-                        if param_patterns.len() != values.len() {
+            (
+                MatchPattern::EnumVariant { variant, params },
+                ArtValue::EnumInstance { variant: v_name, values, .. },
+            ) if &variant.lexeme == v_name => match params {
+                Some(param_patterns) => {
+                    if param_patterns.len() != values.len() {
+                        return None;
+                    }
+                    let mut all_bindings = Vec::new();
+                    for (i, p) in param_patterns.iter().enumerate() {
+                        if let Some(bindings) = self.pattern_matches(p, &values[i]) {
+                            all_bindings.extend(bindings);
+                        } else {
                             return None;
                         }
-                        let mut all_bindings = Vec::new();
-                        for (i, p) in param_patterns.iter().enumerate() {
-                            if let Some(bindings) = self.pattern_matches(p, &values[i]) {
-                                all_bindings.extend(bindings);
-                            } else {
-                                return None;
-                            }
-                        }
-                        Some(all_bindings)
-                    },
-                    None => {
-                        if values.is_empty() { Some(vec![]) } else { None }
+                    }
+                    Some(all_bindings)
+                }
+                None => {
+                    if values.is_empty() {
+                        Some(vec![])
+                    } else {
+                        None
                     }
                 }
-            }
+            },
             _ => None,
         }
     }
 
-    fn execute_block(&mut self, statements: Vec<Stmt>, enclosing: Option<Rc<RefCell<Environment>>>) -> Result<()> {
+    fn execute_block(
+        &mut self,
+        statements: Vec<Stmt>,
+        enclosing: Option<Rc<RefCell<Environment>>>,
+    ) -> Result<()> {
         let previous = self.environment.clone();
         self.environment = Rc::new(RefCell::new(Environment::new(enclosing)));
 
@@ -154,27 +179,33 @@ impl Interpreter {
             Expr::Grouping { expression } => self.evaluate(*expression),
             Expr::Variable { name } => {
                 let name_str = name.lexeme.clone();
-                self.environment.borrow().get(&name_str)
+                self.environment
+                    .borrow()
+                    .get(&name_str)
                     .ok_or(RuntimeError::UndefinedVariable(name_str))
             }
             Expr::Unary { operator, right } => {
                 let right_val = self.evaluate(*right)?;
                 match operator.token_type {
-                    TokenType::Minus => match right_val {
+                    core::TokenType::Minus => match right_val {
                         ArtValue::Int(n) => Ok(ArtValue::Int(-n)),
                         ArtValue::Float(f) => Ok(ArtValue::Float(-f)),
                         _ => Err(RuntimeError::TypeMismatch),
                     },
-                    TokenType::Bang => Ok(ArtValue::Bool(!self.is_truthy(&right_val))),
+                    core::TokenType::Bang => Ok(ArtValue::Bool(!self.is_truthy(&right_val))),
                     _ => Err(RuntimeError::InvalidOperator),
                 }
             }
             Expr::Logical { left, operator, right } => {
                 let left_val = self.evaluate(*left)?;
-                if operator.token_type == TokenType::Or {
-                    if self.is_truthy(&left_val) { return Ok(left_val); }
+                if operator.token_type == core::TokenType::Or {
+                    if self.is_truthy(&left_val) {
+                        return Ok(left_val);
+                    }
                 } else {
-                    if !self.is_truthy(&left_val) { return Ok(left_val); }
+                    if !self.is_truthy(&left_val) {
+                        return Ok(left_val);
+                    }
                 }
                 self.evaluate(*right)
             }
@@ -182,33 +213,37 @@ impl Interpreter {
                 let left_val = self.evaluate(*left)?;
                 let right_val = self.evaluate(*right)?;
                 match operator.token_type {
-                    TokenType::Plus => match (&left_val, &right_val) {
+                    core::TokenType::Plus => match (&left_val, &right_val) {
                         (ArtValue::Int(l), ArtValue::Int(r)) => Ok(ArtValue::Int(l + r)),
                         (ArtValue::Float(l), ArtValue::Float(r)) => Ok(ArtValue::Float(l + r)),
-                        (ArtValue::String(l), ArtValue::String(r)) => Ok(ArtValue::String(format!("{}{}", l, r))),
+                        (ArtValue::String(l), ArtValue::String(r)) => {
+                            Ok(ArtValue::String(format!("{}{}", l, r)))
+                        }
                         (ArtValue::Int(l), ArtValue::Float(r)) => Ok(ArtValue::Float(*l as f64 + r)),
                         (ArtValue::Float(l), ArtValue::Int(r)) => Ok(ArtValue::Float(l + *r as f64)),
                         _ => Err(RuntimeError::TypeMismatch),
                     },
-                    TokenType::Minus => self.binary_num_op(left_val, right_val, |a, b| a - b),
-                    TokenType::Star => self.binary_num_op(left_val, right_val, |a, b| a * b),
-                    TokenType::Slash => match (&left_val, &right_val) {
+                    core::TokenType::Minus => self.binary_num_op(left_val, right_val, |a, b| a - b),
+                    core::TokenType::Star => self.binary_num_op(left_val, right_val, |a, b| a * b),
+                    core::TokenType::Slash => match (&left_val, &right_val) {
                         (_, ArtValue::Int(0)) => Err(RuntimeError::DivisionByZero),
                         (_, ArtValue::Float(f)) if *f == 0.0 => Err(RuntimeError::DivisionByZero),
                         _ => self.binary_num_op(left_val, right_val, |a, b| a / b),
                     },
-                    TokenType::Greater => self.binary_cmp_op(left_val, right_val, |a, b| a > b),
-                    TokenType::GreaterEqual => self.binary_cmp_op(left_val, right_val, |a, b| a >= b),
-                    TokenType::Less => self.binary_cmp_op(left_val, right_val, |a, b| a < b),
-                    TokenType::LessEqual => self.binary_cmp_op(left_val, right_val, |a, b| a <= b),
-                    TokenType::BangEqual => Ok(ArtValue::Bool(!self.is_equal(&left_val, &right_val))),
-                    TokenType::EqualEqual => Ok(ArtValue::Bool(self.is_equal(&left_val, &right_val))),
+                    core::TokenType::Greater => self.binary_cmp_op(left_val, right_val, |a, b| a > b),
+                    core::TokenType::GreaterEqual => self.binary_cmp_op(left_val, right_val, |a, b| a >= b),
+                    core::TokenType::Less => self.binary_cmp_op(left_val, right_val, |a, b| a < b),
+                    core::TokenType::LessEqual => self.binary_cmp_op(left_val, right_val, |a, b| a <= b),
+                    core::TokenType::BangEqual => Ok(ArtValue::Bool(!self.is_equal(&left_val, &right_val))),
+                    core::TokenType::EqualEqual => Ok(ArtValue::Bool(self.is_equal(&left_val, &right_val))),
                     _ => Err(RuntimeError::InvalidOperator),
                 }
             }
             Expr::Call { callee, arguments } => self.handle_call(*callee, arguments),
             Expr::StructInit { name, fields } => {
-                let struct_def = self.type_registry.get_struct(&name.lexeme)
+                let struct_def = self
+                    .type_registry
+                    .get_struct(&name.lexeme)
                     .ok_or_else(|| RuntimeError::Other(format!("Undefined struct '{}'.", name.lexeme)))?
                     .clone();
                 let mut field_values = HashMap::new();
@@ -229,12 +264,20 @@ impl Interpreter {
             Expr::EnumInit { name, variant, values } => {
                 let enum_name = match name {
                     Some(n) => n.lexeme,
-                    None => return Err(RuntimeError::Other("Cannot infer enum type for shorthand initialization.".to_string())),
+                    None => {
+                        return Err(RuntimeError::Other(
+                            "Cannot infer enum type for shorthand initialization.".to_string(),
+                        ))
+                    }
                 };
-                let enum_def = self.type_registry.get_enum(&enum_name)
+                let enum_def = self
+                    .type_registry
+                    .get_enum(&enum_name)
                     .ok_or_else(|| RuntimeError::Other(format!("Undefined enum '{}'.", enum_name)))?
                     .clone();
-                let variant_def = enum_def.variants.iter()
+                let variant_def = enum_def
+                    .variants
+                    .iter()
                     .find(|(v_name, _)| v_name == &variant.lexeme)
                     .ok_or_else(|| RuntimeError::InvalidEnumVariant(variant.lexeme.clone()))?;
                 let mut evaluated_values = Vec::new();
@@ -262,39 +305,41 @@ impl Interpreter {
             Expr::FieldAccess { object, field } => {
                 let obj_value = self.evaluate(*object)?;
                 match obj_value {
-                    ArtValue::Array(arr) => {
-                        match field.lexeme.as_str() {
-                            "sum" => {
-                                let mut sum = 0;
-                                for val in arr.iter() {
-                                    if let ArtValue::Int(n) = val {
-                                        sum += n;
-                                    } else {
-                                        return Err(RuntimeError::TypeMismatch);
-                                    }
+                    ArtValue::Array(arr) => match field.lexeme.as_str() {
+                        "sum" => {
+                            let mut sum = 0;
+                            for val in arr.iter() {
+                                if let ArtValue::Int(n) = val {
+                                    sum += n;
+                                } else {
+                                    return Err(RuntimeError::TypeMismatch);
                                 }
-                                Ok(ArtValue::Int(sum))
                             }
-                            "count" => Ok(ArtValue::Int(arr.len() as i64)),
-                            _ => Err(RuntimeError::TypeMismatch),
+                            Ok(ArtValue::Int(sum))
                         }
-                    }
-                    ArtValue::StructInstance { fields, .. } => {
-                        fields.get(&field.lexeme)
-                            .cloned()
-                            .ok_or_else(|| RuntimeError::MissingField(field.lexeme.clone()))
-                    }
+                        "count" => Ok(ArtValue::Int(arr.len() as i64)),
+                        _ => Err(RuntimeError::TypeMismatch),
+                    },
+                    ArtValue::StructInstance { fields, .. } => fields
+                        .get(&field.lexeme)
+                        .cloned()
+                        .ok_or_else(|| RuntimeError::MissingField(field.lexeme.clone())),
                     _ => Err(RuntimeError::TypeMismatch),
                 }
             }
             Expr::Try(inner) => {
-                match self.evaluate(*inner) {
-                    Ok(ArtValue::EnumInstance { enum_name, variant, mut values }) if enum_name == "Result" && variant == "Err" => {
-                        Err(RuntimeError::Return(values.pop().unwrap_or(ArtValue::Optional(Box::new(None)))))
+                let result_val = self.evaluate(*inner)?;
+                match result_val {
+                    ArtValue::EnumInstance { enum_name, variant, mut values } if enum_name == "Result" => {
+                        if variant == "Ok" {
+                            Ok(values.pop().unwrap_or(ArtValue::Optional(Box::new(None))))
+                        } else {
+                            Err(RuntimeError::Return(values.pop().unwrap_or(ArtValue::Optional(Box::new(None)))))
+                        }
                     },
-                    other => other,
+                    other => Ok(other)
                 }
-            }
+            },
             Expr::Cast { object, .. } => self.evaluate(*object),
             Expr::Array(elements) => {
                 let mut evaluated_elements = Vec::new();
@@ -308,28 +353,65 @@ impl Interpreter {
 
     fn handle_call(&mut self, callee: Expr, arguments: Vec<Expr>) -> Result<ArtValue> {
         let callee_val = self.evaluate(callee)?;
-        let mut args = Vec::new();
-        for arg in arguments {
-            args.push(self.evaluate(arg)?);
-        }
 
         match callee_val {
-            ArtValue::String(s) if s == "println" => {
-                if !args.is_empty() {
-                    println!("{}", args[0]);
-                } else {
-                    println!();
+            ArtValue::Function(func) => {
+                if func.name.as_deref() == Some("println") {
+                    let mut args = Vec::new();
+                    for arg in arguments {
+                        args.push(self.evaluate(arg)?);
+                    }
+                    if !args.is_empty() {
+                        println!("{}", args[0]);
+                    } else {
+                        println!();
+                    }
+                    return Ok(ArtValue::Optional(Box::new(None)));
                 }
-                Ok(ArtValue::Optional(Box::new(None)))
+
+                if func.params.len() != arguments.len() {
+                    return Err(RuntimeError::WrongNumberOfArguments);
+                }
+
+                let previous_env = self.environment.clone();
+                self.environment =
+                    Rc::new(RefCell::new(Environment::new(Some(func.closure.clone()))));
+
+                for (i, param) in func.params.iter().enumerate() {
+                    let arg_val = self.evaluate(arguments[i].clone())?;
+                    self.environment
+                        .borrow_mut()
+                        .define(param.name.lexeme.clone(), arg_val);
+                }
+
+                let result = self.execute(Rc::as_ref(&func.body).clone());
+                self.environment = previous_env;
+
+                match result {
+                    Ok(()) => Ok(ArtValue::Optional(Box::new(None))),
+                    Err(RuntimeError::Return(val)) => Ok(val),
+                    Err(e) => Err(e),
+                }
             }
-            ArtValue::EnumInstance { enum_name, variant, values } if values.is_empty() => {
+            ArtValue::EnumInstance {
+                enum_name,
+                variant,
+                values,
+            } if values.is_empty() => {
+                let mut evaluated_args = Vec::new();
+                for arg in arguments {
+                    evaluated_args.push(self.evaluate(arg)?);
+                }
                 Ok(ArtValue::EnumInstance {
                     enum_name,
                     variant,
-                    values: args,
+                    values: evaluated_args,
                 })
             }
-            _ => Err(RuntimeError::Other(format!("'{}' is not a function.", callee_val))),
+            _ => Err(RuntimeError::Other(format!(
+                "'{}' is not a function.",
+                callee_val
+            ))),
         }
     }
 
@@ -350,9 +432,13 @@ impl Interpreter {
     }
 
     fn binary_num_op<F>(&self, left: ArtValue, right: ArtValue, op: F) -> Result<ArtValue>
-    where F: Fn(f64, f64) -> f64, {
+    where
+        F: Fn(f64, f64) -> f64,
+    {
         match (left, right) {
-            (ArtValue::Int(l), ArtValue::Int(r)) => Ok(ArtValue::Int(op(l as f64, r as f64) as i64)),
+            (ArtValue::Int(l), ArtValue::Int(r)) => {
+                Ok(ArtValue::Int(op(l as f64, r as f64) as i64))
+            }
             (ArtValue::Float(l), ArtValue::Float(r)) => Ok(ArtValue::Float(op(l, r))),
             (ArtValue::Int(l), ArtValue::Float(r)) => Ok(ArtValue::Float(op(l as f64, r))),
             (ArtValue::Float(l), ArtValue::Int(r)) => Ok(ArtValue::Float(op(l, r as f64))),
@@ -361,7 +447,9 @@ impl Interpreter {
     }
 
     fn binary_cmp_op<F>(&self, left: ArtValue, right: ArtValue, op: F) -> Result<ArtValue>
-    where F: Fn(f64, f64) -> bool, {
+    where
+        F: Fn(f64, f64) -> bool,
+    {
         match (left, right) {
             (ArtValue::Int(l), ArtValue::Int(r)) => Ok(ArtValue::Bool(op(l as f64, r as f64))),
             (ArtValue::Float(l), ArtValue::Float(r)) => Ok(ArtValue::Bool(op(l, r))),

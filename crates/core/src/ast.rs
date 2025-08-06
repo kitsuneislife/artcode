@@ -1,5 +1,8 @@
+use crate::environment::Environment;
 use crate::Token;
+use std::cell::RefCell;
 use std::fmt;
+use std::rc::Rc;
 
 pub type Program = Vec<Stmt>;
 
@@ -35,7 +38,7 @@ pub enum Stmt {
         name: Token,
         params: Vec<FunctionParam>,
         return_type: Option<String>,
-        body: Box<Stmt>,
+        body: Rc<Stmt>,
     },
     Return {
         value: Option<Expr>,
@@ -96,6 +99,27 @@ pub enum Expr {
     },
 }
 
+#[derive(Clone)]
+pub struct Function {
+    pub name: Option<String>,
+    pub params: Vec<FunctionParam>,
+    pub body: Rc<Stmt>,
+    pub closure: Rc<RefCell<Environment>>,
+}
+
+impl fmt::Debug for Function {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = self.name.as_deref().unwrap_or("<anonymous>");
+        write!(f, "<fn {}>", name)
+    }
+}
+
+impl PartialEq for Function {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.body, &other.body)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArtValue {
     Int(i64),
@@ -113,6 +137,7 @@ pub enum ArtValue {
         variant: String,
         values: Vec<ArtValue>,
     },
+    Function(Rc<Function>),
 }
 
 impl fmt::Display for ArtValue {
@@ -131,10 +156,8 @@ impl fmt::Display for ArtValue {
                 write!(f, "[{}]", elems.join(", "))
             }
             ArtValue::StructInstance { struct_name, fields } => {
-                let field_strs: Vec<String> = fields
-                    .iter()
-                    .map(|(k, v)| format!("{}: {}", k, v))
-                    .collect();
+                let field_strs: Vec<String> =
+                    fields.iter().map(|(k, v)| format!("{}: {}", k, v)).collect();
                 write!(f, "{} {{ {} }}", struct_name, field_strs.join(", "))
             }
             ArtValue::EnumInstance { enum_name, variant, values } => {
@@ -145,10 +168,13 @@ impl fmt::Display for ArtValue {
                     write!(f, "{}.{}({})", enum_name, variant, value_strs.join(", "))
                 }
             }
+            ArtValue::Function(func) => {
+                let name = func.name.as_deref().unwrap_or("<anonymous>");
+                write!(f, "<fn {}>", name)
+            }
         }
     }
 }
-
 
 impl From<bool> for ArtValue {
     fn from(b: bool) -> Self {
