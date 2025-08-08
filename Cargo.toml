@@ -8,6 +8,7 @@ members = [
     "crates/lexer",
     "crates/parser",
     "crates/interpreter",
+    "crates/diagnostics",
     "cli",
 ]
 

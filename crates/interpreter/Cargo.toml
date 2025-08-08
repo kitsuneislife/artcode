@@ -7,3 +7,15 @@ edition = "2024"
 core = { path = "../core" }
 parser = { path = "../parser" }
 lexer = { path = "../lexer" }
+diagnostics = { path = "../diagnostics" }
+
+[dev-dependencies]
+criterion = { version = "0.5", features=["html_reports"] }
+
+[[bench]]
+name = "perf"
+harness = false
+
+[[bench]]
+name = "front"
+harness = false

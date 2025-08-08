@@ -28,7 +28,7 @@ Regras:
 - Expressões completas são lexers/parsers recursivamente.
 - Suporte a chaves aninhadas `{ {a + {b}} }`.
 - Escapes: `{{` produz `{`, `}}` produz `}`.
-- Erros: chaves não balanceadas disparam panic (futuro: melhorar para erro recuperável).
+- Erros agora geram diagnostics estruturados (sem panics) com spans e mensagem.
 
 ## Testes
 
@@ -44,8 +44,10 @@ Execute:
 cargo test
 ```
 
-## Próximos Passos
-- Melhorar sistema de erros para interpolação (diagnósticos com posição)
-- Introduzir generics reais para enums/structs em vez de placeholders de string
-- Suporte a métodos definidos pelo usuário (sintaxe de impl)
-- Otimizações: reduzir clonagens de tokens/valores
+## Arquitetura & Próximos Passos
+Ver diretório `docs/` para detalhes (overview, parser_lexer, interpreter). Focos imediatos:
+- Sistema de tipos incremental (inferência básica, enum/struct metadata)
+- Performance fundacional (intern pool, redução de clones)
+- Builtins estruturados (remoção de caso especial de println)
+- Cobertura & tooling (script unificado, cobertura mínima)
+

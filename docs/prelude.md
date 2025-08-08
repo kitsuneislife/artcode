@@ -6,6 +6,27 @@ O prelude inicializa o ambiente global com construções padrão necessárias pa
 - `Result { Ok(T), Err(E) }`
 - Função builtin `println(value)`
 
+## Builtins
+Builtins são valores especiais representados internamente por `ArtValue::Builtin` e enumerados em `BuiltinFn`.
+
+### `println`
+Assinatura atual (provisória): `println(value: Any) -> None`
+
+Características:
+- Não variádica (apenas primeiro argumento é impresso; extras ignorados em versão futura ou gerarão diagnóstico quando suporte a aridade for estrito).
+- Conversão via `Display` de cada tipo runtime.
+- Retorna `None` (representado como `Optional(None)`).
+
+Racional: manter custo de chamada mínimo sem criar `Function` sintética e sem checagens especiais no interpretador (despacho direto em `call_builtin`).
+
+Próximos passos planejados para builtins:
+| Item | Objetivo | Observação |
+|------|----------|------------|
+| Variádico controlado | `println(a, b, ...)` | Implementar coleta incremental evitando vetor intermediário grande |
+| `len` | Tamanho de array/string | Diagnóstico para tipos não suportados |
+| `type_of` | Inspeção de tipo | Suporte a debugging e REPL |
+| Registry modular | Opt-in | Permitir runtime mínimo para scripts embed |
+
 ## Enum Result
 Registrado via `Interpreter::with_prelude()`.
 

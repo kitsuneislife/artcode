@@ -32,14 +32,23 @@ pub fn statement(parser: &mut Parser) -> Stmt {
                         parser.match_token(TokenType::Comma);
                     }
                 } else {
-                    panic!("Expect field name, got {:?}", parser.peek().token_type);
+                    let p = parser.peek();
+                    parser.diagnostics.push(diagnostics::Diagnostic::new(
+                        diagnostics::DiagnosticKind::Parse,
+                        format!("Expected field name, got {:?}", p.token_type),
+                        diagnostics::Span::new(p.start, p.end, p.line, p.col)));
+                    break;
                 }
             }
             parser.consume(TokenType::RightBrace, "Expect '}' after struct fields.");
             let struct_init_expr = Expr::StructInit { name, fields };
             return Stmt::Expression(struct_init_expr);
         } else {
-            panic!("Invalid expression before '{{' for struct initialization.");
+            let p = parser.peek();
+            parser.diagnostics.push(diagnostics::Diagnostic::new(
+                diagnostics::DiagnosticKind::Parse,
+                "Invalid expression before '{' for struct initialization.".to_string(),
+                diagnostics::Span::new(p.start, p.end, p.line, p.col)));
         }
     }
 
@@ -136,17 +145,29 @@ pub fn parse_pattern(parser: &mut Parser) -> MatchPattern {
                     MatchPattern::Literal(ArtValue::Float(n))
                 }
             },
-            TokenType::String(s) => MatchPattern::Literal(ArtValue::String(s)),
+            TokenType::String(s) => MatchPattern::Literal(ArtValue::String(std::sync::Arc::from(s))),
             TokenType::True => MatchPattern::Literal(ArtValue::Bool(true)),
             TokenType::False => MatchPattern::Literal(ArtValue::Bool(false)),
-            TokenType::None => MatchPattern::Literal(ArtValue::Optional(Box::new(None))),
-            _ => panic!("Unexpected token in pattern"),
+            TokenType::None => MatchPattern::Literal(ArtValue::none()),
+            _ => {
+                let p = parser.peek();
+                parser.diagnostics.push(diagnostics::Diagnostic::new(
+                    diagnostics::DiagnosticKind::Parse,
+                    "Unexpected token in pattern".to_string(),
+                    diagnostics::Span::new(p.start, p.end, p.line, p.col)));
+                MatchPattern::Wildcard
+            },
         }
     } else if parser.check(&TokenType::Identifier) {
         let name = parser.consume(TokenType::Identifier, "Expect pattern.");
         MatchPattern::Variable(name)
     } else {
-        panic!("Expected pattern after 'case'");
+        let p = parser.peek();
+        parser.diagnostics.push(diagnostics::Diagnostic::new(
+            diagnostics::DiagnosticKind::Parse,
+            "Expected pattern after 'case'".to_string(),
+            diagnostics::Span::new(p.start, p.end, p.line, p.col)));
+        MatchPattern::Wildcard
     }
 }
 

@@ -2,6 +2,7 @@ use crate::environment::Environment;
 use crate::Token;
 use std::cell::RefCell;
 use std::fmt;
+use std::sync::Arc;
 use std::rc::Rc;
 
 pub type Program = Vec<Stmt>;
@@ -132,7 +133,7 @@ impl PartialEq for Function {
 pub enum ArtValue {
     Int(i64),
     Float(f64),
-    String(String),
+    String(Arc<str>),
     Bool(bool),
     Optional(Box<Option<ArtValue>>),
     Array(Vec<ArtValue>),
@@ -146,7 +147,17 @@ pub enum ArtValue {
         values: Vec<ArtValue>,
     },
     Function(Rc<Function>),
+    Builtin(BuiltinFn),
 }
+
+#[derive(Clone)]
+pub enum BuiltinFn {
+    Println,
+}
+
+impl fmt::Debug for BuiltinFn { fn fmt(&self, f:&mut fmt::Formatter<'_>)->fmt::Result { match self { BuiltinFn::Println => write!(f, "<builtin println>") } } }
+
+impl PartialEq for BuiltinFn { fn eq(&self, other:&Self)->bool { matches!((self,other),(BuiltinFn::Println,BuiltinFn::Println)) } }
 
 impl fmt::Display for ArtValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -180,6 +191,7 @@ impl fmt::Display for ArtValue {
                 let name = func.name.as_deref().unwrap_or("<anonymous>");
                 write!(f, "<fn {}>", name)
             }
+            ArtValue::Builtin(b) => match b { BuiltinFn::Println => write!(f, "<builtin println>") },
         }
     }
 }
@@ -200,6 +212,11 @@ impl From<i64> for ArtValue {
     fn from(n: i64) -> Self {
         ArtValue::Int(n)
     }
+}
+
+impl ArtValue {
+    #[inline]
+    pub fn none() -> ArtValue { ArtValue::Optional(Box::new(None)) }
 }
 
 #[derive(Debug, Clone)]

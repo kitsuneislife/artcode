@@ -1,5 +1,5 @@
 use core::{Token, TokenType};
-use std::collections::HashMap;
+use diagnostics::{Diagnostic, DiagnosticKind, Span, DiagResult};
 
 pub struct Lexer {
     source: Vec<char>,
@@ -7,50 +7,31 @@ pub struct Lexer {
     start: usize,
     current: usize,
     line: usize,
-    keywords: HashMap<String, TokenType>,
+    line_start: usize,
 }
 
 impl Lexer {
     pub fn new(source: String) -> Self {
-        let mut keywords = HashMap::new();
-        keywords.insert("let".to_string(), TokenType::Let);
-        keywords.insert("if".to_string(), TokenType::If);
-        keywords.insert("else".to_string(), TokenType::Else);
-        keywords.insert("true".to_string(), TokenType::True);
-        keywords.insert("false".to_string(), TokenType::False);
-        keywords.insert("struct".to_string(), TokenType::Struct);
-        keywords.insert("enum".to_string(), TokenType::Enum);
-        keywords.insert("and".to_string(), TokenType::And);
-        keywords.insert("or".to_string(), TokenType::Or);
-        keywords.insert("match".to_string(), TokenType::Match);
-        keywords.insert("case".to_string(), TokenType::Case);
-        keywords.insert("func".to_string(), TokenType::Func);
-        keywords.insert("return".to_string(), TokenType::Return);
-        keywords.insert("none".to_string(), TokenType::None);
-        keywords.insert("as".to_string(), TokenType::As);
-
         Lexer {
             source: source.chars().collect(),
             tokens: Vec::new(),
             start: 0,
             current: 0,
             line: 1,
-            keywords,
+            line_start: 0,
         }
     }
-
-    pub fn scan_tokens(&mut self) -> Vec<Token> {
+    pub fn scan_tokens(&mut self) -> DiagResult<Vec<Token>> {
         while !self.is_at_end() {
             self.start = self.current;
-            self.scan_token();
+            self.scan_token()?;
         }
-        self.tokens
-            .push(Token::new(TokenType::Eof, "".to_string(), self.line));
-        self.tokens.clone()
+        self.tokens.push(self.make_token(TokenType::Eof));
+        Ok(self.tokens.clone())
     }
 
-    fn scan_token(&mut self) {
-        let c = self.advance();
+    fn scan_token(&mut self) -> DiagResult<()> {
+    let c = self.advance();
         match c {
             '(' => self.add_token(TokenType::LeftParen),
             ')' => self.add_token(TokenType::RightParen),
@@ -115,58 +96,57 @@ impl Lexer {
                 }
             }
             ' ' | '\r' | '\t' => (),
-            '\n' => self.line += 1,
-            '"' => self.string(),
+        '\n' => { self.line += 1; self.line_start = self.current; },
+        '"' => self.string()?,
             'f' => { // <<< LÓGICA PARA 'f'
                 if self.peek() == '"' {
                     self.advance(); // Consome o "
-                    self.interpolated_string();
+            self.interpolated_string()?;
                 } else {
                     self.identifier();
                 }
             }
             c if c.is_ascii_digit() => self.number(),
             c if c.is_alphabetic() || c == '_' => self.identifier(),
-            _ => {
-                panic!("[line {}] Error: Unexpected character.", self.line);
-            }
-        }
+        _ => return Err(self.error_current("Unexpected character")),
+    }
+    Ok(())
     }
 
-    fn interpolated_string(&mut self) {
-        while self.peek() != '"' && !self.is_at_end() {
+    fn interpolated_string(&mut self) -> DiagResult<()> {
+    while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
                 self.line += 1;
+        self.line_start = self.current + 1;
             }
             self.advance();
         }
 
-        if self.is_at_end() {
-            panic!("[line {}] Error: Unterminated string.", self.line);
-        }
+    if self.is_at_end() { return Err(self.error_current("Unterminated string")); }
 
         self.advance(); // The closing ".
 
-        let value: String = self.source[self.start + 2..self.current - 1].iter().collect();
+    let value: String = self.source[self.start + 2..self.current - 1].iter().collect();
         self.add_token(TokenType::InterpolatedString(value));
+    Ok(())
     }
 
-    fn string(&mut self) {
-        while self.peek() != '"' && !self.is_at_end() {
+    fn string(&mut self) -> DiagResult<()> {
+    while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
                 self.line += 1;
+        self.line_start = self.current + 1;
             }
             self.advance();
         }
 
-        if self.is_at_end() {
-            panic!("[line {}] Error: Unterminated string.", self.line);
-        }
+    if self.is_at_end() { return Err(self.error_current("Unterminated string")); }
 
         self.advance();
 
-        let value: String = self.source[self.start + 1..self.current - 1].iter().collect();
+    let value: String = self.source[self.start + 1..self.current - 1].iter().collect();
         self.add_token(TokenType::String(value));
+    Ok(())
     }
 
     fn number(&mut self) {
@@ -181,8 +161,8 @@ impl Lexer {
             }
         }
 
-        let value: String = self.source[self.start..self.current].iter().collect();
-        let num: f64 = value.parse().unwrap();
+    let value: String = self.source[self.start..self.current].iter().collect();
+    let num: f64 = value.parse().unwrap();
         self.add_token(TokenType::Number(num));
     }
 
@@ -190,18 +170,39 @@ impl Lexer {
         while self.peek().is_alphanumeric() || self.peek() == '_' {
             self.advance();
         }
-        let text: String = self.source[self.start..self.current].iter().collect();
-        let token_type = self.keywords.get(&text).cloned().unwrap_or(TokenType::Identifier);
-        self.add_token(token_type);
+    let text: String = self.source[self.start..self.current].iter().collect();
+    let token_type = match text.as_str() {
+            "let" => TokenType::Let,
+            "if" => TokenType::If,
+            "else" => TokenType::Else,
+            "true" => TokenType::True,
+            "false" => TokenType::False,
+            "struct" => TokenType::Struct,
+            "enum" => TokenType::Enum,
+            "and" => TokenType::And,
+            "or" => TokenType::Or,
+            "match" => TokenType::Match,
+            "case" => TokenType::Case,
+            "func" => TokenType::Func,
+            "return" => TokenType::Return,
+            "none" => TokenType::None,
+            "as" => TokenType::As,
+            _ => TokenType::Identifier,
+        };
+    self.add_token(token_type);
     }
 
-    fn add_token(&mut self, token_type: TokenType) {
-        let text: String = self.source[self.start..self.current].iter().collect();
-        self.tokens.push(Token::new(token_type, text, self.line));
+    fn add_token(&mut self, token_type: TokenType) { self.tokens.push(self.make_token(token_type)); }
+
+    fn make_token(&self, token_type: TokenType) -> Token {
+    let text: String = self.source[self.start..self.current].iter().collect();
+        let col = self.start - self.line_start + 1; // 1-based
+        // Token::new já internará se aplicável.
+        Token::new(token_type, text, self.line, col, self.start, self.current)
     }
 
     fn match_char(&mut self, expected: char) -> bool {
-        if self.is_at_end() || self.source[self.current] != expected {
+    if self.is_at_end() || self.source[self.current] != expected {
             false
         } else {
             self.current += 1;
@@ -210,19 +211,11 @@ impl Lexer {
     }
 
     fn peek(&self) -> char {
-        if self.is_at_end() {
-            '\0'
-        } else {
-            self.source[self.current]
-        }
+    if self.is_at_end() { '\0' } else { self.source[self.current] }
     }
 
     fn peek_next(&self) -> char {
-        if self.current + 1 >= self.source.len() {
-            '\0'
-        } else {
-            self.source[self.current + 1]
-        }
+    if self.current + 1 >= self.source.len() { '\0' } else { self.source[self.current + 1] }
     }
 
     fn is_at_end(&self) -> bool {
@@ -230,8 +223,17 @@ impl Lexer {
     }
 
     fn advance(&mut self) -> char {
-        let c = self.source[self.current];
+    let c = self.source[self.current];
         self.current += 1;
         c
+    }
+
+    fn error_current(&self, msg: &str) -> Diagnostic {
+        let col = self.current - self.line_start + 1;
+        Diagnostic::new(
+            DiagnosticKind::Lex,
+            msg,
+            Span::new(self.current, self.current + 1, self.line, col),
+        )
     }
 }

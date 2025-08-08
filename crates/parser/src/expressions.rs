@@ -28,11 +28,11 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
             };
             Expr::Literal(art_val)
         }
-        TokenType::String(s) => Expr::Literal(core::ast::ArtValue::String(s)),
+    TokenType::String(s) => Expr::Literal(core::ast::ArtValue::String(std::sync::Arc::from(s))),
     TokenType::InterpolatedString(s) => parser.parse_interpolated_string(s),
         TokenType::True => Expr::Literal(core::ast::ArtValue::Bool(true)),
         TokenType::False => Expr::Literal(core::ast::ArtValue::Bool(false)),
-        TokenType::None => Expr::Literal(core::ast::ArtValue::Optional(Box::new(None))),
+    TokenType::None => Expr::Literal(core::ast::ArtValue::none()),
         TokenType::LeftBracket => {
             let mut elements = Vec::new();
             if !parser.check(&TokenType::RightBracket) {
@@ -82,7 +82,13 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
                 }
             }
         }
-        _ => panic!("Unexpected token for prefix expression: {:?}", token),
+        _ => {
+            parser.diagnostics.push(diagnostics::Diagnostic::new(
+                diagnostics::DiagnosticKind::Parse,
+                format!("Unexpected token in expression: {:?}", token.token_type),
+                diagnostics::Span::new(token.start, token.end, token.line, token.col)));
+            Expr::Literal(core::ast::ArtValue::none())
+        },
     }
 }
 
@@ -91,8 +97,27 @@ pub fn parse_infix(parser: &mut Parser, left: Expr, operator: Token) -> Expr {
     match operator.token_type {
         TokenType::LeftParen => finish_call(parser, left),
         TokenType::Dot => {
-            let field_name = parser.consume(TokenType::Identifier, "Expect field name after '.'");
-            Expr::FieldAccess { object: Box::new(left), field: field_name }
+            let ident = parser.consume(TokenType::Identifier, "Expect identifier after '.'");
+            // Se left é Variable e próximo é '(' trata como EnumInit nomeado
+            if let Expr::Variable { name: enum_name_tok } = left.clone() {
+                let is_type_like = enum_name_tok.lexeme.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
+                if is_type_like && parser.check(&TokenType::LeftParen) {
+                    parser.advance(); // consume '('
+                    let mut values = Vec::new();
+                    if !parser.check(&TokenType::RightParen) {
+                        loop {
+                            values.push(expression(parser));
+                            if !parser.match_token(TokenType::Comma) { break; }
+                        }
+                    }
+                    parser.consume(TokenType::RightParen, "Expect ')' after enum variant values.");
+                    return Expr::EnumInit { name: Some(enum_name_tok), variant: ident, values };
+                } else {
+                    // Sem parênteses: tratar como acesso de campo
+                    return Expr::FieldAccess { object: Box::new(left), field: ident };
+                }
+            }
+            Expr::FieldAccess { object: Box::new(left), field: ident }
         }
         TokenType::Question => Expr::Try(Box::new(left)),
         TokenType::As => {

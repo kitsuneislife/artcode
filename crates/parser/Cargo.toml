@@ -7,3 +7,4 @@ edition = "2024"
 [dependencies]
 core = { path = "../core" }
 lexer = { path = "../lexer" }
+diagnostics = { path = "../diagnostics" }
