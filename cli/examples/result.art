@@ -9,12 +9,18 @@ func dividir(a: Int, b: Int) -> Result<Int, ErroDeDivisao> {
 
 func calcular_media(valores: [Int]) -> Result<Int, ErroDeDivisao> {
     let soma = valores.sum()
-    let media = dividir(soma, valores.count)?
-    return .Ok(media)
+    let resultado = dividir(soma, valores.count)
+    match resultado {
+        case .Ok(let media):
+            return .Ok(media)
+        case .Err(let erro):
+            return .Err(erro)
+    }
 }
 
 let nums = [10, 20, 30, 40, 50]
 let resultado = calcular_media(nums)
+
 
 match resultado {
     case .Ok(let valor):
@@ -25,6 +31,7 @@ match resultado {
 
 let nums_vazios: [Int] = []
 let resultado_vazio = calcular_media(nums_vazios)
+
 
 match resultado_vazio {
     case .Ok(let valor):

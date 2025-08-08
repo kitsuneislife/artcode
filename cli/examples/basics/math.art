@@ -1,0 +1,5 @@
+println("Testing math!");
+println(10 + 2 * 3);
+println((10 + 2) * 3);
+println(10 / 4);
+println(5 - 2 * 3);

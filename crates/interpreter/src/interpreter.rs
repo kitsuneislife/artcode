@@ -1,4 +1,4 @@
-use core::ast::{Expr, ArtValue, Program, Stmt, MatchPattern, Function, FunctionParam};
+use core::ast::{Expr, ArtValue, Program, Stmt, MatchPattern, Function, FunctionParam, InterpolatedPart};
 use core::environment::Environment;
 use crate::type_registry::TypeRegistry;
 use crate::values::{Result, RuntimeError};
@@ -32,6 +32,19 @@ impl Interpreter {
         }
     }
 
+    pub fn with_prelude() -> Self {
+        let mut interp = Self::new();
+        // Registrar enum Result simples (não genérica) com Ok, Err aceitando 1 valor
+    use core::Token;
+        let name = Token::dummy("Result");
+        let variants = vec![
+            (Token::dummy("Ok"), Some(vec!["T".to_string()])),
+            (Token::dummy("Err"), Some(vec!["E".to_string()])),
+        ];
+        interp.type_registry.register_enum(name, variants);
+        interp
+    }
+
     pub fn interpret(&mut self, program: Program) -> Result<()> {
         for statement in program {
             match self.execute(statement) {
@@ -53,7 +66,7 @@ impl Interpreter {
             }
             Stmt::Let { name, ty: _, initializer } => {
                 let value = self.evaluate(initializer)?;
-                self.environment.borrow_mut().define(name.lexeme, value);
+                self.environment.borrow_mut().define(name.lexeme.clone(), value);
                 Ok(())
             }
             Stmt::Block { statements } => self.execute_block(statements, Some(self.environment.clone())),
@@ -123,7 +136,20 @@ impl Interpreter {
         match (pattern, value) {
             (MatchPattern::Literal(lit), _) if lit == value => Some(vec![]),
             (MatchPattern::Wildcard, _) => Some(vec![]),
-            (MatchPattern::Binding(name), _) => Some(vec![(name.lexeme.clone(), value.clone())]),
+            // Se o binding está dentro de EnumVariant, associe ao valor correto
+            (MatchPattern::Binding(name), val) => {
+                // Se val for EnumInstance com um valor, associe ao primeiro valor
+                if let ArtValue::EnumInstance { values, .. } = val {
+                    if values.len() == 1 {
+                        Some(vec![(name.lexeme.clone(), values[0].clone())])
+                    } else {
+                        // Se não, associe ao próprio valor
+                        Some(vec![(name.lexeme.clone(), val.clone())])
+                    }
+                } else {
+                    Some(vec![(name.lexeme.clone(), val.clone())])
+                }
+            },
             (
                 MatchPattern::EnumVariant { variant, params },
                 ArtValue::EnumInstance { variant: v_name, values, .. },
@@ -175,6 +201,19 @@ impl Interpreter {
 
     fn evaluate(&mut self, expr: Expr) -> Result<ArtValue> {
         match expr {
+        Expr::InterpolatedString(parts) => {
+                let mut result = String::new();
+                for part in parts {
+            match part {
+            InterpolatedPart::Literal(s) => result.push_str(&s),
+            InterpolatedPart::Expr(e) => {
+                            let val = self.evaluate(*e)?;
+                            result.push_str(&val.to_string());
+                        }
+                    }
+                }
+        Ok(ArtValue::String(result))
+            }
             Expr::Literal(value) => Ok(value),
             Expr::Grouping { expression } => self.evaluate(*expression),
             Expr::Variable { name } => {
@@ -182,6 +221,7 @@ impl Interpreter {
                 self.environment
                     .borrow()
                     .get(&name_str)
+                    .map(|v| v.clone())
                     .ok_or(RuntimeError::UndefinedVariable(name_str))
             }
             Expr::Unary { operator, right } => {
@@ -265,9 +305,19 @@ impl Interpreter {
                 let enum_name = match name {
                     Some(n) => n.lexeme,
                     None => {
-                        return Err(RuntimeError::Other(
+                        // Inferência: procurar enum que contenha a variant de forma única
+                        let mut candidate: Option<String> = None;
+                        for (ename, edef) in self.type_registry.enums.iter() {
+                            if edef.variants.iter().any(|(v, _)| v == &variant.lexeme) {
+                                if candidate.is_some() && candidate.as_ref() != Some(ename) {
+                                    return Err(RuntimeError::Other("Ambiguous enum variant shorthand.".to_string()));
+                                }
+                                candidate = Some(ename.clone());
+                            }
+                        }
+                        candidate.ok_or_else(|| RuntimeError::Other(
                             "Cannot infer enum type for shorthand initialization.".to_string(),
-                        ))
+                        ))?
                     }
                 };
                 let enum_def = self
@@ -352,67 +402,52 @@ impl Interpreter {
     }
 
     fn handle_call(&mut self, callee: Expr, arguments: Vec<Expr>) -> Result<ArtValue> {
-        let callee_val = self.evaluate(callee)?;
-
-        match callee_val {
-            ArtValue::Function(func) => {
-                if func.name.as_deref() == Some("println") {
-                    let mut args = Vec::new();
-                    for arg in arguments {
-                        args.push(self.evaluate(arg)?);
-                    }
-                    if !args.is_empty() {
-                        println!("{}", args[0]);
-                    } else {
-                        println!();
-                    }
-                    return Ok(ArtValue::Optional(Box::new(None)));
-                }
-
-                if func.params.len() != arguments.len() {
-                    return Err(RuntimeError::WrongNumberOfArguments);
-                }
-
-                let previous_env = self.environment.clone();
-                self.environment =
-                    Rc::new(RefCell::new(Environment::new(Some(func.closure.clone()))));
-
-                for (i, param) in func.params.iter().enumerate() {
-                    let arg_val = self.evaluate(arguments[i].clone())?;
-                    self.environment
-                        .borrow_mut()
-                        .define(param.name.lexeme.clone(), arg_val);
-                }
-
-                let result = self.execute(Rc::as_ref(&func.body).clone());
-                self.environment = previous_env;
-
-                match result {
-                    Ok(()) => Ok(ArtValue::Optional(Box::new(None))),
-                    Err(RuntimeError::Return(val)) => Ok(val),
-                    Err(e) => Err(e),
-                }
+        let original_expr = callee.clone();
+        let value = self.evaluate(callee)?;
+        match value {
+            ArtValue::Function(func) => self.call_function(func, arguments),
+            ArtValue::EnumInstance { enum_name, variant, values } if values.is_empty() => {
+                self.construct_enum_variant(enum_name, variant, arguments)
             }
-            ArtValue::EnumInstance {
-                enum_name,
-                variant,
-                values,
-            } if values.is_empty() => {
-                let mut evaluated_args = Vec::new();
-                for arg in arguments {
-                    evaluated_args.push(self.evaluate(arg)?);
-                }
-                Ok(ArtValue::EnumInstance {
-                    enum_name,
-                    variant,
-                    values: evaluated_args,
-                })
-            }
-            _ => Err(RuntimeError::Other(format!(
-                "'{}' is not a function.",
-                callee_val
-            ))),
+            other => self.call_fallback(original_expr, other, &arguments),
         }
+    }
+
+    fn call_function(&mut self, func: Rc<Function>, arguments: Vec<Expr>) -> Result<ArtValue> {
+        if func.name.as_deref() == Some("println") {
+            let mut args = Vec::new();
+            for arg in arguments { args.push(self.evaluate(arg)?); }
+            if !args.is_empty() { println!("{}", args[0]); } else { println!(); }
+            return Ok(ArtValue::Optional(Box::new(None)));
+        }
+        if func.params.len() != arguments.len() { return Err(RuntimeError::WrongNumberOfArguments); }
+        let mut evaluated_args = Vec::new();
+        for arg in &arguments { evaluated_args.push(self.evaluate(arg.clone())?); }
+        let previous_env = self.environment.clone();
+        self.environment = Rc::new(RefCell::new(Environment::new(Some(func.closure.clone()))));
+        for (i, param) in func.params.iter().enumerate() {
+            self.environment.borrow_mut().define(param.name.lexeme.clone(), evaluated_args[i].clone());
+        }
+        let result = self.execute(Rc::as_ref(&func.body).clone());
+        self.environment = previous_env;
+        match result {
+            Ok(()) => Ok(ArtValue::Optional(Box::new(None))),
+            Err(RuntimeError::Return(val)) => Ok(val),
+            Err(e) => Err(e),
+        }
+    }
+
+    fn construct_enum_variant(&mut self, enum_name: String, variant: String, arguments: Vec<Expr>) -> Result<ArtValue> {
+        let mut evaluated_args = Vec::new();
+        for arg in arguments { evaluated_args.push(self.evaluate(arg)?); }
+        Ok(ArtValue::EnumInstance { enum_name, variant, values: evaluated_args })
+    }
+
+    fn call_fallback(&mut self, original_expr: Expr, value: ArtValue, arguments: &Vec<Expr>) -> Result<ArtValue> {
+        if arguments.is_empty() {
+            if let Expr::FieldAccess { .. } = original_expr { return Ok(value); }
+        }
+        Err(RuntimeError::Other(format!("'{}' is not a function.", value)))
     }
 
     fn is_truthy(&self, value: &ArtValue) -> bool {

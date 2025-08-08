@@ -1,3 +1,71 @@
+impl Parser {
+    pub fn parse_interpolated_string(&mut self, raw: String) -> Expr {
+        use core::ast::{Expr, InterpolatedPart};
+        use lexer::Lexer; // usar lexer para sub-expressões
+
+        let mut parts = Vec::new();
+    let chars: Vec<char> = raw.chars().collect();
+        let mut i = 0usize;
+        let mut literal_buf = String::new();
+
+        while i < chars.len() {
+            let c = chars[i];
+            if c == '{' {
+                // Escape '{{' -> '{'
+                if i + 1 < chars.len() && chars[i + 1] == '{' {
+                    literal_buf.push('{');
+                    i += 2;
+                    continue;
+                }
+                // flush literal
+                if !literal_buf.is_empty() {
+                    parts.push(InterpolatedPart::Literal(literal_buf.clone()));
+                    literal_buf.clear();
+                }
+                i += 1; // consume '{'
+                let expr_start = i;
+                let mut depth = 1; // allow nested braces
+                while i < chars.len() && depth > 0 {
+                    match chars[i] {
+                        '{' => depth += 1,
+                        '}' => {
+                            depth -= 1;
+                            if depth == 0 { break; }
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+                if depth != 0 { panic!("Unterminated interpolation expression in f-string"); }
+                // slice without closing '}'
+                let expr_source: String = chars[expr_start..i].iter().collect();
+                // advance past closing '}'
+                i += 1;
+                // parse expression source
+                let mut sub_lexer = Lexer::new(expr_source.clone());
+                let tokens = sub_lexer.scan_tokens();
+                let mut sub_parser = Parser::new(tokens);
+                let expr = sub_parser.expression();
+                parts.push(InterpolatedPart::Expr(Box::new(expr)));
+            } else if c == '}' { // stray or escaped '}}'
+                if i + 1 < chars.len() && chars[i + 1] == '}' { // escape sequence
+                    literal_buf.push('}');
+                    i += 2;
+                    continue;
+                } else {
+                    panic!("Unmatched '}}' in interpolated string");
+                }
+            } else {
+                literal_buf.push(c);
+                i += 1;
+            }
+        }
+        if !literal_buf.is_empty() {
+            parts.push(InterpolatedPart::Literal(literal_buf));
+        }
+        Expr::InterpolatedString(parts)
+    }
+}
 use core::ast::{Expr, Program, Stmt};
 use core::{Token, TokenType};
 use crate::expressions;

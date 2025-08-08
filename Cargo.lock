@@ -123,6 +123,7 @@ name = "interpreter"
 version = "0.1.0"
 dependencies = [
  "core",
+ "lexer",
  "parser",
 ]
 
@@ -150,6 +151,7 @@ name = "parser"
 version = "0.1.0"
 dependencies = [
  "core",
+ "lexer",
 ]
 
 [[package]]

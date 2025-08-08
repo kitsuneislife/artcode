@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 core = { path = "../core" }
 parser = { path = "../parser" }
+lexer = { path = "../lexer" }

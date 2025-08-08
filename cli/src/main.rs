@@ -37,7 +37,7 @@ fn run(source: String) {
     let mut parser = Parser::new(tokens);
     let program = parser.parse();
 
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Interpreter::with_prelude();
     if let Err(e) = interpreter.interpret(program) {
         eprintln!("Erro de execução: {}", e);
     }

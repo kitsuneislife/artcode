@@ -29,9 +29,7 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
             Expr::Literal(art_val)
         }
         TokenType::String(s) => Expr::Literal(core::ast::ArtValue::String(s)),
-        TokenType::InterpolatedString(s) => {
-            Expr::Literal(core::ast::ArtValue::String(s))
-        }
+    TokenType::InterpolatedString(s) => parser.parse_interpolated_string(s),
         TokenType::True => Expr::Literal(core::ast::ArtValue::Bool(true)),
         TokenType::False => Expr::Literal(core::ast::ArtValue::Bool(false)),
         TokenType::None => Expr::Literal(core::ast::ArtValue::Optional(Box::new(None))),

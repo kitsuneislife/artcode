@@ -43,6 +43,7 @@ pub enum Stmt {
     Return {
         value: Option<Expr>,
     },
+// ...existing code...
 }
 
 #[derive(Debug, Clone)]
@@ -51,7 +52,7 @@ pub struct FunctionParam {
     pub ty: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Binary {
         left: Box<Expr>,
@@ -97,6 +98,13 @@ pub enum Expr {
         object: Box<Expr>,
         target_type: String,
     },
+    InterpolatedString(Vec<InterpolatedPart>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum InterpolatedPart {
+    Literal(String),
+    Expr(Box<Expr>),
 }
 
 #[derive(Clone)]
