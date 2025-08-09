@@ -1,11 +1,12 @@
-use core::ast::{Expr, ArtValue, Program, Stmt, MatchPattern, Function};
+use core::ast::{Expr, ArtValue, Program, Stmt, MatchPattern, Function, ObjHandle};
 use diagnostics::{Diagnostic, DiagnosticKind, Span};
 use core::environment::Environment;
 use crate::type_registry::TypeRegistry;
 use crate::values::{Result, RuntimeError};
-use std::cell::RefCell;
+use std::cell::{RefCell, Cell};
 use std::collections::HashMap;
 use std::rc::Rc;
+use core::Token;
 
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
@@ -14,6 +15,20 @@ pub struct Interpreter {
     pub last_value: Option<ArtValue>,
     pub handled_errors: usize,
     pub executed_statements: usize,
+    heap_objects: HashMap<u64, crate::heap::HeapObject>,
+    next_heap_id: u64,
+    // Métricas de memória (protótipo)
+    pub weak_created: usize,
+    pub weak_upgrades: usize,
+    pub weak_dangling: usize,
+    pub unowned_created: usize,
+    pub unowned_dangling: usize,
+    pub cycle_reports_run: Cell<usize>,
+    pub cycle_leaks_detected: usize,
+    pub strong_increments: usize,
+    pub strong_decrements: usize,
+    pub objects_finalized: usize,
+    finalizers: HashMap<u64, Rc<Function>>, // finalizers por objeto composto
 }
 
 impl Interpreter {
@@ -23,8 +38,13 @@ impl Interpreter {
     global_env.borrow_mut().define("println", ArtValue::Builtin(core::ast::BuiltinFn::Println));
     global_env.borrow_mut().define("len", ArtValue::Builtin(core::ast::BuiltinFn::Len));
     global_env.borrow_mut().define("type_of", ArtValue::Builtin(core::ast::BuiltinFn::TypeOf));
+    global_env.borrow_mut().define("weak", ArtValue::Builtin(core::ast::BuiltinFn::WeakNew));
+    global_env.borrow_mut().define("weak_get", ArtValue::Builtin(core::ast::BuiltinFn::WeakGet));
+    global_env.borrow_mut().define("unowned", ArtValue::Builtin(core::ast::BuiltinFn::UnownedNew));
+    global_env.borrow_mut().define("unowned_get", ArtValue::Builtin(core::ast::BuiltinFn::UnownedGet));
+    global_env.borrow_mut().define("on_finalize", ArtValue::Builtin(core::ast::BuiltinFn::OnFinalize));
 
-    Interpreter { environment: global_env, type_registry: TypeRegistry::new(), diagnostics: Vec::new(), last_value: None, handled_errors: 0, executed_statements: 0 }
+    Interpreter { environment: global_env, type_registry: TypeRegistry::new(), diagnostics: Vec::new(), last_value: None, handled_errors: 0, executed_statements: 0, heap_objects: HashMap::new(), next_heap_id: 1, weak_created:0, weak_upgrades:0, weak_dangling:0, unowned_created:0, unowned_dangling:0, cycle_reports_run: Cell::new(0), cycle_leaks_detected: 0, strong_increments:0, strong_decrements:0, objects_finalized:0, finalizers: HashMap::new() }
     }
 
     pub fn with_prelude() -> Self {
@@ -40,6 +60,11 @@ impl Interpreter {
     interp
     }
 
+    /// Exposto para testes / prototipagem: registra struct dinâmica.
+    pub fn register_struct_for_test(&mut self, name:&str, fields: Vec<(core::Token,String)>) {
+        self.type_registry.register_struct(core::Token::dummy(name), fields);
+    }
+
     pub fn interpret(&mut self, program: Program) -> Result<()> {
         self.last_value = None;
         for statement in program {
@@ -52,6 +77,160 @@ impl Interpreter {
         std::mem::take(&mut self.diagnostics)
     }
 
+    // --- Heap helpers (protótipo Fase 8) ---
+    fn heap_register(&mut self, val: ArtValue) -> u64 {
+        let id = self.next_heap_id; self.next_heap_id += 1;
+        self.heap_objects.insert(id, crate::heap::HeapObject::new(id, val)); id }
+    fn heap_upgrade_weak(&self, id: u64) -> Option<ArtValue> { self.heap_objects.get(&id).and_then(|o| if o.alive { Some(o.value.clone()) } else { None }) }
+    fn heap_get_unowned(&self, id: u64) -> Option<ArtValue> { self.heap_objects.get(&id).map(|o| o.value.clone()) }
+
+    #[inline]
+    fn is_object_alive(&self, id: u64) -> bool { self.heap_objects.get(&id).map(|o| o.alive).unwrap_or(false) }
+
+    #[inline]
+    fn note_composite_child(&mut self, v:&ArtValue) {
+        if matches!(v, ArtValue::Array(_) | ArtValue::StructInstance { .. } | ArtValue::EnumInstance { .. }) {
+            self.strong_increments +=1; // placeholder: ainda não incrementa contador real em heap porque composites não são heap alocados neste estágio
+        }
+    }
+
+    #[inline]
+    fn heapify_composite(&mut self, v: ArtValue) -> ArtValue {
+        match v {
+            ArtValue::Array(_) | ArtValue::StructInstance { .. } | ArtValue::EnumInstance { .. } => {
+                let id = self.heap_register(v);
+                // Clona valor armazenado para evitar empréstimo simultâneo (valor geralmente pequeno / compartilhado)
+                if let Some(obj) = self.heap_objects.get(&id) { let snapshot = obj.value.clone(); self.inc_children_strong(&snapshot); }
+                ArtValue::HeapComposite(ObjHandle(id))
+            }
+            other => other
+        }
+    }
+
+    #[inline]
+    fn resolve_composite<'a>(&'a self, v: &'a ArtValue) -> &'a ArtValue {
+        if let ArtValue::HeapComposite(h) = v { if let Some(obj)=self.heap_objects.get(&h.0) { return &obj.value; } }
+        v
+    }
+
+    fn drop_scope_heap_objects(&mut self, env: &Rc<RefCell<Environment>>) {
+        let handles = env.borrow().strong_handles.clone();
+        for h in handles { self.dec_object_strong_recursive(h.0); }
+    }
+
+    fn dec_value_if_heap(&mut self, v:&ArtValue) { if let ArtValue::HeapComposite(h)=v { self.dec_object_strong_recursive(h.0); } }
+
+    #[inline]
+    fn inc_children_strong(&mut self, v:&ArtValue) {
+        match v {
+            ArtValue::Array(a) => {
+                for child in a { if let ArtValue::HeapComposite(h)=child { if let Some(c)=self.heap_objects.get_mut(&h.0){ c.inc_strong(); self.strong_increments+=1; } } }
+            }
+            ArtValue::StructInstance{fields,..} => {
+                for (_k, child) in fields { if let ArtValue::HeapComposite(h)=child { if let Some(c)=self.heap_objects.get_mut(&h.0){ c.inc_strong(); self.strong_increments+=1; } } }
+            }
+            ArtValue::EnumInstance{values,..} => {
+                for child in values { if let ArtValue::HeapComposite(h)=child { if let Some(c)=self.heap_objects.get_mut(&h.0){ c.inc_strong(); self.strong_increments+=1; } } }
+            }
+            _=>{}
+        }
+    }
+
+    #[inline]
+    fn dec_children_strong(&mut self, v:&ArtValue) {
+        match v {
+            ArtValue::Array(a) => {
+                for child in a { if let ArtValue::HeapComposite(h)=child { self.dec_object_strong_recursive(h.0); } }
+            }
+            ArtValue::StructInstance{fields,..} => {
+                for (_k, child) in fields { if let ArtValue::HeapComposite(h)=child { self.dec_object_strong_recursive(h.0); } }
+            }
+            ArtValue::EnumInstance{values,..} => {
+                for child in values { if let ArtValue::HeapComposite(h)=child { self.dec_object_strong_recursive(h.0); } }
+            }
+            _=>{}
+        }
+    }
+
+    fn dec_object_strong_recursive(&mut self, id:u64) {
+        if let Some(obj) = self.heap_objects.get_mut(&id) {
+            if obj.strong>0 { obj.dec_strong(); self.strong_decrements+=1; }
+            let should_recurse = !obj.alive; // caiu a zero agora
+            if should_recurse { self.objects_finalized +=1; }
+            if should_recurse {
+                // Executar finalizer se existir (snapshot para usar depois do borrow)
+                let finalizer = self.finalizers.remove(&id);
+                // liberar filhos fortes
+                let snapshot = obj.value.clone(); // clone para evitar emprestimo duplo
+                let _ = obj; // liberar empréstimo mutável antes de recursão
+                self.dec_children_strong(&snapshot);
+                if let Some(func) = finalizer { // chamar sem argumentos
+                    // Executar função finalizer no ambiente global raiz para permitir expor flags globais
+                    let previous_env = self.environment.clone();
+                    // Sobe cadeia até raiz
+                    let mut root = previous_env.clone();
+                    loop {
+                        let parent_opt = root.borrow().enclosing.clone();
+                        if let Some(p) = parent_opt { root = p } else { break; }
+                    }
+                    // Criar um frame filho da raiz para evitar poluição direta caso finalizer crie variáveis temporárias
+                    self.environment = Rc::new(RefCell::new(Environment::new(Some(root.clone()))));
+                    // Executar corpo inline se for bloco para evitar criação de escopo interno que perderia variáveis
+                    let body_stmt = Rc::as_ref(&func.body).clone();
+                    if let Stmt::Block { statements } = body_stmt.clone() {
+                        for s in statements { let _ = self.execute(s); }
+                    } else {
+                        let _ = self.execute(body_stmt);
+                    }
+                    // Merge simples: mover variáveis definidas neste frame para raiz
+                    let local_vals: Vec<(String, ArtValue)> = self.environment.borrow().values.iter().map(|(k,v)|((*k).to_string(), v.clone())).collect();
+                    for (k,v) in local_vals { root.borrow_mut().values.insert(Box::leak(k.into_boxed_str()), v); }
+                    self.environment = previous_env;
+                }
+            }
+        }
+    }
+
+    /// Debug/testing: registra valor e retorna id (não otimizado; sem coleta real ainda)
+    pub fn debug_heap_register(&mut self, v: ArtValue) -> u64 { self.heap_register(v) }
+    /// Debug/testing: remove id simulando queda de último strong ref
+    pub fn debug_heap_remove(&mut self, id: u64) { if let Some(obj)= self.heap_objects.get_mut(&id) { obj.dec_strong(); } }
+    pub fn debug_heap_upgrade_weak(&self, id: u64) -> Option<ArtValue> { self.heap_upgrade_weak(id) }
+    pub fn debug_heap_get_unowned(&self, id: u64) -> Option<ArtValue> { if self.is_object_alive(id) { self.heap_get_unowned(id) } else { None } }
+    pub fn debug_heap_dec_strong(&mut self, id:u64){ if let Some(obj)=self.heap_objects.get_mut(&id){ obj.dec_strong(); } }
+    pub fn debug_heap_inc_weak(&mut self, id:u64){ if let Some(obj)=self.heap_objects.get_mut(&id){ obj.inc_weak(); } }
+
+    /// Test helper: define valor no ambiente global
+    pub fn debug_define_global(&mut self, name:&str, val: ArtValue) { self.environment.borrow_mut().define(name, val); }
+    pub fn debug_get_global(&self, name:&str) -> Option<ArtValue> { self.environment.borrow().get(name) }
+
+    // Protótipo: sumariza refs weak/unowned presentes acessíveis do ambiente global.
+    pub fn cycle_report(&self) -> CycleReport {
+    // Safety: contador mutável requer RefCell ou interior mutability; reaproveitamos via cast mutável temporário
+    self.cycle_reports_run.set(self.cycle_reports_run.get()+1);
+        let mut weak_total=0; let mut weak_alive=0; let mut weak_dead=0; let mut unowned_total=0; let mut unowned_dangling=0;
+                fn scan(v:&ArtValue, this:&Interpreter, wt:&mut usize, wa:&mut usize, wd:&mut usize, ut:&mut usize, ud:&mut usize) {
+                    match v {
+                        ArtValue::WeakRef(h)=>{*wt+=1; if this.is_object_alive(h.0){*wa+=1}else{*wd+=1}},
+                        ArtValue::UnownedRef(h)=>{*ut+=1; if !this.is_object_alive(h.0){*ud+=1}},
+                        ArtValue::HeapComposite(h)=>{ if let Some(obj)=this.heap_objects.get(&h.0){ scan(&obj.value,this,wt,wa,wd,ut,ud);} },
+                        ArtValue::Array(a)=>for e in a{scan(e,this,wt,wa,wd,ut,ud)},
+                        ArtValue::StructInstance{fields,..}=>for (_k,val) in fields{scan(val,this,wt,wa,wd,ut,ud)},
+                        ArtValue::EnumInstance{values,..}=>for val in values{scan(val,this,wt,wa,wd,ut,ud)},
+                        _=>{}
+                    }
+                }
+    for (_k,v) in self.environment.borrow().values.iter(){ scan(v,self,&mut weak_total,&mut weak_alive,&mut weak_dead,&mut unowned_total,&mut unowned_dangling); }
+    let mut out_deg_sum=0usize; let mut in_deg_sum=0usize; let mut in_counts:std::collections::HashMap<u64,usize>=std::collections::HashMap::new();
+    for (_id,obj) in self.heap_objects.iter(){ if !obj.alive {continue;} match &obj.value { ArtValue::Array(a)=>{ let mut c=0; for ch in a { if let ArtValue::HeapComposite(h)=ch { if self.is_object_alive(h.0){ c+=1; *in_counts.entry(h.0).or_insert(0)+=1; } } } out_deg_sum+=c; }, ArtValue::StructInstance{fields,..}=>{ let mut c=0; for (_fname,ch) in fields { if let ArtValue::HeapComposite(h)=ch { if self.is_object_alive(h.0){ c+=1; *in_counts.entry(h.0).or_insert(0)+=1; } } } out_deg_sum+=c; }, ArtValue::EnumInstance{values,..}=>{ let mut c=0; for ch in values { if let ArtValue::HeapComposite(h)=ch { if self.is_object_alive(h.0){ c+=1; *in_counts.entry(h.0).or_insert(0)+=1; } } } out_deg_sum+=c; }, _=>{} } }
+    for (_id,c) in in_counts.iter(){ in_deg_sum+=*c; }
+    let heap_alive = self.heap_objects.iter().filter(|(_,o)| o.alive).count();
+    let (avg_out_degree, avg_in_degree) = if heap_alive>0 { (out_deg_sum as f32/heap_alive as f32, in_deg_sum as f32/heap_alive as f32) } else { (0.0,0.0) };
+    let mut candidate_owner_edges=Vec::new();
+    for (id,obj) in self.heap_objects.iter(){ if !obj.alive {continue;} if let ArtValue::StructInstance{fields,..}= &obj.value { for (fname,val) in fields { let lname=fname.to_lowercase(); if lname.contains("parent")||lname.contains("owner") { if let ArtValue::HeapComposite(h)=val { if self.is_object_alive(h.0) { candidate_owner_edges.push((*id,h.0)); } } } } } }
+    CycleReport{weak_total,weak_alive,weak_dead,unowned_total,unowned_dangling, objects_finalized: self.objects_finalized, heap_alive, avg_out_degree, avg_in_degree, candidate_owner_edges }
+    }
+
     fn execute(&mut self, stmt: Stmt) -> Result<()> {
         self.executed_statements += 1;
         match stmt {
@@ -62,7 +241,12 @@ impl Interpreter {
             }
             Stmt::Let { name, ty: _, initializer } => {
                 let value = self.evaluate(initializer)?;
-                self.environment.borrow_mut().define(&name.lexeme, value);
+                // Captura possível valor antigo sem manter borrow mutável durante decremento
+                let old_opt = { self.environment.borrow().values.get(name.lexeme.as_str()).cloned() };
+                if let Some(old) = &old_opt { self.dec_value_if_heap(old); }
+                let mut env = self.environment.borrow_mut();
+                if let ArtValue::HeapComposite(h) = value { env.strong_handles.push(h); }
+                env.define(&name.lexeme, value);
                 Ok(())
             }
             Stmt::Block { statements } => self.execute_block(statements, Some(self.environment.clone())),
@@ -110,7 +294,7 @@ impl Interpreter {
                 Ok(())
             }
             Stmt::Function { name, params, body, method_owner, .. } => {
-                let fn_rc = Rc::new(Function { name: Some(name.lexeme.clone()), params: params.clone(), body: body.clone(), closure: self.environment.clone() });
+                let fn_rc = Rc::new(Function { name: Some(name.lexeme.clone()), params: params.clone(), body: body.clone(), closure: Rc::downgrade(&self.environment), retained_env: None });
                 if let Some(owner) = method_owner {
                     if let Some(sdef) = self.type_registry.structs.get_mut(&owner) {
                         sdef.methods.insert(name.lexeme.clone(), (*fn_rc).clone());
@@ -120,7 +304,10 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, format!("Unknown type '{}' for method.", owner), Span::new(name.start,name.end,name.line,name.col)));
                     }
                 } else {
-                    self.environment.borrow_mut().define(&name.lexeme, ArtValue::Function(fn_rc.clone()));
+                    let old_opt = { self.environment.borrow().values.get(name.lexeme.as_str()).cloned() };
+                    if let Some(old) = &old_opt { self.dec_value_if_heap(old); }
+                    let mut env = self.environment.borrow_mut();
+                    env.define(&name.lexeme, ArtValue::Function(fn_rc.clone()));
                 }
                 Ok(())
             }
@@ -139,7 +326,12 @@ impl Interpreter {
         pattern: &MatchPattern,
         value: &ArtValue,
     ) -> Option<Vec<(String, ArtValue)>> {
-        match (pattern, value) {
+    // Se valor for HeapComposite, desreferencia para o valor real subjacente antes de matching.
+        let resolved_owned;
+        let value_ref = if let ArtValue::HeapComposite(h) = value {
+            if let Some(obj) = self.heap_objects.get(&h.0) { resolved_owned = obj.value.clone(); &resolved_owned } else { value }
+        } else { value };
+        match (pattern, value_ref) {
             (MatchPattern::Literal(lit), _) if lit == value => Some(vec![]),
             (MatchPattern::Wildcard, _) => Some(vec![]),
             // Se o binding está dentro de EnumVariant, associe ao valor correto
@@ -203,14 +395,15 @@ impl Interpreter {
     ) -> Result<()> {
         let previous = self.environment.clone();
         self.environment = Rc::new(RefCell::new(Environment::new(enclosing)));
-
+        let scope_env = self.environment.clone();
         for statement in statements {
             if let Err(e) = self.execute(statement) {
+                self.drop_scope_heap_objects(&scope_env);
                 self.environment = previous;
                 return Err(e);
             }
         }
-
+        self.drop_scope_heap_objects(&scope_env);
         self.environment = previous;
         Ok(())
     }
@@ -220,6 +413,16 @@ impl Interpreter {
             Expr::InterpolatedString(parts) => {
                 use crate::fstring::eval_fstring;
                 eval_fstring(parts, |e| self.evaluate(e))
+            }
+            Expr::Try(inner) => {
+                // Com a introdução de weak/unowned, Try original de Result permanece como compat.
+                let result_val = self.evaluate(*inner)?;
+                match result_val {
+                    ArtValue::EnumInstance { enum_name, variant, mut values } if enum_name == "Result" => {
+                        if variant == "Ok" { Ok(values.pop().unwrap_or(ArtValue::none())) } else { Err(RuntimeError::Return(values.pop().unwrap_or(ArtValue::none()))) }
+                    }
+                    other => Ok(other)
+                }
             }
             Expr::Literal(value) => Ok(value),
             Expr::Grouping { expression } => self.evaluate(*expression),
@@ -340,6 +543,7 @@ impl Interpreter {
                 let mut field_values = HashMap::new();
                 for (field_name, field_expr) in fields {
                     let value = self.evaluate(field_expr)?;
+                    self.note_composite_child(&value);
                     field_values.insert(field_name.lexeme, value);
                 }
                 for (field_name, _field_type) in &struct_def.fields {
@@ -351,10 +555,7 @@ impl Interpreter {
                         return Ok(ArtValue::none().clone());
                     }
                 }
-                Ok(ArtValue::StructInstance {
-                    struct_name: name.lexeme,
-                    fields: field_values,
-                })
+                Ok(self.heapify_composite(ArtValue::StructInstance { struct_name: name.lexeme, fields: field_values }))
             }
             Expr::EnumInit { name, variant, values } => {
                 let enum_name = match name {
@@ -412,7 +613,7 @@ impl Interpreter {
                     };
                 let mut evaluated_values = Vec::new();
                 for value_expr in values {
-                    evaluated_values.push(self.evaluate(value_expr)?);
+                    let v = self.evaluate(value_expr)?; self.note_composite_child(&v); evaluated_values.push(v);
                 }
                 match &variant_def.1 {
                     Some(expected_params) => {
@@ -434,14 +635,12 @@ impl Interpreter {
                         }
                     }
                 }
-                Ok(ArtValue::EnumInstance {
-                    enum_name,
-                    variant: variant.lexeme,
-                    values: evaluated_values,
-                })
+                Ok(self.heapify_composite(ArtValue::EnumInstance { enum_name, variant: variant.lexeme, values: evaluated_values }))
             }
             Expr::FieldAccess { object, field } => {
-                let obj_value = self.evaluate(*object)?;
+                let evaluated = self.evaluate(*object)?;
+                let obj_value_ref = self.resolve_composite(&evaluated).clone();
+                let obj_value = obj_value_ref; // owned for match
                 use crate::field_access::{struct_field_or_method, enum_method};
                 match obj_value {
                     ArtValue::Array(arr) => match field.lexeme.as_str() {
@@ -500,26 +699,34 @@ impl Interpreter {
                     }
                 }
             }
-            Expr::Try(inner) => {
-                let result_val = self.evaluate(*inner)?;
-                match result_val {
-                    ArtValue::EnumInstance { enum_name, variant, mut values } if enum_name == "Result" => {
-                        if variant == "Ok" {
-                            Ok(values.pop().unwrap_or(ArtValue::none()))
-                        } else {
-                            Err(RuntimeError::Return(values.pop().unwrap_or(ArtValue::none())))
-                        }
-                    },
-                    other => Ok(other)
-                }
-            },
+            Expr::Weak(inner) => {
+                // Açúcar: weak expr => builtin weak(expr)
+                let expr = Expr::Call { callee: Box::new(Expr::Variable { name: Token::dummy("weak") }), arguments: vec![*inner] };
+                self.evaluate(expr)
+            }
+            Expr::Unowned(inner) => {
+                let expr = Expr::Call { callee: Box::new(Expr::Variable { name: Token::dummy("unowned") }), arguments: vec![*inner] };
+                self.evaluate(expr)
+            }
+            Expr::WeakUpgrade(inner) => {
+                // Açúcar: expr? -> weak_get(expr)
+                let expr = Expr::Call { callee: Box::new(Expr::Variable { name: Token::dummy("weak_get") }), arguments: vec![*inner] };
+                self.evaluate(expr)
+            }
+            Expr::UnownedAccess(inner) => {
+                // Açúcar: expr! -> unowned_get(expr)
+                let expr = Expr::Call { callee: Box::new(Expr::Variable { name: Token::dummy("unowned_get") }), arguments: vec![*inner] };
+                self.evaluate(expr)
+            }
             Expr::Cast { object, .. } => self.evaluate(*object),
             Expr::Array(elements) => {
                 let mut evaluated_elements = Vec::new();
                 for element in elements {
-                    evaluated_elements.push(self.evaluate(element)?);
+                    let v = self.evaluate(element)?;
+                    self.note_composite_child(&v);
+                    evaluated_elements.push(v);
                 }
-                Ok(ArtValue::Array(evaluated_elements))
+                Ok(self.heapify_composite(ArtValue::Array(evaluated_elements)))
             }
         }
     }
@@ -549,8 +756,18 @@ impl Interpreter {
         // Avalia argumentos uma vez
         let mut evaluated_args = Vec::with_capacity(argc);
         for arg in arguments { evaluated_args.push(self.evaluate(arg)?); }
-        let previous_env = self.environment.clone();
-        self.environment = Rc::new(RefCell::new(Environment::new(Some(func.closure.clone()))));
+    let previous_env = self.environment.clone();
+        let base_env = match func.closure.upgrade() {
+            Some(env) => env,
+            None => {
+                self.diagnostics.push(Diagnostic::new(
+                    DiagnosticKind::Runtime,
+                    "Dangling closure environment".to_string(),
+                    Span::new(0,0,0,0)));
+                Rc::new(RefCell::new(Environment::new(None)))
+            }
+        };
+        self.environment = Rc::new(RefCell::new(Environment::new(Some(base_env))));
         // Inserir valores movendo (sem clone) consumindo o vetor
         for (param, value) in func.params.iter().zip(evaluated_args.into_iter()) {
             self.environment.borrow_mut().define(&param.name.lexeme, value);
@@ -594,7 +811,8 @@ impl Interpreter {
             core::ast::BuiltinFn::TypeOf => {
                 if let Some(first) = arguments.into_iter().next() {
                     let val = self.evaluate(first)?;
-                    let t = match val {
+                    let resolved = if let ArtValue::HeapComposite(h) = &val { self.heap_objects.get(&h.0).map(|o| &o.value).unwrap_or(&val) } else { &val };
+                    let t = match resolved {
                         ArtValue::Int(_) => "Int",
                         ArtValue::Float(_) => "Float",
                         ArtValue::String(_) => "String",
@@ -605,6 +823,9 @@ impl Interpreter {
                         ArtValue::EnumInstance { .. } => "Enum",
                         ArtValue::Function(_) => "Function",
                         ArtValue::Builtin(_) => "Builtin",
+                        ArtValue::WeakRef(_) => "WeakRef",
+                        ArtValue::UnownedRef(_) => "UnownedRef",
+                        ArtValue::HeapComposite(_) => "Composite",
                     };
                     Ok(ArtValue::String(std::sync::Arc::from(t)))
                 } else {
@@ -614,6 +835,79 @@ impl Interpreter {
                         Span::new(0,0,0,0)));
                     Ok(ArtValue::none())
                 }
+            }
+            core::ast::BuiltinFn::WeakNew => {
+                if let Some(first) = arguments.into_iter().next() {
+                    // Avalia e registra objeto
+                    let val = self.evaluate(first)?;
+                    let (_id, handle) = match val {
+                        ArtValue::HeapComposite(h) => {
+                            if let Some(obj) = self.heap_objects.get_mut(&h.0) { obj.inc_weak(); }
+                            (h.0, h)
+                        }
+                        other => {
+                            // Para tipos escalares ainda criar wrapper heap para permitir weak.
+                            let id = self.heap_register(other);
+                            if let Some(obj) = self.heap_objects.get_mut(&id) { obj.inc_weak(); }
+                            (id, ObjHandle(id))
+                        }
+                    };
+                    self.weak_created += 1;
+                    Ok(ArtValue::WeakRef(handle))
+                } else { self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, "__weak: missing arg", Span::new(0,0,0,0))); Ok(ArtValue::none()) }
+            }
+            core::ast::BuiltinFn::WeakGet => {
+                if let Some(first) = arguments.into_iter().next() {
+                    match self.evaluate(first)? {
+                        ArtValue::WeakRef(h) => {
+                            match self.heap_upgrade_weak(h.0) {
+                                Some(v) => { self.weak_upgrades +=1; Ok(ArtValue::Optional(Box::new(Some(v)))) },
+                                None => { self.weak_dangling +=1; Ok(ArtValue::Optional(Box::new(None))) }
+                            }
+                        }
+                        _ => { self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, "__weak_get: expected WeakRef", Span::new(0,0,0,0))); Ok(ArtValue::none()) }
+                    }
+                } else { self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, "__weak_get: missing arg", Span::new(0,0,0,0))); Ok(ArtValue::none()) }
+            }
+            core::ast::BuiltinFn::UnownedNew => {
+                if let Some(first) = arguments.into_iter().next() {
+                    let val = self.evaluate(first)?;
+                    let handle = match val {
+                        ArtValue::HeapComposite(h) => h,
+                        other => {
+                            let id = self.heap_register(other);
+                            ObjHandle(id)
+                        }
+                    };
+                    self.unowned_created +=1;
+                    Ok(ArtValue::UnownedRef(handle))
+                } else { self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, "__unowned: missing arg", Span::new(0,0,0,0))); Ok(ArtValue::none()) }
+            }
+            core::ast::BuiltinFn::UnownedGet => {
+                if let Some(first) = arguments.into_iter().next() {
+                    match self.evaluate(first)? {
+                        ArtValue::UnownedRef(h) => {
+                            match self.heap_get_unowned(h.0) {
+                                Some(v) => Ok(v),
+                                None => { self.unowned_dangling +=1; self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, "dangling unowned reference", Span::new(0,0,0,0))); Ok(ArtValue::none()) }
+                            }
+                        }
+                        _ => { self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, "__unowned_get: expected UnownedRef", Span::new(0,0,0,0))); Ok(ArtValue::none()) }
+                    }
+                } else { self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, "__unowned_get: missing arg", Span::new(0,0,0,0))); Ok(ArtValue::none()) }
+            }
+            core::ast::BuiltinFn::OnFinalize => {
+                if arguments.len()!=2 { self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, "on_finalize espera 2 args", Span::new(0,0,0,0))); return Ok(ArtValue::none()); }
+                let obj_val = self.evaluate(arguments[0].clone())?;
+                let fn_val = self.evaluate(arguments[1].clone())?;
+                let handle_opt = match obj_val { ArtValue::HeapComposite(h)=>Some(h), _=>None };
+                let func_rc = match fn_val { ArtValue::Function(f)=>Some(f), _=>None };
+                if let (Some(h), Some(frc)) = (handle_opt, func_rc) {
+                    if let Some(o)=self.heap_objects.get(&h.0) { if o.alive { self.finalizers.insert(h.0, frc.clone()); } }
+                } else {
+                    self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, "on_finalize tipos inválidos", Span::new(0,0,0,0)));
+                }
+                Ok(ArtValue::none())
             }
         }
     }
@@ -681,6 +975,169 @@ impl Interpreter {
             (ArtValue::Float(l), ArtValue::Int(r)) => Ok(ArtValue::Bool(op(l, r as f64))),
             _ => Ok(ArtValue::none()),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CycleReport {
+    pub weak_total: usize,
+    pub weak_alive: usize,
+    pub weak_dead: usize,
+    pub unowned_total: usize,
+    pub unowned_dangling: usize,
+    pub objects_finalized: usize,
+    pub heap_alive: usize,
+    pub avg_out_degree: f32,
+    pub avg_in_degree: f32,
+    pub candidate_owner_edges: Vec<(u64,u64)>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CycleDetectionResult {
+    pub cycles: Vec<CycleInfo>, // info detalhada sobre cada SCC >1
+    pub weak_dead: Vec<u64>,    // ids de weak mortos
+    pub unowned_dangling: Vec<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CycleInfo {
+    pub nodes: Vec<u64>,              // endereços (placeholder de id de objeto composto)
+    pub isolated: bool,               // nenhum edge forte de fora do ciclo -> potencial vazamento
+    pub suggested_break_edges: Vec<(u64,u64)>, // pares (from,to) sugeridos para enfraquecer
+    pub reachable_from_root: bool,    // algum nó alcançável de root global
+    pub leak_candidate: bool,         // isolated && !reachable_from_root
+    pub ranked_suggestions: Vec<(u64,u64,u32)>, // (from,to,score)
+}
+
+impl Interpreter {
+    // Protótipo: coleta ids de weak/unowned mortos; sem grafo real ainda.
+    pub fn detect_cycles(&mut self) -> CycleDetectionResult {
+        use std::collections::{HashMap, HashSet};
+        // 1. Coletar weak/unowned mortos (ids) via varredura ambiente
+        let mut weak_dead: Vec<u64> = Vec::new();
+        let mut unowned_dangling: Vec<u64> = Vec::new();
+        fn scan_ids(v:&ArtValue, this:&Interpreter, weak_dead:&mut Vec<u64>, unowned_dangling:&mut Vec<u64>) {
+            match v {
+                ArtValue::WeakRef(h) => { if !this.is_object_alive(h.0) { weak_dead.push(h.0); } },
+                ArtValue::UnownedRef(h) => { if !this.is_object_alive(h.0) { unowned_dangling.push(h.0); } },
+                ArtValue::HeapComposite(h) => { if let Some(obj)=this.heap_objects.get(&h.0) { scan_ids(&obj.value,this,weak_dead,unowned_dangling); } },
+                ArtValue::Array(a) => for e in a { scan_ids(e,this,weak_dead,unowned_dangling) },
+                ArtValue::StructInstance{fields,..} => for (_k,val) in fields { scan_ids(val,this,weak_dead,unowned_dangling) },
+                ArtValue::EnumInstance{values,..} => for val in values { scan_ids(val,this,weak_dead,unowned_dangling) },
+                _=>{}
+            }
+        }
+        for (_k,v) in self.environment.borrow().values.iter(){ scan_ids(v,self,&mut weak_dead,&mut unowned_dangling); }
+        // 2. Construir grafo usando heap ids (apenas objetos vivos)
+        let mut edges: HashMap<u64, Vec<u64>> = HashMap::new();
+        let mut incoming: HashMap<u64, Vec<u64>> = HashMap::new();
+        for (id, obj) in self.heap_objects.iter() {
+            if !obj.alive { continue; }
+            match &obj.value {
+                ArtValue::Array(a) => for child in a { if let ArtValue::HeapComposite(h)=child { if let Some(c)=self.heap_objects.get(&h.0) { if c.alive { edges.entry(*id).or_default().push(h.0); incoming.entry(h.0).or_default().push(*id); } } } },
+                ArtValue::StructInstance{fields,..} => for (_k, child) in fields { if let ArtValue::HeapComposite(h)=child { if let Some(c)=self.heap_objects.get(&h.0){ if c.alive { edges.entry(*id).or_default().push(h.0); incoming.entry(h.0).or_default().push(*id); } } } },
+                ArtValue::EnumInstance{values,..} => for child in values { if let ArtValue::HeapComposite(h)=child { if let Some(c)=self.heap_objects.get(&h.0){ if c.alive { edges.entry(*id).or_default().push(h.0); incoming.entry(h.0).or_default().push(*id); } } } },
+                _=>{}
+            }
+        }
+        // 3. Raízes: objetos vivos que não aparecem como target em incoming
+        let mut all_ids: HashSet<u64> = self.heap_objects.iter().filter(|(_,o)| o.alive).map(|(id,_)| *id).collect();
+        for tgt in incoming.keys() { all_ids.remove(tgt); }
+        let roots: Vec<u64> = all_ids.into_iter().collect();
+        // 4. Tarjan SCC sobre ids vivos
+        // Mapear id -> idx
+        let mut id_vec: Vec<u64> = self.heap_objects.iter().filter(|(_,o)| o.alive).map(|(id,_)| *id).collect();
+        id_vec.sort_unstable();
+        let mut pos: HashMap<u64, usize> = HashMap::new();
+        for (i,id) in id_vec.iter().enumerate() { pos.insert(*id,i); }
+        let n = id_vec.len();
+        let mut index = 0usize; let mut indices=vec![usize::MAX;n]; let mut lowlink=vec![0usize;n]; let mut on_stack=vec![false;n]; let mut stack:Vec<usize>=Vec::new(); let mut sccs:Vec<Vec<usize>>=Vec::new();
+        fn strongconnect(u:usize,index:&mut usize,indices:&mut [usize],low:&mut [usize],stack:&mut Vec<usize>,on:&mut [bool],edges:&HashMap<u64,Vec<u64>>,id_vec:&[u64],pos:&HashMap<u64,usize>,sccs:&mut Vec<Vec<usize>>) {
+            indices[u]=*index; low[u]=*index; *index+=1; stack.push(u); on[u]=true;
+            if let Some(neigh_ids)=edges.get(&id_vec[u]) { for vid in neigh_ids { if let Some(&v)=pos.get(vid) { if indices[v]==usize::MAX { strongconnect(v,index,indices,low,stack,on,edges,id_vec,pos,sccs); low[u]=low[u].min(low[v]); } else if on[v] { low[u]=low[u].min(indices[v]); } } } }
+            if low[u]==indices[u] { let mut comp=Vec::new(); loop { let w=stack.pop().unwrap(); on[w]=false; comp.push(w); if w==u { break; } } if comp.len()>1 { sccs.push(comp); } }
+        }
+        for u in 0..n { if indices[u]==usize::MAX { strongconnect(u,&mut index,&mut indices,&mut lowlink,&mut stack,&mut on_stack,&edges,&id_vec,&pos,&mut sccs); } }
+        // 5. Alcançabilidade a partir de roots
+        let mut reachable = vec![false; n];
+        fn dfs(u:usize, edges:&HashMap<u64,Vec<u64>>, id_vec:&[u64], pos:&HashMap<u64,usize>, seen:&mut [bool]) { if seen[u]{return;} seen[u]=true; if let Some(neigh)=edges.get(&id_vec[u]) { for vid in neigh { if let Some(&v)=pos.get(vid){ dfs(v,edges,id_vec,pos,seen); } } } }
+        for r in &roots { if let Some(&u)=pos.get(r) { dfs(u,&edges,&id_vec,&pos,&mut reachable); } }
+        // 6. Classificar ciclos
+        let mut cycles_info=Vec::new(); let mut leaks=0usize;
+        for comp in sccs { let set:HashSet<usize>=comp.iter().cloned().collect(); let mut isolated=true; for &node in &comp { if let Some(ins)=incoming.get(&id_vec[node]) { if ins.iter().any(|p| { if let Some(&pi)=pos.get(p) { !set.contains(&pi) } else { true } }) { isolated=false; break; } } }
+            let reachable_from_root = comp.iter().any(|n| reachable[*n]);
+            let leak_candidate = isolated && !reachable_from_root; if leak_candidate { leaks+=1; }
+            // sugestões simples: arestas internas saindo do primeiro
+            let suggestions = comp.first().and_then(|first| {
+                edges.get(&id_vec[*first]).map(|outs| {
+                    outs.iter().filter_map(|cid| {
+                        if let Some(&ci)=pos.get(cid) {
+                            if set.contains(&ci) { Some( (id_vec[*first], *cid) ) } else { None }
+                        } else { None }
+                    }).collect::<Vec<_>>()
+                })
+            }).unwrap_or_default();
+            // ranking
+            let mut in_counts:HashMap<usize,u32>=HashMap::new(); for &nidx in &comp { if let Some(ins)=incoming.get(&id_vec[nidx]) { for pid in ins { if let Some(&pi)=pos.get(pid) { if set.contains(&pi) { *in_counts.entry(nidx).or_insert(0)+=1; } } } } }
+            let mut ranked=Vec::new(); for &nidx in &comp { if let Some(outs)=edges.get(&id_vec[nidx]) { let internal:Vec<u64>=outs.iter().copied().filter(|cid| pos.get(cid).map(|ci| set.contains(ci)).unwrap_or(false)).collect(); let out_deg=internal.len() as u32; for tgt in internal { if let Some(&ti)=pos.get(&tgt) { let score=out_deg + *in_counts.get(&ti).unwrap_or(&0); ranked.push( (id_vec[nidx], tgt, score) ); } } } }
+            ranked.sort_by(|a,b| b.2.cmp(&a.2)); ranked.truncate(3);
+            cycles_info.push(CycleInfo { nodes: comp.iter().map(|n| id_vec[*n]).collect(), isolated, suggested_break_edges: suggestions, reachable_from_root, leak_candidate, ranked_suggestions: ranked }); }
+        self.cycle_leaks_detected += leaks;
+    CycleDetectionResult { cycles: cycles_info, weak_dead, unowned_dangling }
+    }
+
+    /// Serializa resumo + resultado em JSON simples (sem escapagem avançada; valores numéricos e arrays apenas)
+    pub fn detect_cycles_json(&mut self) -> String {
+        let summary = self.cycle_report();
+        let result = self.detect_cycles();
+        let mut s = String::from("{");
+        use std::fmt::Write;
+        let owner_edges = summary.candidate_owner_edges.iter().map(|(a,b)| format!("[{},{}]",a,b)).collect::<Vec<_>>().join(",");
+        let _ = write!(s, "\"summary\":{{\"weak_total\":{},\"weak_alive\":{},\"weak_dead\":{},\"unowned_total\":{},\"unowned_dangling\":{},\"objects_finalized\":{},\"heap_alive\":{},\"avg_out_degree\":{:.2},\"avg_in_degree\":{:.2},\"candidate_owner_edges\":[{}],\"cycle_leaks_detected\":{}}}",
+            summary.weak_total, summary.weak_alive, summary.weak_dead, summary.unowned_total, summary.unowned_dangling, summary.objects_finalized, summary.heap_alive, summary.avg_out_degree, summary.avg_in_degree, owner_edges, self.cycle_leaks_detected);
+        s.push(',');
+        // weak_dead / unowned_dangling
+        let _ = write!(s, "\"weak_dead_ids\":[{}]", result.weak_dead.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(","));
+        s.push(',');
+        let _ = write!(s, "\"unowned_dangling_ids\":[{}]", result.unowned_dangling.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(","));
+        s.push(',');
+        // cycles
+        s.push_str("\"cycles\":[");
+        for (i, c) in result.cycles.iter().enumerate() {
+            if i>0 { s.push(','); }
+            let nodes = c.nodes.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",");
+            let sugg = c.suggested_break_edges.iter().map(|(a,b)| format!("[{},{}]", a,b)).collect::<Vec<_>>().join(",");
+            let ranked = c.ranked_suggestions.iter().map(|(a,b,sc)| format!("[{},{} ,{}]", a,b,sc)).collect::<Vec<_>>().join(",");
+            let _ = write!(s, "{{\"nodes\":[{}],\"isolated\":{},\"reachable_from_root\":{},\"leak_candidate\":{},\"suggested_break_edges\":[{}],\"ranked_suggestions\":[{}]}}", nodes, c.isolated, c.reachable_from_root, c.leak_candidate, sugg, ranked);
+        }
+        s.push_str("]}");
+        s
+    }
+
+    /// Versão prettificada (indentação 2 espaços) para debug humano.
+    pub fn detect_cycles_json_pretty(&mut self) -> String {
+        let mut raw = self.detect_cycles_json();
+        // Simples pretty printer para nosso JSON restrito (sem strings com braces dentro)
+        let mut out = String::new();
+        let mut indent = 0usize; let bytes: Vec<char> = raw.drain(..).collect();
+        let mut i=0; let len=bytes.len();
+        while i<len {
+            let c = bytes[i];
+            match c {
+                '{' | '[' => {
+                    out.push(c); indent+=1; out.push('\n'); out.push_str(&"  ".repeat(indent));
+                }
+                '}' | ']' => {
+                    indent = indent.saturating_sub(1);
+                    out.push('\n'); out.push_str(&"  ".repeat(indent)); out.push(c);
+                }
+                ',' => { out.push(c); out.push('\n'); out.push_str(&"  ".repeat(indent)); }
+                ':' => { out.push(':'); out.push(' '); }
+                _ => out.push(c)
+            }
+            i+=1;
+        }
+        out
     }
 }
 

@@ -41,7 +41,8 @@ Suporta:
 - Guards: `case P if expr =>` só casa se `expr` for truthy após casar `P`.
 
 ## Try / Result
-`Expr::Try(inner)` extrai `Ok` ou retorna via `RuntimeError::Return` se `Err` (protótipo inicial). Futuro: mecanismo distinto de propagação.
+`Expr::WeakUpgrade(expr)` (açúcar `expr?`) tenta upgrade de referência fraca retornando Optional.
+`Expr::UnownedAccess(expr)` (açúcar `expr!`) acessa referência unowned (verifica dangling em debug, retorna none com diagnóstico no protótipo atual).
 
 ## Erros de Execução
 | Tipo | Condição |

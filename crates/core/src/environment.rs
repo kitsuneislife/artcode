@@ -1,4 +1,4 @@
-use crate::ast::ArtValue;
+use crate::ast::{ArtValue, ObjHandle};
 use std::collections::HashMap;
 use crate::interner::intern;
 use std::rc::Rc;
@@ -8,18 +8,17 @@ use std::cell::RefCell;
 pub struct Environment {
     pub enclosing: Option<Rc<RefCell<Environment>>>,
     pub values: HashMap<&'static str, ArtValue>,
+    pub strong_handles: Vec<ObjHandle>, // rastreia HeapComposite definidos neste escopo
 }
 
 impl Environment {
     pub fn new(enclosing: Option<Rc<RefCell<Environment>>>) -> Self {
-        Environment {
-            enclosing,
-            values: HashMap::new(),
-        }
+    Environment { enclosing, values: HashMap::new(), strong_handles: Vec::new() }
     }
 
     pub fn define(&mut self, name: &str, value: ArtValue) {
         let sym = intern(name);
+        // Se rebind: retorno antigo (para decremento posterior pelo intérprete)
         self.values.insert(sym, value);
     }
 

@@ -127,7 +127,11 @@ impl<'a> TypeInfer<'a> {
                 }
             }
             FieldAccess { object, .. } => self.infer_expr(object),
-            Try(inner) => self.infer_expr(inner),
+            Try(inner) => self.infer_expr(inner), // legado
+            Weak(inner) => { self.infer_expr(inner); Type::Unknown },
+            Unowned(inner) => { self.infer_expr(inner); Type::Unknown },
+            WeakUpgrade(inner) => { self.infer_expr(inner); Type::None },
+            UnownedAccess(inner) => { self.infer_expr(inner); Type::Unknown },
             Array(elements) => {
                 if let Some(first) = elements.first() { Type::Array(Box::new(self.infer_expr(first))) } else { Type::Array(Box::new(Type::Unknown)) }
             },
@@ -153,5 +157,8 @@ fn value_type(v: &ArtValue) -> Type {
         ArtValue::EnumInstance { enum_name, .. } => Type::Enum(enum_name.clone()),
     ArtValue::Function(_) => Type::Function(vec![], Box::new(Type::Unknown)),
     ArtValue::Builtin(_) => Type::Function(vec![], Box::new(Type::Unknown)),
+    ArtValue::WeakRef(_) => Type::Unknown,
+    ArtValue::UnownedRef(_) => Type::Unknown,
+    ArtValue::HeapComposite(_) => Type::Unknown, // resolução ocorre em nível de interpretador; para inferência simplificada tratamos como Unknown
     }
 }

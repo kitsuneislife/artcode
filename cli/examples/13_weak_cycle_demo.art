@@ -1,0 +1,4 @@
+// Protótipo: demonstra criação de weak refs
+let a = 1;
+let w = weak a;
+let opt = w?; // upgrade opcional

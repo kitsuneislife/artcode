@@ -52,6 +52,15 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
             Expr::Grouping { expression: Box::new(expr) }
         }
         TokenType::Identifier => Expr::Variable { name: token },
+        TokenType::Weak => {
+            // próximo é expressão de menor precedência que unary
+            let inner = parse_precedence(parser, Precedence::Unary as u8);
+            Expr::Weak(Box::new(inner))
+        }
+        TokenType::Unowned => {
+            let inner = parse_precedence(parser, Precedence::Unary as u8);
+            Expr::Unowned(Box::new(inner))
+        }
         TokenType::Bang | TokenType::Minus => {
             let right = parse_precedence(parser, Precedence::Unary as u8);
             Expr::Unary { operator: token, right: Box::new(right) }
@@ -123,7 +132,14 @@ pub fn parse_infix(parser: &mut Parser, left: Expr, operator: Token) -> Expr {
             }
             Expr::FieldAccess { object: Box::new(left), field: ident }
         }
-        TokenType::Question => Expr::Try(Box::new(left)),
+        TokenType::Question => {
+            // Se left é Weak(...) ou já produziu algo que deve virar WeakUpgrade
+            Expr::WeakUpgrade(Box::new(left))
+        }
+        TokenType::Bang => {
+            // Postfix unowned access
+            Expr::UnownedAccess(Box::new(left))
+        }
         TokenType::As => {
             let type_name = parser.parse_type();
             Expr::Cast { object: Box::new(left), target_type: type_name }

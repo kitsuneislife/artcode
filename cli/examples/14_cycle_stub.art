@@ -1,0 +1,4 @@
+// Nenhum ciclo real ainda; apenas weak morta simulada
+let a = 1;
+let w = weak a;
+// (Simular drop: ainda não existe API para remover alvo programaticamente aqui)

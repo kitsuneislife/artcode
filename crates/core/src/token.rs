@@ -40,6 +40,8 @@ pub enum TokenType {
     Underscore,
     Func,
     Return,
+    Weak,      // keyword 'weak' (açúcar)
+    Unowned,   // keyword 'unowned' (açúcar)
     Identifier,
     String(String),
     InterpolatedString(String), // <<< NOSSO NOVO TOKEN
@@ -63,7 +65,7 @@ pub struct Token {
 
 impl Token {
     pub fn new(token_type: TokenType, lexeme: String, line: usize, col: usize, start: usize, end: usize) -> Self {
-        let symbol = matches!(token_type, TokenType::Identifier | TokenType::Let | TokenType::If | TokenType::Else | TokenType::True | TokenType::False | TokenType::Struct | TokenType::Enum | TokenType::And | TokenType::Or | TokenType::Match | TokenType::Case | TokenType::Func | TokenType::Return | TokenType::None | TokenType::As)
+    let symbol = matches!(token_type, TokenType::Identifier | TokenType::Let | TokenType::If | TokenType::Else | TokenType::True | TokenType::False | TokenType::Struct | TokenType::Enum | TokenType::And | TokenType::Or | TokenType::Match | TokenType::Case | TokenType::Func | TokenType::Return | TokenType::None | TokenType::As | TokenType::Weak | TokenType::Unowned)
             .then(|| intern(&lexeme));
         Token { token_type, lexeme, symbol, line, col, start, end }
     }

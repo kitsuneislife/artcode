@@ -201,6 +201,8 @@ impl Lexer {
             "return" => TokenType::Return,
             "none" => TokenType::None,
             "as" => TokenType::As,
+            "weak" => TokenType::Weak,
+            "unowned" => TokenType::Unowned,
             _ => TokenType::Identifier,
         };
     self.add_token(token_type);

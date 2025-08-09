@@ -242,6 +242,7 @@ impl Parser {
             TokenType::LeftParen | TokenType::Dot => Precedence::Call as u8,
             TokenType::As => Precedence::Call as u8,
             TokenType::Question => Precedence::Try as u8,
+            TokenType::Bang => Precedence::Call as u8, // tratar 'expr!' como postfix acesso unowned
             _ => Precedence::None as u8,
         }
     }

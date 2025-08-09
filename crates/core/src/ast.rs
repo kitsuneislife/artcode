@@ -3,7 +3,7 @@ use crate::Token;
 use std::cell::RefCell;
 use std::fmt;
 use std::sync::Arc;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 pub type Program = Vec<Stmt>;
 
@@ -101,6 +101,10 @@ pub enum Expr {
         target_type: String,
     },
     InterpolatedString(Vec<InterpolatedPart>),
+    Weak(Box<Expr>),        // açúcar: weak expr -> builtin weak()
+    Unowned(Box<Expr>),     // açúcar: unowned expr -> builtin unowned()
+    WeakUpgrade(Box<Expr>), // açúcar: expr?  (onde expr avalia para WeakRef)
+    UnownedAccess(Box<Expr>), // açúcar: expr! (onde expr avalia para UnownedRef)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -114,7 +118,10 @@ pub struct Function {
     pub name: Option<String>,
     pub params: Vec<FunctionParam>,
     pub body: Rc<Stmt>,
-    pub closure: Rc<RefCell<Environment>>,
+    // Ambiente léxico capturado (Weak para evitar ciclo Environment -> Function -> Environment)
+    pub closure: Weak<RefCell<Environment>>,
+    // Retentor opcional para ambientes criados ao "bindar" métodos (garante que não cai no nada imediatamente)
+    pub retained_env: Option<Rc<RefCell<Environment>>>,
 }
 
 impl fmt::Debug for Function {
@@ -147,18 +154,31 @@ pub enum ArtValue {
         variant: String,
         values: Vec<ArtValue>,
     },
+    // Novo: wrapper para objetos compostos alocados no heap (fase de transição ARC real)
+    HeapComposite(ObjHandle),
     Function(Rc<Function>),
     Builtin(BuiltinFn),
+    // Fase 8 (protótipo): referências não-fortes
+    WeakRef(ObjHandle),      // id para registro global
+    UnownedRef(ObjHandle),   // id para registro global (não mantém vivo)
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ObjHandle(pub u64);
 
 #[derive(Clone)]
 pub enum BuiltinFn {
     Println,
     Len,
     TypeOf,
+    WeakNew,       // __weak(x)
+    WeakGet,       // __weak_get(w)
+    UnownedNew,    // __unowned(x)
+    UnownedGet,    // __unowned_get(u)
+    OnFinalize,    // __on_finalize(comp, fn)
 }
 
-impl fmt::Debug for BuiltinFn { fn fmt(&self, f:&mut fmt::Formatter<'_>)->fmt::Result { match self { BuiltinFn::Println => write!(f, "<builtin println>"), BuiltinFn::Len => write!(f, "<builtin len>"), BuiltinFn::TypeOf => write!(f, "<builtin type_of>") } } }
+impl fmt::Debug for BuiltinFn { fn fmt(&self, f:&mut fmt::Formatter<'_>)->fmt::Result { match self { BuiltinFn::Println => write!(f, "<builtin println>"), BuiltinFn::Len => write!(f, "<builtin len>"), BuiltinFn::TypeOf => write!(f, "<builtin type_of>"), BuiltinFn::WeakNew => write!(f, "<builtin __weak>"), BuiltinFn::WeakGet => write!(f, "<builtin __weak_get>"), BuiltinFn::UnownedNew => write!(f, "<builtin __unowned>"), BuiltinFn::UnownedGet => write!(f, "<builtin __unowned_get>"), BuiltinFn::OnFinalize => write!(f, "<builtin __on_finalize>") } } }
 
 impl PartialEq for BuiltinFn { fn eq(&self, other:&Self)->bool { std::mem::discriminant(self)==std::mem::discriminant(other) } }
 
@@ -194,7 +214,10 @@ impl fmt::Display for ArtValue {
                 let name = func.name.as_deref().unwrap_or("<anonymous>");
                 write!(f, "<fn {}>", name)
             }
-            ArtValue::Builtin(b) => match b { BuiltinFn::Println => write!(f, "<builtin println>"), BuiltinFn::Len => write!(f, "<builtin len>"), BuiltinFn::TypeOf => write!(f, "<builtin type_of>") },
+            ArtValue::Builtin(b) => match b { BuiltinFn::Println => write!(f, "<builtin println>"), BuiltinFn::Len => write!(f, "<builtin len>"), BuiltinFn::TypeOf => write!(f, "<builtin type_of>"), BuiltinFn::WeakNew => write!(f, "<builtin __weak>"), BuiltinFn::WeakGet => write!(f, "<builtin __weak_get>"), BuiltinFn::UnownedNew => write!(f, "<builtin __unowned>"), BuiltinFn::UnownedGet => write!(f, "<builtin __unowned_get>"), BuiltinFn::OnFinalize => write!(f, "<builtin __on_finalize>") },
+            ArtValue::WeakRef(_) => write!(f, "<weak ref>"),
+            ArtValue::UnownedRef(_) => write!(f, "<unowned ref>"),
+            ArtValue::HeapComposite(_) => write!(f, "<composite>"),
         }
     }
 }
