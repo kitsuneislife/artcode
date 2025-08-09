@@ -105,17 +105,16 @@ impl<'a> TypeInfer<'a> {
                     for (ename, vmap) in &self.enums { if vmap.contains_key(&variant.lexeme) { candidates.push(ename); } }
                     if candidates.len() == 1 {
                         let ename = candidates[0].clone();
-                        if let Some(vmap) = self.enums.get(&ename) {
-                            if let Some(expected) = vmap.get(&variant.lexeme) {
-                                let exp = expected.unwrap_or(0);
-                                if exp != val_types.len() {
-                                    self.diags.push(Diagnostic::new(
-                                        DiagnosticKind::Type,
-                                        format!("Enum variant '{}' expects {} arguments, found {}", variant.lexeme, exp, val_types.len()),
-                                        Span::new(variant.start, variant.end, variant.line, variant.col)));
-                                }
-                                return Type::EnumInstance(ename.clone(), val_types);
+                        if let Some(vmap) = self.enums.get(&ename)
+                            && let Some(expected) = vmap.get(&variant.lexeme) {
+                            let exp = expected.unwrap_or(0);
+                            if exp != val_types.len() {
+                                self.diags.push(Diagnostic::new(
+                                    DiagnosticKind::Type,
+                                    format!("Enum variant '{}' expects {} arguments, found {}", variant.lexeme, exp, val_types.len()),
+                                    Span::new(variant.start, variant.end, variant.line, variant.col)));
                             }
+                            return Type::EnumInstance(ename.clone(), val_types);
                         }
                         Type::Enum(ename.clone())
                     } else if candidates.len() > 1 {

@@ -4,7 +4,7 @@ O prelude inicializa o ambiente global com construções padrão necessárias pa
 
 ## Conteúdo Atual
 - `Result { Ok(T), Err(E) }`
-- Função builtin `println(value)`
+- Funções builtin: `println(value)`, `len(value)`, `type_of(value)`
 
 ## Builtins
 Builtins são valores especiais representados internamente por `ArtValue::Builtin` e enumerados em `BuiltinFn`.
@@ -19,12 +19,24 @@ Características:
 
 Racional: manter custo de chamada mínimo sem criar `Function` sintética e sem checagens especiais no interpretador (despacho direto em `call_builtin`).
 
+### `len`
+Assinatura: `len(value: Array|String) -> Int`
+
+Erros:
+- Tipo não suportado gera diagnostic `len: unsupported type`.
+- Falta de argumento gera diagnostic `len: missing argument`.
+
+### `type_of`
+Assinatura: `type_of(value: Any) -> String`
+
+Retorna nome simples do tipo dinâmico. Falta de argumento gera diagnostic `type_of: missing argument`.
+
 Próximos passos planejados para builtins:
 | Item | Objetivo | Observação |
 |------|----------|------------|
 | Variádico controlado | `println(a, b, ...)` | Implementar coleta incremental evitando vetor intermediário grande |
-| `len` | Tamanho de array/string | Diagnóstico para tipos não suportados |
-| `type_of` | Inspeção de tipo | Suporte a debugging e REPL |
+| `len` | Tamanho de array/string | (Implementado) Diagnóstico para tipos não suportados |
+| `type_of` | Inspeção de tipo | (Implementado) Suporte a debugging e REPL |
 | Registry modular | Opt-in | Permitir runtime mínimo para scripts embed |
 
 ## Enum Result

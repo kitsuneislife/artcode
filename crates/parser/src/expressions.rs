@@ -101,19 +101,23 @@ pub fn parse_infix(parser: &mut Parser, left: Expr, operator: Token) -> Expr {
             // Se left é Variable e próximo é '(' trata como EnumInit nomeado
             if let Expr::Variable { name: enum_name_tok } = left.clone() {
                 let is_type_like = enum_name_tok.lexeme.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
-                if is_type_like && parser.check(&TokenType::LeftParen) {
-                    parser.advance(); // consume '('
-                    let mut values = Vec::new();
-                    if !parser.check(&TokenType::RightParen) {
-                        loop {
-                            values.push(expression(parser));
-                            if !parser.match_token(TokenType::Comma) { break; }
+                if is_type_like {
+                    if parser.check(&TokenType::LeftParen) {
+                        parser.advance(); // consume '('
+                        let mut values = Vec::new();
+                        if !parser.check(&TokenType::RightParen) {
+                            loop {
+                                values.push(expression(parser));
+                                if !parser.match_token(TokenType::Comma) { break; }
+                            }
                         }
+                        parser.consume(TokenType::RightParen, "Expect ')' after enum variant values.");
+                        return Expr::EnumInit { name: Some(enum_name_tok), variant: ident, values };
+                    } else {
+                        // Variant sem payload
+                        return Expr::EnumInit { name: Some(enum_name_tok), variant: ident, values: Vec::new() };
                     }
-                    parser.consume(TokenType::RightParen, "Expect ')' after enum variant values.");
-                    return Expr::EnumInit { name: Some(enum_name_tok), variant: ident, values };
                 } else {
-                    // Sem parênteses: tratar como acesso de campo
                     return Expr::FieldAccess { object: Box::new(left), field: ident };
                 }
             }

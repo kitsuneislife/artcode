@@ -106,7 +106,7 @@ impl Lexer {
                     self.identifier();
                 }
             }
-            c if c.is_ascii_digit() => self.number(),
+            c if c.is_ascii_digit() => self.number()?,
             c if c.is_alphabetic() || c == '_' => self.identifier(),
         _ => return Err(self.error_current("Unexpected character")),
     }
@@ -149,7 +149,7 @@ impl Lexer {
     Ok(())
     }
 
-    fn number(&mut self) {
+    fn number(&mut self) -> DiagResult<()> {
         while self.peek().is_ascii_digit() {
             self.advance();
         }
@@ -162,8 +162,22 @@ impl Lexer {
         }
 
     let value: String = self.source[self.start..self.current].iter().collect();
-    let num: f64 = value.parse().unwrap();
-        self.add_token(TokenType::Number(num));
+    match value.parse::<f64>() {
+        Ok(num) => {
+            self.add_token(TokenType::Number(num));
+            Ok(())
+        }
+        Err(_) => {
+            // Valor capturado corresponde ao padrão de dígitos (e opcional ponto + dígitos), então erro aqui é raro;
+            // ainda assim, geramos diagnóstico ao invés de panic para robustez.
+            let col = if self.start >= self.line_start { self.start - self.line_start + 1 } else { 1 };
+            Err(Diagnostic::new(
+                DiagnosticKind::Lex,
+                "Invalid number literal",
+                Span::new(self.start, self.current, self.line, col),
+            ))
+        }
+    }
     }
 
     fn identifier(&mut self) {
@@ -196,7 +210,11 @@ impl Lexer {
 
     fn make_token(&self, token_type: TokenType) -> Token {
     let text: String = self.source[self.start..self.current].iter().collect();
-        let col = self.start - self.line_start + 1; // 1-based
+        let col = if self.start >= self.line_start { 
+            self.start - self.line_start + 1 
+        } else { 
+            1 
+        }; // 1-based, proteção contra overflow
         // Token::new já internará se aplicável.
         Token::new(token_type, text, self.line, col, self.start, self.current)
     }

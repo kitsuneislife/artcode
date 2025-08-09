@@ -46,16 +46,32 @@ impl Parser {
                                   self.tokens[self.current.min(self.tokens.len()-1)].col)));
                     break;
                 }
-                // slice without closing '}'
-                let expr_source: String = chars[expr_start..i].iter().collect();
+                // Content between braces (may contain :fmt at top level)
+                let inner: String = chars[expr_start..i].iter().collect();
                 // advance past closing '}'
                 i += 1;
+                // Split on first ':' not inside nested braces (already removed)
+                let mut expr_src = inner.as_str();
+                let mut fmt_opt: Option<String> = None;
+                if let Some(colon_pos) = inner.find(':') {
+                    // ensure no other ':' before formats? accept first
+                    expr_src = &inner[..colon_pos];
+                    let fmt_part = &inner[colon_pos+1..];
+                    if !fmt_part.is_empty() { fmt_opt = Some(fmt_part.to_string()); }
+                }
                 // parse expression source
-                let mut sub_lexer = Lexer::new(expr_source.clone());
-                let tokens = sub_lexer.scan_tokens().expect("lex error in f-string expression");
+                let mut sub_lexer = Lexer::new(expr_src.to_string());
+                    let tokens = match sub_lexer.scan_tokens() {
+                        Ok(t) => t,
+                        Err(diag) => {
+                            // Propagar diagnóstico de lexing da sub-expressão
+                            self.diagnostics.push(diag);
+                            continue; // pular esta interpolação
+                        }
+                    };
                 let mut sub_parser = Parser::new(tokens);
                 let expr = sub_parser.expression();
-                parts.push(InterpolatedPart::Expr(Box::new(expr)));
+                parts.push(InterpolatedPart::Expr { expr: Box::new(expr), format: fmt_opt });
             } else if c == '}' { // stray or escaped '}}'
                 if i + 1 < chars.len() && chars[i + 1] == '}' { // escape sequence
                     literal_buf.push('}');
@@ -313,7 +329,15 @@ impl Parser {
     }
 
     pub fn function_declaration(&mut self) -> Stmt {
-        let name = self.consume(TokenType::Identifier, "Expect function name.");
+        let first_ident = self.consume(TokenType::Identifier, "Expect function name.");
+        let (name, method_owner) = if self.match_token(TokenType::Dot) {
+            if self.check(&TokenType::Identifier) {
+                let method_ident = self.advance();
+                (method_ident, Some(first_ident.lexeme.clone()))
+            } else {
+                (first_ident, None)
+            }
+        } else { (first_ident, None) };
         self.consume(TokenType::LeftParen, "Expect '(' after function name.");
         let mut params = Vec::new();
         if !self.check(&TokenType::RightParen) {
@@ -343,11 +367,6 @@ impl Parser {
         let body = Rc::new(Stmt::Block {
             statements: self.block(),
         });
-        Stmt::Function {
-            name,
-            params,
-            return_type,
-            body,
-        }
+    Stmt::Function { name, params, return_type, body, method_owner }
     }
 }

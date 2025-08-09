@@ -1,5 +1,7 @@
 # Art Language
 
+![Coverage](./target/coverage_badge.svg)
+
 Implementação experimental de uma linguagem interpretada em Rust com suporte a:
 
 - Estruturas (struct)
@@ -43,6 +45,18 @@ Execute:
 ```
 cargo test
 ```
+
+Para cobertura local:
+```
+cargo run -p xtask -- coverage --html
+```
+
+## Métricas de Qualidade
+CLI imprime métricas de execução:
+```
+[metrics] handled_errors=3 executed_statements=120 crash_free=97.5%
+```
+Objetivo: crash_free >= 99%. Warnings/panics inesperados devem ser convertidos em diagnostics estruturados.
 
 ## Arquitetura & Próximos Passos
 Ver diretório `docs/` para detalhes (overview, parser_lexer, interpreter). Focos imediatos:

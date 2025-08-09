@@ -12,6 +12,8 @@ pub struct Interpreter {
     type_registry: TypeRegistry,
     pub diagnostics: Vec<Diagnostic>,
     pub last_value: Option<ArtValue>,
+    pub handled_errors: usize,
+    pub executed_statements: usize,
 }
 
 impl Interpreter {
@@ -19,8 +21,10 @@ impl Interpreter {
         let global_env = Rc::new(RefCell::new(Environment::new(None)));
 
     global_env.borrow_mut().define("println", ArtValue::Builtin(core::ast::BuiltinFn::Println));
+    global_env.borrow_mut().define("len", ArtValue::Builtin(core::ast::BuiltinFn::Len));
+    global_env.borrow_mut().define("type_of", ArtValue::Builtin(core::ast::BuiltinFn::TypeOf));
 
-    Interpreter { environment: global_env, type_registry: TypeRegistry::new(), diagnostics: Vec::new(), last_value: None }
+    Interpreter { environment: global_env, type_registry: TypeRegistry::new(), diagnostics: Vec::new(), last_value: None, handled_errors: 0, executed_statements: 0 }
     }
 
     pub fn with_prelude() -> Self {
@@ -43,9 +47,13 @@ impl Interpreter {
         }
         Ok(())
     }
-    pub fn take_diagnostics(&mut self) -> Vec<Diagnostic> { std::mem::take(&mut self.diagnostics) }
+    pub fn take_diagnostics(&mut self) -> Vec<Diagnostic> {
+        self.handled_errors += self.diagnostics.len();
+        std::mem::take(&mut self.diagnostics)
+    }
 
     fn execute(&mut self, stmt: Stmt) -> Result<()> {
+        self.executed_statements += 1;
         match stmt {
             Stmt::Expression(expr) => {
                 let val = self.evaluate(expr)?;
@@ -78,15 +86,22 @@ impl Interpreter {
             }
             Stmt::Match { expr, cases } => {
                 let match_value = self.evaluate(expr)?;
-                for (pattern, stmt) in cases {
+                for (pattern, guard, stmt) in cases {
                     if let Some(bindings) = self.pattern_matches(&pattern, &match_value) {
-                        let previous_env = self.environment.clone();
-                        let new_env =
-                            Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
-                        self.environment = new_env;
-                        for (name, value) in bindings {
-                            self.environment.borrow_mut().define(&name, value);
+                        // Avaliar guard (se existir) em ambiente com bindings temporário
+                        if let Some(gexpr) = guard {
+                            let previous_env = self.environment.clone();
+                            let temp_env = Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
+                            self.environment = temp_env;
+                            for (name, value) in bindings.iter() { self.environment.borrow_mut().define(name, value.clone()); }
+                            let guard_passed = self.evaluate(gexpr).map(|v| self.is_truthy(&v)).unwrap_or(false);
+                            self.environment = previous_env;
+                            if !guard_passed { continue; }
                         }
+                        let previous_env = self.environment.clone();
+                        let new_env = Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
+                        self.environment = new_env;
+                        for (name, value) in bindings { self.environment.borrow_mut().define(&name, value); }
                         let result = self.execute(stmt);
                         self.environment = previous_env;
                         return result;
@@ -94,14 +109,19 @@ impl Interpreter {
                 }
                 Ok(())
             }
-            Stmt::Function { name, params, body, .. } => {
-                let function = Function {
-                    name: Some(name.lexeme.clone()),
-                    params,
-                    body,
-                    closure: self.environment.clone(),
-                };
-                self.environment.borrow_mut().define(&name.lexeme, ArtValue::Function(Rc::new(function)));
+            Stmt::Function { name, params, body, method_owner, .. } => {
+                let fn_rc = Rc::new(Function { name: Some(name.lexeme.clone()), params: params.clone(), body: body.clone(), closure: self.environment.clone() });
+                if let Some(owner) = method_owner {
+                    if let Some(sdef) = self.type_registry.structs.get_mut(&owner) {
+                        sdef.methods.insert(name.lexeme.clone(), (*fn_rc).clone());
+                    } else if let Some(edef) = self.type_registry.enums.get_mut(&owner) {
+                        edef.methods.insert(name.lexeme.clone(), (*fn_rc).clone());
+                    } else {
+                        self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, format!("Unknown type '{}' for method.", owner), Span::new(name.start,name.end,name.line,name.col)));
+                    }
+                } else {
+                    self.environment.borrow_mut().define(&name.lexeme, ArtValue::Function(fn_rc.clone()));
+                }
                 Ok(())
             }
             Stmt::Return { value } => {
@@ -137,32 +157,38 @@ impl Interpreter {
                 }
             },
             (
-                MatchPattern::EnumVariant { variant, params },
-                ArtValue::EnumInstance { variant: v_name, values, .. },
-            ) if &variant.lexeme == v_name => match params {
-                Some(param_patterns) => {
-                    if param_patterns.len() != values.len() {
-                        self.diagnostics.push(Diagnostic::new(
-                            DiagnosticKind::Runtime,
-                            format!("Arity mismatch in pattern: expected {} found {}", values.len(), param_patterns.len()),
-                            Span::new(variant.start, variant.end, variant.line, variant.col)));
-                        return None;
-                    }
-                    let mut all_bindings = Vec::new();
-                    for (i, p) in param_patterns.iter().enumerate() {
-                        if let Some(bindings) = self.pattern_matches(p, &values[i]) {
-                            all_bindings.extend(bindings);
-                        } else {
+                MatchPattern::EnumVariant { enum_name, variant, params },
+                ArtValue::EnumInstance { enum_name: inst_enum_name, variant: v_name, values, .. },
+            ) if &variant.lexeme == v_name => {
+                // Verificar nome do enum se especificado
+                if let Some(enum_name_tok) = enum_name && &enum_name_tok.lexeme != inst_enum_name {
+                    return None;
+                }
+                match params {
+                    Some(param_patterns) => {
+                        if param_patterns.len() != values.len() {
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                format!("Arity mismatch in pattern: expected {} found {}", values.len(), param_patterns.len()),
+                                Span::new(variant.start, variant.end, variant.line, variant.col)));
                             return None;
                         }
+                        let mut all_bindings = Vec::new();
+                        for (i, p) in param_patterns.iter().enumerate() {
+                            if let Some(bindings) = self.pattern_matches(p, &values[i]) {
+                                all_bindings.extend(bindings);
+                            } else {
+                                return None;
+                            }
+                        }
+                        Some(all_bindings)
                     }
-                    Some(all_bindings)
-                }
-                None => {
-                    if values.is_empty() {
-                        Some(vec![])
-                    } else {
-                        None
+                    None => {
+                        if values.is_empty() {
+                            Some(vec![])
+                        } else {
+                            None
+                        }
                     }
                 }
             },
@@ -191,26 +217,22 @@ impl Interpreter {
 
     fn evaluate(&mut self, expr: Expr) -> Result<ArtValue> {
         match expr {
-        Expr::InterpolatedString(parts) => {
-                // Heurística: soma tamanhos literais para reservar.
-                let cap: usize = parts.iter().map(|p| match p { InterpolatedPart::Literal(s) => s.len(), _ => 4 }).sum();
-                let mut result = String::with_capacity(cap);
-                for part in parts {
-                    match part {
-                        InterpolatedPart::Literal(s) => result.push_str(&s),
-                        InterpolatedPart::Expr(e) => {
-                            let val = self.evaluate(*e)?;
-                            let seg = val.to_string();
-                            result.push_str(&seg);
-                        }
-                    }
-                }
-                Ok(ArtValue::String(std::sync::Arc::from(result)))
+            Expr::InterpolatedString(parts) => {
+                use crate::fstring::eval_fstring;
+                eval_fstring(parts, |e| self.evaluate(e))
             }
             Expr::Literal(value) => Ok(value),
             Expr::Grouping { expression } => self.evaluate(*expression),
             Expr::Variable { name } => {
                 let name_str = name.lexeme.clone();
+                if (name_str == "variant" || name_str == "values")
+                    && let Some(ArtValue::EnumInstance { variant, values, .. }) = self.environment.borrow().get("self") {
+                    if name_str == "variant" {
+                        return Ok(ArtValue::String(std::sync::Arc::from(variant.clone())));
+                    } else {
+                        return Ok(ArtValue::Array(values.clone()));
+                    }
+                }
                 match self.environment.borrow().get(&name_str) {
                     Some(v) => Ok(v.clone()),
                     None => {
@@ -420,6 +442,7 @@ impl Interpreter {
             }
             Expr::FieldAccess { object, field } => {
                 let obj_value = self.evaluate(*object)?;
+                use crate::field_access::{struct_field_or_method, enum_method};
                 match obj_value {
                     ArtValue::Array(arr) => match field.lexeme.as_str() {
                         "sum" => {
@@ -446,18 +469,28 @@ impl Interpreter {
                             Ok(ArtValue::none())
                         }
                     },
-                            ArtValue::StructInstance { fields, .. } => {
-                                match fields.get(&field.lexeme) {
-                                    Some(v) => Ok(v.clone()),
-                                    None => {
-                                        self.diagnostics.push(Diagnostic::new(
-                                            DiagnosticKind::Runtime,
-                                            format!("Missing field '{}'.", field.lexeme),
-                                            Span::new(field.start, field.end, field.line, field.col)));
-                                        Ok(ArtValue::none())
-                                    }
-                                }
-                            }
+                    ArtValue::StructInstance { struct_name, fields } => {
+                        if let Some(v) = struct_field_or_method(&struct_name, &fields, &field, &self.type_registry) {
+                            Ok(v)
+                        } else {
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                format!("Missing field '{}'.", field.lexeme),
+                                Span::new(field.start, field.end, field.line, field.col)));
+                            Ok(ArtValue::none())
+                        }
+                    }
+                    ArtValue::EnumInstance { enum_name, variant, values } => {
+                        if let Some(v) = enum_method(&enum_name, &variant, &values, &field, &self.type_registry) {
+                            Ok(v)
+                        } else {
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                format!("Missing field '{}'.", field.lexeme),
+                                Span::new(field.start, field.end, field.line, field.col)));
+                            Ok(ArtValue::none())
+                        }
+                    }
                     _ => {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
@@ -535,6 +568,53 @@ impl Interpreter {
                 } else { println!(); }
                 Ok(ArtValue::none())
             }
+            core::ast::BuiltinFn::Len => {
+                if let Some(first) = arguments.into_iter().next() {
+                    let val = self.evaluate(first)?;
+                    let n = match val {
+                        ArtValue::String(ref s) => s.len() as i64,
+                        ArtValue::Array(ref a) => a.len() as i64,
+                        _ => {
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                "len: unsupported type".to_string(),
+                                Span::new(0,0,0,0)));
+                            return Ok(ArtValue::none());
+                        }
+                    };
+                    Ok(ArtValue::Int(n))
+                } else {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "len: missing argument".to_string(),
+                        Span::new(0,0,0,0)));
+                    Ok(ArtValue::none())
+                }
+            }
+            core::ast::BuiltinFn::TypeOf => {
+                if let Some(first) = arguments.into_iter().next() {
+                    let val = self.evaluate(first)?;
+                    let t = match val {
+                        ArtValue::Int(_) => "Int",
+                        ArtValue::Float(_) => "Float",
+                        ArtValue::String(_) => "String",
+                        ArtValue::Bool(_) => "Bool",
+                        ArtValue::Optional(_) => "Optional",
+                        ArtValue::Array(_) => "Array",
+                        ArtValue::StructInstance { .. } => "Struct",
+                        ArtValue::EnumInstance { .. } => "Enum",
+                        ArtValue::Function(_) => "Function",
+                        ArtValue::Builtin(_) => "Builtin",
+                    };
+                    Ok(ArtValue::String(std::sync::Arc::from(t)))
+                } else {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "type_of: missing argument".to_string(),
+                        Span::new(0,0,0,0)));
+                    Ok(ArtValue::none())
+                }
+            }
         }
     }
 
@@ -602,6 +682,10 @@ impl Interpreter {
             _ => Ok(ArtValue::none()),
         }
     }
+}
+
+impl Default for Interpreter {
+    fn default() -> Self { Self::new() }
 }
 
 // (Removed unused infer_type helper; now handled in dedicated type_infer module)

@@ -32,14 +32,15 @@ pub enum Stmt {
         variants: Vec<(Token, Option<Vec<String>>)>,
     },
     Match {
-        expr: Expr,
-        cases: Vec<(MatchPattern, Stmt)>,
+    expr: Expr,
+    cases: Vec<(MatchPattern, Option<Expr>, Stmt)>, // (pattern, guard, body)
     },
     Function {
         name: Token,
         params: Vec<FunctionParam>,
         return_type: Option<String>,
         body: Rc<Stmt>,
+    method_owner: Option<String>, // novo: tipo ao qual o método pertence
     },
     Return {
         value: Option<Expr>,
@@ -105,7 +106,7 @@ pub enum Expr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum InterpolatedPart {
     Literal(String),
-    Expr(Box<Expr>),
+    Expr { expr: Box<Expr>, format: Option<String> },
 }
 
 #[derive(Clone)]
@@ -153,11 +154,13 @@ pub enum ArtValue {
 #[derive(Clone)]
 pub enum BuiltinFn {
     Println,
+    Len,
+    TypeOf,
 }
 
-impl fmt::Debug for BuiltinFn { fn fmt(&self, f:&mut fmt::Formatter<'_>)->fmt::Result { match self { BuiltinFn::Println => write!(f, "<builtin println>") } } }
+impl fmt::Debug for BuiltinFn { fn fmt(&self, f:&mut fmt::Formatter<'_>)->fmt::Result { match self { BuiltinFn::Println => write!(f, "<builtin println>"), BuiltinFn::Len => write!(f, "<builtin len>"), BuiltinFn::TypeOf => write!(f, "<builtin type_of>") } } }
 
-impl PartialEq for BuiltinFn { fn eq(&self, other:&Self)->bool { matches!((self,other),(BuiltinFn::Println,BuiltinFn::Println)) } }
+impl PartialEq for BuiltinFn { fn eq(&self, other:&Self)->bool { std::mem::discriminant(self)==std::mem::discriminant(other) } }
 
 impl fmt::Display for ArtValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -191,7 +194,7 @@ impl fmt::Display for ArtValue {
                 let name = func.name.as_deref().unwrap_or("<anonymous>");
                 write!(f, "<fn {}>", name)
             }
-            ArtValue::Builtin(b) => match b { BuiltinFn::Println => write!(f, "<builtin println>") },
+            ArtValue::Builtin(b) => match b { BuiltinFn::Println => write!(f, "<builtin println>"), BuiltinFn::Len => write!(f, "<builtin len>"), BuiltinFn::TypeOf => write!(f, "<builtin type_of>") },
         }
     }
 }
@@ -222,6 +225,7 @@ impl ArtValue {
 #[derive(Debug, Clone)]
 pub enum MatchPattern {
     EnumVariant {
+        enum_name: Option<Token>, // Nome qualificado do enum (opcional para compatibilidade)
         variant: Token,
         params: Option<Vec<MatchPattern>>,
     },

@@ -66,7 +66,30 @@ pub fn let_declaration(parser: &mut Parser) -> Stmt {
     };
 
     parser.consume(TokenType::Equal, "Expect '=' after variable name or type.");
-    let initializer = parser.expression();
+    let mut initializer = parser.expression();
+    // Suporte a inicialização de struct dentro de expressão de let (ex: let p = Pessoa { campo: valor } )
+    if let Expr::Variable { name: struct_name_tok } = &initializer
+        && parser.match_token(TokenType::LeftBrace) {
+            let mut fields = Vec::new();
+            while !parser.check(&TokenType::RightBrace) {
+                if parser.check(&TokenType::Identifier) {
+                    let field_name = parser.advance();
+                    parser.consume(TokenType::Colon, "Expect ':' after field name.");
+                    let value = parser.expression();
+                    fields.push((field_name, value));
+                    if !parser.check(&TokenType::RightBrace) { parser.match_token(TokenType::Comma); }
+                } else {
+                    let p = parser.peek();
+                    parser.diagnostics.push(diagnostics::Diagnostic::new(
+                        diagnostics::DiagnosticKind::Parse,
+                        format!("Expected field name, got {:?}", p.token_type),
+                        diagnostics::Span::new(p.start, p.end, p.line, p.col)));
+                    break;
+                }
+            }
+            parser.consume(TokenType::RightBrace, "Expect '}' after struct fields.");
+            initializer = Expr::StructInit { name: struct_name_tok.clone(), fields };
+    }
     parser.match_token(TokenType::Semicolon);
     Stmt::Let { name, ty, initializer }
 }
@@ -104,9 +127,13 @@ pub fn match_statement(parser: &mut Parser) -> Stmt {
     while !parser.check(&TokenType::RightBrace) && !parser.is_at_end() {
         parser.consume(TokenType::Case, "Expect 'case' in match statement.");
         let pattern = parse_pattern(parser);
-        parser.consume(TokenType::Colon, "Expect ':' after case pattern.");
+        // Guard opcional: 'if' expressão
+        let guard = if parser.match_token(TokenType::If) {
+            Some(parser.expression())
+        } else { None };
+        parser.consume(TokenType::Colon, "Expect ':' after case pattern / guard.");
         let stmt = statement(parser);
-        cases.push((pattern, stmt));
+        cases.push((pattern, guard, stmt));
     }
     parser.consume(TokenType::RightBrace, "Expect '}' after match cases.");
     Stmt::Match { expr, cases }
@@ -114,6 +141,7 @@ pub fn match_statement(parser: &mut Parser) -> Stmt {
 
 pub fn parse_pattern(parser: &mut Parser) -> MatchPattern {
     if parser.match_token(TokenType::Dot) {
+        // Padrão shorthand: .variant
         let variant = parser.consume(TokenType::Identifier, "Expect variant name after '.'");
         let mut params = None;
         if parser.match_token(TokenType::LeftParen) {
@@ -129,7 +157,7 @@ pub fn parse_pattern(parser: &mut Parser) -> MatchPattern {
             parser.consume(TokenType::RightParen, "Expect ')' after parameters.");
             params = Some(param_list);
         }
-        MatchPattern::EnumVariant { variant, params }
+        MatchPattern::EnumVariant { enum_name: None, variant, params }
     } else if parser.match_token(TokenType::Let) {
         let name = parser.consume(TokenType::Identifier, "Expect variable name after 'let'.");
         MatchPattern::Binding(name)
@@ -160,7 +188,27 @@ pub fn parse_pattern(parser: &mut Parser) -> MatchPattern {
         }
     } else if parser.check(&TokenType::Identifier) {
         let name = parser.consume(TokenType::Identifier, "Expect pattern.");
-        MatchPattern::Variable(name)
+        // Verificar se é um nome qualificado (Enum.Variant)
+        if parser.match_token(TokenType::Dot) {
+            let variant = parser.consume(TokenType::Identifier, "Expect variant name after '.'");
+            let mut params = None;
+            if parser.match_token(TokenType::LeftParen) {
+                let mut param_list = Vec::new();
+                if !parser.check(&TokenType::RightParen) {
+                    loop {
+                        param_list.push(parse_pattern(parser));
+                        if !parser.match_token(TokenType::Comma) {
+                            break;
+                        }
+                    }
+                }
+                parser.consume(TokenType::RightParen, "Expect ')' after parameters.");
+                params = Some(param_list);
+            }
+            MatchPattern::EnumVariant { enum_name: Some(name), variant, params }
+        } else {
+            MatchPattern::Variable(name)
+        }
     } else {
         let p = parser.peek();
         parser.diagnostics.push(diagnostics::Diagnostic::new(

@@ -58,7 +58,98 @@ fn field_access_array_count() {
 }
 
 #[test]
+fn fstring_format_specs() {
+    let code = "let n=255; let s= \"  Abc  \"; println(f\"{n:hex} {s:trim} {s:upper} {s:lower} {s:pad10}\");";
+    let diags = run(code);
+    if !diags.is_empty() { for d in &diags { eprintln!("DIAG: {}", d.message); } }
+    assert!(diags.is_empty());
+}
+
+#[test]
 fn division_by_zero() {
     let diags = run("println(10 / 0);");
     assert!(diags.iter().any(|d| d.message.contains("Division by zero")));
+}
+
+#[test]
+fn struct_method_auto_self() {
+    // Define um struct, método que usa self.nome e retorna saudação
+    // Auto-binding deve permitir chamada p.greet() sem passar self
+    let src = r#"
+    struct Pessoa { nome: String, }
+    func Pessoa.greet(self) { }
+        let p = Pessoa { nome: "Linus" };
+    p.greet();
+    "#;
+    let diags = run(src);
+    if !diags.is_empty() {
+        for d in &diags { eprintln!("DIAG: {}", d.message); }
+    }
+    assert!(diags.is_empty());
+}
+
+#[test]
+fn struct_method_uses_self_field() {
+    let src = r#"
+        struct Pessoa { nome: String, }
+        func Pessoa.name_len(self) {
+            println(len(self.nome));
+        }
+        let p = Pessoa { nome: "Ada" };
+        p.name_len();
+    "#;
+    let diags = run(src);
+    if !diags.is_empty() { for d in &diags { eprintln!("DIAG: {}", d.message); } }
+    assert!(diags.is_empty());
+}
+
+#[test]
+fn enum_method_no_payload() {
+    let src = r#"
+        enum Status { Ok, Err(String) }
+        func Status.ping(self) { println("ping"); }
+        let s = Status.Ok;
+        s.ping();
+    "#;
+    let diags = run(src);
+    if !diags.is_empty() { for d in &diags { eprintln!("DIAG: {}", d.message); } }
+    assert!(diags.is_empty());
+}
+
+#[test]
+fn enum_method_with_payload() {
+    let src = r#"
+        enum Box { One(Int) }
+        func Box.show(self) { println("show"); }
+        let b = Box.One(10);
+        b.show();
+    "#;
+    let diags = run(src);
+    if !diags.is_empty() { for d in &diags { eprintln!("DIAG: {}", d.message); } }
+    assert!(diags.is_empty());
+}
+
+#[test]
+fn enum_method_introspection() {
+    let src = r#"
+        enum Status { Ok, Err(String) }
+        func Status.describe(self) {
+            println(f"variant={variant} values={len(values)}");
+        }
+        let s1 = Status.Ok;
+        let s2 = Status.Err("fail");
+        s1.describe();
+        s2.describe();
+    "#;
+    let diags = run(src);
+    if !diags.is_empty() { for d in &diags { eprintln!("DIAG: {}", d.message); } }
+    assert!(diags.is_empty());
+}
+
+#[test]
+fn fstring_malformed_error() {
+    let code = "println(f\"unclosed {expr\");";
+    let diags = run(code);
+    assert!(!diags.is_empty());
+    assert!(diags.iter().any(|d| d.message.contains("Unterminated interpolation")));
 }

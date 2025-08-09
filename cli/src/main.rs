@@ -44,6 +44,9 @@ fn run_with_source(_name: &str, source: String) {
         eprintln!("Erro de execução: {}", e);
     }
     for d in interpreter.take_diagnostics() { eprintln!("{}", format_diagnostic(&source, &d)); }
+    let total = interpreter.executed_statements.max(1);
+    let percent = 100.0 * (1.0 - (interpreter.handled_errors as f64 / total as f64));
+    eprintln!("[metrics] handled_errors={} executed_statements={} crash_free={:.1}%", interpreter.handled_errors, interpreter.executed_statements, percent);
     if !source.trim().ends_with(";") { // heurística simples: se não termina com ';' mostrar valor
         if let Some(val) = interpreter.last_value {
             println!("=> {}", val);
