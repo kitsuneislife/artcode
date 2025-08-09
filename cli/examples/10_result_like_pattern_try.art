@@ -1,0 +1,7 @@
+// Exemplo 10 - Propagação estilo Try com '?'
+enum R { Ok(Int), Err(String) }
+func divide(a: Int, b: Int) -> R { if b == 0 { return R.Err("/0") } return R.Ok(a / b) }
+func half(n: Int) -> R { divide(n, 2) }
+func quarter(n: Int) -> R { let h = half(n)?; half(h)? }
+let r = quarter(40); match r { case .Ok(v): println(f"q={v}") case .Err(e): println(e) }
+let r2 = quarter(41); match r2 { case .Ok(v): println(f"q={v}") case .Err(e): println(e) };

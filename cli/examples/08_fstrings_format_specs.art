@@ -1,0 +1,4 @@
+// Exemplo 08 - f-Strings e Especificadores de Formato
+let n = 255; let s = "  AbC  ";
+println(f"hex={n:hex} trim={s:trim} upper={s:upper} lower={s:lower} pad={s:pad10}");
+println(f"interp aninhada: {{ {n} }}");

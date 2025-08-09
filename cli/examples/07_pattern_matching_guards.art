@@ -1,0 +1,6 @@
+// Exemplo 07 - Pattern Matching com Guards
+enum E { V(Int), W(Int) }
+let x = E.V(10); let y = E.V(5); let z = E.W(8);
+match x { case .V(v) if v > 8: println(f"v>8: {v}") case .V(v): println(f"v: {v}") case .W(w): println(f"w: {w}") }
+match y { case .V(v) if v > 8: println(f"v>8: {v}") case .V(v): println(f"v: {v}") case .W(w): println(f"w: {w}") }
+match z { case .V(v) if v > 8: println(f"v>8: {v}") case .V(v): println(f"v: {v}") case .W(w): println(f"w: {w}") }

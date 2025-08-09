@@ -1,0 +1,7 @@
+// Exemplo 02 - Arrays e Option (None)
+let nums = [1,2,3];
+let vazio = [];
+let opt = none; // literal option vazio (keyword minúscula)
+println(nums);
+println(vazio);
+println(opt);

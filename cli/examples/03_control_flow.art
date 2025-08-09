@@ -1,0 +1,8 @@
+// Exemplo 03 - Controle de Fluxo
+let a = 10; let b = 20;
+if (a < b) { println("a < b"); } else { println("a >= b"); }
+if (a < b and b > 15) { println("duas condições"); }
+let sol = true; if (sol) { println("Praia!"); }
+if (!sol or a == 10) { println("Uma condição verdadeira"); }
+// Escopo
+let nivel = "global"; { let nivel = "local"; println(nivel); } println(nivel);

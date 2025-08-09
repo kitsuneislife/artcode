@@ -30,9 +30,9 @@ Gerenciada por enum `Precedence` e laço `parse_precedence`.
 Statements `Match { expr, cases }` armazenam pares `(MatchPattern, Stmt)`.
 
 ## Limitações Atuais
-- Sem recuperação de erro sofisticada (usa `panic!`)
+- Recuperação de erro básica: parser coleta diagnostics e tenta continuar em alguns pontos, mas não faz sincronização avançada ainda
 - Não há suporte a comentários de bloco
-- Tipos são apenas strings nas anotações
+- Tipos são apenas strings nas anotações (sem verificação semântica profunda)
 
 ## Próximos Passos
 | Item | Prioridade |

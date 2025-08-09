@@ -1,4 +1,4 @@
-use core::ast::{Expr, ArtValue, Program, Stmt, MatchPattern, Function, InterpolatedPart};
+use core::ast::{Expr, ArtValue, Program, Stmt, MatchPattern, Function};
 use diagnostics::{Diagnostic, DiagnosticKind, Span};
 use core::environment::Environment;
 use crate::type_registry::TypeRegistry;

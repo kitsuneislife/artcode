@@ -1,8 +1,0 @@
-enum Result { Ok, Err(String) }
-enum Option { Some(Int), None }
-let r1 = Result.Ok; let r2 = Result.Err("Falha");
-match r1 { case .Ok: println("ok") case .Err(msg): println(msg) }
-match r2 { case .Ok: println("ok") case .Err(msg): println(msg) }
-let o1 = Option.Some(10); let o2 = Option.None;
-match o1 { case .Some(v): println(v) case .None: println("none") }
-match o2 { case .Some(v): println(v) case .None: println("none") }

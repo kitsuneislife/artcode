@@ -1,0 +1,4 @@
+// Exemplo 04 - Funções e Captura de Escopo
+func soma(a: Int, b: Int) -> Int { return a + b }
+println(soma(2,3));
+let x = 5; func inc(n) { return n + x } println(inc(10));

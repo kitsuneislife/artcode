@@ -10,8 +10,7 @@ fn run(src: &str) -> Vec<diagnostics::Diagnostic> {
     if !diags.is_empty() { return diags; }
     let mut interp = Interpreter::with_prelude();
     if let Err(e) = interp.interpret(program) { panic!("Runtime error: {:?}", e); }
-    let r = interp.take_diagnostics();
-    r
+    interp.take_diagnostics()
 }
 
 #[test]

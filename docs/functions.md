@@ -25,8 +25,8 @@ println(inc(10)) // 15
 ## Fallback de Field Access
 `arr.sum()` é parseado como `Call(FieldAccess(arr, sum), [])`. Se o resultado de `FieldAccess` não for chamável e não houver argumentos, o interpretador retorna o valor direto (permitindo pseudo-métodos  sem implementar sistema de métodos ainda).
 
-## Métodos em Structs e Enums (Fase Experimental)
-Sintaxe atual direta:
+## Métodos em Structs e Enums
+Sintaxe atual direta (até introdução de blocos `impl` futura):
 ```
 struct Pessoa { nome: String, }
 func Pessoa.greet(self) { println(f"Olá, {self.nome}!"); }
@@ -48,15 +48,18 @@ Regras:
 - Chamada: `inst.metodo(args)` => FieldAccess produz função bound com `self` predefinido.
 - Suporte tanto para variants sem payload (`Tipo.Variant`) quanto shorthand (`.Variant`).
 
-Limitações:
-- Não há verificação de existência de campos em tempo de parse.
-- Sem sobrecarga / dispatch dinâmico: lookup simples por nome.
-- Não há ainda sugar `impl Tipo { ... }` (planejado).
+Introspecção em enums dentro do método:
+- Identificadores especiais injetados: `variant` (String) e `values` (Array dos payloads)
+
+Limitações atuais:
+- Sem agrupamento `impl {}` ainda.
+- Sem sobrecarga; resolução é por nome simples.
+- Checagens de campo de struct mais profundas acontecem em runtime.
 
 Próximos passos planejados:
 - Bloco `impl Tipo { }` agrupando métodos.
-- Diagnósticos melhores para nomes de método duplicados.
-- Suporte a acesso introspectivo (ex: `self.variant`) para enums.
+- Inline caching e otimizações para chamadas quentes.
+- Melhor diagnóstico para redefinição de método.
 
 ## Roadmap
 | Item | Descrição |

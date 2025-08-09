@@ -4,12 +4,16 @@
 
 Implementação experimental de uma linguagem interpretada em Rust com suporte a:
 
-- Estruturas (struct)
-- Enums com variantes e inferência de tipo em uso abreviado (.Ok / .Err)
-- Pattern matching simples
-- Funções e escopos léxicos (closures via ambiente capturado)
-- Resultado (enum Result) pré-registrado via prelude
-- Interpolação de strings estilo f-string com expressões arbitrárias (`f"valor={a + b}"`), incluindo aninhamento de chaves e escapes `{{` e `}}`
+- Structs
+- Enums (variantes com payload) + shorthand `.Variant` com detecção de ambiguidade
+- Pattern matching com guards (`case .X(v) if v > 10:`)
+- Funções e closures (captura léxica)
+- Métodos em structs e enums com auto-binding de `self`
+- Introspecção em métodos de enum (`variant`, `values`)
+- f-Strings com format specs (`upper`, `lower`, `trim`, `hex`, `padN`, `debug` placeholder)
+- Result-like enums e operador `?` (propagação inicial)
+- Arrays com builtins (`sum`, `count`)
+- Métricas de execução (handled_errors, executed_statements, crash_free%)
 
 ## Prelude
 
@@ -22,31 +26,30 @@ let e = .Err("falhou");
 
 Se múltiplos enums compartilharem a mesma variante, o uso abreviado gera erro de ambiguidade.
 
-## Interpolação de Strings
+## f-Strings & Format Specs
 
 Sintaxe: `f"texto {expressao} mais texto"`.
 
 Regras:
-- Expressões completas são lexers/parsers recursivamente.
-- Suporte a chaves aninhadas `{ {a + {b}} }`.
-- Escapes: `{{` produz `{`, `}}` produz `}`.
-- Erros agora geram diagnostics estruturados (sem panics) com spans e mensagem.
+- Expressões completas re-lexadas e re-parsadas.
+- Chaves aninhadas suportadas; `{{` / `}}` para literais.
+- Specs em `{expr:spec}` aplicadas sequencialmente: `upper`, `lower`, `trim`, `hex`, `pad10`, `debug`.
+- Erros produzem diagnostics estruturados (sem panics) com spans.
 
-## Testes
-
-Cobrem:
-- Expressões em f-strings
-- Escapes e chaves aninhadas
-- Inferência abreviada de enum
-- Escopo preservado em chamadas de função
-- Acesso de campo/pseudo-métodos em arrays (sum, count)
-
-Execute:
+Exemplo:
 ```
-cargo test
+let n=255; let s="  AbC  "; println(f"hex={n:hex} {s:trim:upper} pad={s:pad10}");
 ```
 
-Para cobertura local:
+## Exemplos e Testes
+
+Exemplos numerados em `cli/examples` (00–12) cobrem a linguagem progressivamente. Rodar todos:
+```
+scripts/test_examples.sh
+```
+Eles também são validados em `cargo test` via teste integrado.
+
+Suite de testes Rust (`cargo test`) cobre parsing, runtime (f-strings, métodos, pattern matching, enum arity, diagnostics). Para cobertura local:
 ```
 cargo run -p xtask -- coverage --html
 ```
@@ -59,9 +62,10 @@ CLI imprime métricas de execução:
 Objetivo: crash_free >= 99%. Warnings/panics inesperados devem ser convertidos em diagnostics estruturados.
 
 ## Arquitetura & Próximos Passos
-Ver diretório `docs/` para detalhes (overview, parser_lexer, interpreter). Focos imediatos:
-- Sistema de tipos incremental (inferência básica, enum/struct metadata)
-- Performance fundacional (intern pool, redução de clones)
-- Builtins estruturados (remoção de caso especial de println)
-- Cobertura & tooling (script unificado, cobertura mínima)
+Ver `docs/` (overview, parser_lexer, interpreter). Próximos focos:
+- Incrementar sistema de tipos (propagação mais rica, checagem de campos em parse)
+- Blocos `impl` para agrupar métodos
+- Inline caching / otimizações de dispatch
+- Início do pipeline JIT/AOT + coleta de perfis
+- Elevar threshold de cobertura gradualmente (>80%)
 

@@ -1,6 +1,0 @@
-let a = 10;
-let b = a * 2;
-println(b + 5);
-let message = "O resultado é: ";
-println(message);
-println(b + 10);

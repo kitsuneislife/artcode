@@ -14,20 +14,20 @@ fn run(src: &str) -> (Result<(), interpreter::values::RuntimeError>, Vec<diagnos
 #[test]
 fn match_enum_multi_params() {
     let (res, diags) = run("enum E { P(Int, Int) } let v=E.P(1,2); match v { case .P(a,b): println(a + b) }");
-    if let Err(e) = &res { panic!("runtime error: {:?}", e); }
+    assert!(res.is_ok(), "runtime error: {:?}", res);
     assert!(diags.is_empty());
 }
 
 #[test]
 fn match_enum_wrong_arity() {
     let (res, diags) = run("enum E { P(Int, Int) } let v=E.P(1,2); match v { case .P(a): println(a) }");
-    if let Err(e) = &res { panic!("runtime error: {:?}", e); }
+    assert!(res.is_ok(), "runtime error: {:?}", res);
     assert!(diags.iter().any(|d| d.message.contains("Arity mismatch")), "expected arity mismatch diagnostic, got: {:?}", diags.iter().map(|d| &d.message).collect::<Vec<_>>());
 }
 
 #[test]
 fn match_binding_and_wildcard() {
     let (res, diags) = run("enum E { P(Int, Int) } let v=E.P(7,8); match v { case .P(let a, _): println(a) }");
-    if let Err(e) = &res { panic!("runtime error: {:?}", e); }
+    assert!(res.is_ok(), "runtime error: {:?}", res);
     assert!(diags.is_empty());
 }

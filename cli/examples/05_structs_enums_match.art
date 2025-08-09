@@ -1,0 +1,7 @@
+// Exemplo 05 - Structs, Enums e Match
+struct Pessoa { nome: String, idade: Int, }
+enum Status { Ok, Erro(String), }
+let p = Pessoa { nome: "Ada", idade: 42 };
+let ok = Status.Ok; let falha = Status.Erro("Falhou");
+println(p.nome); println(p.idade);
+match falha { case .Ok: println("Tudo certo") case .Erro(msg): println(msg) };

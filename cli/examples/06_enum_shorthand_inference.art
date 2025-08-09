@@ -1,0 +1,7 @@
+// Exemplo 06 - Enum Shorthand & Inferência
+// Para inferência shorthand funcionar sem ambiguidade só uma enum define as variantes
+enum Resultado { Ok(Int), Err(String) }
+// Uso qualificado evita qualquer ambiguidade e é sempre válido
+let r1 = Resultado.Ok(10); let r2 = Resultado.Err("Falha");
+match r1 { case .Ok(v): println(v) case .Err(e): println(e) }
+match r2 { case .Ok(v): println(v) case .Err(e): println(e) }

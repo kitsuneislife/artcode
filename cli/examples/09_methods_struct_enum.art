@@ -1,0 +1,8 @@
+// Exemplo 09 - Métodos em Structs e Enums
+struct Pessoa { nome: String, }
+func Pessoa.greet(self) { println(f"Olá, {self.nome}!"); }
+let p = Pessoa { nome: "Ada" }; p.greet();
+
+enum Status { Ok, Err(String) }
+func Status.describe(self) { println(f"variant={variant} values={len(values)}"); }
+let s1 = Status.Ok; let s2 = Status.Err("x"); s1.describe(); s2.describe();

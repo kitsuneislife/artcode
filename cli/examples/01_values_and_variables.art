@@ -1,0 +1,11 @@
+// Exemplo 01 - Valores e Variáveis
+let inteiro = 42;
+let flutuante = 3.14;
+let texto = "Artcode";
+let booleano = true;
+println(inteiro);
+println(flutuante);
+println(texto);
+println(booleano);
+let soma = inteiro + 8;
+println(soma);
