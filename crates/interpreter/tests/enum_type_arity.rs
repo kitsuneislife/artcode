@@ -8,7 +8,7 @@ fn infer_prog(src: &str) -> (TypeEnv, Vec<diagnostics::Diagnostic>) {
     assert!(pdiags.is_empty(), "parse diagnostics: {:?}", pdiags);
     let mut tenv = TypeEnv::new();
     let mut inf = TypeInfer::new(&mut tenv);
-    inf.run(&program);
+    let _ = inf.run(&program); // collect diags via inf.diags for assertions
     let diags = inf.diags;
     (tenv, diags)
 }

@@ -29,6 +29,9 @@ pub struct Interpreter {
     pub strong_decrements: usize,
     pub objects_finalized: usize,
     finalizers: HashMap<u64, Rc<Function>>, // finalizers por objeto composto
+    // Arena support
+    pub current_arena: Option<u32>,
+    pub next_arena_id: u32,
 }
 
 impl Interpreter {
@@ -44,7 +47,7 @@ impl Interpreter {
     global_env.borrow_mut().define("unowned_get", ArtValue::Builtin(core::ast::BuiltinFn::UnownedGet));
     global_env.borrow_mut().define("on_finalize", ArtValue::Builtin(core::ast::BuiltinFn::OnFinalize));
 
-    Interpreter { environment: global_env, type_registry: TypeRegistry::new(), diagnostics: Vec::new(), last_value: None, handled_errors: 0, executed_statements: 0, heap_objects: HashMap::new(), next_heap_id: 1, weak_created:0, weak_upgrades:0, weak_dangling:0, unowned_created:0, unowned_dangling:0, cycle_reports_run: Cell::new(0), cycle_leaks_detected: 0, strong_increments:0, strong_decrements:0, objects_finalized:0, finalizers: HashMap::new() }
+    Interpreter { environment: global_env, type_registry: TypeRegistry::new(), diagnostics: Vec::new(), last_value: None, handled_errors: 0, executed_statements: 0, heap_objects: HashMap::new(), next_heap_id: 1, weak_created:0, weak_upgrades:0, weak_dangling:0, unowned_created:0, unowned_dangling:0, cycle_reports_run: Cell::new(0), cycle_leaks_detected: 0, strong_increments:0, strong_decrements:0, objects_finalized:0, finalizers: HashMap::new(), current_arena: None, next_arena_id: 1 }
     }
 
     pub fn with_prelude() -> Self {
@@ -81,6 +84,11 @@ impl Interpreter {
     fn heap_register(&mut self, val: ArtValue) -> u64 {
         let id = self.next_heap_id; self.next_heap_id += 1;
         self.heap_objects.insert(id, crate::heap::HeapObject::new(id, val)); id }
+    fn heap_register_in_arena(&mut self, val: ArtValue, arena_id: u32) -> u64 {
+        let id = self.next_heap_id; self.next_heap_id += 1;
+        self.heap_objects.insert(id, crate::heap::HeapObject::new_in_arena(id, val, arena_id)); id }
+    pub fn debug_create_arena(&mut self) -> u32 { let aid = (self.next_heap_id as u32).wrapping_add(1); aid }
+
     fn heap_upgrade_weak(&self, id: u64) -> Option<ArtValue> { self.heap_objects.get(&id).and_then(|o| if o.alive { Some(o.value.clone()) } else { None }) }
     fn heap_get_unowned(&self, id: u64) -> Option<ArtValue> { self.heap_objects.get(&id).map(|o| o.value.clone()) }
 
@@ -98,19 +106,33 @@ impl Interpreter {
     fn heapify_composite(&mut self, v: ArtValue) -> ArtValue {
         match v {
             ArtValue::Array(_) | ArtValue::StructInstance { .. } | ArtValue::EnumInstance { .. } => {
-                let id = self.heap_register(v);
-                // Clona valor armazenado para evitar empréstimo simultâneo (valor geralmente pequeno / compartilhado)
-                if let Some(obj) = self.heap_objects.get(&id) { let snapshot = obj.value.clone(); self.inc_children_strong(&snapshot); }
-                ArtValue::HeapComposite(ObjHandle(id))
+                let id = if let Some(aid) = self.current_arena { self.heap_register_in_arena(v, aid) } else { self.heap_register(v) };
+                 // Clona valor armazenado para evitar empréstimo simultâneo (valor geralmente pequeno / compartilhado)
+                 if let Some(obj) = self.heap_objects.get(&id) { let snapshot = obj.value.clone(); self.inc_children_strong(&snapshot); }
+                 ArtValue::HeapComposite(ObjHandle(id))
             }
             other => other
+        }
+    }
+    /// Finaliza (libera) todos objetos alocados na arena especificada.
+    fn finalize_arena(&mut self, arena_id: u32) {
+        // Coletar ids vivos pertencentes à arena
+        let ids: Vec<u64> = self.heap_objects.iter().filter_map(|(id,obj)| if obj.alive && obj.arena_id==Some(arena_id) { Some(*id) } else { None }).collect();
+        for id in ids {
+            // Forçar queda de strong para 0 e disparar finalização recursiva
+            if let Some(obj) = self.heap_objects.get_mut(&id) {
+                // garantir que pelo menos um dec fará com que alive=false
+                if obj.strong>0 { obj.strong = 1; }
+            }
+            self.dec_object_strong_recursive(id);
         }
     }
 
     #[inline]
     fn resolve_composite<'a>(&'a self, v: &'a ArtValue) -> &'a ArtValue {
-        if let ArtValue::HeapComposite(h) = v { if let Some(obj)=self.heap_objects.get(&h.0) { return &obj.value; } }
-        v
+        if let ArtValue::HeapComposite(h) = v {
+            if let Some(obj) = self.heap_objects.get(&h.0) { &obj.value } else { v }
+        } else { v }
     }
 
     fn drop_scope_heap_objects(&mut self, env: &Rc<RefCell<Environment>>) {
@@ -184,7 +206,16 @@ impl Interpreter {
                     }
                     // Merge simples: mover variáveis definidas neste frame para raiz
                     let local_vals: Vec<(String, ArtValue)> = self.environment.borrow().values.iter().map(|(k,v)|((*k).to_string(), v.clone())).collect();
+                    // Transferir handles fortes deste frame para o root para preservar referências
+                    let local_handles = self.environment.borrow().strong_handles.clone();
+                    for h in local_handles.iter() { root.borrow_mut().strong_handles.push(*h); }
+                    // Mover valores para o root (mantendo mesma identidade)
                     for (k,v) in local_vals { root.borrow_mut().values.insert(Box::leak(k.into_boxed_str()), v); }
+                    // Limpar handles do frame antes de dropar o escopo para evitar double-decrement
+                    self.environment.borrow_mut().strong_handles.clear();
+                    // Drop any remaining handles/objects in the finalizer frame
+                    let finalizer_env = self.environment.clone();
+                    self.drop_scope_heap_objects(&finalizer_env);
                     self.environment = previous_env;
                 }
             }
@@ -241,6 +272,17 @@ impl Interpreter {
             }
             Stmt::Let { name, ty: _, initializer } => {
                 let value = self.evaluate(initializer)?;
+                // Runtime check: evitar que valores alocados em arena escapem para fora do bloco performant.
+                if let ArtValue::HeapComposite(h) = &value {
+                    if let Some(obj) = self.heap_objects.get(&h.0) {
+                        if let Some(aid) = obj.arena_id {
+                            if Some(aid) != self.current_arena {
+                                let msg = format!("Attempt to bind arena object (arena={}) into scope outside of that arena (current_arena={:?}) for variable '{}'.", aid, self.current_arena, name.lexeme);
+                                if cfg!(debug_assertions) { panic!("{}", msg); } else { self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, msg, Span::new(name.start,name.end,name.line,name.col))); }
+                            }
+                        }
+                    }
+                }
                 // Captura possível valor antigo sem manter borrow mutável durante decremento
                 let old_opt = { self.environment.borrow().values.get(name.lexeme.as_str()).cloned() };
                 if let Some(old) = &old_opt { self.dec_value_if_heap(old); }
@@ -276,17 +318,22 @@ impl Interpreter {
                         if let Some(gexpr) = guard {
                             let previous_env = self.environment.clone();
                             let temp_env = Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
-                            self.environment = temp_env;
+                            self.environment = temp_env.clone();
                             for (name, value) in bindings.iter() { self.environment.borrow_mut().define(name, value.clone()); }
                             let guard_passed = self.evaluate(gexpr).map(|v| self.is_truthy(&v)).unwrap_or(false);
+                            // Garantir que handles fortes do ambiente temporário do guard sejam decrementados
+                            self.drop_scope_heap_objects(&temp_env);
                             self.environment = previous_env;
                             if !guard_passed { continue; }
                         }
                         let previous_env = self.environment.clone();
                         let new_env = Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
-                        self.environment = new_env;
+                        self.environment = new_env.clone();
                         for (name, value) in bindings { self.environment.borrow_mut().define(&name, value); }
+                        // Executar o corpo e garantir que mesmo em erro o escopo temporário seja limpo
                         let result = self.execute(stmt);
+                        // Drop handles do env de bindings antes de restaurar
+                        self.drop_scope_heap_objects(&new_env);
                         self.environment = previous_env;
                         return result;
                     }
@@ -316,7 +363,43 @@ impl Interpreter {
                     Some(expr) => self.evaluate(expr)?,
                     None => ArtValue::none(),
                 };
+                // Runtime check: impedir retorno de objetos de arena para fora do bloco performant
+                if let ArtValue::HeapComposite(h) = &return_value {
+                    if let Some(obj) = self.heap_objects.get(&h.0) {
+                        if let Some(aid) = obj.arena_id {
+                            if Some(aid) != self.current_arena {
+                                let msg = format!("Attempt to return arena object (arena={}) outside of its arena (current_arena={:?}).", aid, self.current_arena);
+                                if cfg!(debug_assertions) { panic!("{}", msg); } else { self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, msg, Span::new(0,0,0,0))); }
+                            }
+                        }
+                    }
+                }
                 Err(RuntimeError::Return(return_value))
+            }
+            Stmt::Performant { statements } => {
+                // criar arena id
+                let aid = self.next_arena_id; self.next_arena_id+=1; let prev_arena = self.current_arena; self.current_arena = Some(aid);
+                // Criar frame léxico para o bloco
+                let previous = self.environment.clone();
+                self.environment = Rc::new(RefCell::new(Environment::new(Some(previous.clone()))));
+                let scope_env = self.environment.clone();
+                // Executar statements
+                for s in statements {
+                    if let Err(e) = self.execute(s) {
+                        self.drop_scope_heap_objects(&scope_env);
+                        // finalize arena (libera objetos da arena)
+                        self.finalize_arena(aid);
+                        self.current_arena = prev_arena;
+                        self.environment = previous;
+                        return Err(e);
+                    }
+                }
+                // Limpar handles do escopo e finalizar arena
+                self.drop_scope_heap_objects(&scope_env);
+                self.finalize_arena(aid);
+                self.current_arena = prev_arena;
+                self.environment = previous;
+                Ok(())
             }
         }
     }
@@ -773,6 +856,12 @@ impl Interpreter {
             self.environment.borrow_mut().define(&param.name.lexeme, value);
         }
         let result = self.execute(Rc::as_ref(&func.body).clone());
+        // Garantir que handles fortes dos parâmetros (env criado acima) sejam decrementados.
+        // Usamos `mem::replace` para extrair o ambiente da função sem provocar um borrow
+        // imutável de `self.environment` durante a chamada de método que requer `&mut self`.
+        let func_env = std::mem::replace(&mut self.environment, previous_env.clone());
+        self.drop_scope_heap_objects(&func_env);
+        // Restaurar ambiente anterior (usamos `previous_env` original)
         self.environment = previous_env;
     match result { Ok(()) => Ok(ArtValue::none()), Err(RuntimeError::Return(val)) => Ok(val) }
     }

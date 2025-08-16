@@ -26,8 +26,14 @@ pub struct TypeInfer<'a> {
 impl<'a> TypeInfer<'a> {
     pub fn new(tenv: &'a mut TypeEnv) -> Self { Self { diags: Vec::new(), tenv, enums: HashMap::new() } }
 
-    pub fn run(&mut self, program: &Program) {
+    pub fn run(&mut self, program: &Program) -> Result<(), Vec<Diagnostic>> {
         for stmt in program { self.visit_stmt(stmt); }
+        // If any type diagnostics were produced, treat them as errors and return them.
+        let type_diags: Vec<Diagnostic> = self.diags.iter().cloned().filter(|d| matches!(d.kind, DiagnosticKind::Type)).collect();
+        if !type_diags.is_empty() {
+            return Err(type_diags);
+        }
+        Ok(())
     }
 
     fn visit_stmt(&mut self, stmt: &Stmt) {
@@ -46,6 +52,61 @@ impl<'a> TypeInfer<'a> {
                 self.enums.insert(name.lexeme.clone(), map);
             }
             Stmt::StructDecl { .. } | Stmt::Function { .. } | Stmt::Return { .. } | Stmt::Match { .. } => {}
+            Stmt::Performant { statements } => { self.check_performant_block(statements); }
+        }
+    }
+
+    // Minimal static escape analysis: `performant` blocks must not contain `return` statements
+    // that would allow arena-allocated composites to escape the block. This is a conservative
+    // check implemented early in the pipeline. More checks (assignments to outer scopes,
+    // closures capturing arena values) will be added later.
+    fn check_performant_block(&mut self, statements: &Vec<Stmt>) {
+        for s in statements {
+            self.check_performant_stmt(s);
+        }
+    }
+
+    fn check_performant_stmt(&mut self, stmt: &Stmt) {
+        use Stmt::*;
+        match stmt {
+            Return { value: _ } => {
+                // Conservative error: returning from performant may expose arena-allocated composites.
+                self.diags.push(Diagnostic::new(
+                    DiagnosticKind::Type,
+                    "`return` is not allowed inside `performant` blocks: it may allow arena-allocated references to escape".to_string(),
+                    Span::new(0,0,0,0),
+                ));
+            }
+            Function { name, .. } => {
+                self.diags.push(Diagnostic::new(
+                    DiagnosticKind::Type,
+                    format!("Function declaration '{}' is not allowed inside `performant` blocks: closures may capture arena values and escape", name.lexeme),
+                    Span::new(name.start, name.end, name.line, name.col),
+                ));
+            }
+            Let { name, initializer, .. } => {
+                // Se inicializador é potencialmente composto, emitir aviso conservador
+                match initializer {
+                    Expr::Array(_) | Expr::StructInit { .. } | Expr::EnumInit { .. } | Expr::Call { .. } => {
+                        self.diags.push(Diagnostic::new(
+                            DiagnosticKind::Type,
+                            format!("Variable '{}' initialized with a composite value inside `performant` — ensure it does not escape the block", name.lexeme),
+                            Span::new(name.start, name.end, name.line, name.col),
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+            Block { statements } => { for s in statements { self.check_performant_stmt(s); } }
+            If { condition: _, then_branch, else_branch } => {
+                self.check_performant_stmt(then_branch);
+                if let Some(e) = else_branch { self.check_performant_stmt(e); }
+            }
+            Match { expr: _, cases } => {
+                for (_pat, _guard, body) in cases { self.check_performant_stmt(body); }
+            }
+            Performant { statements } => { self.check_performant_block(statements); }
+            Let { .. } | StructDecl { .. } | EnumDecl { .. } | Expression(_) => { /* allowed */ }
         }
     }
 

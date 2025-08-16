@@ -39,6 +39,7 @@ pub enum TokenType {
     Case,
     Underscore,
     Func,
+    Performant,
     Return,
     Weak,      // keyword 'weak' (açúcar)
     Unowned,   // keyword 'unowned' (açúcar)

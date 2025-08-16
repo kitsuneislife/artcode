@@ -7,7 +7,7 @@ fn infer(src: &str) -> TypeEnv {
     let (program, diags) = p.parse();
     assert!(diags.is_empty(), "parse diagnostics: {:?}", diags);
     let mut tenv = TypeEnv::new();
-    TypeInfer::new(&mut tenv).run(&program);
+    assert!(TypeInfer::new(&mut tenv).run(&program).is_ok(), "type infer failed: {:?}", TypeInfer::new(&mut tenv).diags);
     tenv
 }
 

@@ -42,10 +42,14 @@ pub enum Stmt {
         body: Rc<Stmt>,
     method_owner: Option<String>, // novo: tipo ao qual o método pertence
     },
+    Performant {
+        statements: Vec<Stmt>,
+    }, // Note: `Performant` será tratado no interpretador como um bloco léxico que cria uma arena
+      // de memória; por ora é apenas parseable e no interpretador cria um identificador de arena
+      // para alocações dentro do bloco.
     Return {
         value: Option<Expr>,
     },
-// ...existing code...
 }
 
 #[derive(Debug, Clone)]

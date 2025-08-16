@@ -135,10 +135,15 @@ impl Parser {
             self.let_declaration()
         } else if self.match_token(TokenType::Func) {
             self.function_declaration()
-        } else {
-            self.statement()
-        }
-    }
+        } else if self.match_token(TokenType::Performant) {
+            // performant { ... }
+            self.consume(TokenType::LeftBrace, "Expect '{' after performant.");
+            let statements = self.block();
+            Stmt::Performant { statements }
+         } else {
+             self.statement()
+         }
+     }
 
     pub fn struct_declaration(&mut self) -> Stmt {
         let name = self.consume(TokenType::Identifier, "Expect struct name.");

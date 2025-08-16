@@ -18,5 +18,6 @@ pub fn make_keywords() -> HashMap<String, TokenType> {
     keywords.insert("return".to_string(), TokenType::Return);
     keywords.insert("weak".to_string(), TokenType::Weak);
     keywords.insert("unowned".to_string(), TokenType::Unowned);
+    keywords.insert("performant".to_string(), TokenType::Performant);
     keywords
 }

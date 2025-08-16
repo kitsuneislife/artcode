@@ -12,10 +12,12 @@ pub struct HeapObject {
     pub strong: u32,
     pub weak: u32,
     pub alive: bool,
+    pub arena_id: Option<u32>, // se alocado dentro de uma arena (bloco performant)
 }
 
 impl HeapObject {
-    pub fn new(id:u64, value:ArtValue) -> Self { Self { id, value, strong:1, weak:0, alive:true } }
+    pub fn new(id:u64, value:ArtValue) -> Self { Self { id, value, strong:1, weak:0, alive:true, arena_id: None } }
+    pub fn new_in_arena(id:u64, value:ArtValue, arena:u32) -> Self { Self { id, value, strong:1, weak:0, alive:true, arena_id: Some(arena) } }
     pub fn inc_strong(&mut self) { if self.alive { self.strong+=1; } }
     pub fn dec_strong(&mut self) { if self.strong>0 { self.strong-=1; if self.strong==0 { self.alive=false; } } }
     pub fn inc_weak(&mut self) { if self.alive { self.weak+=1; } }
