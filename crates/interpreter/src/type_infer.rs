@@ -55,8 +55,8 @@ impl<'a> TypeInfer<'a> {
         let type_diags: Vec<Diagnostic> = self
             .diags
             .iter()
-            .cloned()
             .filter(|d| matches!(d.kind, DiagnosticKind::Type))
+            .cloned()
             .collect();
         if !type_diags.is_empty() {
             return Err(type_diags);

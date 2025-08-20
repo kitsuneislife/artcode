@@ -140,8 +140,7 @@ impl Interpreter {
         id
     }
     pub fn debug_create_arena(&mut self) -> u32 {
-        let aid = (self.next_heap_id as u32).wrapping_add(1);
-        aid
+        (self.next_heap_id as u32).wrapping_add(1)
     }
 
     fn heap_upgrade_weak(&self, id: u64) -> Option<ArtValue> {
@@ -244,36 +243,34 @@ impl Interpreter {
     #[inline]
     fn inc_children_strong(&mut self, v: &ArtValue) {
         match v {
-            ArtValue::Array(a) => {
-                for child in a {
-                    if let ArtValue::HeapComposite(h) = child {
-                        if let Some(c) = self.heap_objects.get_mut(&h.0) {
+                ArtValue::Array(a) => {
+                    for child in a {
+                        if let ArtValue::HeapComposite(h) = child
+                            && let Some(c) = self.heap_objects.get_mut(&h.0)
+                        {
                             c.inc_strong();
                             self.strong_increments += 1;
                         }
                     }
                 }
-            }
             ArtValue::StructInstance { fields, .. } => {
-                for (_k, child) in fields {
-                    if let ArtValue::HeapComposite(h) = child {
-                        if let Some(c) = self.heap_objects.get_mut(&h.0) {
+                for child in fields.values() {
+                    if let ArtValue::HeapComposite(h) = child && let Some(c) = self.heap_objects.get_mut(&h.0) {
+                        c.inc_strong();
+                        self.strong_increments += 1;
+                    }
+                }
+            }
+                ArtValue::EnumInstance { values, .. } => {
+                    for child in values {
+                        if let ArtValue::HeapComposite(h) = child
+                            && let Some(c) = self.heap_objects.get_mut(&h.0)
+                        {
                             c.inc_strong();
                             self.strong_increments += 1;
                         }
                     }
                 }
-            }
-            ArtValue::EnumInstance { values, .. } => {
-                for child in values {
-                    if let ArtValue::HeapComposite(h) = child {
-                        if let Some(c) = self.heap_objects.get_mut(&h.0) {
-                            c.inc_strong();
-                            self.strong_increments += 1;
-                        }
-                    }
-                }
-            }
             _ => {}
         }
     }
@@ -289,7 +286,7 @@ impl Interpreter {
                 }
             }
             ArtValue::StructInstance { fields, .. } => {
-                for (_k, child) in fields {
+                for child in fields.values() {
                     if let ArtValue::HeapComposite(h) = child {
                         self.dec_object_strong_recursive(h.0);
                     }
@@ -461,9 +458,9 @@ impl Interpreter {
                     }
                 }
                 ArtValue::StructInstance { fields, .. } => {
-                    for (_k, val) in fields {
-                        scan(val, this, wt, wa, wd, ut, ud)
-                    }
+                    for val in fields.values() {
+                            scan(val, this, wt, wa, wd, ut, ud)
+                        }
                 }
                 ArtValue::EnumInstance { values, .. } => {
                     for val in values {
@@ -487,7 +484,7 @@ impl Interpreter {
         let mut out_deg_sum = 0usize;
         let mut in_deg_sum = 0usize;
         let mut in_counts: std::collections::HashMap<u64, usize> = std::collections::HashMap::new();
-        for (_id, obj) in self.heap_objects.iter() {
+    for obj in self.heap_objects.values() {
             if !obj.alive {
                 continue;
             }
@@ -495,23 +492,19 @@ impl Interpreter {
                 ArtValue::Array(a) => {
                     let mut c = 0;
                     for ch in a {
-                        if let ArtValue::HeapComposite(h) = ch {
-                            if self.is_object_alive(h.0) {
-                                c += 1;
-                                *in_counts.entry(h.0).or_insert(0) += 1;
-                            }
+                        if let ArtValue::HeapComposite(h) = ch && self.is_object_alive(h.0) {
+                            c += 1;
+                            *in_counts.entry(h.0).or_insert(0) += 1;
                         }
                     }
                     out_deg_sum += c;
                 }
                 ArtValue::StructInstance { fields, .. } => {
                     let mut c = 0;
-                    for (_fname, ch) in fields {
-                        if let ArtValue::HeapComposite(h) = ch {
-                            if self.is_object_alive(h.0) {
-                                c += 1;
-                                *in_counts.entry(h.0).or_insert(0) += 1;
-                            }
+                    for ch in fields.values() {
+                        if let ArtValue::HeapComposite(h) = ch && self.is_object_alive(h.0) {
+                            c += 1;
+                            *in_counts.entry(h.0).or_insert(0) += 1;
                         }
                     }
                     out_deg_sum += c;
@@ -519,11 +512,9 @@ impl Interpreter {
                 ArtValue::EnumInstance { values, .. } => {
                     let mut c = 0;
                     for ch in values {
-                        if let ArtValue::HeapComposite(h) = ch {
-                            if self.is_object_alive(h.0) {
-                                c += 1;
-                                *in_counts.entry(h.0).or_insert(0) += 1;
-                            }
+                        if let ArtValue::HeapComposite(h) = ch && self.is_object_alive(h.0) {
+                            c += 1;
+                            *in_counts.entry(h.0).or_insert(0) += 1;
                         }
                     }
                     out_deg_sum += c;
@@ -551,12 +542,11 @@ impl Interpreter {
             if let ArtValue::StructInstance { fields, .. } = &obj.value {
                 for (fname, val) in fields {
                     let lname = fname.to_lowercase();
-                    if lname.contains("parent") || lname.contains("owner") {
-                        if let ArtValue::HeapComposite(h) = val {
-                            if self.is_object_alive(h.0) {
-                                candidate_owner_edges.push((*id, h.0));
-                            }
-                        }
+                    if (lname.contains("parent") || lname.contains("owner"))
+                        && let ArtValue::HeapComposite(h) = val
+                        && self.is_object_alive(h.0)
+                    {
+                        candidate_owner_edges.push((*id, h.0));
                     }
                 }
             }
@@ -590,24 +580,22 @@ impl Interpreter {
             } => {
                 let value = self.evaluate(initializer)?;
                 // Runtime check: evitar que valores alocados em arena escapem para fora do bloco performant.
-                if let ArtValue::HeapComposite(h) = &value {
-                    if let Some(obj) = self.heap_objects.get(&h.0) {
-                        if let Some(aid) = obj.arena_id {
-                            if Some(aid) != self.current_arena {
-                                let msg = format!(
-                                    "Attempt to bind arena object (arena={}) into scope outside of that arena (current_arena={:?}) for variable '{}'.",
-                                    aid, self.current_arena, name.lexeme
-                                );
-                                // Em debug, usar debug_assert para ajudar no diagnóstico sem abortar logicamente
-                                debug_assert!(!msg.is_empty(), "{}", msg);
-                                self.diagnostics.push(Diagnostic::new(
-                                    DiagnosticKind::Runtime,
-                                    msg,
-                                    Span::new(name.start, name.end, name.line, name.col),
-                                ));
-                            }
-                        }
-                    }
+                if let ArtValue::HeapComposite(h) = &value
+                    && let Some(obj) = self.heap_objects.get(&h.0)
+                    && let Some(aid) = obj.arena_id
+                    && Some(aid) != self.current_arena
+                {
+                    let msg = format!(
+                        "Attempt to bind arena object (arena={}) into scope outside of that arena (current_arena={:?}) for variable '{}'.",
+                        aid, self.current_arena, name.lexeme
+                    );
+                    // Em debug, usar debug_assert para ajudar no diagnóstico sem abortar logicamente
+                    debug_assert!(!msg.is_empty(), "{}", msg);
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        msg,
+                        Span::new(name.start, name.end, name.line, name.col),
+                    ));
                 }
                 // Captura possível valor antigo sem manter borrow mutável durante decremento
                 let old_opt = {
@@ -741,23 +729,21 @@ impl Interpreter {
                     None => ArtValue::none(),
                 };
                 // Runtime check: impedir retorno de objetos de arena para fora do bloco performant
-                if let ArtValue::HeapComposite(h) = &return_value {
-                    if let Some(obj) = self.heap_objects.get(&h.0) {
-                        if let Some(aid) = obj.arena_id {
-                            if Some(aid) != self.current_arena {
-                                let msg = format!(
-                                    "Attempt to return arena object (arena={}) outside of its arena (current_arena={:?}).",
-                                    aid, self.current_arena
-                                );
-                                debug_assert!(!msg.is_empty(), "{}", msg);
-                                self.diagnostics.push(Diagnostic::new(
-                                    DiagnosticKind::Runtime,
-                                    msg,
-                                    Span::new(0, 0, 0, 0),
-                                ));
-                            }
-                        }
-                    }
+                if let ArtValue::HeapComposite(h) = &return_value
+                    && let Some(obj) = self.heap_objects.get(&h.0)
+                    && let Some(aid) = obj.arena_id
+                    && Some(aid) != self.current_arena
+                {
+                    let msg = format!(
+                        "Attempt to return arena object (arena={}) outside of its arena (current_arena={:?}).",
+                        aid, self.current_arena
+                    );
+                    debug_assert!(!msg.is_empty(), "{}", msg);
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        msg,
+                        Span::new(0, 0, 0, 0),
+                    ));
                 }
                 Err(RuntimeError::Return(return_value))
             }
@@ -1627,10 +1613,8 @@ impl Interpreter {
                     _ => None,
                 };
                 if let (Some(h), Some(frc)) = (handle_opt, func_rc) {
-                    if let Some(o) = self.heap_objects.get(&h.0) {
-                        if o.alive {
-                            self.finalizers.insert(h.0, frc.clone());
-                        }
+                    if let Some(o) = self.heap_objects.get(&h.0) && o.alive {
+                        self.finalizers.insert(h.0, frc.clone());
                     }
                 } else {
                     self.diagnostics.push(Diagnostic::new(
@@ -1797,7 +1781,7 @@ impl Interpreter {
                     }
                 }
                 ArtValue::StructInstance { fields, .. } => {
-                    for (_k, val) in fields {
+                    for val in fields.values() {
                         scan_ids(val, this, weak_dead, unowned_dangling)
                     }
                 }
@@ -1822,37 +1806,34 @@ impl Interpreter {
             match &obj.value {
                 ArtValue::Array(a) => {
                     for child in a {
-                        if let ArtValue::HeapComposite(h) = child {
-                            if let Some(c) = self.heap_objects.get(&h.0) {
-                                if c.alive {
-                                    edges.entry(*id).or_default().push(h.0);
-                                    incoming.entry(h.0).or_default().push(*id);
-                                }
-                            }
+                        if let ArtValue::HeapComposite(h) = child
+                            && let Some(c) = self.heap_objects.get(&h.0)
+                            && c.alive
+                        {
+                            edges.entry(*id).or_default().push(h.0);
+                            incoming.entry(h.0).or_default().push(*id);
                         }
                     }
                 }
                 ArtValue::StructInstance { fields, .. } => {
-                    for (_k, child) in fields {
-                        if let ArtValue::HeapComposite(h) = child {
-                            if let Some(c) = self.heap_objects.get(&h.0) {
-                                if c.alive {
-                                    edges.entry(*id).or_default().push(h.0);
-                                    incoming.entry(h.0).or_default().push(*id);
-                                }
-                            }
+                    for child in fields.values() {
+                        if let ArtValue::HeapComposite(h) = child
+                            && let Some(c) = self.heap_objects.get(&h.0)
+                            && c.alive
+                        {
+                            edges.entry(*id).or_default().push(h.0);
+                            incoming.entry(h.0).or_default().push(*id);
                         }
                     }
                 }
                 ArtValue::EnumInstance { values, .. } => {
                     for child in values {
-                        if let ArtValue::HeapComposite(h) = child {
-                            if let Some(c) = self.heap_objects.get(&h.0) {
-                                if c.alive {
-                                    edges.entry(*id).or_default().push(h.0);
-                                    incoming.entry(h.0).or_default().push(*id);
-                                }
-                            }
+                        if let ArtValue::HeapComposite(h) = child
+                            && let Some(c) = self.heap_objects.get(&h.0)
+                            && c.alive
+                        {
+                            edges.entry(*id).or_default().push(h.0);
+                            incoming.entry(h.0).or_default().push(*id);
                         }
                     }
                 }
@@ -1890,7 +1871,8 @@ impl Interpreter {
         let mut on_stack = vec![false; n];
         let mut stack: Vec<usize> = Vec::new();
         let mut sccs: Vec<Vec<usize>> = Vec::new();
-        fn strongconnect(
+    #[allow(clippy::too_many_arguments)]
+    fn strongconnect(
             u: usize,
             index: &mut usize,
             indices: &mut [usize],
@@ -1923,16 +1905,11 @@ impl Interpreter {
             }
             if low[u] == indices[u] {
                 let mut comp = Vec::new();
-                loop {
-                    match stack.pop() {
-                        Some(w) => {
-                            on[w] = false;
-                            comp.push(w);
-                            if w == u {
-                                break;
-                            }
-                        }
-                        None => break, // defensive: stack unexpectedly empty
+                while let Some(w) = stack.pop() {
+                    on[w] = false;
+                    comp.push(w);
+                    if w == u {
+                        break;
                     }
                 }
                 if comp.len() > 1 {
@@ -1989,17 +1966,11 @@ impl Interpreter {
             let set: HashSet<usize> = comp.iter().cloned().collect();
             let mut isolated = true;
             for &node in &comp {
-                if let Some(ins) = incoming.get(&id_vec[node]) {
-                    if ins.iter().any(|p| {
-                        if let Some(&pi) = pos.get(p) {
-                            !set.contains(&pi)
-                        } else {
-                            true
-                        }
-                    }) {
-                        isolated = false;
-                        break;
-                    }
+                if let Some(ins) = incoming.get(&id_vec[node])
+                    && ins.iter().any(|p| pos.get(p).map(|&pi| !set.contains(&pi)).unwrap_or(true))
+                {
+                    isolated = false;
+                    break;
                 }
             }
             let reachable_from_root = comp.iter().any(|n| reachable[*n]);
@@ -2033,10 +2004,8 @@ impl Interpreter {
             for &nidx in &comp {
                 if let Some(ins) = incoming.get(&id_vec[nidx]) {
                     for pid in ins {
-                        if let Some(&pi) = pos.get(pid) {
-                            if set.contains(&pi) {
-                                *in_counts.entry(nidx).or_insert(0) += 1;
-                            }
+                        if let Some(&pi) = pos.get(pid) && set.contains(&pi) {
+                            *in_counts.entry(nidx).or_insert(0) += 1;
                         }
                     }
                 }

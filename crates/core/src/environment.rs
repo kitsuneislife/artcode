@@ -27,17 +27,14 @@ impl Environment {
         // Isso evita que o mesmo objeto seja decrementado duas vezes: uma no
         // momento do rebind (Interpreter costuma chamar `dec_value_if_heap`)
         // e outra no `drop_scope_heap_objects` ao sair do escopo.
-        if let Some(prev) = self.values.get(sym) {
-            if let ArtValue::HeapComposite(h) = prev {
-                if let Some(pos) = self.strong_handles.iter().position(|hh| hh.0 == h.0) {
-                    self.strong_handles.remove(pos);
-                }
-            }
+        if let Some(ArtValue::HeapComposite(h)) = self.values.get(sym)
+            && let Some(pos) = self.strong_handles.iter().position(|hh| hh.0 == h.0)
+        {
+            self.strong_handles.remove(pos);
         }
         // Se o novo valor for um HeapComposite, rastreá-lo como um strong handle neste escopo.
-        match &value {
-            ArtValue::HeapComposite(h) => self.strong_handles.push(*h),
-            _ => {}
+        if let ArtValue::HeapComposite(h) = &value {
+            self.strong_handles.push(*h)
         }
         // Inserir/atualizar o valor no mapa (retorno antigo será tratado acima)
         self.values.insert(sym, value);
