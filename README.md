@@ -1,4 +1,4 @@
-![Banner](./target/banner.png)
+![Banner](./github/banner.png)
 
 <p align="center">
 	<img alt="CI" src="https://github.com/kitsuneislife/artcode/actions/workflows/ci.yml/badge.svg" />
