@@ -28,13 +28,13 @@ enum Commands {
 
 fn run(cmd: &mut Command) -> ExitStatus {
     println!("==> {:?}", cmd);
-        match cmd.status() {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("failed to run command: {}", e);
-                std::process::exit(1);
-            }
+    match cmd.status() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("failed to run command: {}", e);
+            std::process::exit(1);
         }
+    }
 }
 
 fn fmt(no_fmt: bool) {
@@ -56,13 +56,13 @@ fn test_all() {
 
 fn scan_panics() {
     let mut paths = vec!["crates".into(), "src".into()];
-        let re = match Regex::new(r"panic!|unwrap\(|expect\(") {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("invalid panic-scan regex: {}", e);
-                std::process::exit(1);
-            }
-        };
+    let re = match Regex::new(r"panic!|unwrap\(|expect\(") {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("invalid panic-scan regex: {}", e);
+            std::process::exit(1);
+        }
+    };
     let mut found = 0usize;
     for p in paths.drain(..) {
         visit(&p, &re, &mut found);
@@ -76,16 +76,16 @@ fn scan_panics() {
 
 fn visit(path: &PathBuf, re: &Regex, found: &mut usize) {
     if path.is_dir() {
-            if let Ok(rd) = std::fs::read_dir(path) {
-                for entry_res in rd {
-                    match entry_res {
-                        Ok(entry) => visit(&entry.path(), re, found),
-                        Err(e) => eprintln!("skipping entry in {:?}: {}", path, e),
-                    }
+        if let Ok(rd) = std::fs::read_dir(path) {
+            for entry_res in rd {
+                match entry_res {
+                    Ok(entry) => visit(&entry.path(), re, found),
+                    Err(e) => eprintln!("skipping entry in {:?}: {}", path, e),
                 }
-            } else {
-                eprintln!("cannot read dir {:?}", path);
             }
+        } else {
+            eprintln!("cannot read dir {:?}", path);
+        }
     } else if let Some(ext) = path.extension() {
         if ext == "rs" {
             if let Ok(txt) = std::fs::read_to_string(path) {
