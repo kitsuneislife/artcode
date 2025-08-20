@@ -83,4 +83,4 @@ jobs:
         with:
           name: coverage-badge
           path: target/coverage_badge.svg
-                        cargo run -q -p xtask -- scan || true
+      
