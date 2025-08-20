@@ -243,34 +243,36 @@ impl Interpreter {
     #[inline]
     fn inc_children_strong(&mut self, v: &ArtValue) {
         match v {
-                ArtValue::Array(a) => {
-                    for child in a {
-                        if let ArtValue::HeapComposite(h) = child
-                            && let Some(c) = self.heap_objects.get_mut(&h.0)
-                        {
-                            c.inc_strong();
-                            self.strong_increments += 1;
-                        }
-                    }
-                }
-            ArtValue::StructInstance { fields, .. } => {
-                for child in fields.values() {
-                    if let ArtValue::HeapComposite(h) = child && let Some(c) = self.heap_objects.get_mut(&h.0) {
+            ArtValue::Array(a) => {
+                for child in a {
+                    if let ArtValue::HeapComposite(h) = child
+                        && let Some(c) = self.heap_objects.get_mut(&h.0)
+                    {
                         c.inc_strong();
                         self.strong_increments += 1;
                     }
                 }
             }
-                ArtValue::EnumInstance { values, .. } => {
-                    for child in values {
-                        if let ArtValue::HeapComposite(h) = child
-                            && let Some(c) = self.heap_objects.get_mut(&h.0)
-                        {
-                            c.inc_strong();
-                            self.strong_increments += 1;
-                        }
+            ArtValue::StructInstance { fields, .. } => {
+                for child in fields.values() {
+                    if let ArtValue::HeapComposite(h) = child
+                        && let Some(c) = self.heap_objects.get_mut(&h.0)
+                    {
+                        c.inc_strong();
+                        self.strong_increments += 1;
                     }
                 }
+            }
+            ArtValue::EnumInstance { values, .. } => {
+                for child in values {
+                    if let ArtValue::HeapComposite(h) = child
+                        && let Some(c) = self.heap_objects.get_mut(&h.0)
+                    {
+                        c.inc_strong();
+                        self.strong_increments += 1;
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -459,8 +461,8 @@ impl Interpreter {
                 }
                 ArtValue::StructInstance { fields, .. } => {
                     for val in fields.values() {
-                            scan(val, this, wt, wa, wd, ut, ud)
-                        }
+                        scan(val, this, wt, wa, wd, ut, ud)
+                    }
                 }
                 ArtValue::EnumInstance { values, .. } => {
                     for val in values {
@@ -484,7 +486,7 @@ impl Interpreter {
         let mut out_deg_sum = 0usize;
         let mut in_deg_sum = 0usize;
         let mut in_counts: std::collections::HashMap<u64, usize> = std::collections::HashMap::new();
-    for obj in self.heap_objects.values() {
+        for obj in self.heap_objects.values() {
             if !obj.alive {
                 continue;
             }
@@ -492,7 +494,9 @@ impl Interpreter {
                 ArtValue::Array(a) => {
                     let mut c = 0;
                     for ch in a {
-                        if let ArtValue::HeapComposite(h) = ch && self.is_object_alive(h.0) {
+                        if let ArtValue::HeapComposite(h) = ch
+                            && self.is_object_alive(h.0)
+                        {
                             c += 1;
                             *in_counts.entry(h.0).or_insert(0) += 1;
                         }
@@ -502,7 +506,9 @@ impl Interpreter {
                 ArtValue::StructInstance { fields, .. } => {
                     let mut c = 0;
                     for ch in fields.values() {
-                        if let ArtValue::HeapComposite(h) = ch && self.is_object_alive(h.0) {
+                        if let ArtValue::HeapComposite(h) = ch
+                            && self.is_object_alive(h.0)
+                        {
                             c += 1;
                             *in_counts.entry(h.0).or_insert(0) += 1;
                         }
@@ -512,7 +518,9 @@ impl Interpreter {
                 ArtValue::EnumInstance { values, .. } => {
                     let mut c = 0;
                     for ch in values {
-                        if let ArtValue::HeapComposite(h) = ch && self.is_object_alive(h.0) {
+                        if let ArtValue::HeapComposite(h) = ch
+                            && self.is_object_alive(h.0)
+                        {
                             c += 1;
                             *in_counts.entry(h.0).or_insert(0) += 1;
                         }
@@ -1613,7 +1621,9 @@ impl Interpreter {
                     _ => None,
                 };
                 if let (Some(h), Some(frc)) = (handle_opt, func_rc) {
-                    if let Some(o) = self.heap_objects.get(&h.0) && o.alive {
+                    if let Some(o) = self.heap_objects.get(&h.0)
+                        && o.alive
+                    {
                         self.finalizers.insert(h.0, frc.clone());
                     }
                 } else {
@@ -1871,8 +1881,8 @@ impl Interpreter {
         let mut on_stack = vec![false; n];
         let mut stack: Vec<usize> = Vec::new();
         let mut sccs: Vec<Vec<usize>> = Vec::new();
-    #[allow(clippy::too_many_arguments)]
-    fn strongconnect(
+        #[allow(clippy::too_many_arguments)]
+        fn strongconnect(
             u: usize,
             index: &mut usize,
             indices: &mut [usize],
@@ -1967,7 +1977,9 @@ impl Interpreter {
             let mut isolated = true;
             for &node in &comp {
                 if let Some(ins) = incoming.get(&id_vec[node])
-                    && ins.iter().any(|p| pos.get(p).map(|&pi| !set.contains(&pi)).unwrap_or(true))
+                    && ins
+                        .iter()
+                        .any(|p| pos.get(p).map(|&pi| !set.contains(&pi)).unwrap_or(true))
                 {
                     isolated = false;
                     break;
@@ -2004,7 +2016,9 @@ impl Interpreter {
             for &nidx in &comp {
                 if let Some(ins) = incoming.get(&id_vec[nidx]) {
                     for pid in ins {
-                        if let Some(&pi) = pos.get(pid) && set.contains(&pi) {
+                        if let Some(&pi) = pos.get(pid)
+                            && set.contains(&pi)
+                        {
                             *in_counts.entry(nidx).or_insert(0) += 1;
                         }
                     }
