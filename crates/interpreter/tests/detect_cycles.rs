@@ -1,5 +1,5 @@
-use interpreter::interpreter::Interpreter;
 use core::ast::ArtValue;
+use interpreter::interpreter::Interpreter;
 
 #[test]
 fn simple_array_cycle_detection() {

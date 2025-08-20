@@ -4,7 +4,7 @@ impl Parser {
         use lexer::Lexer; // usar lexer para sub-expressões
 
         let mut parts = Vec::new();
-    let chars: Vec<char> = raw.chars().collect();
+        let chars: Vec<char> = raw.chars().collect();
         let mut i = 0usize;
         let mut literal_buf = String::new();
 
@@ -30,7 +30,9 @@ impl Parser {
                         '{' => depth += 1,
                         '}' => {
                             depth -= 1;
-                            if depth == 0 { break; }
+                            if depth == 0 {
+                                break;
+                            }
                         }
                         _ => {}
                     }
@@ -40,10 +42,13 @@ impl Parser {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Parse,
                         "Unterminated interpolation expression in f-string",
-                        Span::new(self.tokens[self.current.min(self.tokens.len()-1)].start,
-                                  self.tokens[self.current.min(self.tokens.len()-1)].end,
-                                  self.tokens[self.current.min(self.tokens.len()-1)].line,
-                                  self.tokens[self.current.min(self.tokens.len()-1)].col)));
+                        Span::new(
+                            self.tokens[self.current.min(self.tokens.len() - 1)].start,
+                            self.tokens[self.current.min(self.tokens.len() - 1)].end,
+                            self.tokens[self.current.min(self.tokens.len() - 1)].line,
+                            self.tokens[self.current.min(self.tokens.len() - 1)].col,
+                        ),
+                    ));
                     break;
                 }
                 // Content between braces (may contain :fmt at top level)
@@ -56,24 +61,31 @@ impl Parser {
                 if let Some(colon_pos) = inner.find(':') {
                     // ensure no other ':' before formats? accept first
                     expr_src = &inner[..colon_pos];
-                    let fmt_part = &inner[colon_pos+1..];
-                    if !fmt_part.is_empty() { fmt_opt = Some(fmt_part.to_string()); }
+                    let fmt_part = &inner[colon_pos + 1..];
+                    if !fmt_part.is_empty() {
+                        fmt_opt = Some(fmt_part.to_string());
+                    }
                 }
                 // parse expression source
                 let mut sub_lexer = Lexer::new(expr_src.to_string());
-                    let tokens = match sub_lexer.scan_tokens() {
-                        Ok(t) => t,
-                        Err(diag) => {
-                            // Propagar diagnóstico de lexing da sub-expressão
-                            self.diagnostics.push(diag);
-                            continue; // pular esta interpolação
-                        }
-                    };
+                let tokens = match sub_lexer.scan_tokens() {
+                    Ok(t) => t,
+                    Err(diag) => {
+                        // Propagar diagnóstico de lexing da sub-expressão
+                        self.diagnostics.push(diag);
+                        continue; // pular esta interpolação
+                    }
+                };
                 let mut sub_parser = Parser::new(tokens);
                 let expr = sub_parser.expression();
-                parts.push(InterpolatedPart::Expr { expr: Box::new(expr), format: fmt_opt });
-            } else if c == '}' { // stray or escaped '}}'
-                if i + 1 < chars.len() && chars[i + 1] == '}' { // escape sequence
+                parts.push(InterpolatedPart::Expr {
+                    expr: Box::new(expr),
+                    format: fmt_opt,
+                });
+            } else if c == '}' {
+                // stray or escaped '}}'
+                if i + 1 < chars.len() && chars[i + 1] == '}' {
+                    // escape sequence
                     literal_buf.push('}');
                     i += 2;
                     continue;
@@ -81,10 +93,13 @@ impl Parser {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Parse,
                         "Unmatched '}' in interpolated string",
-                        Span::new(self.tokens[self.current.min(self.tokens.len()-1)].start,
-                                  self.tokens[self.current.min(self.tokens.len()-1)].end,
-                                  self.tokens[self.current.min(self.tokens.len()-1)].line,
-                                  self.tokens[self.current.min(self.tokens.len()-1)].col)));
+                        Span::new(
+                            self.tokens[self.current.min(self.tokens.len() - 1)].start,
+                            self.tokens[self.current.min(self.tokens.len() - 1)].end,
+                            self.tokens[self.current.min(self.tokens.len() - 1)].line,
+                            self.tokens[self.current.min(self.tokens.len() - 1)].col,
+                        ),
+                    ));
                     i += 1;
                     continue;
                 }
@@ -99,12 +114,12 @@ impl Parser {
         Expr::InterpolatedString(parts)
     }
 }
-use core::ast::{Expr, Program, Stmt};
-use diagnostics::{Diagnostic, DiagnosticKind, Span};
-use core::{Token, TokenType};
 use crate::expressions;
 use crate::precedence::Precedence;
 use crate::statements;
+use core::ast::{Expr, Program, Stmt};
+use core::{Token, TokenType};
+use diagnostics::{Diagnostic, DiagnosticKind, Span};
 use std::rc::Rc;
 
 pub struct Parser {
@@ -115,7 +130,11 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Parser { tokens, current: 0, diagnostics: Vec::new() }
+        Parser {
+            tokens,
+            current: 0,
+            diagnostics: Vec::new(),
+        }
     }
 
     pub fn parse(&mut self) -> (Program, Vec<Diagnostic>) {
@@ -140,10 +159,10 @@ impl Parser {
             self.consume(TokenType::LeftBrace, "Expect '{' after performant.");
             let statements = self.block();
             Stmt::Performant { statements }
-         } else {
-             self.statement()
-         }
-     }
+        } else {
+            self.statement()
+        }
+    }
 
     pub fn struct_declaration(&mut self) -> Stmt {
         let name = self.consume(TokenType::Identifier, "Expect struct name.");
@@ -239,9 +258,10 @@ impl Parser {
             TokenType::And => Precedence::And as u8,
             TokenType::Or => Precedence::Or as u8,
             TokenType::EqualEqual | TokenType::BangEqual => Precedence::Equality as u8,
-            TokenType::Greater | TokenType::GreaterEqual | TokenType::Less | TokenType::LessEqual => {
-                Precedence::Comparison as u8
-            }
+            TokenType::Greater
+            | TokenType::GreaterEqual
+            | TokenType::Less
+            | TokenType::LessEqual => Precedence::Comparison as u8,
             TokenType::Plus | TokenType::Minus => Precedence::Term as u8,
             TokenType::Star | TokenType::Slash => Precedence::Factor as u8,
             TokenType::LeftParen | TokenType::Dot => Precedence::Call as u8,
@@ -262,16 +282,33 @@ impl Parser {
     }
 
     pub fn consume(&mut self, tt: TokenType, message: &str) -> Token {
-        if self.check(&tt) { return self.advance(); }
+        if self.check(&tt) {
+            return self.advance();
+        }
         let peek = self.peek();
-        self.report(peek.start, peek.end, peek.line, peek.col, DiagnosticKind::Parse,
-            format!("{}: expected {:?}, got {:?}", message, tt, peek.token_type));
+        self.report(
+            peek.start,
+            peek.end,
+            peek.line,
+            peek.col,
+            DiagnosticKind::Parse,
+            format!("{}: expected {:?}, got {:?}", message, tt, peek.token_type),
+        );
         // Recover: return dummy token of expected type
         Token::new(tt, String::new(), peek.line, peek.col, peek.start, peek.end)
     }
 
-    fn report(&mut self, start: usize, end: usize, line: usize, col: usize, kind: DiagnosticKind, msg: String) {
-        self.diagnostics.push(Diagnostic::new(kind, msg, Span::new(start, end, line, col)));
+    fn report(
+        &mut self,
+        start: usize,
+        end: usize,
+        line: usize,
+        col: usize,
+        kind: DiagnosticKind,
+        msg: String,
+    ) {
+        self.diagnostics
+            .push(Diagnostic::new(kind, msg, Span::new(start, end, line, col)));
     }
 
     pub fn check(&self, tt: &TokenType) -> bool {
@@ -324,8 +361,14 @@ impl Parser {
                         break;
                     } else {
                         let t = self.peek();
-                        self.report(t.start, t.end, t.line, t.col, DiagnosticKind::Parse, 
-                            ", or > expected in generic type parameters".to_string());
+                        self.report(
+                            t.start,
+                            t.end,
+                            t.line,
+                            t.col,
+                            DiagnosticKind::Parse,
+                            ", or > expected in generic type parameters".to_string(),
+                        );
                         break;
                     }
                 }
@@ -343,7 +386,9 @@ impl Parser {
             } else {
                 (first_ident, None)
             }
-        } else { (first_ident, None) };
+        } else {
+            (first_ident, None)
+        };
         self.consume(TokenType::LeftParen, "Expect '(' after function name.");
         let mut params = Vec::new();
         if !self.check(&TokenType::RightParen) {
@@ -373,6 +418,12 @@ impl Parser {
         let body = Rc::new(Stmt::Block {
             statements: self.block(),
         });
-    Stmt::Function { name, params, return_type, body, method_owner }
+        Stmt::Function {
+            name,
+            params,
+            return_type,
+            body,
+            method_owner,
+        }
     }
 }

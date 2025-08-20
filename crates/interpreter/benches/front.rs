@@ -1,5 +1,6 @@
-use criterion::{criterion_group, criterion_main, Criterion};
-use lexer::Lexer; use parser::Parser;
+use criterion::{Criterion, criterion_group, criterion_main};
+use lexer::Lexer;
+use parser::Parser;
 
 fn bench_lex_parse(c: &mut Criterion) {
     let src = r#"

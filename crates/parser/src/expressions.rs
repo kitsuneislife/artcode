@@ -1,7 +1,7 @@
-use core::{Token, TokenType};
-use core::ast::Expr;
 use crate::parser::Parser;
 use crate::precedence::Precedence;
+use core::ast::Expr;
+use core::{Token, TokenType};
 
 pub fn expression(parser: &mut Parser) -> Expr {
     parse_precedence(parser, Precedence::Assignment as u8)
@@ -28,11 +28,11 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
             };
             Expr::Literal(art_val)
         }
-    TokenType::String(s) => Expr::Literal(core::ast::ArtValue::String(std::sync::Arc::from(s))),
-    TokenType::InterpolatedString(s) => parser.parse_interpolated_string(s),
+        TokenType::String(s) => Expr::Literal(core::ast::ArtValue::String(std::sync::Arc::from(s))),
+        TokenType::InterpolatedString(s) => parser.parse_interpolated_string(s),
         TokenType::True => Expr::Literal(core::ast::ArtValue::Bool(true)),
         TokenType::False => Expr::Literal(core::ast::ArtValue::Bool(false)),
-    TokenType::None => Expr::Literal(core::ast::ArtValue::none()),
+        TokenType::None => Expr::Literal(core::ast::ArtValue::none()),
         TokenType::LeftBracket => {
             let mut elements = Vec::new();
             if !parser.check(&TokenType::RightBracket) {
@@ -49,7 +49,9 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
         TokenType::LeftParen => {
             let expr = expression(parser);
             parser.consume(TokenType::RightParen, "Expect ')' after expression.");
-            Expr::Grouping { expression: Box::new(expr) }
+            Expr::Grouping {
+                expression: Box::new(expr),
+            }
         }
         TokenType::Identifier => Expr::Variable { name: token },
         TokenType::Weak => {
@@ -63,10 +65,14 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
         }
         TokenType::Bang | TokenType::Minus => {
             let right = parse_precedence(parser, Precedence::Unary as u8);
-            Expr::Unary { operator: token, right: Box::new(right) }
+            Expr::Unary {
+                operator: token,
+                right: Box::new(right),
+            }
         }
         TokenType::Dot => {
-            let variant_name = parser.consume(TokenType::Identifier, "Expect enum variant name after '.'");
+            let variant_name =
+                parser.consume(TokenType::Identifier, "Expect enum variant name after '.'");
             if parser.match_token(TokenType::LeftParen) {
                 let mut values = Vec::new();
                 if !parser.check(&TokenType::RightParen) {
@@ -77,7 +83,10 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
                         }
                     }
                 }
-                parser.consume(TokenType::RightParen, "Expect ')' after enum variant values.");
+                parser.consume(
+                    TokenType::RightParen,
+                    "Expect ')' after enum variant values.",
+                );
                 Expr::EnumInit {
                     name: None,
                     variant: variant_name,
@@ -95,9 +104,10 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
             parser.diagnostics.push(diagnostics::Diagnostic::new(
                 diagnostics::DiagnosticKind::Parse,
                 format!("Unexpected token in expression: {:?}", token.token_type),
-                diagnostics::Span::new(token.start, token.end, token.line, token.col)));
+                diagnostics::Span::new(token.start, token.end, token.line, token.col),
+            ));
             Expr::Literal(core::ast::ArtValue::none())
-        },
+        }
     }
 }
 
@@ -108,8 +118,16 @@ pub fn parse_infix(parser: &mut Parser, left: Expr, operator: Token) -> Expr {
         TokenType::Dot => {
             let ident = parser.consume(TokenType::Identifier, "Expect identifier after '.'");
             // Se left é Variable e próximo é '(' trata como EnumInit nomeado
-            if let Expr::Variable { name: enum_name_tok } = left.clone() {
-                let is_type_like = enum_name_tok.lexeme.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
+            if let Expr::Variable {
+                name: enum_name_tok,
+            } = left.clone()
+            {
+                let is_type_like = enum_name_tok
+                    .lexeme
+                    .chars()
+                    .next()
+                    .map(|c| c.is_uppercase())
+                    .unwrap_or(false);
                 if is_type_like {
                     if parser.check(&TokenType::LeftParen) {
                         parser.advance(); // consume '('
@@ -117,20 +135,39 @@ pub fn parse_infix(parser: &mut Parser, left: Expr, operator: Token) -> Expr {
                         if !parser.check(&TokenType::RightParen) {
                             loop {
                                 values.push(expression(parser));
-                                if !parser.match_token(TokenType::Comma) { break; }
+                                if !parser.match_token(TokenType::Comma) {
+                                    break;
+                                }
                             }
                         }
-                        parser.consume(TokenType::RightParen, "Expect ')' after enum variant values.");
-                        return Expr::EnumInit { name: Some(enum_name_tok), variant: ident, values };
+                        parser.consume(
+                            TokenType::RightParen,
+                            "Expect ')' after enum variant values.",
+                        );
+                        return Expr::EnumInit {
+                            name: Some(enum_name_tok),
+                            variant: ident,
+                            values,
+                        };
                     } else {
                         // Variant sem payload
-                        return Expr::EnumInit { name: Some(enum_name_tok), variant: ident, values: Vec::new() };
+                        return Expr::EnumInit {
+                            name: Some(enum_name_tok),
+                            variant: ident,
+                            values: Vec::new(),
+                        };
                     }
                 } else {
-                    return Expr::FieldAccess { object: Box::new(left), field: ident };
+                    return Expr::FieldAccess {
+                        object: Box::new(left),
+                        field: ident,
+                    };
                 }
             }
-            Expr::FieldAccess { object: Box::new(left), field: ident }
+            Expr::FieldAccess {
+                object: Box::new(left),
+                field: ident,
+            }
         }
         TokenType::Question => {
             // Se left é Weak(...) ou já produziu algo que deve virar WeakUpgrade
@@ -142,15 +179,26 @@ pub fn parse_infix(parser: &mut Parser, left: Expr, operator: Token) -> Expr {
         }
         TokenType::As => {
             let type_name = parser.parse_type();
-            Expr::Cast { object: Box::new(left), target_type: type_name }
+            Expr::Cast {
+                object: Box::new(left),
+                target_type: type_name,
+            }
         }
         TokenType::And | TokenType::Or => {
             let right = parse_precedence(parser, precedence);
-            Expr::Logical { left: Box::new(left), operator, right: Box::new(right) }
+            Expr::Logical {
+                left: Box::new(left),
+                operator,
+                right: Box::new(right),
+            }
         }
         _ => {
             let right = parse_precedence(parser, precedence);
-            Expr::Binary { left: Box::new(left), operator, right: Box::new(right) }
+            Expr::Binary {
+                left: Box::new(left),
+                operator,
+                right: Box::new(right),
+            }
         }
     }
 }
@@ -166,5 +214,8 @@ pub fn finish_call(parser: &mut Parser, callee: Expr) -> Expr {
         }
     }
     parser.consume(TokenType::RightParen, "Expect ')' after arguments.");
-    Expr::Call { callee: Box::new(callee), arguments }
+    Expr::Call {
+        callee: Box::new(callee),
+        arguments,
+    }
 }

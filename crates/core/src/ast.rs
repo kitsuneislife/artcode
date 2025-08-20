@@ -1,9 +1,9 @@
-use crate::environment::Environment;
 use crate::Token;
+use crate::environment::Environment;
 use std::cell::RefCell;
 use std::fmt;
-use std::sync::Arc;
 use std::rc::{Rc, Weak};
+use std::sync::Arc;
 
 pub type Program = Vec<Stmt>;
 
@@ -32,21 +32,21 @@ pub enum Stmt {
         variants: Vec<(Token, Option<Vec<String>>)>,
     },
     Match {
-    expr: Expr,
-    cases: Vec<(MatchPattern, Option<Expr>, Stmt)>, // (pattern, guard, body)
+        expr: Expr,
+        cases: Vec<(MatchPattern, Option<Expr>, Stmt)>, // (pattern, guard, body)
     },
     Function {
         name: Token,
         params: Vec<FunctionParam>,
         return_type: Option<String>,
         body: Rc<Stmt>,
-    method_owner: Option<String>, // novo: tipo ao qual o método pertence
+        method_owner: Option<String>, // novo: tipo ao qual o método pertence
     },
     Performant {
         statements: Vec<Stmt>,
     }, // Note: `Performant` será tratado no interpretador como um bloco léxico que cria uma arena
-      // de memória; por ora é apenas parseable e no interpretador cria um identificador de arena
-      // para alocações dentro do bloco.
+    // de memória; por ora é apenas parseable e no interpretador cria um identificador de arena
+    // para alocações dentro do bloco.
     Return {
         value: Option<Expr>,
     },
@@ -105,16 +105,19 @@ pub enum Expr {
         target_type: String,
     },
     InterpolatedString(Vec<InterpolatedPart>),
-    Weak(Box<Expr>),        // açúcar: weak expr -> builtin weak()
-    Unowned(Box<Expr>),     // açúcar: unowned expr -> builtin unowned()
-    WeakUpgrade(Box<Expr>), // açúcar: expr?  (onde expr avalia para WeakRef)
+    Weak(Box<Expr>),          // açúcar: weak expr -> builtin weak()
+    Unowned(Box<Expr>),       // açúcar: unowned expr -> builtin unowned()
+    WeakUpgrade(Box<Expr>),   // açúcar: expr?  (onde expr avalia para WeakRef)
     UnownedAccess(Box<Expr>), // açúcar: expr! (onde expr avalia para UnownedRef)
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InterpolatedPart {
     Literal(String),
-    Expr { expr: Box<Expr>, format: Option<String> },
+    Expr {
+        expr: Box<Expr>,
+        format: Option<String>,
+    },
 }
 
 #[derive(Clone)]
@@ -163,8 +166,8 @@ pub enum ArtValue {
     Function(Rc<Function>),
     Builtin(BuiltinFn),
     // Fase 8 (protótipo): referências não-fortes
-    WeakRef(ObjHandle),      // id para registro global
-    UnownedRef(ObjHandle),   // id para registro global (não mantém vivo)
+    WeakRef(ObjHandle),    // id para registro global
+    UnownedRef(ObjHandle), // id para registro global (não mantém vivo)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -175,16 +178,33 @@ pub enum BuiltinFn {
     Println,
     Len,
     TypeOf,
-    WeakNew,       // __weak(x)
-    WeakGet,       // __weak_get(w)
-    UnownedNew,    // __unowned(x)
-    UnownedGet,    // __unowned_get(u)
-    OnFinalize,    // __on_finalize(comp, fn)
+    WeakNew,    // __weak(x)
+    WeakGet,    // __weak_get(w)
+    UnownedNew, // __unowned(x)
+    UnownedGet, // __unowned_get(u)
+    OnFinalize, // __on_finalize(comp, fn)
 }
 
-impl fmt::Debug for BuiltinFn { fn fmt(&self, f:&mut fmt::Formatter<'_>)->fmt::Result { match self { BuiltinFn::Println => write!(f, "<builtin println>"), BuiltinFn::Len => write!(f, "<builtin len>"), BuiltinFn::TypeOf => write!(f, "<builtin type_of>"), BuiltinFn::WeakNew => write!(f, "<builtin __weak>"), BuiltinFn::WeakGet => write!(f, "<builtin __weak_get>"), BuiltinFn::UnownedNew => write!(f, "<builtin __unowned>"), BuiltinFn::UnownedGet => write!(f, "<builtin __unowned_get>"), BuiltinFn::OnFinalize => write!(f, "<builtin __on_finalize>") } } }
+impl fmt::Debug for BuiltinFn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BuiltinFn::Println => write!(f, "<builtin println>"),
+            BuiltinFn::Len => write!(f, "<builtin len>"),
+            BuiltinFn::TypeOf => write!(f, "<builtin type_of>"),
+            BuiltinFn::WeakNew => write!(f, "<builtin __weak>"),
+            BuiltinFn::WeakGet => write!(f, "<builtin __weak_get>"),
+            BuiltinFn::UnownedNew => write!(f, "<builtin __unowned>"),
+            BuiltinFn::UnownedGet => write!(f, "<builtin __unowned_get>"),
+            BuiltinFn::OnFinalize => write!(f, "<builtin __on_finalize>"),
+        }
+    }
+}
 
-impl PartialEq for BuiltinFn { fn eq(&self, other:&Self)->bool { std::mem::discriminant(self)==std::mem::discriminant(other) } }
+impl PartialEq for BuiltinFn {
+    fn eq(&self, other: &Self) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
+}
 
 impl fmt::Display for ArtValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -201,12 +221,21 @@ impl fmt::Display for ArtValue {
                 let elems: Vec<String> = arr.iter().map(|item| item.to_string()).collect();
                 write!(f, "[{}]", elems.join(", "))
             }
-            ArtValue::StructInstance { struct_name, fields } => {
-                let field_strs: Vec<String> =
-                    fields.iter().map(|(k, v)| format!("{}: {}", k, v)).collect();
+            ArtValue::StructInstance {
+                struct_name,
+                fields,
+            } => {
+                let field_strs: Vec<String> = fields
+                    .iter()
+                    .map(|(k, v)| format!("{}: {}", k, v))
+                    .collect();
                 write!(f, "{} {{ {} }}", struct_name, field_strs.join(", "))
             }
-            ArtValue::EnumInstance { enum_name, variant, values } => {
+            ArtValue::EnumInstance {
+                enum_name,
+                variant,
+                values,
+            } => {
                 if values.is_empty() {
                     write!(f, "{}.{}", enum_name, variant)
                 } else {
@@ -218,7 +247,16 @@ impl fmt::Display for ArtValue {
                 let name = func.name.as_deref().unwrap_or("<anonymous>");
                 write!(f, "<fn {}>", name)
             }
-            ArtValue::Builtin(b) => match b { BuiltinFn::Println => write!(f, "<builtin println>"), BuiltinFn::Len => write!(f, "<builtin len>"), BuiltinFn::TypeOf => write!(f, "<builtin type_of>"), BuiltinFn::WeakNew => write!(f, "<builtin __weak>"), BuiltinFn::WeakGet => write!(f, "<builtin __weak_get>"), BuiltinFn::UnownedNew => write!(f, "<builtin __unowned>"), BuiltinFn::UnownedGet => write!(f, "<builtin __unowned_get>"), BuiltinFn::OnFinalize => write!(f, "<builtin __on_finalize>") },
+            ArtValue::Builtin(b) => match b {
+                BuiltinFn::Println => write!(f, "<builtin println>"),
+                BuiltinFn::Len => write!(f, "<builtin len>"),
+                BuiltinFn::TypeOf => write!(f, "<builtin type_of>"),
+                BuiltinFn::WeakNew => write!(f, "<builtin __weak>"),
+                BuiltinFn::WeakGet => write!(f, "<builtin __weak_get>"),
+                BuiltinFn::UnownedNew => write!(f, "<builtin __unowned>"),
+                BuiltinFn::UnownedGet => write!(f, "<builtin __unowned_get>"),
+                BuiltinFn::OnFinalize => write!(f, "<builtin __on_finalize>"),
+            },
             ArtValue::WeakRef(_) => write!(f, "<weak ref>"),
             ArtValue::UnownedRef(_) => write!(f, "<unowned ref>"),
             ArtValue::HeapComposite(_) => write!(f, "<composite>"),
@@ -246,7 +284,9 @@ impl From<i64> for ArtValue {
 
 impl ArtValue {
     #[inline]
-    pub fn none() -> ArtValue { ArtValue::Optional(Box::new(None)) }
+    pub fn none() -> ArtValue {
+        ArtValue::Optional(Box::new(None))
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -1,4 +1,6 @@
-use lexer::Lexer; use parser::Parser; use interpreter::type_infer::{TypeEnv, TypeInfer};
+use interpreter::type_infer::{TypeEnv, TypeInfer};
+use lexer::Lexer;
+use parser::Parser;
 
 fn infer_prog(src: &str) -> (TypeEnv, Vec<diagnostics::Diagnostic>) {
     let mut lx = Lexer::new(src.to_string());
@@ -16,7 +18,13 @@ fn infer_prog(src: &str) -> (TypeEnv, Vec<diagnostics::Diagnostic>) {
 #[test]
 fn enum_variant_arity_mismatch_type_phase() {
     let (_tenv, diags) = infer_prog("enum E { P(Int, Int) } let x = E.P(1); ");
-    assert!(diags.iter().any(|d| d.message.contains("expects 2 arguments")), "expected arity diagnostic, got: {:?}", diags.iter().map(|d| &d.message).collect::<Vec<_>>());
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.message.contains("expects 2 arguments")),
+        "expected arity diagnostic, got: {:?}",
+        diags.iter().map(|d| &d.message).collect::<Vec<_>>()
+    );
 }
 
 #[test]

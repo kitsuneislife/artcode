@@ -15,7 +15,11 @@ fn struct_missing_field_diagnostic() {
     let mut interp = Interpreter::new();
     let _ = interp.interpret(program);
     let diags = interp.take_diagnostics();
-    assert!(diags.iter().any(|d| d.message.contains("Missing field 'idade'")));
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.message.contains("Missing field 'idade'"))
+    );
 }
 
 #[test]
@@ -31,5 +35,9 @@ fn enum_missing_field_diagnostic() {
     let mut interp = Interpreter::new();
     let _ = interp.interpret(program);
     let diags = interp.take_diagnostics();
-    assert!(diags.iter().any(|d| d.message.contains("Wrong number of arguments")));
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.message.contains("Wrong number of arguments"))
+    );
 }

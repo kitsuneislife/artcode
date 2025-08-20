@@ -1,8 +1,8 @@
 use crate::ast::{ArtValue, ObjHandle};
-use std::collections::HashMap;
 use crate::interner::intern;
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct Environment {
@@ -13,7 +13,11 @@ pub struct Environment {
 
 impl Environment {
     pub fn new(enclosing: Option<Rc<RefCell<Environment>>>) -> Self {
-    Environment { enclosing, values: HashMap::new(), strong_handles: Vec::new() }
+        Environment {
+            enclosing,
+            values: HashMap::new(),
+            strong_handles: Vec::new(),
+        }
     }
 
     pub fn define(&mut self, name: &str, value: ArtValue) {

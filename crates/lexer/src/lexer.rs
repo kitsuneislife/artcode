@@ -1,5 +1,5 @@
 use core::{Token, TokenType};
-use diagnostics::{Diagnostic, DiagnosticKind, Span, DiagResult};
+use diagnostics::{DiagResult, Diagnostic, DiagnosticKind, Span};
 
 pub struct Lexer {
     source: Vec<char>,
@@ -31,7 +31,7 @@ impl Lexer {
     }
 
     fn scan_token(&mut self) -> DiagResult<()> {
-    let c = self.advance();
+        let c = self.advance();
         match c {
             '(' => self.add_token(TokenType::LeftParen),
             ')' => self.add_token(TokenType::RightParen),
@@ -96,57 +96,69 @@ impl Lexer {
                 }
             }
             ' ' | '\r' | '\t' => (),
-        '\n' => { self.line += 1; self.line_start = self.current; },
-        '"' => self.string()?,
-            'f' => { // <<< LÓGICA PARA 'f'
+            '\n' => {
+                self.line += 1;
+                self.line_start = self.current;
+            }
+            '"' => self.string()?,
+            'f' => {
+                // <<< LÓGICA PARA 'f'
                 if self.peek() == '"' {
                     self.advance(); // Consome o "
-            self.interpolated_string()?;
+                    self.interpolated_string()?;
                 } else {
                     self.identifier();
                 }
             }
             c if c.is_ascii_digit() => self.number()?,
             c if c.is_alphabetic() || c == '_' => self.identifier(),
-        _ => return Err(self.error_current("Unexpected character")),
-    }
-    Ok(())
+            _ => return Err(self.error_current("Unexpected character")),
+        }
+        Ok(())
     }
 
     fn interpolated_string(&mut self) -> DiagResult<()> {
-    while self.peek() != '"' && !self.is_at_end() {
+        while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
                 self.line += 1;
-        self.line_start = self.current + 1;
+                self.line_start = self.current + 1;
             }
             self.advance();
         }
 
-    if self.is_at_end() { return Err(self.error_current("Unterminated string")); }
+        if self.is_at_end() {
+            return Err(self.error_current("Unterminated string"));
+        }
 
         self.advance(); // The closing ".
 
-    let value: String = self.source[self.start + 2..self.current - 1].iter().collect();
+        let value: String = self.source[self.start + 2..self.current - 1]
+            .iter()
+            .collect();
         self.add_token(TokenType::InterpolatedString(value));
-    Ok(())
+        Ok(())
     }
 
     fn string(&mut self) -> DiagResult<()> {
-    while self.peek() != '"' && !self.is_at_end() {
+        while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
                 self.line += 1;
-        self.line_start = self.current + 1;
+                self.line_start = self.current + 1;
             }
             self.advance();
         }
 
-    if self.is_at_end() { return Err(self.error_current("Unterminated string")); }
+        if self.is_at_end() {
+            return Err(self.error_current("Unterminated string"));
+        }
 
         self.advance();
 
-    let value: String = self.source[self.start + 1..self.current - 1].iter().collect();
+        let value: String = self.source[self.start + 1..self.current - 1]
+            .iter()
+            .collect();
         self.add_token(TokenType::String(value));
-    Ok(())
+        Ok(())
     }
 
     fn number(&mut self) -> DiagResult<()> {
@@ -161,31 +173,35 @@ impl Lexer {
             }
         }
 
-    let value: String = self.source[self.start..self.current].iter().collect();
-    match value.parse::<f64>() {
-        Ok(num) => {
-            self.add_token(TokenType::Number(num));
-            Ok(())
+        let value: String = self.source[self.start..self.current].iter().collect();
+        match value.parse::<f64>() {
+            Ok(num) => {
+                self.add_token(TokenType::Number(num));
+                Ok(())
+            }
+            Err(_) => {
+                // Valor capturado corresponde ao padrão de dígitos (e opcional ponto + dígitos), então erro aqui é raro;
+                // ainda assim, geramos diagnóstico ao invés de panic para robustez.
+                let col = if self.start >= self.line_start {
+                    self.start - self.line_start + 1
+                } else {
+                    1
+                };
+                Err(Diagnostic::new(
+                    DiagnosticKind::Lex,
+                    "Invalid number literal",
+                    Span::new(self.start, self.current, self.line, col),
+                ))
+            }
         }
-        Err(_) => {
-            // Valor capturado corresponde ao padrão de dígitos (e opcional ponto + dígitos), então erro aqui é raro;
-            // ainda assim, geramos diagnóstico ao invés de panic para robustez.
-            let col = if self.start >= self.line_start { self.start - self.line_start + 1 } else { 1 };
-            Err(Diagnostic::new(
-                DiagnosticKind::Lex,
-                "Invalid number literal",
-                Span::new(self.start, self.current, self.line, col),
-            ))
-        }
-    }
     }
 
     fn identifier(&mut self) {
         while self.peek().is_alphanumeric() || self.peek() == '_' {
             self.advance();
         }
-    let text: String = self.source[self.start..self.current].iter().collect();
-    let token_type = match text.as_str() {
+        let text: String = self.source[self.start..self.current].iter().collect();
+        let token_type = match text.as_str() {
             "let" => TokenType::Let,
             "if" => TokenType::If,
             "else" => TokenType::Else,
@@ -205,24 +221,26 @@ impl Lexer {
             "unowned" => TokenType::Unowned,
             _ => TokenType::Identifier,
         };
-    self.add_token(token_type);
+        self.add_token(token_type);
     }
 
-    fn add_token(&mut self, token_type: TokenType) { self.tokens.push(self.make_token(token_type)); }
+    fn add_token(&mut self, token_type: TokenType) {
+        self.tokens.push(self.make_token(token_type));
+    }
 
     fn make_token(&self, token_type: TokenType) -> Token {
-    let text: String = self.source[self.start..self.current].iter().collect();
-        let col = if self.start >= self.line_start { 
-            self.start - self.line_start + 1 
-        } else { 
-            1 
+        let text: String = self.source[self.start..self.current].iter().collect();
+        let col = if self.start >= self.line_start {
+            self.start - self.line_start + 1
+        } else {
+            1
         }; // 1-based, proteção contra overflow
         // Token::new já internará se aplicável.
         Token::new(token_type, text, self.line, col, self.start, self.current)
     }
 
     fn match_char(&mut self, expected: char) -> bool {
-    if self.is_at_end() || self.source[self.current] != expected {
+        if self.is_at_end() || self.source[self.current] != expected {
             false
         } else {
             self.current += 1;
@@ -231,11 +249,19 @@ impl Lexer {
     }
 
     fn peek(&self) -> char {
-    if self.is_at_end() { '\0' } else { self.source[self.current] }
+        if self.is_at_end() {
+            '\0'
+        } else {
+            self.source[self.current]
+        }
     }
 
     fn peek_next(&self) -> char {
-    if self.current + 1 >= self.source.len() { '\0' } else { self.source[self.current + 1] }
+        if self.current + 1 >= self.source.len() {
+            '\0'
+        } else {
+            self.source[self.current + 1]
+        }
     }
 
     fn is_at_end(&self) -> bool {
@@ -243,7 +269,7 @@ impl Lexer {
     }
 
     fn advance(&mut self) -> char {
-    let c = self.source[self.current];
+        let c = self.source[self.current];
         self.current += 1;
         c
     }

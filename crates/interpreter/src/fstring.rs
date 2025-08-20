@@ -1,8 +1,17 @@
-use core::ast::{ArtValue, InterpolatedPart, Expr};
 use crate::values::Result;
+use core::ast::{ArtValue, Expr, InterpolatedPart};
 
-pub fn eval_fstring(parts: Vec<InterpolatedPart>, mut eval: impl FnMut(Expr) -> Result<ArtValue>) -> Result<ArtValue> {
-    let cap: usize = parts.iter().map(|p| match p { InterpolatedPart::Literal(s) => s.len(), InterpolatedPart::Expr { .. } => 4 }).sum();
+pub fn eval_fstring(
+    parts: Vec<InterpolatedPart>,
+    mut eval: impl FnMut(Expr) -> Result<ArtValue>,
+) -> Result<ArtValue> {
+    let cap: usize = parts
+        .iter()
+        .map(|p| match p {
+            InterpolatedPart::Literal(s) => s.len(),
+            InterpolatedPart::Expr { .. } => 4,
+        })
+        .sum();
     let mut result = String::with_capacity(cap);
     for part in parts {
         match part {
@@ -15,14 +24,20 @@ pub fn eval_fstring(parts: Vec<InterpolatedPart>, mut eval: impl FnMut(Expr) -> 
                         "upper" => seg = seg.to_uppercase(),
                         "lower" => seg = seg.to_lowercase(),
                         "trim" => seg = seg.trim().to_string(),
-                        "debug" => { seg = format!("{:?}", val.clone()); }
+                        "debug" => {
+                            seg = format!("{:?}", val.clone());
+                        }
                         s if s.starts_with("pad") => {
-                            if let Ok(width) = s[3..].parse::<usize>() && seg.len() < width {
-                                seg = format!("{:<width$}", seg, width=width);
+                            if let Ok(width) = s[3..].parse::<usize>()
+                                && seg.len() < width
+                            {
+                                seg = format!("{:<width$}", seg, width = width);
                             }
                         }
                         "hex" => {
-                            if let ArtValue::Int(n) = val { seg = format!("0x{:x}", n); }
+                            if let ArtValue::Int(n) = val {
+                                seg = format!("0x{:x}", n);
+                            }
                         }
                         _ => { /* desconhecido: ignorar */ }
                     }

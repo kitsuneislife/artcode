@@ -1,5 +1,5 @@
-use interpreter::interpreter::Interpreter; // ajustar caminho se necessário
 use core::ast::ArtValue;
+use interpreter::interpreter::Interpreter; // ajustar caminho se necessário
 
 #[test]
 fn weak_lifecycle_transitions_to_dead_after_dec_strong() {
@@ -12,7 +12,10 @@ fn weak_lifecycle_transitions_to_dead_after_dec_strong() {
 
     // Antes: upgrade deve funcionar
     let up = interp.debug_heap_upgrade_weak(id);
-    assert!(up.is_some(), "Weak upgrade deveria retornar valor enquanto alive");
+    assert!(
+        up.is_some(),
+        "Weak upgrade deveria retornar valor enquanto alive"
+    );
 
     // Relatório inicial: 1 weak alive
     let rep1 = interp.cycle_report();
@@ -25,7 +28,10 @@ fn weak_lifecycle_transitions_to_dead_after_dec_strong() {
 
     // Agora upgrade deve falhar
     let up2 = interp.debug_heap_upgrade_weak(id);
-    assert!(up2.is_none(), "Weak upgrade deveria falhar após strong==0/alive=false");
+    assert!(
+        up2.is_none(),
+        "Weak upgrade deveria falhar após strong==0/alive=false"
+    );
 
     // Relatório atualizado: 1 weak dead
     let rep2 = interp.cycle_report();

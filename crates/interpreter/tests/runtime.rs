@@ -1,15 +1,22 @@
+use interpreter::Interpreter;
 use lexer::Lexer;
 use parser::Parser;
-use interpreter::Interpreter;
 
 fn run(src: &str) -> Vec<diagnostics::Diagnostic> {
     let mut lexer = Lexer::new(src.to_string());
-    let tokens = match lexer.scan_tokens() { Ok(t) => t, Err(d) => return vec![d] };
+    let tokens = match lexer.scan_tokens() {
+        Ok(t) => t,
+        Err(d) => return vec![d],
+    };
     let mut parser = Parser::new(tokens);
     let (program, diags) = parser.parse();
-    if !diags.is_empty() { return diags; }
+    if !diags.is_empty() {
+        return diags;
+    }
     let mut interp = Interpreter::with_prelude();
-    if let Err(e) = interp.interpret(program) { panic!("Runtime error: {:?}", e); }
+    if let Err(e) = interp.interpret(program) {
+        panic!("Runtime error: {:?}", e);
+    }
     interp.take_diagnostics()
 }
 
@@ -48,7 +55,11 @@ fn field_access_array_sum() {
 fn field_access_array_sum_type_error() {
     // agora deve gerar diagnostic e não panic
     let diags = run("let arr=[1,2,\"a\"]; println(arr.sum());");
-    assert!(diags.iter().any(|d| d.message.contains("Type mismatch in sum")));
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.message.contains("Type mismatch in sum"))
+    );
 }
 
 #[test]
@@ -60,7 +71,11 @@ fn field_access_array_count() {
 fn fstring_format_specs() {
     let code = "let n=255; let s= \"  Abc  \"; println(f\"{n:hex} {s:trim} {s:upper} {s:lower} {s:pad10}\");";
     let diags = run(code);
-    if !diags.is_empty() { for d in &diags { eprintln!("DIAG: {}", d.message); } }
+    if !diags.is_empty() {
+        for d in &diags {
+            eprintln!("DIAG: {}", d.message);
+        }
+    }
     assert!(diags.is_empty());
 }
 
@@ -82,7 +97,9 @@ fn struct_method_auto_self() {
     "#;
     let diags = run(src);
     if !diags.is_empty() {
-        for d in &diags { eprintln!("DIAG: {}", d.message); }
+        for d in &diags {
+            eprintln!("DIAG: {}", d.message);
+        }
     }
     assert!(diags.is_empty());
 }
@@ -98,7 +115,11 @@ fn struct_method_uses_self_field() {
         p.name_len();
     "#;
     let diags = run(src);
-    if !diags.is_empty() { for d in &diags { eprintln!("DIAG: {}", d.message); } }
+    if !diags.is_empty() {
+        for d in &diags {
+            eprintln!("DIAG: {}", d.message);
+        }
+    }
     assert!(diags.is_empty());
 }
 
@@ -111,7 +132,11 @@ fn enum_method_no_payload() {
         s.ping();
     "#;
     let diags = run(src);
-    if !diags.is_empty() { for d in &diags { eprintln!("DIAG: {}", d.message); } }
+    if !diags.is_empty() {
+        for d in &diags {
+            eprintln!("DIAG: {}", d.message);
+        }
+    }
     assert!(diags.is_empty());
 }
 
@@ -124,7 +149,11 @@ fn enum_method_with_payload() {
         b.show();
     "#;
     let diags = run(src);
-    if !diags.is_empty() { for d in &diags { eprintln!("DIAG: {}", d.message); } }
+    if !diags.is_empty() {
+        for d in &diags {
+            eprintln!("DIAG: {}", d.message);
+        }
+    }
     assert!(diags.is_empty());
 }
 
@@ -141,7 +170,11 @@ fn enum_method_introspection() {
         s2.describe();
     "#;
     let diags = run(src);
-    if !diags.is_empty() { for d in &diags { eprintln!("DIAG: {}", d.message); } }
+    if !diags.is_empty() {
+        for d in &diags {
+            eprintln!("DIAG: {}", d.message);
+        }
+    }
     assert!(diags.is_empty());
 }
 
@@ -150,5 +183,9 @@ fn fstring_malformed_error() {
     let code = "println(f\"unclosed {expr\");";
     let diags = run(code);
     assert!(!diags.is_empty());
-    assert!(diags.iter().any(|d| d.message.contains("Unterminated interpolation")));
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.message.contains("Unterminated interpolation"))
+    );
 }

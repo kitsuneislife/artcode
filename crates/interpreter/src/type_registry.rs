@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use core::Token;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct StructDef {
@@ -32,7 +32,10 @@ impl TypeRegistry {
     pub fn register_struct(&mut self, name: Token, fields: Vec<(Token, String)>) {
         let struct_def = StructDef {
             name: name.lexeme.clone(),
-            fields: fields.into_iter().map(|(token, ty)| (token.lexeme, ty)).collect(),
+            fields: fields
+                .into_iter()
+                .map(|(token, ty)| (token.lexeme, ty))
+                .collect(),
             methods: std::collections::HashMap::new(),
         };
         self.structs.insert(name.lexeme, struct_def);
@@ -41,7 +44,10 @@ impl TypeRegistry {
     pub fn register_enum(&mut self, name: Token, variants: Vec<(Token, Option<Vec<String>>)>) {
         let enum_def = EnumDef {
             name: name.lexeme.clone(),
-            variants: variants.into_iter().map(|(token, params)| (token.lexeme, params)).collect(),
+            variants: variants
+                .into_iter()
+                .map(|(token, params)| (token.lexeme, params))
+                .collect(),
             methods: std::collections::HashMap::new(),
         };
         self.enums.insert(name.lexeme, enum_def);
@@ -65,5 +71,7 @@ impl TypeRegistry {
 }
 
 impl Default for TypeRegistry {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }

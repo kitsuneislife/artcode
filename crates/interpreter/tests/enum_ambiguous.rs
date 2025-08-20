@@ -1,4 +1,6 @@
-use lexer::lexer::Lexer; use parser::parser::Parser; use interpreter::interpreter::Interpreter;
+use interpreter::interpreter::Interpreter;
+use lexer::lexer::Lexer;
+use parser::parser::Parser;
 
 #[test]
 fn enum_shorthand_ambiguous_diagnostic() {
@@ -11,5 +13,9 @@ fn enum_shorthand_ambiguous_diagnostic() {
     let mut interp = Interpreter::with_prelude();
     let _ = interp.interpret(program);
     let rdiags = interp.take_diagnostics();
-    assert!(rdiags.iter().any(|d| d.message.contains("Ambiguous enum variant")));
+    assert!(
+        rdiags
+            .iter()
+            .any(|d| d.message.contains("Ambiguous enum variant"))
+    );
 }

@@ -1,6 +1,6 @@
-use core::{TokenType};
-use core::ast::{Stmt, MatchPattern, ArtValue, Expr};
 use crate::parser::Parser;
+use core::TokenType;
+use core::ast::{ArtValue, Expr, MatchPattern, Stmt};
 
 pub fn statement(parser: &mut Parser) -> Stmt {
     if parser.check(&TokenType::Match) {
@@ -14,7 +14,9 @@ pub fn statement(parser: &mut Parser) -> Stmt {
     }
     if parser.check(&TokenType::LeftBrace) {
         parser.advance();
-        return Stmt::Block { statements: block(parser) };
+        return Stmt::Block {
+            statements: block(parser),
+        };
     }
 
     let expr = parser.expression();
@@ -36,7 +38,8 @@ pub fn statement(parser: &mut Parser) -> Stmt {
                     parser.diagnostics.push(diagnostics::Diagnostic::new(
                         diagnostics::DiagnosticKind::Parse,
                         format!("Expected field name, got {:?}", p.token_type),
-                        diagnostics::Span::new(p.start, p.end, p.line, p.col)));
+                        diagnostics::Span::new(p.start, p.end, p.line, p.col),
+                    ));
                     break;
                 }
             }
@@ -48,7 +51,8 @@ pub fn statement(parser: &mut Parser) -> Stmt {
             parser.diagnostics.push(diagnostics::Diagnostic::new(
                 diagnostics::DiagnosticKind::Parse,
                 "Invalid expression before '{' for struct initialization.".to_string(),
-                diagnostics::Span::new(p.start, p.end, p.line, p.col)));
+                diagnostics::Span::new(p.start, p.end, p.line, p.col),
+            ));
         }
     }
 
@@ -68,30 +72,43 @@ pub fn let_declaration(parser: &mut Parser) -> Stmt {
     parser.consume(TokenType::Equal, "Expect '=' after variable name or type.");
     let mut initializer = parser.expression();
     // Suporte a inicialização de struct dentro de expressão de let (ex: let p = Pessoa { campo: valor } )
-    if let Expr::Variable { name: struct_name_tok } = &initializer
-        && parser.match_token(TokenType::LeftBrace) {
-            let mut fields = Vec::new();
-            while !parser.check(&TokenType::RightBrace) {
-                if parser.check(&TokenType::Identifier) {
-                    let field_name = parser.advance();
-                    parser.consume(TokenType::Colon, "Expect ':' after field name.");
-                    let value = parser.expression();
-                    fields.push((field_name, value));
-                    if !parser.check(&TokenType::RightBrace) { parser.match_token(TokenType::Comma); }
-                } else {
-                    let p = parser.peek();
-                    parser.diagnostics.push(diagnostics::Diagnostic::new(
-                        diagnostics::DiagnosticKind::Parse,
-                        format!("Expected field name, got {:?}", p.token_type),
-                        diagnostics::Span::new(p.start, p.end, p.line, p.col)));
-                    break;
+    if let Expr::Variable {
+        name: struct_name_tok,
+    } = &initializer
+        && parser.match_token(TokenType::LeftBrace)
+    {
+        let mut fields = Vec::new();
+        while !parser.check(&TokenType::RightBrace) {
+            if parser.check(&TokenType::Identifier) {
+                let field_name = parser.advance();
+                parser.consume(TokenType::Colon, "Expect ':' after field name.");
+                let value = parser.expression();
+                fields.push((field_name, value));
+                if !parser.check(&TokenType::RightBrace) {
+                    parser.match_token(TokenType::Comma);
                 }
+            } else {
+                let p = parser.peek();
+                parser.diagnostics.push(diagnostics::Diagnostic::new(
+                    diagnostics::DiagnosticKind::Parse,
+                    format!("Expected field name, got {:?}", p.token_type),
+                    diagnostics::Span::new(p.start, p.end, p.line, p.col),
+                ));
+                break;
             }
-            parser.consume(TokenType::RightBrace, "Expect '}' after struct fields.");
-            initializer = Expr::StructInit { name: struct_name_tok.clone(), fields };
+        }
+        parser.consume(TokenType::RightBrace, "Expect '}' after struct fields.");
+        initializer = Expr::StructInit {
+            name: struct_name_tok.clone(),
+            fields,
+        };
     }
     parser.match_token(TokenType::Semicolon);
-    Stmt::Let { name, ty, initializer }
+    Stmt::Let {
+        name,
+        ty,
+        initializer,
+    }
 }
 
 pub fn if_statement(parser: &mut Parser) -> Stmt {
@@ -105,7 +122,11 @@ pub fn if_statement(parser: &mut Parser) -> Stmt {
         None
     };
 
-    Stmt::If { condition, then_branch, else_branch }
+    Stmt::If {
+        condition,
+        then_branch,
+        else_branch,
+    }
 }
 
 pub fn block(parser: &mut Parser) -> Vec<Stmt> {
@@ -130,7 +151,9 @@ pub fn match_statement(parser: &mut Parser) -> Stmt {
         // Guard opcional: 'if' expressão
         let guard = if parser.match_token(TokenType::If) {
             Some(parser.expression())
-        } else { None };
+        } else {
+            None
+        };
         parser.consume(TokenType::Colon, "Expect ':' after case pattern / guard.");
         let stmt = statement(parser);
         cases.push((pattern, guard, stmt));
@@ -157,7 +180,11 @@ pub fn parse_pattern(parser: &mut Parser) -> MatchPattern {
             parser.consume(TokenType::RightParen, "Expect ')' after parameters.");
             params = Some(param_list);
         }
-        MatchPattern::EnumVariant { enum_name: None, variant, params }
+        MatchPattern::EnumVariant {
+            enum_name: None,
+            variant,
+            params,
+        }
     } else if parser.match_token(TokenType::Let) {
         let name = parser.consume(TokenType::Identifier, "Expect variable name after 'let'.");
         MatchPattern::Binding(name)
@@ -172,8 +199,10 @@ pub fn parse_pattern(parser: &mut Parser) -> MatchPattern {
                 } else {
                     MatchPattern::Literal(ArtValue::Float(n))
                 }
-            },
-            TokenType::String(s) => MatchPattern::Literal(ArtValue::String(std::sync::Arc::from(s))),
+            }
+            TokenType::String(s) => {
+                MatchPattern::Literal(ArtValue::String(std::sync::Arc::from(s)))
+            }
             TokenType::True => MatchPattern::Literal(ArtValue::Bool(true)),
             TokenType::False => MatchPattern::Literal(ArtValue::Bool(false)),
             TokenType::None => MatchPattern::Literal(ArtValue::none()),
@@ -182,9 +211,10 @@ pub fn parse_pattern(parser: &mut Parser) -> MatchPattern {
                 parser.diagnostics.push(diagnostics::Diagnostic::new(
                     diagnostics::DiagnosticKind::Parse,
                     "Unexpected token in pattern".to_string(),
-                    diagnostics::Span::new(p.start, p.end, p.line, p.col)));
+                    diagnostics::Span::new(p.start, p.end, p.line, p.col),
+                ));
                 MatchPattern::Wildcard
-            },
+            }
         }
     } else if parser.check(&TokenType::Identifier) {
         let name = parser.consume(TokenType::Identifier, "Expect pattern.");
@@ -205,7 +235,11 @@ pub fn parse_pattern(parser: &mut Parser) -> MatchPattern {
                 parser.consume(TokenType::RightParen, "Expect ')' after parameters.");
                 params = Some(param_list);
             }
-            MatchPattern::EnumVariant { enum_name: Some(name), variant, params }
+            MatchPattern::EnumVariant {
+                enum_name: Some(name),
+                variant,
+                params,
+            }
         } else {
             MatchPattern::Variable(name)
         }
@@ -214,13 +248,21 @@ pub fn parse_pattern(parser: &mut Parser) -> MatchPattern {
         parser.diagnostics.push(diagnostics::Diagnostic::new(
             diagnostics::DiagnosticKind::Parse,
             "Expected pattern after 'case'".to_string(),
-            diagnostics::Span::new(p.start, p.end, p.line, p.col)));
+            diagnostics::Span::new(p.start, p.end, p.line, p.col),
+        ));
         MatchPattern::Wildcard
     }
 }
 
 fn is_literal_token(token_type: &TokenType) -> bool {
-    matches!(token_type, TokenType::Number(_) | TokenType::String(_) | TokenType::True | TokenType::False | TokenType::None)
+    matches!(
+        token_type,
+        TokenType::Number(_)
+            | TokenType::String(_)
+            | TokenType::True
+            | TokenType::False
+            | TokenType::None
+    )
 }
 
 pub fn return_statement(parser: &mut Parser) -> Stmt {

@@ -8,7 +8,9 @@ pub enum RuntimeError {
 
 impl fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self { RuntimeError::Return(val) => write!(f, "Function returned: {}", val) }
+        match self {
+            RuntimeError::Return(val) => write!(f, "Function returned: {}", val),
+        }
     }
 }
 

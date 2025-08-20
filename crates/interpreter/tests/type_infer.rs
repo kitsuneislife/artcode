@@ -1,4 +1,6 @@
-use lexer::Lexer; use parser::Parser; use interpreter::type_infer::{TypeEnv, TypeInfer};
+use interpreter::type_infer::{TypeEnv, TypeInfer};
+use lexer::Lexer;
+use parser::Parser;
 
 fn infer(src: &str) -> TypeEnv {
     let mut lx = Lexer::new(src.to_string());
@@ -7,7 +9,11 @@ fn infer(src: &str) -> TypeEnv {
     let (program, diags) = p.parse();
     assert!(diags.is_empty(), "parse diagnostics: {:?}", diags);
     let mut tenv = TypeEnv::new();
-    assert!(TypeInfer::new(&mut tenv).run(&program).is_ok(), "type infer failed: {:?}", TypeInfer::new(&mut tenv).diags);
+    assert!(
+        TypeInfer::new(&mut tenv).run(&program).is_ok(),
+        "type infer failed: {:?}",
+        TypeInfer::new(&mut tenv).diags
+    );
     tenv
 }
 
