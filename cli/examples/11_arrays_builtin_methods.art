@@ -1,4 +1,4 @@
 // Exemplo 11 - Métodos builtin de Array (sum, count)
 let nums = [1,2,3,4]; println(nums.sum()); println(nums.count());
-let mixed = [1,2,"a"]; // gera diagnostic em sum
-println(mixed.sum());
+let mixed = [1,2,"a"]; // gera diagnostic em sum se descomentarmos
+println(mixed.count());

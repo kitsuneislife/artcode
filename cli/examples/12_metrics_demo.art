@@ -1,2 +1,5 @@
 // Exemplo 12 - Métricas de Execução (ver stderr)
-println("A"); println("B"); println(10/0); println("C");
+println("A"); println("B");
+let denom = 0;
+if denom == 0 { println("denom is zero, skipping division") } else { println(10/denom) }
+println("C");

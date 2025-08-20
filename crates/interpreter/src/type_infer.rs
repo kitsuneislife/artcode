@@ -106,7 +106,7 @@ impl<'a> TypeInfer<'a> {
                 for (_pat, _guard, body) in cases { self.check_performant_stmt(body); }
             }
             Performant { statements } => { self.check_performant_block(statements); }
-            Let { .. } | StructDecl { .. } | EnumDecl { .. } | Expression(_) => { /* allowed */ }
+            StructDecl { .. } | EnumDecl { .. } | Expression(_) => { /* allowed */ }
         }
     }
 
