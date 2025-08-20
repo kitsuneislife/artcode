@@ -1,8 +1,10 @@
 ![Banner](/banner.png)
 <p align="center">
 	<img alt="CI" src="https://github.com/kitsuneislife/artcode/actions/workflows/ci.yml/badge.svg" />
-	<img alt="Coverage" src="https://img.shields.io/badge/Coverage-27BB3D.svg" />
+	<a href="docs/coverage.md"><img alt="Coverage" src="https://img.shields.io/badge/Coverage-docs-blue.svg" /></a>
 	<img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg" />
+	<a href="https://github.com/kitsuneislife/artcode/issues"><img alt="issues - artcode" src="https://img.shields.io/github/issues/kitsuneislife/artcode" /></a>
+	<a href="https://github.com/kitsuneislife/artcode"><img alt="stars - artcode" src="https://img.shields.io/github/stars/kitsuneislife/artcode?style=social" /></a>
 </p>
 
 Implementação experimental de uma linguagem interpretada em Rust com suporte a:
