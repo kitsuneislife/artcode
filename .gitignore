@@ -1,5 +1,6 @@
 /src
 /target
 /.kit
-/.github
+/.github/*
+!.github/banner.png
 /.idea
