@@ -64,7 +64,8 @@ jobs:
         run: cargo llvm-cov --workspace --ignore-filename-regex ".*/target/.*" --lcov --output-path lcov.info
       - name: Coverage threshold
         run: |
-          lines=$(grep -h '^DA:' lcov.info | awk -F',' '{print $2}' | awk -F':' '{print $2}' | awk '{covered+=$1; total+=1} END { if (total==0){print "0 0"} else {print covered" "total}}')
+          # lcov DA lines are 'DA:<line>,<count>' - sum counts and number of lines
+          lines=$(grep -h '^DA:' lcov.info | awk -F',' '{covered+=$2; total+=1} END { if (total==0) { print "0 0" } else { print covered" "total }}')
           covered=$(echo $lines | awk '{print $1}')
           total=$(echo $lines | awk '{print $2}')
           pct=0
