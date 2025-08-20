@@ -1,5 +1,4 @@
-![Banner](./github/banner.png)
-
+![Banner](/banner.png)
 <p align="center">
 	<img alt="CI" src="https://github.com/kitsuneislife/artcode/actions/workflows/ci.yml/badge.svg" />
 	<img alt="Coverage" src="https://img.shields.io/badge/Coverage-27BB3D.svg" />
