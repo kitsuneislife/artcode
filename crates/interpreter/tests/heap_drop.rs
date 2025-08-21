@@ -30,14 +30,13 @@ fn weak_dies_after_scope() {
         "runtime diags: {:?}",
         diags
     );
-    if let Some(val) = interp.debug_get_global("res") {
-        match val {
-            core::ast::ArtValue::Optional(b) => {
-                assert!(b.is_none(), "expected None from weak upgrade, got {:?}", b)
-            }
-            other => panic!("res not optional: {:?}", other),
+    let val = interp
+        .debug_get_global("res")
+        .expect("global 'res' should be present after running program");
+    match val {
+        core::ast::ArtValue::Optional(b) => {
+            assert!(b.is_none(), "expected None from weak upgrade, got {:?}", b)
         }
-    } else {
-        panic!("res not found");
+        other => panic!("res has unexpected type: {:?}", other),
     }
 }

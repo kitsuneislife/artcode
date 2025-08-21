@@ -1,7 +1,7 @@
+use core::ast::{ArtValue, ObjHandle};
 use interpreter::interpreter::Interpreter;
 use lexer::lexer::Lexer;
 use parser::parser::Parser;
-use core::ast::{ArtValue, ObjHandle};
 
 fn run(code: &str) -> (Interpreter, String) {
     let mut lexer = Lexer::new(code.to_string());
@@ -61,8 +61,14 @@ fn rebind_decrements_strong_and_invalidates_weak_unowned() {
     interp.debug_define_global("u", ArtValue::UnownedRef(ObjHandle(id)));
     // Simular rebind/remover a referência forte
     interp.debug_heap_remove(id);
-    assert!(interp.debug_heap_upgrade_weak(id).is_none(), "weak deveria ser None após rebind simulated");
-    assert!(interp.debug_heap_get_unowned(id).is_none(), "unowned_get deveria ser None após rebind simulated");
+    assert!(
+        interp.debug_heap_upgrade_weak(id).is_none(),
+        "weak deveria ser None após rebind simulated"
+    );
+    assert!(
+        interp.debug_heap_get_unowned(id).is_none(),
+        "unowned_get deveria ser None após rebind simulated"
+    );
 }
 
 #[test]
@@ -73,7 +79,10 @@ fn drop_scope_decrements_handles() {
     interp.debug_define_global("w", ArtValue::WeakRef(ObjHandle(id)));
     // remover o strong (simula saída de escopo)
     interp.debug_heap_remove(id);
-    assert!(interp.debug_heap_upgrade_weak(id).is_none(), "weak deveria ser None após scope drop simulated");
+    assert!(
+        interp.debug_heap_upgrade_weak(id).is_none(),
+        "weak deveria ser None após scope drop simulated"
+    );
 }
 
 #[test]
@@ -84,5 +93,8 @@ fn arena_finalization_decrements_and_invalidates() {
     interp.debug_define_global("w", ArtValue::WeakRef(ObjHandle(id)));
     // Simular finalização
     interp.debug_heap_remove(id);
-    assert!(interp.debug_heap_upgrade_weak(id).is_none(), "weak deveria ser None após finalize arena simulated");
+    assert!(
+        interp.debug_heap_upgrade_weak(id).is_none(),
+        "weak deveria ser None após finalize arena simulated"
+    );
 }

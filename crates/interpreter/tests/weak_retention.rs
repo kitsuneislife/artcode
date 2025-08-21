@@ -1,5 +1,5 @@
-use interpreter::interpreter::Interpreter;
 use core::ast::{ArtValue, ObjHandle};
+use interpreter::interpreter::Interpreter;
 
 #[test]
 fn weak_retains_object_until_weak_zero() {
@@ -11,14 +11,20 @@ fn weak_retains_object_until_weak_zero() {
     // remover handle forte (simula saída de escopo / rebind)
     interp.debug_heap_remove(id);
     // objeto deve ainda não ter sido removido enquanto houver weak > 0
-    assert!(interp.debug_heap_contains(id), "objeto foi removido mesmo com weak>0");
+    assert!(
+        interp.debug_heap_contains(id),
+        "objeto foi removido mesmo com weak>0"
+    );
 
     // agora remover o weak (simulando decremento de weak) e forçar sweep
     interp.debug_heap_dec_weak(id);
     // forçar remoção de objetos mortos sem weaks
     interp.debug_sweep_dead();
     // agora o objeto deve ter sido removido
-    assert!(!interp.debug_heap_contains(id), "objeto deveria ter sido removido apos weak==0");
+    assert!(
+        !interp.debug_heap_contains(id),
+        "objeto deveria ter sido removido apos weak==0"
+    );
 }
 
 #[test]
@@ -29,7 +35,10 @@ fn unowned_diag_after_drop() {
     // remover o strong
     interp.debug_heap_remove(id);
     // unowned_get deve retornar None (API debug)
-    assert!(interp.debug_heap_get_unowned(id).is_none(), "unowned_get deveria ser None depois do drop");
+    assert!(
+        interp.debug_heap_get_unowned(id).is_none(),
+        "unowned_get deveria ser None depois do drop"
+    );
     // Agora executar uma expressão que acessa o unowned via interpret para gerar o diagnóstico
     let code = "unowned_get(u);";
     use lexer::lexer::Lexer;
@@ -41,5 +50,8 @@ fn unowned_diag_after_drop() {
     assert!(diags.is_empty(), "parse falhou: {:?}", diags);
     interp.interpret(program).unwrap();
     let diags = interp.take_diagnostics();
-    assert!(!diags.is_empty(), "esperado ao menos um diagnóstico após acesso unowned inválido");
+    assert!(
+        !diags.is_empty(),
+        "esperado ao menos um diagnóstico após acesso unowned inválido"
+    );
 }
