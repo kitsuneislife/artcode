@@ -31,8 +31,12 @@ fn rebind_decrements_and_updates_weak_unowned() {
             name: core::Token::dummy("w"),
             ty: None,
             initializer: Expr::Call {
-                callee: Box::new(Expr::Variable { name: core::Token::dummy("weak") }),
-                arguments: vec![Expr::Variable { name: core::Token::dummy("a") }],
+                callee: Box::new(Expr::Variable {
+                    name: core::Token::dummy("weak"),
+                }),
+                arguments: vec![Expr::Variable {
+                    name: core::Token::dummy("a"),
+                }],
             },
         },
         // let u = unowned(a)
@@ -40,14 +44,27 @@ fn rebind_decrements_and_updates_weak_unowned() {
             name: core::Token::dummy("u"),
             ty: None,
             initializer: Expr::Call {
-                callee: Box::new(Expr::Variable { name: core::Token::dummy("unowned") }),
-                arguments: vec![Expr::Variable { name: core::Token::dummy("a") }],
+                callee: Box::new(Expr::Variable {
+                    name: core::Token::dummy("unowned"),
+                }),
+                arguments: vec![Expr::Variable {
+                    name: core::Token::dummy("a"),
+                }],
             },
         },
         // on_finalize(a, fin_rebind)
         Stmt::Expression(Expr::Call {
-            callee: Box::new(Expr::Variable { name: core::Token::dummy("on_finalize") }),
-            arguments: vec![Expr::Variable { name: core::Token::dummy("a") }, Expr::Variable { name: core::Token::dummy("fin_rebind") }],
+            callee: Box::new(Expr::Variable {
+                name: core::Token::dummy("on_finalize"),
+            }),
+            arguments: vec![
+                Expr::Variable {
+                    name: core::Token::dummy("a"),
+                },
+                Expr::Variable {
+                    name: core::Token::dummy("fin_rebind"),
+                },
+            ],
         }),
         // Rebind a to [] (drop original)
         Stmt::Let {
@@ -60,18 +77,22 @@ fn rebind_decrements_and_updates_weak_unowned() {
     // finalizer deve ter criado rebound_flag
     assert!(interp.debug_get_global("rebound_flag").is_some());
     // weak deve voltar None
-    let w = interp.debug_get_global("w").unwrap();
+    let w = interp
+        .debug_get_global("w")
+        .expect("weak global 'w' should exist");
     if let ArtValue::WeakRef(h) = w {
-        assert!(interp.debug_heap_upgrade_weak(h.0).is_none());
+        assert!(interp.debug_heap_upgrade_weak(h.0).is_none(), "weak upgrade should return None after owner drop");
     } else {
-        panic!("weak não foi criado corretamente")
+        panic!("weak global 'w' has unexpected type: {:?}", w);
     }
     // unowned deve apontar para nada (dangling) e debug_heap_get_unowned deve retornar None
-    let u = interp.debug_get_global("u").unwrap();
+    let u = interp
+        .debug_get_global("u")
+        .expect("unowned global 'u' should exist");
     if let ArtValue::UnownedRef(h) = u {
-        assert!(interp.debug_heap_get_unowned(h.0).is_none());
+        assert!(interp.debug_heap_get_unowned(h.0).is_none(), "unowned_get should return None for dangling reference");
     } else {
-        panic!("unowned não foi criado corretamente")
+        panic!("unowned global 'u' has unexpected type: {:?}", u);
     }
 }
 
@@ -90,7 +111,11 @@ fn returns_do_not_allow_arena_escape() {
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
-                statements: vec![Stmt::Return { value: Some(Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id)))) }],
+                statements: vec![Stmt::Return {
+                    value: Some(Expr::Literal(ArtValue::HeapComposite(
+                        core::ast::ObjHandle(id),
+                    ))),
+                }],
             }),
             method_owner: None,
         },
@@ -99,14 +124,20 @@ fn returns_do_not_allow_arena_escape() {
             name: core::Token::dummy("g"),
             ty: None,
             initializer: Expr::Call {
-                callee: Box::new(Expr::Variable { name: core::Token::dummy("ret_a") }),
+                callee: Box::new(Expr::Variable {
+                    name: core::Token::dummy("ret_a"),
+                }),
                 arguments: vec![],
             },
         },
     ];
     interp.interpret(program).unwrap();
     let diags = interp.take_diagnostics();
-    assert!(diags.iter().any(|d| d.message.contains("Attempt to return arena object")));
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.message.contains("Attempt to return arena object"))
+    );
 }
 
 // Teste 3: Field assignment decrements previous and runs finalizer
@@ -114,14 +145,20 @@ fn returns_do_not_allow_arena_escape() {
 fn field_assignment_triggers_decrement_and_finalizer() {
     let mut interp = Interpreter::with_prelude();
     // Registrar struct S { child: Array }
-    interp.register_struct_for_test("S", vec![(core::Token::dummy("child"), "Array".to_string())]);
+    interp.register_struct_for_test(
+        "S",
+        vec![(core::Token::dummy("child"), "Array".to_string())],
+    );
     // Criar objeto x = [1]
     let id = interp.debug_heap_register(ArtValue::Array(vec![ArtValue::Int(1)]));
     interp.debug_define_global("x", ArtValue::HeapComposite(core::ast::ObjHandle(id)));
     // Criar struct s = S { child: [] } via helpers públicos
     let mut fields = std::collections::HashMap::new();
     fields.insert("child".to_string(), ArtValue::Array(vec![]));
-    let s_val = ArtValue::StructInstance { struct_name: "S".to_string(), fields };
+    let s_val = ArtValue::StructInstance {
+        struct_name: "S".to_string(),
+        fields,
+    };
     let s_id = interp.debug_heap_register(s_val.clone());
     interp.debug_define_global("s", ArtValue::HeapComposite(core::ast::ObjHandle(s_id)));
     // Registrar finalizer em x
@@ -141,13 +178,24 @@ fn field_assignment_triggers_decrement_and_finalizer() {
         },
         // on_finalize(x, fin_field)
         Stmt::Expression(Expr::Call {
-            callee: Box::new(Expr::Variable { name: core::Token::dummy("on_finalize") }),
-            arguments: vec![Expr::Variable { name: core::Token::dummy("x") }, Expr::Variable { name: core::Token::dummy("fin_field") }],
+            callee: Box::new(Expr::Variable {
+                name: core::Token::dummy("on_finalize"),
+            }),
+            arguments: vec![
+                Expr::Variable {
+                    name: core::Token::dummy("x"),
+                },
+                Expr::Variable {
+                    name: core::Token::dummy("fin_field"),
+                },
+            ],
         }),
         // Assign s.child = x
         Stmt::Expression(Expr::Call {
             callee: Box::new(Expr::FieldAccess {
-                object: Box::new(Expr::Variable { name: core::Token::dummy("s") }),
+                object: Box::new(Expr::Variable {
+                    name: core::Token::dummy("s"),
+                }),
                 field: core::Token::dummy("child"),
             }),
             arguments: vec![],
@@ -161,9 +209,12 @@ fn field_assignment_triggers_decrement_and_finalizer() {
     if let Some(ArtValue::HeapComposite(hx)) = interp.debug_get_global("x") {
         new_fields.insert("child".to_string(), ArtValue::HeapComposite(hx));
     } else {
-        panic!("x não encontrado como heap composite");
+        panic!("x not found as heap composite; debug_get_global('x') returned: {:?}", interp.debug_get_global("x"));
     }
-    let new_s = ArtValue::StructInstance { struct_name: "S".to_string(), fields: new_fields };
+    let new_s = ArtValue::StructInstance {
+        struct_name: "S".to_string(),
+        fields: new_fields,
+    };
     let new_s_id = interp.debug_heap_register(new_s);
     interp.debug_define_global("s", ArtValue::HeapComposite(core::ast::ObjHandle(new_s_id)));
     // Remover global x para simular drop e disparar finalizer
