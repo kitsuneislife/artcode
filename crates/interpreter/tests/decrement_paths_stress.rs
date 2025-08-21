@@ -73,8 +73,8 @@ fn stress_cycle_detection_large_ring() {
     for old in ids.iter() {
         interp.debug_heap_remove(*old);
     }
-    // Substituir ids pelos new_ids (consumimos a nova lista)
-    ids = new_ids;
+    // Substituir ids pelos new_ids (não necessário posteriormente no teste)
+    // ids = new_ids; // removido intencionalmente para evitar warning de atribuição não usada
     // Executar detecção de ciclos
     let result = interp.detect_cycles();
     // Validação robusta: garantir que existe cohérence entre detect_cycles e cycle_report
