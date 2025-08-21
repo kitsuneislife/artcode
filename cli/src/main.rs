@@ -2,11 +2,11 @@ use diagnostics::format_diagnostic;
 use interpreter::interpreter::Interpreter;
 use lexer::lexer::Lexer;
 use parser::parser::Parser;
+use serde::Serialize;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::process;
-use serde::Serialize;
 
 fn run_with_source(_name: &str, source: String) {
     let mut lexer = Lexer::new(source.clone());
@@ -140,7 +140,10 @@ fn main() {
                     let metrics = Metrics {
                         handled_errors: interpreter.handled_errors,
                         executed_statements: interpreter.executed_statements,
-                        crash_free: 100.0 * (1.0 - (interpreter.handled_errors as f64 / interpreter.executed_statements.max(1) as f64)),
+                        crash_free: 100.0
+                            * (1.0
+                                - (interpreter.handled_errors as f64
+                                    / interpreter.executed_statements.max(1) as f64)),
                         finalizer_promotions: interpreter.get_finalizer_promotions(),
                         weak_created: interpreter.weak_created,
                         weak_upgrades: interpreter.weak_upgrades,
@@ -150,8 +153,15 @@ fn main() {
                         cycle_reports_run: interpreter.cycle_reports_run.get(),
                     };
 
-                    // Print compact JSON
-                    println!("{}", serde_json::to_string(&metrics).unwrap());
+                    // Print compact JSON, handling serialization errors without panicking
+                    match serde_json::to_string(&metrics) {
+                        Ok(s) => println!("{}", s),
+                        Err(e) => {
+                            eprintln!("Failed to serialize metrics: {}", e);
+                            // Use EX_SOFTWARE-like exit code
+                            process::exit(70);
+                        }
+                    }
                 } else {
                     println!("[metrics] handled_errors={} executed_statements={} crash_free={:.1}% finalizer_promotions={}",
                         interpreter.handled_errors,
