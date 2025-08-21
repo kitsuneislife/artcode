@@ -46,6 +46,8 @@ fn stress_finalizer_mass_promotion() {
     // Como nome é sempre 'promoted' no frame finalizer e promovido para root, a última definição prevalece,
     // mas devemos ao menos ter algum global 'promoted' definido.
     assert!(interp.debug_get_global("promoted").is_some());
+    // Verificar métrica de promoções foi incrementada
+    assert!(interp.get_finalizer_promotions() > 0, "expected finalizer_promotions > 0 after stress promotions");
 }
 
 // Stress B: criar grandes ciclos e verificar detect_cycles result

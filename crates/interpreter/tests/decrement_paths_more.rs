@@ -42,9 +42,10 @@ fn finalizer_promotes_multiple_temporaries_to_root() {
     // Simular remoção do último strong e rodar finalizer
     interp.debug_heap_remove(id);
     interp.debug_run_finalizer(id);
-
     assert!(interp.debug_get_global("kept1").is_some(), "kept1 não promovido pelo finalizer");
     assert!(interp.debug_get_global("kept2").is_some(), "kept2 não promovido pelo finalizer");
+    // Métrica: verificar que pelo menos uma promoção de handles foi contabilizada
+    assert!(interp.get_finalizer_promotions() > 0, "expected finalizer_promotions > 0 after finalizer run");
 }
 
 // Teste B: return aninhado dentro de performant deve produzir diagnóstico

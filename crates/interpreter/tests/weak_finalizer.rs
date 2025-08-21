@@ -180,5 +180,7 @@ fn finalizer_promotes_handles_across_arenas() {
     assert!(promoted.is_some(), "finalizer não promoveu/registrou 'promoted'");
     // e o objeto externo deve continuar presente
     assert!(interp.debug_heap_contains(outside_id), "objeto externo deveria ser preservado");
+    // Métrica: alguma promoção deve ter sido contabilizada
+    assert!(interp.get_finalizer_promotions() > 0, "expected finalizer_promotions > 0 after cross-arena finalizer");
 }
 
