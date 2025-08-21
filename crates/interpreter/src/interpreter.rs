@@ -214,8 +214,8 @@ impl Interpreter {
     }
     /// Finaliza (libera) todos objetos alocados na arena especificada.
     fn finalize_arena(&mut self, arena_id: u32) {
-        // Coletar ids vivos pertencentes à arena
-        let ids: Vec<u64> = self
+        // Coletar ids vivos pertencentes à arena (ordenados para determinismo)
+        let mut ids: Vec<u64> = self
             .heap_objects
             .iter()
             .filter_map(|(id, obj)| {
@@ -226,6 +226,7 @@ impl Interpreter {
                 }
             })
             .collect();
+        ids.sort_unstable();
     // attribute promotions during finalization to this arena
     let prev_promo_target = self.current_finalizer_promotion_target;
     self.current_finalizer_promotion_target = Some(arena_id);
@@ -256,6 +257,17 @@ impl Interpreter {
             .collect();
         for id in dead_ids {
             self.heap_objects.remove(&id);
+        }
+        // Additional stabilization: perform a few sweep passes to remove objects that
+        // became dead as a result of finalizer-promoted changes or temporary references.
+        // This reduces the chance of leaving transient dead objects referenced only
+        // by other dead objects.
+        for _ in 0..3 {
+            let before = self.heap_objects.len();
+            self.debug_sweep_dead();
+            if self.heap_objects.len() == before {
+                break;
+            }
         }
     // restore previous promotion target
     self.current_finalizer_promotion_target = prev_promo_target;
