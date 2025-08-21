@@ -272,9 +272,9 @@ impl Interpreter {
 
     fn drop_scope_heap_objects(&mut self, env: &Rc<RefCell<Environment>>) {
         let handles = env.borrow().strong_handles.clone();
-        for h in handles {
-            self.dec_object_strong_recursive(h.0);
-        }
+            for h in handles {
+                self.dec_object_strong_recursive(h.0);
+            }
     }
 
     fn dec_value_if_heap(&mut self, v: &ArtValue) {
@@ -291,6 +291,7 @@ impl Interpreter {
                     if let ArtValue::HeapComposite(h) = child
                         && let Some(c) = self.heap_objects.get_mut(&h.0)
                     {
+                        let _before = c.strong;
                         c.inc_strong();
                         self.strong_increments += 1;
                     }
@@ -301,6 +302,7 @@ impl Interpreter {
                     if let ArtValue::HeapComposite(h) = child
                         && let Some(c) = self.heap_objects.get_mut(&h.0)
                     {
+                        let _before = c.strong;
                         c.inc_strong();
                         self.strong_increments += 1;
                     }
@@ -311,6 +313,7 @@ impl Interpreter {
                     if let ArtValue::HeapComposite(h) = child
                         && let Some(c) = self.heap_objects.get_mut(&h.0)
                     {
+                        let _before = c.strong;
                         c.inc_strong();
                         self.strong_increments += 1;
                     }
@@ -374,6 +377,7 @@ impl Interpreter {
                 let finalizer = self.finalizers.remove(&id);
                 // liberar filhos fortes
                 let snapshot = obj.value.clone(); // clone para evitar emprestimo duplo
+                // debug info omitted in release
                 let _ = snapshot; // snapshot used later in logic
                 // encerra o borrow mutável aqui
                 let _ = obj;
@@ -445,13 +449,37 @@ impl Interpreter {
             }
         }
 
-        // Segunda fase: se o objeto foi finalizado e não tem weaks, removê-lo do heap para liberar memória
+        // Segunda fase: se o objeto foi finalizado e não tem weaks, remover do heap somente se
+        // nenhum outro objeto vivo referencia este id (evita dangling handles).
         if let Some(obj2) = self.heap_objects.get(&id)
             && !obj2.alive
             && obj2.weak == 0
         {
-            // Removing dead object from heap
-            self.heap_objects.remove(&id);
+            // verificar se algum objeto vivo referencia este id
+            fn referenced_in(value: &ArtValue, target: u64) -> bool {
+                match value {
+                    ArtValue::HeapComposite(h) => h.0 == target,
+                    ArtValue::Array(a) => a.iter().any(|e| referenced_in(e, target)),
+                    ArtValue::StructInstance { fields, .. } =>
+                        fields.values().any(|e| referenced_in(e, target)),
+                    ArtValue::EnumInstance { values, .. } =>
+                        values.iter().any(|e| referenced_in(e, target)),
+                    _ => false,
+                }
+            }
+            let mut referenced = false;
+            for (_other_id, other_obj) in self.heap_objects.iter() {
+                if other_obj.alive {
+                    if referenced_in(&other_obj.value, id) {
+                        referenced = true;
+                        break;
+                    }
+                }
+            }
+            if !referenced {
+                // safe to remove
+                self.heap_objects.remove(&id);
+            }
         }
     }
 
@@ -508,8 +536,31 @@ impl Interpreter {
                 }
             })
             .collect();
+        // Helper to check whether a live object references target id
+        fn referenced_in(value: &ArtValue, target: u64) -> bool {
+            match value {
+                ArtValue::HeapComposite(h) => h.0 == target,
+                ArtValue::Array(a) => a.iter().any(|e| referenced_in(e, target)),
+                ArtValue::StructInstance { fields, .. } =>
+                    fields.values().any(|e| referenced_in(e, target)),
+                ArtValue::EnumInstance { values, .. } =>
+                    values.iter().any(|e| referenced_in(e, target)),
+                _ => false,
+            }
+        }
         for id in dead_ids {
-            self.heap_objects.remove(&id);
+            let mut referenced = false;
+            for (_other_id, other_obj) in self.heap_objects.iter() {
+                if other_obj.alive {
+                    if referenced_in(&other_obj.value, id) {
+                        referenced = true;
+                        break;
+                    }
+                }
+            }
+            if !referenced {
+                self.heap_objects.remove(&id);
+            }
         }
     }
 
@@ -620,8 +671,12 @@ impl Interpreter {
         if let Some(old) = old_opt {
             self.dec_value_if_heap(&old);
         }
-    // define silently in debug helper
-        self.environment.borrow_mut().define(name, val);
+        // define and register strong handle if heap composite (mirror `let`)
+        let mut env = self.environment.borrow_mut();
+        if let ArtValue::HeapComposite(h) = &val {
+            env.strong_handles.push(*h);
+        }
+        env.define(name, val);
     }
     pub fn debug_get_global(&self, name: &str) -> Option<ArtValue> {
         self.environment.borrow().get(name)
