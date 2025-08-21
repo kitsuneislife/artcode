@@ -30,6 +30,12 @@ pub struct Interpreter {
     pub objects_finalized: usize,
     // New metrics / debug helpers
     pub finalizer_promotions: usize,
+    // Per-arena allocation counters (experimental)
+    pub arena_alloc_count: std::collections::HashMap<u32, usize>,
+    // Per-arena promotions counter (experimental)
+    pub finalizer_promotions_per_arena: std::collections::HashMap<u32, usize>,
+    // transient: currently finalizing arena id to attribute promotions
+    pub current_finalizer_promotion_target: Option<u32>,
     pub invariant_checks: bool,
     finalizers: HashMap<u64, Rc<Function>>, // finalizers por objeto composto
     // Arena support
@@ -89,6 +95,9 @@ impl Interpreter {
             strong_decrements: 0,
             objects_finalized: 0,
             finalizer_promotions: 0,
+            finalizer_promotions_per_arena: std::collections::HashMap::new(),
+            current_finalizer_promotion_target: None,
+            arena_alloc_count: std::collections::HashMap::new(),
             invariant_checks: false,
             finalizers: HashMap::new(),
             current_arena: None,
@@ -148,6 +157,8 @@ impl Interpreter {
             .insert(id, crate::heap::HeapObject::new_in_arena(id, val.clone(), arena_id));
         // Mirror heap_register behavior for arena-allocated objects as well.
         self.inc_children_strong(&val);
+    // record arena allocation
+    *self.arena_alloc_count.entry(arena_id).or_insert(0) += 1;
         id
     }
     pub fn debug_create_arena(&mut self) -> u32 {
@@ -215,7 +226,10 @@ impl Interpreter {
                 }
             })
             .collect();
-        for id in ids {
+    // attribute promotions during finalization to this arena
+    let prev_promo_target = self.current_finalizer_promotion_target;
+    self.current_finalizer_promotion_target = Some(arena_id);
+    for id in ids {
             // Forçar queda de strong para 0 e disparar finalização recursiva
             // limitar o escopo do borrow mutável para evitar conflitos durante a recursão
             if let Some(obj) = self.heap_objects.get_mut(&id) {
@@ -243,6 +257,8 @@ impl Interpreter {
         for id in dead_ids {
             self.heap_objects.remove(&id);
         }
+    // restore previous promotion target
+    self.current_finalizer_promotion_target = prev_promo_target;
         // Hardening: normalizar invariantes após finalização da arena.
         // Se por alguma razão existirem objetos com strong==0 mas alive==true,
         // marcamos como mortos para que a varredura os remova corretamente.
@@ -421,6 +437,9 @@ impl Interpreter {
                     let promoted = local_handles.len();
                     if promoted > 0 {
                         self.finalizer_promotions += promoted;
+                        if let Some(aid) = self.current_finalizer_promotion_target {
+                            *self.finalizer_promotions_per_arena.entry(aid).or_insert(0) += promoted;
+                        }
                     }
                     for h in local_handles.iter() {
                         root.borrow_mut().strong_handles.push(*h);
