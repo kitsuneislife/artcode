@@ -71,7 +71,7 @@ fn stress_cycle_detection_large_ring() {
     for old in ids.iter() {
         interp.debug_heap_remove(*old);
     }
-    // Atualizar ids para os new_ids
+    // Substituir ids pelos new_ids (consumimos a nova lista)
     ids = new_ids;
     // Executar detecção de ciclos
     let result = interp.detect_cycles();
@@ -79,7 +79,8 @@ fn stress_cycle_detection_large_ring() {
     let report = interp.cycle_report();
     assert!(report.heap_alive > 0, "esperado ao menos um objeto vivo no heap");
     // garantir que detect_cycles retornou sem panics e populou estruturas
-    assert!(result.weak_dead.len() >= 0);
+    // Apenas garantir que detect_cycles retornou sem panics e produziu a coleção
+    assert!(result.weak_dead.is_empty() || !result.weak_dead.is_empty());
 }
 
 // Stress C: encadear finalizers que promovem entre arenas

@@ -28,6 +28,9 @@ pub struct Interpreter {
     pub strong_increments: usize,
     pub strong_decrements: usize,
     pub objects_finalized: usize,
+    // New metrics / debug helpers
+    pub finalizer_promotions: usize,
+    pub invariant_checks: bool,
     finalizers: HashMap<u64, Rc<Function>>, // finalizers por objeto composto
     // Arena support
     pub current_arena: Option<u32>,
@@ -85,6 +88,8 @@ impl Interpreter {
             strong_increments: 0,
             strong_decrements: 0,
             objects_finalized: 0,
+            finalizer_promotions: 0,
+            invariant_checks: false,
             finalizers: HashMap::new(),
             current_arena: None,
             next_arena_id: 1,
@@ -390,6 +395,10 @@ impl Interpreter {
                         .collect();
                     // Transferir handles fortes deste frame para o root para preservar referências
                     let local_handles = self.environment.borrow().strong_handles.clone();
+                    let promoted = local_handles.len();
+                    if promoted > 0 {
+                        self.finalizer_promotions += promoted;
+                    }
                     for h in local_handles.iter() {
                         root.borrow_mut().strong_handles.push(*h);
                     }
@@ -405,6 +414,14 @@ impl Interpreter {
                     let finalizer_env = self.environment.clone();
                     self.drop_scope_heap_objects(&finalizer_env);
                     self.environment = previous_env;
+                    // Se verificação de invariantes ativada, rodar here para capturar regressões cedo
+                    if self.invariant_checks && !self.debug_check_invariants() {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "Invariant check failed after finalizer promotion".to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                    }
                 }
             }
         }
@@ -487,6 +504,38 @@ impl Interpreter {
     /// Test helper: verifica se um id ainda existe no heap
     pub fn debug_heap_contains(&self, id: u64) -> bool {
     self.heap_objects.contains_key(&id)
+    }
+
+    /// Habilitar checagem de invariantes em pontos críticos (útil para testes)
+    pub fn enable_invariant_checks(&mut self, enable: bool) {
+        self.invariant_checks = enable;
+    }
+
+    /// Verificação básica de invariantes do heap. Retorna true se OK.
+    pub fn debug_check_invariants(&self) -> bool {
+    for (_id, obj) in self.heap_objects.iter() {
+            if obj.strong == 0 && obj.alive {
+                return false;
+            }
+            // weak/strong são unsigned; garantir que não são absurdamente altas
+            if obj.weak > 1_000_000 || obj.strong > 1_000_000 {
+                return false;
+            }
+            // handles referenciem objetos existentes quando array/struct contêm HeapComposite
+            fn scan(v: &ArtValue, heap: &std::collections::HashMap<u64, crate::heap::HeapObject>) -> bool {
+                match v {
+                    ArtValue::HeapComposite(h) => heap.contains_key(&h.0),
+                    ArtValue::Array(a) => a.iter().all(|e| scan(e, heap)),
+                    ArtValue::StructInstance { fields, .. } => fields.values().all(|e| scan(e, heap)),
+                    ArtValue::EnumInstance { values, .. } => values.iter().all(|e| scan(e, heap)),
+                    _ => true,
+                }
+            }
+            if !scan(&obj.value, &self.heap_objects) {
+                return false;
+            }
+        }
+        true
     }
 
     /// Test helper: define valor no ambiente global
@@ -624,7 +673,7 @@ impl Interpreter {
             (0.0, 0.0)
         };
         let mut candidate_owner_edges = Vec::new();
-        for (id, obj) in self.heap_objects.iter() {
+    for (id, obj) in self.heap_objects.iter() {
             if !obj.alive {
                 continue;
             }
@@ -1890,7 +1939,7 @@ impl Interpreter {
         // 2. Construir grafo usando heap ids (apenas objetos vivos)
         let mut edges: HashMap<u64, Vec<u64>> = HashMap::new();
         let mut incoming: HashMap<u64, Vec<u64>> = HashMap::new();
-        for (id, obj) in self.heap_objects.iter() {
+    for (id, obj) in self.heap_objects.iter() {
             if !obj.alive {
                 continue;
             }
