@@ -3,4 +3,4 @@
 /.kit
 /.github/*
 !.github/banner.png
-/.idea
+/.idea.kit/checklist.md
