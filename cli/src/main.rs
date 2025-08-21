@@ -129,6 +129,8 @@ fn main() {
                         executed_statements: usize,
                         crash_free: f64,
                         finalizer_promotions: usize,
+                        arena_alloc_count: std::collections::HashMap<u32, usize>,
+                        finalizer_promotions_per_arena: std::collections::HashMap<u32, usize>,
                         weak_created: usize,
                         weak_upgrades: usize,
                         weak_dangling: usize,
@@ -145,6 +147,8 @@ fn main() {
                                 - (interpreter.handled_errors as f64
                                     / interpreter.executed_statements.max(1) as f64)),
                         finalizer_promotions: interpreter.get_finalizer_promotions(),
+                        arena_alloc_count: interpreter.arena_alloc_count.clone(),
+                        finalizer_promotions_per_arena: interpreter.finalizer_promotions_per_arena.clone(),
                         weak_created: interpreter.weak_created,
                         weak_upgrades: interpreter.weak_upgrades,
                         weak_dangling: interpreter.weak_dangling,
@@ -169,6 +173,11 @@ fn main() {
                         100.0 * (1.0 - (interpreter.handled_errors as f64 / interpreter.executed_statements.max(1) as f64)),
                         interpreter.get_finalizer_promotions()
                     );
+                    // print a compact arena summary
+                    if !interpreter.arena_alloc_count.is_empty() {
+                        let arenas: Vec<String> = interpreter.arena_alloc_count.iter().map(|(aid,c)| format!("arena{}:{}alloc", aid, c)).collect();
+                        println!("[arena] {}", arenas.join(","));
+                    }
                     println!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
                         interpreter.weak_created, interpreter.weak_upgrades, interpreter.weak_dangling,
                         interpreter.unowned_created, interpreter.unowned_dangling, interpreter.cycle_reports_run.get());
