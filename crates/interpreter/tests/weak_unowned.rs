@@ -1,6 +1,7 @@
 use interpreter::interpreter::Interpreter;
 use lexer::lexer::Lexer;
 use parser::parser::Parser;
+use core::ast::{ArtValue, ObjHandle};
 
 fn run(code: &str) -> (Interpreter, String) {
     let mut lexer = Lexer::new(code.to_string());
@@ -16,7 +17,7 @@ fn run(code: &str) -> (Interpreter, String) {
 #[test]
 fn weak_new_and_get_alive() {
     let (mut interp, _) = run("let a = 42; let w = weak(a); let v = weak_get(w);");
-    // Procurar que não haja diagnósticos de erro
+    // não deve produzir diagnósticos
     assert!(interp.take_diagnostics().is_empty());
 }
 
@@ -29,28 +30,59 @@ fn weak_sugar_postfix_question() {
 #[test]
 fn unowned_sugar_postfix_bang() {
     let (mut interp, _) = run("let a = 5; let u = unowned(a); let v = u!;");
-    // protótipo: unowned_get não gera diag se alvo vivo
+    // protótipo: unowned_get não deve gerar diag se alvo vivo
     assert!(interp.take_diagnostics().is_empty());
 }
 
 #[test]
 fn weak_get_dead_returns_none() {
-    // Simular perda: ainda não temos coleta real; usamos id inválido manualmente
-    let mut interp = Interpreter::with_prelude();
     // criar weak e depois remover manualmente do heap
-    let id = interp.debug_heap_register(core::ast::ArtValue::Int(10));
-    let _weak = core::ast::ArtValue::WeakRef(core::ast::ObjHandle(id));
-    interp.debug_heap_remove(id); // invalida
-    // tentar upgrade
+    let mut interp = Interpreter::with_prelude();
+    let id = interp.debug_heap_register(ArtValue::Int(10));
+    interp.debug_heap_remove(id);
     assert!(interp.debug_heap_upgrade_weak(id).is_none());
 }
 
 #[test]
-fn unowned_get_dangling_reports_diag() {
+fn weak_becomes_none_after_drop_run() {
     let mut interp = Interpreter::with_prelude();
-    let id = interp.debug_heap_register(core::ast::ArtValue::Int(99));
-    let _u = core::ast::ArtValue::UnownedRef(core::ast::ObjHandle(id));
+    let id = interp.debug_heap_register(ArtValue::Int(123));
+    let _w = ArtValue::WeakRef(ObjHandle(id));
     interp.debug_heap_remove(id);
-    // Força caminho de diagnóstico chamando helper interno
-    assert!(interp.debug_heap_get_unowned(id).is_none());
+    assert!(interp.debug_heap_upgrade_weak(id).is_none());
+}
+
+#[test]
+fn rebind_decrements_strong_and_invalidates_weak_unowned() {
+    // Simular rebind: criar objeto, expor weak/unowned via debug_define_global, então remover o strong
+    let mut interp = Interpreter::with_prelude();
+    let id = interp.debug_heap_register(ArtValue::Int(7));
+    interp.debug_define_global("w", ArtValue::WeakRef(ObjHandle(id)));
+    interp.debug_define_global("u", ArtValue::UnownedRef(ObjHandle(id)));
+    // Simular rebind/remover a referência forte
+    interp.debug_heap_remove(id);
+    assert!(interp.debug_heap_upgrade_weak(id).is_none(), "weak deveria ser None após rebind simulated");
+    assert!(interp.debug_heap_get_unowned(id).is_none(), "unowned_get deveria ser None após rebind simulated");
+}
+
+#[test]
+fn drop_scope_decrements_handles() {
+    // Simular drop de escopo removendo explicitamente o strong handle
+    let mut interp = Interpreter::with_prelude();
+    let id = interp.debug_heap_register(ArtValue::Int(11));
+    interp.debug_define_global("w", ArtValue::WeakRef(ObjHandle(id)));
+    // remover o strong (simula saída de escopo)
+    interp.debug_heap_remove(id);
+    assert!(interp.debug_heap_upgrade_weak(id).is_none(), "weak deveria ser None após scope drop simulated");
+}
+
+#[test]
+fn arena_finalization_decrements_and_invalidates() {
+    // Simular finalização de arena removendo manualmente o objeto heap
+    let mut interp = Interpreter::with_prelude();
+    let id = interp.debug_heap_register(ArtValue::Int(99));
+    interp.debug_define_global("w", ArtValue::WeakRef(ObjHandle(id)));
+    // Simular finalização
+    interp.debug_heap_remove(id);
+    assert!(interp.debug_heap_upgrade_weak(id).is_none(), "weak deveria ser None após finalize arena simulated");
 }

@@ -149,7 +149,7 @@ impl Interpreter {
             .and_then(|o| if o.alive { Some(o.value.clone()) } else { None })
     }
     fn heap_get_unowned(&self, id: u64) -> Option<ArtValue> {
-        self.heap_objects.get(&id).map(|o| o.value.clone())
+        self.heap_objects.get(&id).and_then(|o| if o.alive { Some(o.value.clone()) } else { None })
     }
 
     #[inline]
@@ -204,6 +204,7 @@ impl Interpreter {
             .collect();
         for id in ids {
             // Forçar queda de strong para 0 e disparar finalização recursiva
+            // limitar o escopo do borrow mutável para evitar conflitos durante a recursão
             if let Some(obj) = self.heap_objects.get_mut(&id) {
                 // garantir que pelo menos um dec fará com que alive=false
                 if obj.strong > 0 {
@@ -211,6 +212,23 @@ impl Interpreter {
                 }
             }
             self.dec_object_strong_recursive(id);
+        }
+        // Passo de limpeza: remover entradas mortas da arena que já não têm weaks.
+        // Fazemos isso em uma segunda etapa para evitar mutabilidade concorrente durante
+        // a recursão de finalizadores.
+        let dead_ids: Vec<u64> = self
+            .heap_objects
+            .iter()
+            .filter_map(|(id, obj)| {
+                if obj.arena_id == Some(arena_id) && !obj.alive && obj.weak == 0 {
+                    Some(*id)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        for id in dead_ids {
+            self.heap_objects.remove(&id);
         }
     }
 
@@ -306,6 +324,7 @@ impl Interpreter {
     }
 
     fn dec_object_strong_recursive(&mut self, id: u64) {
+        // Limitar o escopo do borrow mutável para não conflitar com chamadas recursivas
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             if obj.strong > 0 {
                 obj.dec_strong();
@@ -320,7 +339,9 @@ impl Interpreter {
                 let finalizer = self.finalizers.remove(&id);
                 // liberar filhos fortes
                 let snapshot = obj.value.clone(); // clone para evitar emprestimo duplo
-                let _ = obj; // liberar empréstimo mutável antes de recursão
+                // encerra o borrow mutável aqui
+                let _ = obj;
+                // agora podemos recursivamente decrementar filhos sem conflito de borrow
                 self.dec_children_strong(&snapshot);
                 if let Some(func) = finalizer {
                     // chamar sem argumentos
@@ -375,6 +396,13 @@ impl Interpreter {
                 }
             }
         }
+
+        // Segunda fase: se o objeto foi finalizado e não tem weaks, removê-lo do heap para liberar memória
+        if let Some(obj2) = self.heap_objects.get(&id) {
+            if !obj2.alive && obj2.weak == 0 {
+                self.heap_objects.remove(&id);
+            }
+        }
     }
 
     /// Debug/testing: registra valor e retorna id (não otimizado; sem coleta real ainda)
@@ -406,6 +434,21 @@ impl Interpreter {
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             obj.inc_weak();
         }
+    }
+
+    /// Test helper: registra valor na arena especificada e retorna id
+    pub fn debug_heap_register_in_arena(&mut self, v: ArtValue, arena_id: u32) -> u64 {
+        self.heap_register_in_arena(v, arena_id)
+    }
+
+    /// Test helper: finaliza explicitamente uma arena (invoca finalize_arena)
+    pub fn debug_finalize_arena(&mut self, arena_id: u32) {
+        self.finalize_arena(arena_id)
+    }
+
+    /// Test helper: verifica se um id ainda existe no heap
+    pub fn debug_heap_contains(&self, id: u64) -> bool {
+        self.heap_objects.get(&id).is_some()
     }
 
     /// Test helper: define valor no ambiente global

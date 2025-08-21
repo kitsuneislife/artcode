@@ -17,6 +17,12 @@ enum Commands {
         #[arg(long)]
         no_fmt: bool,
     },
+    /// Strict developer check: fmt, clippy -D warnings, tests, examples; optional coverage
+    Devcheck {
+        /// Run coverage report (requires cargo-llvm-cov)
+        #[arg(long, default_value_t = false)]
+        coverage: bool,
+    },
     /// Only scan for potential panics (panic!/unwrap/expect)
     Scan,
     /// Run coverage via cargo-llvm-cov (if installed)
@@ -45,10 +51,19 @@ fn fmt(no_fmt: bool) {
 }
 
 fn clippy() {
-    let _ = run(Command::new("cargo").args(["clippy", "--all"]));
+    let _ = run(Command::new("cargo").args(["clippy", "--all", "--", "-D", "warnings"]));
 }
 fn test_all() {
     let status = run(Command::new("cargo").arg("test"));
+    if !status.success() {
+        std::process::exit(status.code().unwrap_or(1));
+    }
+}
+
+fn run_examples() {
+    let mut cmd = Command::new("bash");
+    cmd.arg("-c").arg("scripts/test_examples.sh");
+    let status = run(&mut cmd);
     if !status.success() {
         std::process::exit(status.code().unwrap_or(1));
     }
@@ -108,6 +123,29 @@ fn main() {
             clippy();
             test_all();
             scan_panics();
+        }
+        Commands::Devcheck { coverage } => {
+            // strict dev flow
+            fmt(false);
+            clippy();
+            test_all();
+            run_examples();
+            scan_panics();
+            if coverage {
+                // reuse Coverage branch
+                let mut cmd = Command::new("cargo");
+                cmd.args([
+                    "llvm-cov",
+                    "--workspace",
+                    "--ignore-filename-regex",
+                    ".*/target/.*",
+                ]);
+                cmd.arg("--html");
+                let status = run(&mut cmd);
+                if !status.success() {
+                    std::process::exit(status.code().unwrap_or(1));
+                }
+            }
         }
         Commands::Scan => scan_panics(),
         Commands::Coverage { html } => {

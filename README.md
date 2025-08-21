@@ -77,19 +77,11 @@ Contribuindo
 - Use o checklist operacional em `/.kit/checklist.md` para priorizar trabalho.
 - Para mudanças de design: abra uma RFC (`docs/rfcs/0000-template.md` quando existir) e link no PR.
 
-Roadmap curto (prioridades atuais)
-- Finalizar garantias de memória (weak/unowned e decrementos seguros).
-- Harden dos blocos `performant` e testes de escape.
-- Automatizar CI (já existe workflow mínimo) e adicionar fuzzing para parser/runtime.
-
 Licença & contato
 - Projeto com licença MIT (ver `LICENSE`).
 - Para discussões de design: abra issues ou PRs no repositório.
 
 ---
-
-Se quiser, eu posso também adicionar um badge de build/coverage visível no topo do README
-ou abrir um PR com essas mudanças para revisão.
 
 ## Documentação (pasta `docs/`)
 

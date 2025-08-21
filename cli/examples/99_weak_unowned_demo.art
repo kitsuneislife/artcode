@@ -1,0 +1,13 @@
+// 99_weak_unowned_demo.art
+// Objetivo: demonstrar semântica esperada de weak/unowned (conceitual)
+
+// Pseudocódigo Artcode demonstrativo — adaptar conforme runtime real
+let owner = Object { name: "owner" }
+let w = owner.weak_ref()
+println("owner present: ", owner.name)
+// drop owner
+owner = None
+println("owner dropped")
+println("weak alive? ", w.is_alive())
+
+// Expectation (na implementação): w.is_alive() -> false
