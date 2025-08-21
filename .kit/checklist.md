@@ -13,6 +13,7 @@ Guia incremental para evoluir do protótipo atual até os pilares do manifesto v
  - [x] Ferramenta de detecção de ciclos (agora baseada em heap ids, Tarjan SCC, reachability, ranking de sugestões)
  - [x] Relatório de ciclos: sugestões iniciais + reachability (leak_candidate) + ranking simples
  - [~] Arena API (escopo lexical) protótipo em blocos `performant`
+ - [~] Priority 2 started: added arena-edge tests and per-arena metrics; finalize_arena attribution added (in-progress)
  - [~] Análise estática mínima: impedir escape de referências de arena (checagem conservadora implementada — `return` e capturas/lets compostos sinalizados)
  - [~] Métricas: `cycle_leaks_detected`, strong_increments/decrements (parcial), weak/unowned counters; PENDENTE: arenas, objetos finalizados (agora contamos `objects_finalized`)
  - [~] Docs: `docs/memory.md` (adicionada seção inicial sobre arenas & regras de escape; precisa refinamento)
