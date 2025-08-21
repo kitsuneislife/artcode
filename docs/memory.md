@@ -50,3 +50,41 @@ Decisões preliminares / atualizadas:
 * `ObjHandle` é opaco na linguagem; usuários não o manipulam diretamente; fornece ponto único para futuras estratégias (arenas / segregação / compressão de ponteiros).
 
 Documento será expandido conforme itens forem marcados na checklist.
+
+## Exemplos rápidos e helpers de teste
+
+Exemplo: finalizer criando handles (pseudo-Artcode):
+
+```artcode
+// define finalizer que cria um handle 'saved' para o objeto owner
+fn fin() {
+	let saved = owner
+}
+
+on_finalize(target, fin)
+// quando `target` cair para strong == 0, fin() é executado; `saved` é promovido ao root
+```
+
+Exemplo: arena (bloco performant) e finalizer promovendo referência externa:
+
+```artcode
+performant {
+	let a = [1,2,3] // alocado na arena
+	on_finalize(a, fn() { promoted = outside })
+}
+// ao sair do bloco a é finalizado; finalizer pode promover handles externos como `outside`
+```
+
+Helpers de teste disponíveis no `Interpreter` (usados nos testes do repositório):
+
+- `debug_heap_register(val) -> id` : registra valor no heap e retorna id.
+- `debug_heap_register_in_arena(val, arena_id) -> id` : registra valor em arena.
+- `debug_define_global(name, val)` : define global para facilitar cenários de teste.
+- `debug_heap_remove(id)` : simula remoção do último strong ref (dec strong).
+- `debug_heap_inc_weak(id)` / `debug_heap_dec_weak(id)` : manipula contador weak para testes.
+- `debug_run_finalizer(id)` : força execução do fluxo de finalização (dec_recursive + sweep).
+- `debug_sweep_dead()` : varre e remove objetos mort os (`alive == false` && `weak == 0`).
+- `debug_finalize_arena(arena_id)` : finaliza explicitamente uma arena (invoca `finalize_arena`).
+- `debug_heap_contains(id)` : checa presença no heap.
+
+Use esses helpers em testes para tornar o comportamento determinístico e evitar flakes dependentes de timing.
