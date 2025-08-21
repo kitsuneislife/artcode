@@ -5,6 +5,7 @@ use interpreter::interpreter::Interpreter;
 #[test]
 fn stress_finalizer_mass_promotion() {
     let mut interp = Interpreter::with_prelude();
+    interp.enable_invariant_checks(true);
     // Criar N objetos em arena, registrar finalizer que cria um global por objeto
     let n = 50usize;
     let mut ids = Vec::new();
@@ -51,6 +52,7 @@ fn stress_finalizer_mass_promotion() {
 #[test]
 fn stress_cycle_detection_large_ring() {
     let mut interp = Interpreter::with_prelude();
+    interp.enable_invariant_checks(true);
     // criar uma cadeia circular de objetos vivos
     let size = 100usize;
     let mut ids = Vec::new();
@@ -87,6 +89,7 @@ fn stress_cycle_detection_large_ring() {
 #[test]
 fn stress_chained_finalizers_cross_arena() {
     let mut interp = Interpreter::with_prelude();
+    interp.enable_invariant_checks(true);
     // criar duas arenas e objetos em cada
     let aid1 = interp.debug_create_arena();
     let aid2 = interp.debug_create_arena();

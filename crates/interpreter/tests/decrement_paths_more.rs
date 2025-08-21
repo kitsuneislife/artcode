@@ -5,6 +5,7 @@ use interpreter::interpreter::Interpreter;
 #[test]
 fn finalizer_promotes_multiple_temporaries_to_root() {
     let mut interp = Interpreter::with_prelude();
+    interp.enable_invariant_checks(true);
     let aid = interp.debug_create_arena();
     let id = interp.debug_heap_register_in_arena(ArtValue::Array(vec![]), aid);
 

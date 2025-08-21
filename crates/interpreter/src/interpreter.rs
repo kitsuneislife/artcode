@@ -511,6 +511,11 @@ impl Interpreter {
         self.invariant_checks = enable;
     }
 
+    /// Getter para a métrica protótipo finalizer_promotions (útil para asserts em testes/CI)
+    pub fn get_finalizer_promotions(&self) -> usize {
+        self.finalizer_promotions
+    }
+
     /// Verificação básica de invariantes do heap. Retorna true se OK.
     pub fn debug_check_invariants(&self) -> bool {
     for (_id, obj) in self.heap_objects.iter() {

@@ -4,8 +4,8 @@ use core::ast::{ArtValue};
 
 #[test]
 fn finalizer_runs_and_object_stays_while_weak() {
-
     let mut interp = Interpreter::with_prelude();
+    interp.enable_invariant_checks(true);
     // registrar objeto via helper e expor como global 'a'
     let id = interp.debug_heap_register(ArtValue::Array(vec![ArtValue::Int(1)]));
     interp.debug_define_global("a", ArtValue::HeapComposite(core::ast::ObjHandle(id)));
@@ -58,6 +58,7 @@ fn finalizer_runs_and_object_stays_while_weak() {
 #[test]
 fn multiple_weaks_only_remove_when_all_gone() {
     let mut interp = Interpreter::with_prelude();
+    interp.enable_invariant_checks(true);
     // registrar objeto manualmente e criar 3 weaks
     let id = interp.debug_heap_register(ArtValue::Int(999));
     interp.debug_heap_inc_weak(id);
@@ -81,6 +82,7 @@ fn multiple_weaks_only_remove_when_all_gone() {
 #[test]
 fn finalizer_creates_handle_preserved() {
     let mut interp = Interpreter::with_prelude();
+    interp.enable_invariant_checks(true);
     // registrar um objeto que o finalizer irá salvar (owner)
     let owner_id = interp.debug_heap_register(ArtValue::Array(vec![ArtValue::Int(7)]));
     interp.debug_define_global("owner", ArtValue::HeapComposite(core::ast::ObjHandle(owner_id)));
@@ -130,6 +132,7 @@ fn finalizer_creates_handle_preserved() {
 #[test]
 fn finalizer_promotes_handles_across_arenas() {
     let mut interp = Interpreter::with_prelude();
+    interp.enable_invariant_checks(true);
     // criar objeto fora de arena que será referenciado pelo finalizer
     let outside_id = interp.debug_heap_register(ArtValue::Int(42));
     interp.debug_define_global("outside", ArtValue::HeapComposite(core::ast::ObjHandle(outside_id)));
