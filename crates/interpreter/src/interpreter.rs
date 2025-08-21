@@ -230,6 +230,18 @@ impl Interpreter {
         for id in dead_ids {
             self.heap_objects.remove(&id);
         }
+        // Hardening: normalizar invariantes após finalização da arena.
+        // Se por alguma razão existirem objetos com strong==0 mas alive==true,
+        // marcamos como mortos para que a varredura os remova corretamente.
+        for obj in self.heap_objects.values_mut() {
+            if obj.strong == 0 && obj.alive {
+                obj.alive = false;
+            }
+        }
+        // Executar uma varredura adicional para remover quaisquer objetos mortos
+        // que agora não tenham weak refs. Isto evita deixar objetos mortos no heap
+        // por causa de finalizadores que fizeram mudanças transientes.
+        self.debug_sweep_dead();
     }
 
     #[inline]
@@ -398,10 +410,8 @@ impl Interpreter {
         }
 
         // Segunda fase: se o objeto foi finalizado e não tem weaks, removê-lo do heap para liberar memória
-        if let Some(obj2) = self.heap_objects.get(&id) {
-            if !obj2.alive && obj2.weak == 0 {
-                self.heap_objects.remove(&id);
-            }
+        if let Some(obj2) = self.heap_objects.get(&id) && !obj2.alive && obj2.weak == 0 {
+            self.heap_objects.remove(&id);
         }
     }
 
@@ -457,6 +467,13 @@ impl Interpreter {
         }
     }
 
+    /// Test helper: forçar execução do fluxo de finalização para um id específico.
+    /// Isto chama o decremento recursivo e em seguida faz sweep de mortos.
+    pub fn debug_run_finalizer(&mut self, id: u64) {
+        self.dec_object_strong_recursive(id);
+        self.debug_sweep_dead();
+    }
+
     /// Test helper: registra valor na arena especificada e retorna id
     pub fn debug_heap_register_in_arena(&mut self, v: ArtValue, arena_id: u32) -> u64 {
         self.heap_register_in_arena(v, arena_id)
@@ -469,7 +486,7 @@ impl Interpreter {
 
     /// Test helper: verifica se um id ainda existe no heap
     pub fn debug_heap_contains(&self, id: u64) -> bool {
-        self.heap_objects.get(&id).is_some()
+    self.heap_objects.contains_key(&id)
     }
 
     /// Test helper: define valor no ambiente global
