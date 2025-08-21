@@ -167,6 +167,8 @@ dependencies = [
  "interpreter",
  "lexer",
  "parser",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

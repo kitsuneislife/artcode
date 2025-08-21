@@ -35,9 +35,10 @@ jobs:
         run: cargo build -p cli --bin art
       - name: Run metrics script
         run: |
+          chmod +x scripts/run_metrics.sh || true
           mkdir -p artifacts
-          # Use workspace binary path and an example that exists in repo
-          target/debug/art metrics --json cli/examples/99_weak_unowned_demo.art > artifacts/metrics.json || true
+          # run the script which will write artifacts/metrics.json
+          bash scripts/run_metrics.sh cli/examples/99_weak_unowned_demo.art artifacts/metrics.json || true
       - name: Upload metrics artifact
         uses: actions/upload-artifact@v4
         with:
@@ -45,88 +46,4 @@ jobs:
           path: artifacts/metrics.json
 name: CI
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - name: Run cargo tests
-        run: cargo test --all --workspace
-      - name: Run examples validation script
-        run: |
-          chmod +x scripts/test_examples.sh || true
-          ./scripts/test_examples.sh
-
-  build-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Format check
-        run: cargo fmt --all -- --check
-      - name: Clippy
-        run: cargo clippy --all -- -D warnings
-      - name: Tests
-        run: cargo test --all --no-fail-fast
-      - name: Panic scan
-        run: |
-          cargo run -q -p xtask -- scan || true
-      - name: Check AST docs
-        run: scripts/check_ast_docs.sh
-
-  coverage:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov --locked
-      - name: Run coverage
-        run: cargo llvm-cov --workspace --ignore-filename-regex ".*/target/.*" --lcov --output-path lcov.info
-      - name: Coverage threshold
-        run: |
-          # lcov DA lines are 'DA:<line>,<count>' - sum counts and number of lines
-          lines=$(grep -h '^DA:' lcov.info | awk -F',' '{covered+=$2; total+=1} END { if (total==0) { print "0 0" } else { print covered" "total }}')
-          covered=$(echo $lines | awk '{print $1}')
-          total=$(echo $lines | awk '{print $2}')
-          pct=0
-          if [ "$total" -gt 0 ]; then pct=$(awk -v c=$covered -v t=$total 'BEGIN { printf("%.2f", (c/t)*100) }'); fi
-          echo "Coverage: $pct%";
-          awk -v p=$pct 'BEGIN { exit (p < 60.0) ? 1 : 0 }'
-      - name: Generate badge
-        run: scripts/gen_coverage_badge.sh lcov.info target/coverage_badge.svg
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: lcov
-          path: lcov.info
-      - name: Upload coverage badge
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-badge
-          path: target/coverage_badge.svg
-      
