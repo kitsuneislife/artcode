@@ -6,6 +6,7 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::process;
+use serde::Serialize;
 
 fn run_with_source(_name: &str, source: String) {
     let mut lexer = Lexer::new(source.clone());
@@ -79,10 +80,21 @@ fn main() {
     }
     if args[1] == "metrics" {
         if args.len() < 3 {
-            println!("Usage: art metrics <script>");
+            println!("Usage: art metrics [--json] <script>");
             process::exit(64);
         }
-        let f = &args[2];
+        let mut json = false;
+        let mut file: Option<&str> = None;
+        for a in &args[2..] {
+            match a.as_str() {
+                "--json" => json = true,
+                other => file = Some(other),
+            }
+        }
+        let Some(f) = file else {
+            println!("Usage: art metrics [--json] <script>");
+            process::exit(64);
+        };
         match fs::read_to_string(f) {
             Ok(source) => {
                 let mut lexer = Lexer::new(source.clone());
@@ -110,15 +122,47 @@ fn main() {
                 for d in interpreter.take_diagnostics() {
                     eprintln!("{}", format_diagnostic(&source, &d));
                 }
-                println!("[metrics] handled_errors={} executed_statements={} crash_free={:.1}% finalizer_promotions={}",
-                    interpreter.handled_errors,
-                    interpreter.executed_statements,
-                    100.0 * (1.0 - (interpreter.handled_errors as f64 / interpreter.executed_statements.max(1) as f64)),
-                    interpreter.get_finalizer_promotions()
-                );
-                println!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
-                    interpreter.weak_created, interpreter.weak_upgrades, interpreter.weak_dangling,
-                    interpreter.unowned_created, interpreter.unowned_dangling, interpreter.cycle_reports_run.get());
+                if json {
+                    #[derive(Serialize)]
+                    struct Metrics {
+                        handled_errors: usize,
+                        executed_statements: usize,
+                        crash_free: f64,
+                        finalizer_promotions: usize,
+                        weak_created: usize,
+                        weak_upgrades: usize,
+                        weak_dangling: usize,
+                        unowned_created: usize,
+                        unowned_dangling: usize,
+                        cycle_reports_run: usize,
+                    }
+
+                    let metrics = Metrics {
+                        handled_errors: interpreter.handled_errors,
+                        executed_statements: interpreter.executed_statements,
+                        crash_free: 100.0 * (1.0 - (interpreter.handled_errors as f64 / interpreter.executed_statements.max(1) as f64)),
+                        finalizer_promotions: interpreter.get_finalizer_promotions(),
+                        weak_created: interpreter.weak_created,
+                        weak_upgrades: interpreter.weak_upgrades,
+                        weak_dangling: interpreter.weak_dangling,
+                        unowned_created: interpreter.unowned_created,
+                        unowned_dangling: interpreter.unowned_dangling,
+                        cycle_reports_run: interpreter.cycle_reports_run.get(),
+                    };
+
+                    // Print compact JSON
+                    println!("{}", serde_json::to_string(&metrics).unwrap());
+                } else {
+                    println!("[metrics] handled_errors={} executed_statements={} crash_free={:.1}% finalizer_promotions={}",
+                        interpreter.handled_errors,
+                        interpreter.executed_statements,
+                        100.0 * (1.0 - (interpreter.handled_errors as f64 / interpreter.executed_statements.max(1) as f64)),
+                        interpreter.get_finalizer_promotions()
+                    );
+                    println!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
+                        interpreter.weak_created, interpreter.weak_upgrades, interpreter.weak_dangling,
+                        interpreter.unowned_created, interpreter.unowned_dangling, interpreter.cycle_reports_run.get());
+                }
             }
             Err(e) => {
                 eprintln!("Error reading file: {}", e);
