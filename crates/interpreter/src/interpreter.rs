@@ -28,6 +28,8 @@ pub struct Interpreter {
     pub strong_increments: usize,
     pub strong_decrements: usize,
     pub objects_finalized: usize,
+    // Per-arena finalized objects counter (experimental)
+    pub objects_finalized_per_arena: std::collections::HashMap<u32, usize>,
     // New metrics / debug helpers
     pub finalizer_promotions: usize,
     // Per-arena allocation counters (experimental)
@@ -98,6 +100,7 @@ impl Interpreter {
             finalizer_promotions_per_arena: std::collections::HashMap::new(),
             current_finalizer_promotion_target: None,
             arena_alloc_count: std::collections::HashMap::new(),
+            objects_finalized_per_arena: std::collections::HashMap::new(),
             invariant_checks: false,
             finalizers: HashMap::new(),
             current_arena: None,
@@ -395,6 +398,10 @@ impl Interpreter {
             let should_recurse = !obj.alive; // caiu a zero agora
             if should_recurse {
                 self.objects_finalized += 1;
+                // attribute finalized object to its arena if present
+                if let Some(aid) = obj.arena_id {
+                    *self.objects_finalized_per_arena.entry(aid).or_insert(0) += 1;
+                }
             }
             if should_recurse {
                 // Executar finalizer se existir (snapshot para usar depois do borrow)

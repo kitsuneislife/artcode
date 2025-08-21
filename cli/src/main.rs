@@ -129,6 +129,7 @@ fn main() {
                         executed_statements: usize,
                         crash_free: f64,
                         finalizer_promotions: usize,
+                        objects_finalized_per_arena: std::collections::HashMap<u32, usize>,
                         arena_alloc_count: std::collections::HashMap<u32, usize>,
                         finalizer_promotions_per_arena: std::collections::HashMap<u32, usize>,
                         weak_created: usize,
@@ -147,6 +148,7 @@ fn main() {
                                 - (interpreter.handled_errors as f64
                                     / interpreter.executed_statements.max(1) as f64)),
                         finalizer_promotions: interpreter.get_finalizer_promotions(),
+                        objects_finalized_per_arena: interpreter.objects_finalized_per_arena.clone(),
                         arena_alloc_count: interpreter.arena_alloc_count.clone(),
                         finalizer_promotions_per_arena: interpreter.finalizer_promotions_per_arena.clone(),
                         weak_created: interpreter.weak_created,
@@ -177,6 +179,10 @@ fn main() {
                     if !interpreter.arena_alloc_count.is_empty() {
                         let arenas: Vec<String> = interpreter.arena_alloc_count.iter().map(|(aid,c)| format!("arena{}:{}alloc", aid, c)).collect();
                         println!("[arena] {}", arenas.join(","));
+                    }
+                    if !interpreter.objects_finalized_per_arena.is_empty() {
+                        let fin: Vec<String> = interpreter.objects_finalized_per_arena.iter().map(|(aid,c)| format!("arena{}:{}finalized", aid, c)).collect();
+                        println!("[arena_finalized] {}", fin.join(","));
                     }
                     println!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
                         interpreter.weak_created, interpreter.weak_upgrades, interpreter.weak_dangling,
