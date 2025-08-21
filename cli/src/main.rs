@@ -77,6 +77,56 @@ fn main() {
     if args[1] == "run" && args.len() == 3 {
         return run_file(&args[2]);
     }
+    if args[1] == "metrics" {
+        if args.len() < 3 {
+            println!("Usage: art metrics <script>");
+            process::exit(64);
+        }
+        let f = &args[2];
+        match fs::read_to_string(f) {
+            Ok(source) => {
+                let mut lexer = Lexer::new(source.clone());
+                let tokens = match lexer.scan_tokens() {
+                    Ok(t) => t,
+                    Err(d) => {
+                        eprintln!("{}", format_diagnostic(&source, &d));
+                        return;
+                    }
+                };
+                let mut parser = Parser::new(tokens);
+                let (program, diags) = parser.parse();
+                if !diags.is_empty() {
+                    for d in &diags {
+                        eprintln!("{}", format_diagnostic(&source, d));
+                    }
+                    return;
+                }
+                let mut interpreter = Interpreter::with_prelude();
+                // habilitar checagens de invariantes por padrão ao coletar métricas
+                interpreter.enable_invariant_checks(true);
+                if let Err(e) = interpreter.interpret(program) {
+                    eprintln!("Erro de execução: {}", e);
+                }
+                for d in interpreter.take_diagnostics() {
+                    eprintln!("{}", format_diagnostic(&source, &d));
+                }
+                println!("[metrics] handled_errors={} executed_statements={} crash_free={:.1}% finalizer_promotions={}",
+                    interpreter.handled_errors,
+                    interpreter.executed_statements,
+                    100.0 * (1.0 - (interpreter.handled_errors as f64 / interpreter.executed_statements.max(1) as f64)),
+                    interpreter.get_finalizer_promotions()
+                );
+                println!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
+                    interpreter.weak_created, interpreter.weak_upgrades, interpreter.weak_dangling,
+                    interpreter.unowned_created, interpreter.unowned_dangling, interpreter.cycle_reports_run.get());
+            }
+            Err(e) => {
+                eprintln!("Error reading file: {}", e);
+                process::exit(74);
+            }
+        }
+        return;
+    }
     if args[1] == "detect-cycles" {
         let mut json = false;
         let mut json_pretty = false;
