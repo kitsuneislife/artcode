@@ -436,6 +436,27 @@ impl Interpreter {
         }
     }
 
+    /// Test helper: decrementa contador weak (para simulação em testes)
+    pub fn debug_heap_dec_weak(&mut self, id: u64) {
+        if let Some(obj) = self.heap_objects.get_mut(&id) {
+            obj.dec_weak();
+        }
+    }
+
+    /// Test helper: coleta e remove do heap todos objetos finalizados (!alive) que
+    /// não possuem weak refs (weak == 0). Útil em testes para simular uma varredura
+    /// de limpeza global ou após chamadas de finalizadores.
+    pub fn debug_sweep_dead(&mut self) {
+        let dead_ids: Vec<u64> = self
+            .heap_objects
+            .iter()
+            .filter_map(|(id, obj)| if !obj.alive && obj.weak == 0 { Some(*id) } else { None })
+            .collect();
+        for id in dead_ids {
+            self.heap_objects.remove(&id);
+        }
+    }
+
     /// Test helper: registra valor na arena especificada e retorna id
     pub fn debug_heap_register_in_arena(&mut self, v: ArtValue, arena_id: u32) -> u64 {
         self.heap_register_in_arena(v, arena_id)

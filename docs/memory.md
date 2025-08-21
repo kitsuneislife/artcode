@@ -20,6 +20,17 @@ Progresso desta fase (parcial / atualizado):
 * Finalização: quando `strong` chega a 0 marcamos `alive=false`, incrementamos `objects_finalized`, executamos `on_finalize(obj, fn)` se registrado (função rodada em frame filho do global e promovendo variáveis criadas) e recursivamente decrementamos filhos (modelo determinístico simples sem GC segundo plano).
 * `alive` reflete `strong > 0`; upgrade de weak consulta flag; unowned_get em modo debug emite diagnóstico quando alvo morto.
 
+Política de finalização em duas fases (atual):
+
+- Fase 1 — marcação e execução de finalizers: quando um objeto tem `strong` reduzido a 0, `alive` é marcado `false` e quaisquer finalizers associados são executados. A execução dos finalizers pode criar novos handles fortes; implementamos um frame filho temporário para executar finalizers e, em seguida, promovemos quaisquer handles fortes relevantes ao ambiente raiz.
+- Fase 2 — limpeza/remoção: após a execução de finalizers e a propagação recursiva de decrementos, fazemos uma passagem de limpeza que remove do heap os objetos que estão `alive == false` e `weak == 0`. Objetos com `weak > 0` permanecem no heap até que os weak sejam removidos.
+
+Notas sobre `weak` e `unowned`:
+
+- `weak` produz um `WeakRef` que pode ser atualizado (upgrade) para um `Option<T>` via `weak_get`/`?`; upgrades falham (retornam `None`) se o alvo não estiver `alive`.
+- `unowned` produz um `UnownedRef` que assume validade enquanto o dono existir; em modo debug `unowned_get` verifica `alive` e registra um diagnóstico `dangling unowned reference` se o alvo estiver morto, retornando `None`.
+- Testes e helpers de depuração: para simular cenários de retenção e limpeza, a API de testes expõe helpers como `debug_heap_register`, `debug_heap_remove`, `debug_heap_inc_weak`, `debug_heap_dec_weak`, `debug_sweep_dead`, `debug_finalize_arena`, e `debug_heap_contains`.
+
 Relatório de ciclos estendido:
 * Campos agregados gerais: `heap_alive`, médias de graus de saída/entrada (`avg_out_degree`, `avg_in_degree`).
 * Heurística ownership inicial: coleta `candidate_owner_edges` para arestas cujo nome de campo contém `parent` ou `owner` (destinadas a serem candidatas a edges fracas para quebra de ciclo ou confirmação de dominância). Estas arestas aparecem em `summary.candidate_owner_edges` e podem ser cruzadas com SCCs para priorização.

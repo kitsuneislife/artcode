@@ -1,13 +1,25 @@
 // 99_weak_unowned_demo.art
-// Objetivo: demonstrar semântica esperada de weak/unowned (conceitual)
+// Objetivo: demonstrar comportamento mínimo de weak/unowned usando builtins
 
-// Pseudocódigo Artcode demonstrativo — adaptar conforme runtime real
-let owner = Object { name: "owner" }
-let w = owner.weak_ref()
-println("owner present: ", owner.name)
-// drop owner
-owner = None
-println("owner dropped")
-println("weak alive? ", w.is_alive())
+// Exemplo 1: weak - upgrade falha após drop do strong
+// Exemplo 1: weak - upgrade falha após drop do strong (usa bloco para simular scope)
+{
+	let owner = [99];
+	let w = weak(owner);
+	println("inside block weak_get:", weak_get(w));
+}
+println("after block: owner foi dropado ao sair do bloco");
 
-// Expectation (na implementação): w.is_alive() -> false
+// Exemplo 2: unowned - acesso direto enquanto vivo, unowned_get pode retornar None após drop
+// Exemplo 2: unowned - acesso direto enquanto vivo, queda após saída de escopo
+{
+	// owner2 existe dentro deste bloco. Criamos um unowned que aponta para ele.
+	// Enquanto o dono existe, `unowned_get(u)` deve retornar o valor.
+	let owner2 = [7];
+	let u = unowned(owner2);
+	println("inside block unowned_get:", unowned_get(u));
+}
+// Ao sair do bloco, owner2 foi dropado; accesses posteriores via `unowned_get` devem
+// falhar (ou retornar `None` na API de depuração) — aqui apenas registramos que
+// o bloco terminou para o leitor.
+println("after block: owner2 foi dropado ao sair do bloco");

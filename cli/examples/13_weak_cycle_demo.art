@@ -1,4 +1,7 @@
-// Protótipo: demonstra criação de weak refs
+// Protótipo: demonstra criação e upgrade de `weak`.
+//  - `weak a` cria uma referência fraca ao objeto `a`.
+//  - `w?` é a sintaxe sugar para tentar um upgrade opcional que retorna `None` se
+//    o dono tiver sido dropado.
 let a = 1;
 let w = weak a;
-let opt = w?; // upgrade opcional
+let opt = w?; // upgrade opcional: `opt` contém o valor enquanto `a` existir
