@@ -1,0 +1,43 @@
+name: Metrics validation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build workspace
+        run: cargo build --workspace --all-targets --locked
+      - name: Run interpreter tests
+        run: cargo test -p interpreter --tests --locked
+      - name: Run cli integration tests
+        run: cargo test -p cli --test metrics_integration --locked
+      - name: Smoke run art metrics on example
+        run: |
+          cargo build -p cli --locked --release
+          ./target/release/art metrics --json cli/examples/00_hello.art | jq . >/dev/null
+        env:
+          RUST_BACKTRACE: 1
