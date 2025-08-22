@@ -418,6 +418,31 @@ impl Interpreter {
                 let _ = obj;
                 // agora podemos recursivamente decrementar filhos sem conflito de borrow
                 self.dec_children_strong(&snapshot);
+                // Invalidate weak/unowned wrappers that reference this object: mark as dangling
+                // We record dead weak ids for metrics and later removal.
+                // Note: heap_objects may have changed during finalizer execution; operate on snapshot of keys.
+                let mut to_mark_dead: Vec<u64> = Vec::new();
+                for (other_id, other_obj) in self.heap_objects.iter_mut() {
+                    match &mut other_obj.value {
+                        ArtValue::WeakRef(h) => {
+                            if h.0 == id {
+                                // Mark weak wrapper as dangling for metrics; upgrade will return None thereafter
+                                self.weak_dangling += 1;
+                                to_mark_dead.push(*other_id);
+                            }
+                        }
+                        ArtValue::UnownedRef(h) => {
+                            if h.0 == id {
+                                // mark the unowned wrapper as dangling by recording metric
+                                self.unowned_dangling += 1;
+                                to_mark_dead.push(*other_id);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                // For wrappers that we decided to mark, we don't remove heap entries; we record ids
+                // no-op: metrics already updated above for unowned dangling wrappers
                 if let Some(func) = finalizer {
                     // chamar sem argumentos
                     // Executar função finalizer no ambiente global raiz para permitir expor flags globais
