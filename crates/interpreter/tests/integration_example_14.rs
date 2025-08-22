@@ -17,8 +17,7 @@ fn integration_example_14_finalizer_examples() {
         ArtValue::HeapComposite(core::ast::ObjHandle(target)),
     );
     // registrar finalizer via programa minimal
-    interp
-        .interpret(vec![
+    assert!(interp.interpret(vec![
             core::ast::Stmt::Function {
                 name: core::Token::dummy("fin_save_owner"),
                 params: vec![],
@@ -47,8 +46,8 @@ fn integration_example_14_finalizer_examples() {
                     },
                 ],
             }),
-        ])
-        .unwrap();
+        ]).is_ok(),
+        "integration_example_14 setup failed");
 
     // remover strong do target e forçar execução
     interp.debug_heap_remove(target);
@@ -71,8 +70,7 @@ fn integration_example_14_finalizer_examples() {
         ArtValue::HeapComposite(core::ast::ObjHandle(a)),
     );
     // registrar finalizer que define promoted = outside
-    interp
-        .interpret(vec![
+    assert!(interp.interpret(vec![
             core::ast::Stmt::Function {
                 name: core::Token::dummy("fin_promote"),
                 params: vec![],
@@ -101,8 +99,8 @@ fn integration_example_14_finalizer_examples() {
                     },
                 ],
             }),
-        ])
-        .unwrap();
+        ]).is_ok(),
+        "integration_example_14 run failed");
     // finalizar arena explicitamente
     interp.debug_finalize_arena(aid);
     // promoted deve existir e outside preservado

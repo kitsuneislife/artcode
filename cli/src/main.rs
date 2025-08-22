@@ -1,5 +1,6 @@
 use diagnostics::format_diagnostic;
 use interpreter::interpreter::Interpreter;
+use interpreter::type_infer::{TypeEnv, TypeInfer};
 use lexer::lexer::Lexer;
 use parser::parser::Parser;
 use serde::Serialize;
@@ -21,6 +22,15 @@ fn run_with_source(_name: &str, source: String) {
     let (program, diags) = parser.parse();
     if !diags.is_empty() {
         for d in &diags {
+            eprintln!("{}", format_diagnostic(&source, d));
+        }
+        return;
+    }
+    // Run conservative type inference/static checks and abort on type diagnostics.
+    let mut tenv = TypeEnv::new();
+    let mut tinf = TypeInfer::new(&mut tenv);
+    if let Err(type_diags) = tinf.run(&program) {
+        for d in &type_diags {
             eprintln!("{}", format_diagnostic(&source, d));
         }
         return;
@@ -109,6 +119,15 @@ fn main() {
                 let (program, diags) = parser.parse();
                 if !diags.is_empty() {
                     for d in &diags {
+                        eprintln!("{}", format_diagnostic(&source, d));
+                    }
+                    return;
+                }
+                // Run type inference/static checks before interpretation in metrics mode as well.
+                let mut tenv = TypeEnv::new();
+                let mut tinf = TypeInfer::new(&mut tenv);
+                if let Err(type_diags) = tinf.run(&program) {
+                    for d in &type_diags {
                         eprintln!("{}", format_diagnostic(&source, d));
                     }
                     return;

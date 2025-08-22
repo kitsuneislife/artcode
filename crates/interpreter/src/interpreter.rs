@@ -507,11 +507,9 @@ impl Interpreter {
             }
             let mut referenced = false;
             for (_other_id, other_obj) in self.heap_objects.iter() {
-                if other_obj.alive {
-                    if referenced_in(&other_obj.value, id) {
-                        referenced = true;
-                        break;
-                    }
+                if other_obj.alive && referenced_in(&other_obj.value, id) {
+                    referenced = true;
+                    break;
                 }
             }
             if !referenced {
@@ -589,11 +587,9 @@ impl Interpreter {
         for id in dead_ids {
             let mut referenced = false;
             for (_other_id, other_obj) in self.heap_objects.iter() {
-                if other_obj.alive {
-                    if referenced_in(&other_obj.value, id) {
-                        referenced = true;
-                        break;
-                    }
+                if other_obj.alive && referenced_in(&other_obj.value, id) {
+                    referenced = true;
+                    break;
                 }
             }
             if !referenced {
@@ -2449,7 +2445,7 @@ impl Interpreter {
         s
     }
 
-    /// Versão prettificada (indentação 2 espaços) para debug humano.
+    /// Versão prettificada (indentação 2 espaços)
     pub fn detect_cycles_json_pretty(&mut self) -> String {
         let mut raw = self.detect_cycles_json();
         // Simples pretty printer para nosso JSON restrito (sem strings com braces dentro)

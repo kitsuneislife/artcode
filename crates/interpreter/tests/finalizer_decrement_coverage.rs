@@ -35,7 +35,7 @@ fn rebind_triggers_finalizer_and_clears_handles() {
         Stmt::Let { name: core::Token::dummy("a"), ty: None, initializer: Expr::Array(vec![]) },
     ];
     interp.enable_invariant_checks(true);
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in finalizer_decrement_coverage.rs failed");
     // finalizer should have run and set flag
     assert!(interp.debug_get_global("flag").is_some(), "finalizer did not set flag on rebind");
     assert!(interp.debug_check_invariants(), "invariants failed after rebind finalizer");
@@ -58,7 +58,7 @@ fn return_of_arena_object_is_reported() {
         Stmt::Let { name: core::Token::dummy("g"), ty: None, initializer: Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("ret_a") }), arguments: vec![] } },
     ];
     interp.enable_invariant_checks(true);
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in finalizer_decrement_coverage.rs failed");
     let diags = interp.take_diagnostics();
     assert!(diags.iter().any(|d| d.message.contains("Attempt to return arena object")), "return of arena object was not reported");
 }
@@ -80,7 +80,7 @@ fn field_mutation_runs_finalizer_on_previous_value() {
         Stmt::Function { name: core::Token::dummy("finf"), params: vec![], return_type: None, body: std::rc::Rc::new(Stmt::Block { statements: vec![Stmt::Let { name: core::Token::dummy("ff"), ty: None, initializer: Expr::Literal(ArtValue::Int(7)) }] }), method_owner: None },
         Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("on_finalize") }), arguments: vec![Expr::Variable { name: core::Token::dummy("x") }, Expr::Variable { name: core::Token::dummy("finf") }] }),
     ];
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in finalizer_decrement_coverage.rs failed");
     // simulate field assignment: set s.child = x and then drop x
     if let Some(ArtValue::HeapComposite(hx)) = interp.debug_get_global("x") {
         let mut new_fields = std::collections::HashMap::new();
@@ -94,10 +94,10 @@ fn field_mutation_runs_finalizer_on_previous_value() {
         assert!(interp.debug_get_global("ff").is_some(), "field finalizer did not run");
         if !interp.debug_check_invariants() {
             let v = interp.debug_invariant_violations();
-            panic!("invariants failed after field mutation finalizer: {:?}", v);
+            assert!(false, "invariants failed after field mutation finalizer: {:?}", v);
         }
     } else {
-        panic!("x missing in test setup");
+        assert!(false, "x missing in test setup");
     }
 }
 
@@ -113,7 +113,7 @@ fn performant_arena_finalization_promotes_and_cleans() {
         Stmt::Function { name: core::Token::dummy("fp"), params: vec![], return_type: None, body: std::rc::Rc::new(Stmt::Block { statements: vec![Stmt::Let { name: core::Token::dummy("promoted"), ty: None, initializer: Expr::Literal(ArtValue::Int(42)) }] }), method_owner: None },
         Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("on_finalize") }), arguments: vec![Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id))), Expr::Variable { name: core::Token::dummy("fp") }] }),
     ];
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in finalizer_decrement_coverage.rs failed");
     // finalize arena
     interp.debug_finalize_arena(aid);
     // after finalization, either object removed or promoted; invariants should hold

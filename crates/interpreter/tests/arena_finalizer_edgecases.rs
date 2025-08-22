@@ -17,7 +17,7 @@ fn finalizer_promotes_handles_from_arena() {
             body: std::rc::Rc::new(Stmt::Block { statements: vec![Stmt::Let { name: core::Token::dummy("promoted"), ty: None, initializer: Expr::Literal(ArtValue::Int(42)) }] }), method_owner: None },
         Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("on_finalize") }), arguments: vec![Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id))), Expr::Variable { name: core::Token::dummy("fp") }] }),
     ];
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in arena_finalizer_edgecases.rs failed");
     // finalize arena: finalizer should run and promote local handles to root
     interp.debug_finalize_arena(aid);
     assert!(interp.get_finalizer_promotions() > 0 || interp.debug_get_global("promoted").is_some(), "finalizer promotion did not occur");
@@ -36,7 +36,7 @@ fn finalizer_allocation_inside_arena_does_not_break_finalize() {
             body: std::rc::Rc::new(Stmt::Block { statements: vec![Stmt::Let { name: core::Token::dummy("tmp"), ty: None, initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(7))]) }] }), method_owner: None },
         Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("on_finalize") }), arguments: vec![Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id))), Expr::Variable { name: core::Token::dummy("allocf") }] }),
     ];
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in arena_finalizer_edgecases.rs failed");
     // Should not panic or leave invalid invariants
     interp.debug_finalize_arena(aid);
     assert!(interp.debug_check_invariants(), "invariants failed after finalizer allocation in arena");

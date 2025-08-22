@@ -9,7 +9,7 @@ fn fstring_simple_expr() {
     let mut parser = Parser::new(tokens);
     let program = parser.parse();
     let mut interp = Interpreter::with_prelude();
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in tests/interpolation.rs fstring_simple_expr failed");
 }
 
 #[test]
@@ -19,5 +19,5 @@ fn enum_shorthand_ok() {
     let mut parser = Parser::new(tokens);
     let program = parser.parse();
     let mut interp = Interpreter::with_prelude();
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in tests/interpolation.rs enum_shorthand_ok failed");
 }

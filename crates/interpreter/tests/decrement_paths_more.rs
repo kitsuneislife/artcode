@@ -45,7 +45,7 @@ fn finalizer_promotes_multiple_temporaries_to_root() {
         }),
     ];
 
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in decrement_paths_more.rs failed");
     // Simular remoção do último strong e rodar finalizer
     interp.debug_heap_remove(id);
     interp.debug_run_finalizer(id);
@@ -110,7 +110,7 @@ fn nested_performant_return_emits_diagnostic() {
         },
     ];
 
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in decrement_paths_more.rs failed");
     let diags = interp.take_diagnostics();
     assert!(
         diags
@@ -187,7 +187,7 @@ fn field_assign_prev_arena_triggers_finalizer() {
             ],
         }),
     ];
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in decrement_paths_more.rs failed");
 
     // Assign s.child = child_plain by creating new struct and replacing global
     let mut new_fields = std::collections::HashMap::new();

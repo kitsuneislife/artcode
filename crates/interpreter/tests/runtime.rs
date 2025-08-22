@@ -15,7 +15,12 @@ fn run(src: &str) -> Vec<diagnostics::Diagnostic> {
     }
     let mut interp = Interpreter::with_prelude();
     if let Err(e) = interp.interpret(program) {
-        panic!("Runtime error: {:?}", e);
+        // Convert runtime errors into diagnostics for tests rather than panicking.
+        return vec![diagnostics::Diagnostic::new(
+            diagnostics::DiagnosticKind::Runtime,
+            format!("Runtime error: {:?}", e),
+            diagnostics::Span::dummy(),
+        )];
     }
     interp.take_diagnostics()
 }

@@ -214,6 +214,7 @@ impl Lexer {
             "match" => TokenType::Match,
             "case" => TokenType::Case,
             "func" => TokenType::Func,
+            "performant" => TokenType::Performant,
             "return" => TokenType::Return,
             "none" => TokenType::None,
             "as" => TokenType::As,

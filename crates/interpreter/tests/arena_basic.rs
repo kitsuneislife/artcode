@@ -18,7 +18,7 @@ fn performant_block_allocates_in_arena_and_finalizes() {
             },
         ],
     }];
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in arena_basic.rs failed");
     // Após sair do bloco, objetos na arena devem ter sido finalizados (objects_finalized>0)
     let report = interp.cycle_report();
     assert!(

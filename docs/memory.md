@@ -75,6 +75,64 @@ performant {
 // ao sair do bloco a é finalizado; finalizer pode promover handles externos como `outside`
 ```
 
+Regras práticas para `performant` (resumo)
+
+- Objetivo: permitir alocações rápidas e temporárias sem overhead de contagem global a cada campo.
+- Regras estáticas (checagem conservadora via `TypeInfer`):
+	- `return` é proibido dentro de `performant` (sinaliza diagnóstico de tipo).
+	- Declaração de `func` dentro de `performant` emite diagnóstico (fechamentos podem capturar valores de arena).
+	- `let x = <inicializador composto>` dentro de `performant` emite diagnóstico conservador (pode escapar).
+
+- Comportamento em tempo de execução (runtime checks):
+	- Em builds de debug, retornos/lets que provoquem escape de objeto de arena podem causar `debug_assert`/panic para facilitar o diagnóstico.
+	- Em builds normais, o runtime registra um `DiagnosticKind::Runtime` e continua (para não quebrar programas em produção durante o protótipo).
+
+- Exemplo: padrão proibido (sintaxe Artcode):
+
+```art
+performant {
+	let tmp = [1,2,3]
+	return tmp // -> TypeInfer emite erro estático; runtime também checa
+}
+```
+
+- Exemplo: função dentro de `performant` (proibido estaticamente):
+
+```art
+performant {
+	func make() { return [1] } // função local: TypeInfer emite diagnóstico
+}
+```
+
+- Padrão seguro / recomendado:
+
+```art
+performant {
+	let local = [1,2,3]
+	on_finalize(local, fn() { /* usar valor para atualizar métricas internas ou registrar evento */ })
+	// não retornar nem atribuir `local` a variáveis fora do bloco
+}
+```
+
+Promoção via finalizer (comportamento resumido)
+
+- Quando um objeto de arena atinge `strong == 0`, o runtime marca `alive = false` e executa finalizers registrados via `on_finalize`.
+- Finalizers são executados em um frame filho do root; quaisquer handles fortes criados nesse frame são promovidos ao root (para evitar que finalizer crie references que morram imediatamente).
+- Métrica `finalizer_promotions` contabiliza quantos handles foram promovidos durante finalizers, e `finalizer_promotions_per_arena` quebra por arena.
+
+Exemplo ilustrativo (pseudo-Artcode):
+
+```art
+performant {
+	let a = [1,2]
+	on_finalize(a, fn() {
+		// cria um handle que deve sobreviver após finalização
+		promoted = some_wrapper(a)
+	})
+}
+// após saída do bloco, `a` foi finalizado, mas `promoted` foi promovido ao root pelo runtime
+```
+
 Helpers de teste disponíveis no `Interpreter` (usados nos testes do repositório):
 
 - `debug_heap_register(val) -> id` : registra valor no heap e retorna id.

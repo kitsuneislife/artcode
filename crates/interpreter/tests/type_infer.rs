@@ -4,7 +4,10 @@ use parser::Parser;
 
 fn infer(src: &str) -> TypeEnv {
     let mut lx = Lexer::new(src.to_string());
-    let tokens = lx.scan_tokens().unwrap();
+    let tokens = match lx.scan_tokens() {
+        Ok(t) => t,
+        Err(e) => panic!("lexer scan_tokens in type_infer.rs failed: {:?}", e),
+    };
     let mut p = Parser::new(tokens);
     let (program, diags) = p.parse();
     assert!(diags.is_empty(), "parse diagnostics: {:?}", diags);

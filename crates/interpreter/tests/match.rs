@@ -9,7 +9,13 @@ fn run(
     Vec<diagnostics::Diagnostic>,
 ) {
     let mut lx = Lexer::new(src.to_string());
-    let tokens = lx.scan_tokens().unwrap();
+    let tokens = match lx.scan_tokens() {
+        Ok(t) => t,
+        Err(e) => {
+            assert!(false, "lexer scan_tokens in match.rs failed: {:?}", e);
+            Vec::new()
+        }
+    };
     let mut p = Parser::new(tokens);
     let (program, pdiags) = p.parse();
     if !pdiags.is_empty() {

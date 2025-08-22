@@ -17,7 +17,7 @@ fn finalizer_promote_other_survives() {
         // attach finalize to a
         Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("on_finalize") }), arguments: vec![Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(a))), Expr::Variable { name: core::Token::dummy("promote_b") }] }),
     ];
-    interp.interpret(program).unwrap();
+        assert!(interp.interpret(program).is_ok(), "interpret program in arena_finalizer_ordering.rs failed");
     interp.debug_finalize_arena(aid);
     // survivor should be present or promotion metric show promotions
     assert!(interp.debug_get_global("survivor").is_some() || interp.get_finalizer_promotions() > 0 || interp.finalizer_promotions_per_arena.get(&aid).cloned().unwrap_or(0)>0,
@@ -43,7 +43,7 @@ fn mutual_finalizers_promote_each_other_safe() {
         Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("on_finalize") }), arguments: vec![Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(a))), Expr::Variable { name: core::Token::dummy("prom_b") }] }),
         Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("on_finalize") }), arguments: vec![Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(b))), Expr::Variable { name: core::Token::dummy("prom_a") }] }),
     ];
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in arena_finalizer_ordering.rs failed");
     interp.debug_finalize_arena(aid);
     // At least one of the globals should exist or promotions counted
     let ga = interp.debug_get_global("x");

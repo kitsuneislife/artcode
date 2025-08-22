@@ -13,7 +13,13 @@ fn bench_lex_parse(c: &mut Criterion) {
     c.bench_function("lex+parse", |b| {
         b.iter(|| {
             let mut lx = Lexer::new(src.to_string());
-            let tokens = lx.scan_tokens().unwrap();
+            let tokens = match lx.scan_tokens() {
+                Ok(t) => t,
+                Err(e) => {
+                    assert!(false, "lexer scan_tokens in bench front.rs failed: {:?}", e);
+                    Vec::new()
+                }
+            };
             let mut p = Parser::new(tokens);
             let (program, diags) = p.parse();
             assert!(diags.is_empty());

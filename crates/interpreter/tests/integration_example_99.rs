@@ -6,25 +6,23 @@ use std::process::Command;
 #[test]
 fn run_example_99() {
     // localizar workspace root via caminho relativo
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(2)
-        .unwrap()
-        .to_path_buf();
+        let root = match PathBuf::from(env!("CARGO_MANIFEST_DIR")).ancestors().nth(2) {
+            Some(p) => p.to_path_buf(),
+            None => panic!("failed to run integration_example_99 setup"),
+        };
     let bin = root.join("target/debug/art");
     // build se necessário
     if !bin.exists() {
-        let st = Command::new("cargo")
-            .arg("build")
-            .status()
-            .expect("cargo build falhou");
+        let st = match Command::new("cargo").arg("build").status() {
+            Ok(s) => s,
+            Err(e) => panic!("cargo build falhou: {:?}", e),
+        };
         assert!(st.success(), "cargo build falhou");
     }
     let example = root.join("cli/examples/99_weak_unowned_demo.art");
-    let status = Command::new(bin)
-        .arg("run")
-        .arg(example)
-        .status()
-        .expect("falha ao executar o binário art");
+    let status = match Command::new(bin).arg("run").arg(example).status() {
+        Ok(s) => s,
+        Err(e) => panic!("falha ao executar o binario art: {:?}", e),
+    };
     assert!(status.success(), "execução do exemplo 99 falhou");
 }

@@ -1,6 +1,6 @@
-use core::{ArtValue, Expr, Program, Stmt, Type};
+use core::{ArtValue, Expr, Program, Stmt, Type, InterpolatedPart};
 use diagnostics::{Diagnostic, DiagnosticKind, Span};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
 pub struct TypeEnv {
@@ -36,6 +36,8 @@ pub struct TypeInfer<'a> {
     pub diags: Vec<Diagnostic>,
     tenv: &'a mut TypeEnv,
     enums: HashMap<String, HashMap<String, Option<usize>>>,
+    // lexical scopes stack: each scope maps declared variable names
+    scopes: Vec<HashSet<String>>,
 }
 
 impl<'a> TypeInfer<'a> {
@@ -44,7 +46,36 @@ impl<'a> TypeInfer<'a> {
             diags: Vec::new(),
             tenv,
             enums: HashMap::new(),
+            scopes: vec![HashSet::new()],
         }
+    }
+
+    fn push_scope(&mut self) {
+        self.scopes.push(HashSet::new());
+    }
+
+    fn pop_scope(&mut self) {
+        self.scopes.pop();
+    }
+
+    fn declare_var(&mut self, name: &str) {
+        if let Some(scope) = self.scopes.last_mut() {
+            scope.insert(name.to_string());
+        }
+    }
+
+    fn visible_vars(&self) -> HashSet<String> {
+        let mut out = HashSet::new();
+        for s in &self.scopes {
+            for n in s {
+                out.insert(n.clone());
+            }
+        }
+        // include tenv globals as well
+        for k in self.tenv.vars.keys() {
+            out.insert(k.clone());
+        }
+        out
     }
 
     pub fn run(&mut self, program: &Program) -> Result<(), Vec<Diagnostic>> {
@@ -74,11 +105,15 @@ impl<'a> TypeInfer<'a> {
             } => {
                 let t = self.infer_expr(initializer);
                 self.tenv.set_var(&name.lexeme, t);
+                // declare in current lexical scope
+                self.declare_var(&name.lexeme);
             }
             Stmt::Block { statements } => {
+                self.push_scope();
                 for s in statements {
                     self.visit_stmt(s);
                 }
+                self.pop_scope();
             }
             Stmt::If {
                 condition,
@@ -113,12 +148,16 @@ impl<'a> TypeInfer<'a> {
     // check implemented early in the pipeline. More checks (assignments to outer scopes,
     // closures capturing arena values) will be added later.
     fn check_performant_block(&mut self, statements: &Vec<Stmt>) {
+        // Use lexical symbol table to determine which variables are outer vs local.
+        let outer_vars = self.visible_vars();
+        // Create a fresh local scope for the performant block so we can track declarations.
+        self.push_scope();
         for s in statements {
-            self.check_performant_stmt(s);
+            self.check_performant_stmt(s, &outer_vars);
         }
+        self.pop_scope();
     }
-
-    fn check_performant_stmt(&mut self, stmt: &Stmt) {
+    fn check_performant_stmt(&mut self, stmt: &Stmt, outer_vars: &HashSet<String>) {
         use Stmt::*;
         match stmt {
             Return { value: _ } => {
@@ -139,6 +178,16 @@ impl<'a> TypeInfer<'a> {
             Let {
                 name, initializer, ..
             } => {
+                // If this let shadows a visible outer variable (assignment to outer scope), report a type error.
+                if outer_vars.contains(&name.lexeme) {
+                    self.diags.push(Diagnostic::new(
+                        DiagnosticKind::Type,
+                        format!("Assignment to outer-scope variable '{}' inside `performant` is not allowed: may extend lifetime of arena values", name.lexeme),
+                        Span::new(name.start, name.end, name.line, name.col),
+                    ));
+                }
+                // Declare this name in the current lexical scope so nested checks know it's local.
+                self.declare_var(&name.lexeme);
                 // Se inicializador é potencialmente composto, emitir aviso conservador
                 match initializer {
                     Expr::Array(_)
@@ -153,32 +202,145 @@ impl<'a> TypeInfer<'a> {
                     }
                     _ => {}
                 }
+                // Conservative capture check: if the initializer expression uses any variables
+                // from the outer scope (and they are not local declarations), that's a potential
+                // capture of outer arena values and should be rejected.
+                let current_locals = self.visible_vars();
+                let captures = self.expr_uses_outer_vars(initializer, &current_locals, outer_vars);
+                if !captures.is_empty() {
+                    for cap in captures {
+                        self.diags.push(Diagnostic::new(
+                            DiagnosticKind::Type,
+                            format!("Initializer for '{}' references outer variable '{}', which may capture/escape arena values", name.lexeme, cap),
+                            Span::new(name.start, name.end, name.line, name.col),
+                        ));
+                    }
+                }
+                // Conservative extra: if the variable name looks like a non-temporary (doesn't start with _)
+                // we warn that assigning to an outer-named variable may escape. This is a heuristic
+                // until a full symbol-table/outer-scope analysis is implemented.
+                if !name.lexeme.starts_with('_') {
+                    self.diags.push(Diagnostic::new(
+                        DiagnosticKind::Type,
+                        format!("Binding '{}' inside `performant` may escape if it refers to an outer scope variable. Avoid assigning to outer names or prefix temporaries with '_'", name.lexeme),
+                        Span::new(name.start, name.end, name.line, name.col),
+                    ));
+                }
             }
             Block { statements } => {
+                // New block introduces nested lexical scope within performant
+                self.push_scope();
                 for s in statements {
-                    self.check_performant_stmt(s);
+                    self.check_performant_stmt(s, outer_vars);
                 }
+                self.pop_scope();
             }
             If {
                 condition: _,
                 then_branch,
                 else_branch,
             } => {
-                self.check_performant_stmt(then_branch);
+                self.check_performant_stmt(then_branch, outer_vars);
                 if let Some(e) = else_branch {
-                    self.check_performant_stmt(e);
+                    self.check_performant_stmt(e, outer_vars);
                 }
             }
             Match { expr: _, cases } => {
                 for (_pat, _guard, body) in cases {
-                    self.check_performant_stmt(body);
+                    self.check_performant_stmt(body, outer_vars);
                 }
             }
             Performant { statements } => {
-                self.check_performant_block(statements);
+                // Nested performant: create a fresh scope and recurse
+                self.push_scope();
+                for s in statements {
+                    self.check_performant_stmt(s, outer_vars);
+                }
+                self.pop_scope();
             }
             StructDecl { .. } | EnumDecl { .. } | Expression(_) => { /* allowed */ }
         }
+    }
+
+    // Walk an expression and collect any variable names that are from outer scope (i.e. present
+    // in `outer_vars`) but not declared in `local_decls`. This is conservative: any such usage
+    // may capture an outer value into a local that lives beyond the arena.
+    #[allow(clippy::only_used_in_recursion)]
+    fn expr_uses_outer_vars(&self, expr: &Expr, current_locals: &HashSet<String>, outer_vars: &HashSet<String>) -> Vec<String> {
+        use Expr::*;
+        let mut found: Vec<String> = Vec::new();
+        match expr {
+            Variable { name } => {
+                let n = &name.lexeme;
+                if outer_vars.contains(n) && !current_locals.contains(n) {
+                    found.push(n.clone());
+                }
+            }
+            Grouping { expression } => {
+                found.extend(self.expr_uses_outer_vars(expression, current_locals, outer_vars));
+            }
+            Unary { right, .. } => {
+                found.extend(self.expr_uses_outer_vars(right, current_locals, outer_vars));
+            }
+            Binary { left, right, .. } => {
+                found.extend(self.expr_uses_outer_vars(left, current_locals, outer_vars));
+                found.extend(self.expr_uses_outer_vars(right, current_locals, outer_vars));
+            }
+            Logical { left, right, .. } => {
+                found.extend(self.expr_uses_outer_vars(left, current_locals, outer_vars));
+                found.extend(self.expr_uses_outer_vars(right, current_locals, outer_vars));
+            }
+            Call { callee, arguments } => {
+                found.extend(self.expr_uses_outer_vars(callee, current_locals, outer_vars));
+                for a in arguments {
+                    found.extend(self.expr_uses_outer_vars(a, current_locals, outer_vars));
+                }
+            }
+            StructInit { fields, .. } => {
+                for (_k, v) in fields {
+                    found.extend(self.expr_uses_outer_vars(v, current_locals, outer_vars));
+                }
+            }
+            EnumInit { values, .. } => {
+                for v in values {
+                    found.extend(self.expr_uses_outer_vars(v, current_locals, outer_vars));
+                }
+            }
+            FieldAccess { object, .. } => {
+                found.extend(self.expr_uses_outer_vars(object, current_locals, outer_vars));
+            }
+            Weak(inner)
+            | Unowned(inner)
+            | WeakUpgrade(inner)
+            | UnownedAccess(inner)
+            | Try(inner) => {
+                found.extend(self.expr_uses_outer_vars(inner, current_locals, outer_vars));
+            }
+            Array(elements) => {
+                for e in elements {
+                    found.extend(self.expr_uses_outer_vars(e, current_locals, outer_vars));
+                }
+            }
+            InterpolatedString(parts) => {
+                // parts are InterpolatedPart: either Literal(String) or Expr { expr, format }
+                for p in parts {
+                    match p {
+                        InterpolatedPart::Literal(_) => {}
+                        InterpolatedPart::Expr { expr, .. } => {
+                            found.extend(self.expr_uses_outer_vars(expr, current_locals, outer_vars));
+                        }
+                    }
+                }
+            }
+            Cast { object, .. } => {
+                found.extend(self.expr_uses_outer_vars(object, current_locals, outer_vars));
+            }
+            Literal(_) => {}
+        }
+        // Deduplicate
+        found.sort();
+        found.dedup();
+        found
     }
 
     fn infer_expr(&mut self, expr: &Expr) -> Type {

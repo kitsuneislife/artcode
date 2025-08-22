@@ -1,30 +1,30 @@
+// Minimal finalizer example
+
+func fin_promote() {
+  let promoted = outside;
+}
+
+performant {
+  let a = [1,2,3];
+  on_finalize(a, fin_promote);
+}
 // 14_finalizer_examples.art
-// Objetivo: demonstrar finalizers que criam handles e finalizers em arenas que promovem referências.
+// Exemplo mínimo para demonstrar finalizers e promoção de handles.
 
-// --- Exemplo 1: finalizer criando handle preservado ---
-// Comentários: registramos um objeto `owner`, registramos `target` com finalizer que define `saved = owner`.
-// Esperado: ao remover o strong de `target`, o finalizer executa e `saved` passa a existir no root.
-
-// Funções definidas no topo-level para compatibilidade com parser
 func fin_save_owner() {
   let saved = owner;
 }
 
-func fin_promote() { let promoted = outside; }
+func fin_promote() {
+  let promoted = outside;
+}
 
 on_finalize(target, fin_save_owner);
 
-// Simulação: no runner interpretador, o teste manipula handles via helpers; aqui apenas mostramos fluxo.
-
-// --- Exemplo 2: finalizer em arena promovendo referência externa ---
-// Comentários: objeto externo `outside` permanece vivo; finalizer de objeto de arena promove o `outside` para `promoted`.
-
 performant {
-  let a = [1, 2, 3]; // alocado na arena
+  let a = [1, 2, 3];
   on_finalize(a, fin_promote);
 }
-
-// Depois do bloco, `a` é finalizado; `promoted` será definido pelo finalizer apontando para `outside`.
 
 // Nota: este arquivo é didático; os testes automatizados no repositório usam helpers de debug
 // para manipular contadores e forçar execução de finalizers (`debug_run_finalizer` / `debug_sweep_dead`).

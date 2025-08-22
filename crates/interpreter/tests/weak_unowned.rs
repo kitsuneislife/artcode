@@ -5,12 +5,18 @@ use parser::parser::Parser;
 
 fn run(code: &str) -> (Interpreter, String) {
     let mut lexer = Lexer::new(code.to_string());
-    let tokens = lexer.scan_tokens().unwrap();
+    let tokens = match lexer.scan_tokens() {
+        Ok(t) => t,
+        Err(e) => {
+            assert!(false, "lexer scan_tokens in weak_unowned.rs failed: {:?}", e);
+            Vec::new()
+        }
+    };
     let mut parser = Parser::new(tokens);
     let (program, diags) = parser.parse();
     assert!(diags.is_empty(), "parse diags: {:?}", diags);
     let mut interp = Interpreter::with_prelude();
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in weak_unowned.rs failed");
     (interp, code.to_string())
 }
 
