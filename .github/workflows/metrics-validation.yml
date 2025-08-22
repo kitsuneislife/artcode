@@ -38,6 +38,14 @@ jobs:
       - name: Smoke run art metrics on example
         run: |
           cargo build -p cli --locked --release
-          ./target/release/art metrics --json cli/examples/00_hello.art | jq . >/dev/null
+          mkdir -p artifacts
+          ./target/release/art metrics --json cli/examples/00_hello.art > artifacts/metrics.json
+          # Basic validation: ensure expected top-level keys exist
+          jq -e 'has("arena_alloc_count") and has("objects_finalized_per_arena") and has("finalizer_promotions_per_arena")' artifacts/metrics.json
+      - name: Upload metrics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrics-json
+          path: artifacts/metrics.json
         env:
           RUST_BACKTRACE: 1
