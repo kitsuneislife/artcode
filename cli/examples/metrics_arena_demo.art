@@ -1,6 +1,6 @@
 // Demo: allocate in an arena, attach a finalizer that promotes an outside handle
 let outside = [99];
-let promoted = null;
+let promoted = none;
 
 func fin_promote() {
   let promoted = outside;
