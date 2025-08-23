@@ -38,6 +38,7 @@ pub enum TokenType {
     Match,
     Case,
     Underscore,
+    Import,
     Func,
     Performant,
     Return,

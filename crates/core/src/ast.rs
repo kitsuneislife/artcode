@@ -50,6 +50,9 @@ pub enum Stmt {
     Return {
         value: Option<Expr>,
     },
+    Import {
+        path: Vec<Token>,
+    },
 }
 
 #[derive(Debug, Clone)]

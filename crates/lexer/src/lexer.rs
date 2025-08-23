@@ -223,6 +223,7 @@ impl Lexer {
             "func" => TokenType::Func,
             "performant" => TokenType::Performant,
             "return" => TokenType::Return,
+            "import" => TokenType::Import,
             "none" => TokenType::None,
             "as" => TokenType::As,
             "weak" => TokenType::Weak,

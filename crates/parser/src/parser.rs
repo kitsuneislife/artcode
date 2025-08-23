@@ -154,6 +154,18 @@ impl Parser {
             self.let_declaration()
         } else if self.match_token(TokenType::Func) {
             self.function_declaration()
+        } else if self.match_token(TokenType::Import) {
+            // parse dotted path: identifier ( '.' identifier )* ';'
+            let mut path = Vec::new();
+            // Expect at least one identifier
+            let first = self.consume(TokenType::Identifier, "Expect module name after 'import'.");
+            path.push(first);
+            while self.match_token(TokenType::Dot) {
+                let part = self.consume(TokenType::Identifier, "Expect identifier after '.' in import path.");
+                path.push(part);
+            }
+            self.consume(TokenType::Semicolon, "Expect ';' after import path.");
+            Stmt::Import { path }
         } else if self.match_token(TokenType::Performant) {
             // performant { ... }
             self.consume(TokenType::LeftBrace, "Expect '{' after performant.");
