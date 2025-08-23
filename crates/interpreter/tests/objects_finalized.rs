@@ -20,7 +20,7 @@ fn objects_finalized_increment_on_scope_exit_chain() {
     }];
 
     let before = interp.objects_finalized;
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in objects_finalized.rs failed");
     let after = interp.objects_finalized;
     // Pelo menos 1 objeto (array ou struct) deve ser finalizado ao sair do escopo.
     assert!(

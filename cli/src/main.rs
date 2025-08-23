@@ -1,12 +1,13 @@
 use diagnostics::format_diagnostic;
 use interpreter::interpreter::Interpreter;
+use interpreter::type_infer::{TypeEnv, TypeInfer};
 use lexer::lexer::Lexer;
 use parser::parser::Parser;
+use serde::Serialize;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::process;
-use serde::Serialize;
 
 fn run_with_source(_name: &str, source: String) {
     let mut lexer = Lexer::new(source.clone());
@@ -21,6 +22,15 @@ fn run_with_source(_name: &str, source: String) {
     let (program, diags) = parser.parse();
     if !diags.is_empty() {
         for d in &diags {
+            eprintln!("{}", format_diagnostic(&source, d));
+        }
+        return;
+    }
+    // Run conservative type inference/static checks and abort on type diagnostics.
+    let mut tenv = TypeEnv::new();
+    let mut tinf = TypeInfer::new(&mut tenv);
+    if let Err(type_diags) = tinf.run(&program) {
+        for d in &type_diags {
             eprintln!("{}", format_diagnostic(&source, d));
         }
         return;
@@ -113,6 +123,15 @@ fn main() {
                     }
                     return;
                 }
+                // Run type inference/static checks before interpretation in metrics mode as well.
+                let mut tenv = TypeEnv::new();
+                let mut tinf = TypeInfer::new(&mut tenv);
+                if let Err(type_diags) = tinf.run(&program) {
+                    for d in &type_diags {
+                        eprintln!("{}", format_diagnostic(&source, d));
+                    }
+                    return;
+                }
                 let mut interpreter = Interpreter::with_prelude();
                 // habilitar checagens de invariantes por padrão ao coletar métricas
                 interpreter.enable_invariant_checks(true);
@@ -129,6 +148,9 @@ fn main() {
                         executed_statements: usize,
                         crash_free: f64,
                         finalizer_promotions: usize,
+                        objects_finalized_per_arena: std::collections::HashMap<u32, usize>,
+                        arena_alloc_count: std::collections::HashMap<u32, usize>,
+                        finalizer_promotions_per_arena: std::collections::HashMap<u32, usize>,
                         weak_created: usize,
                         weak_upgrades: usize,
                         weak_dangling: usize,
@@ -140,8 +162,14 @@ fn main() {
                     let metrics = Metrics {
                         handled_errors: interpreter.handled_errors,
                         executed_statements: interpreter.executed_statements,
-                        crash_free: 100.0 * (1.0 - (interpreter.handled_errors as f64 / interpreter.executed_statements.max(1) as f64)),
+                        crash_free: 100.0
+                            * (1.0
+                                - (interpreter.handled_errors as f64
+                                    / interpreter.executed_statements.max(1) as f64)),
                         finalizer_promotions: interpreter.get_finalizer_promotions(),
+                        objects_finalized_per_arena: interpreter.objects_finalized_per_arena.clone(),
+                        arena_alloc_count: interpreter.arena_alloc_count.clone(),
+                        finalizer_promotions_per_arena: interpreter.finalizer_promotions_per_arena.clone(),
                         weak_created: interpreter.weak_created,
                         weak_upgrades: interpreter.weak_upgrades,
                         weak_dangling: interpreter.weak_dangling,
@@ -150,8 +178,15 @@ fn main() {
                         cycle_reports_run: interpreter.cycle_reports_run.get(),
                     };
 
-                    // Print compact JSON
-                    println!("{}", serde_json::to_string(&metrics).unwrap());
+                    // Print compact JSON, handling serialization errors without panicking
+                    match serde_json::to_string(&metrics) {
+                        Ok(s) => println!("{}", s),
+                        Err(e) => {
+                            eprintln!("Failed to serialize metrics: {}", e);
+                            // Use EX_SOFTWARE-like exit code
+                            process::exit(70);
+                        }
+                    }
                 } else {
                     println!("[metrics] handled_errors={} executed_statements={} crash_free={:.1}% finalizer_promotions={}",
                         interpreter.handled_errors,
@@ -159,6 +194,15 @@ fn main() {
                         100.0 * (1.0 - (interpreter.handled_errors as f64 / interpreter.executed_statements.max(1) as f64)),
                         interpreter.get_finalizer_promotions()
                     );
+                    // print a compact arena summary
+                    if !interpreter.arena_alloc_count.is_empty() {
+                        let arenas: Vec<String> = interpreter.arena_alloc_count.iter().map(|(aid,c)| format!("arena{}:{}alloc", aid, c)).collect();
+                        println!("[arena] {}", arenas.join(","));
+                    }
+                    if !interpreter.objects_finalized_per_arena.is_empty() {
+                        let fin: Vec<String> = interpreter.objects_finalized_per_arena.iter().map(|(aid,c)| format!("arena{}:{}finalized", aid, c)).collect();
+                        println!("[arena_finalized] {}", fin.join(","));
+                    }
                     println!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
                         interpreter.weak_created, interpreter.weak_upgrades, interpreter.weak_dangling,
                         interpreter.unowned_created, interpreter.unowned_dangling, interpreter.cycle_reports_run.get());

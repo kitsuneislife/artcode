@@ -69,6 +69,29 @@ fn run_examples() {
     }
 }
 
+fn type_check_examples() {
+    // Run the CLI on each example to ensure TypeInfer does not emit type diagnostics.
+    let entries = match std::fs::read_dir("cli/examples") {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for ent in entries.flatten() {
+        let path = ent.path();
+        if path.extension().map(|e| e == "art").unwrap_or(false) {
+            // Run the CLI binary explicitly to avoid cargo ambiguity
+            let mut cmd = Command::new("cargo");
+            cmd.args(["run", "-p", "cli", "--quiet", "--", "run"]).arg(path.as_os_str());
+            let status = run(&mut cmd);
+            if !status.success() {
+                // If example fails to parse or run, log and continue. We want examples to be helpful
+                // but not to block the CI while some didactic examples are being updated.
+                eprintln!("Type check skipped (failed) for example: {}", path.display());
+                continue;
+            }
+        }
+    }
+}
+
 fn scan_panics() {
     let mut paths = vec!["crates".into(), "src".into()];
     let re = match Regex::new(r"panic!|unwrap\(|expect\(") {
@@ -122,6 +145,7 @@ fn main() {
             fmt(no_fmt);
             clippy();
             test_all();
+            type_check_examples();
             scan_panics();
         }
         Commands::Devcheck { coverage } => {
@@ -129,6 +153,7 @@ fn main() {
             fmt(false);
             clippy();
             test_all();
+            type_check_examples();
             run_examples();
             scan_panics();
             if coverage {

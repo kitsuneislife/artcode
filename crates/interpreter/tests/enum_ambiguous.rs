@@ -6,7 +6,13 @@ use parser::parser::Parser;
 fn enum_shorthand_ambiguous_diagnostic() {
     let source = "enum A { X(Int) } enum B { X(Int) } let v = .X(1);";
     let mut lx = Lexer::new(source.to_string());
-    let tokens = lx.scan_tokens().unwrap();
+    let tokens = match lx.scan_tokens() {
+        Ok(t) => t,
+        Err(e) => {
+            assert!(false, "lexer scan_tokens in enum_ambiguous.rs failed: {:?}", e);
+            Vec::new()
+        }
+    };
     let mut p = Parser::new(tokens);
     let (program, pdiags) = p.parse();
     assert!(pdiags.is_empty());

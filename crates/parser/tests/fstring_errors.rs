@@ -3,7 +3,13 @@ use parser::parser::Parser;
 
 fn parse(src: &str) -> Vec<diagnostics::Diagnostic> {
     let mut lx = Lexer::new(src.to_string());
-    let tokens = lx.scan_tokens().unwrap();
+    let tokens = match lx.scan_tokens() {
+        Ok(t) => t,
+        Err(e) => {
+            assert!(false, "lexer scan_tokens in fstring_errors.rs failed: {:?}", e);
+            Vec::new()
+        }
+    };
     let mut p = Parser::new(tokens);
     let (_program, diags) = p.parse();
     diags

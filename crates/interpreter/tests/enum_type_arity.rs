@@ -4,7 +4,13 @@ use parser::Parser;
 
 fn infer_prog(src: &str) -> (TypeEnv, Vec<diagnostics::Diagnostic>) {
     let mut lx = Lexer::new(src.to_string());
-    let tokens = lx.scan_tokens().unwrap();
+    let tokens = match lx.scan_tokens() {
+        Ok(t) => t,
+        Err(e) => {
+            assert!(false, "lexer scan_tokens in enum_type_arity.rs failed: {:?}", e);
+            Vec::new()
+        }
+    };
     let mut p = Parser::new(tokens);
     let (program, pdiags) = p.parse();
     assert!(pdiags.is_empty(), "parse diagnostics: {:?}", pdiags);

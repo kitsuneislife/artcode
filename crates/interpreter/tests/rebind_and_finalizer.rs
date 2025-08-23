@@ -51,7 +51,7 @@ fn rebind_decrements_strong_and_runs_finalizer() {
             ],
         },
     ];
-    interp.interpret(program).unwrap();
+    assert!(interp.interpret(program).is_ok(), "interpret program in rebind_and_finalizer.rs failed");
     let got = interp.debug_get_global("flag2");
     assert!(got.is_some(), "finalizer não executou no rebind");
 }

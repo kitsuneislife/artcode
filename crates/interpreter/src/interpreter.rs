@@ -28,8 +28,16 @@ pub struct Interpreter {
     pub strong_increments: usize,
     pub strong_decrements: usize,
     pub objects_finalized: usize,
+    // Per-arena finalized objects counter (experimental)
+    pub objects_finalized_per_arena: std::collections::HashMap<u32, usize>,
     // New metrics / debug helpers
     pub finalizer_promotions: usize,
+    // Per-arena allocation counters (experimental)
+    pub arena_alloc_count: std::collections::HashMap<u32, usize>,
+    // Per-arena promotions counter (experimental)
+    pub finalizer_promotions_per_arena: std::collections::HashMap<u32, usize>,
+    // transient: currently finalizing arena id to attribute promotions
+    pub current_finalizer_promotion_target: Option<u32>,
     pub invariant_checks: bool,
     finalizers: HashMap<u64, Rc<Function>>, // finalizers por objeto composto
     // Arena support
@@ -89,6 +97,10 @@ impl Interpreter {
             strong_decrements: 0,
             objects_finalized: 0,
             finalizer_promotions: 0,
+            finalizer_promotions_per_arena: std::collections::HashMap::new(),
+            current_finalizer_promotion_target: None,
+            arena_alloc_count: std::collections::HashMap::new(),
+            objects_finalized_per_arena: std::collections::HashMap::new(),
             invariant_checks: false,
             finalizers: HashMap::new(),
             current_arena: None,
@@ -118,7 +130,7 @@ impl Interpreter {
     pub fn interpret(&mut self, program: Program) -> Result<()> {
         self.last_value = None;
         for statement in program {
-            if let Err(RuntimeError::Return(_)) = self.execute(statement) {
+                if let Err(RuntimeError::Return(_)) = self.execute(statement) {
                 break;
             }
         }
@@ -134,14 +146,22 @@ impl Interpreter {
         let id = self.next_heap_id;
         self.next_heap_id += 1;
         self.heap_objects
-            .insert(id, crate::heap::HeapObject::new(id, val));
+            .insert(id, crate::heap::HeapObject::new(id, val.clone()));
+        // Ensure children strong counts are incremented for any composites contained
+        // in the registered value so that tests using debug_heap_register mirror
+        // real runtime semantics (which call inc_children_strong via heapify).
+        self.inc_children_strong(&val);
         id
     }
     fn heap_register_in_arena(&mut self, val: ArtValue, arena_id: u32) -> u64 {
         let id = self.next_heap_id;
         self.next_heap_id += 1;
         self.heap_objects
-            .insert(id, crate::heap::HeapObject::new_in_arena(id, val, arena_id));
+            .insert(id, crate::heap::HeapObject::new_in_arena(id, val.clone(), arena_id));
+        // Mirror heap_register behavior for arena-allocated objects as well.
+        self.inc_children_strong(&val);
+    // record arena allocation
+    *self.arena_alloc_count.entry(arena_id).or_insert(0) += 1;
         id
     }
     pub fn debug_create_arena(&mut self) -> u32 {
@@ -154,7 +174,9 @@ impl Interpreter {
             .and_then(|o| if o.alive { Some(o.value.clone()) } else { None })
     }
     fn heap_get_unowned(&self, id: u64) -> Option<ArtValue> {
-        self.heap_objects.get(&id).and_then(|o| if o.alive { Some(o.value.clone()) } else { None })
+        self.heap_objects
+            .get(&id)
+            .and_then(|o| if o.alive { Some(o.value.clone()) } else { None })
     }
 
     #[inline]
@@ -195,8 +217,8 @@ impl Interpreter {
     }
     /// Finaliza (libera) todos objetos alocados na arena especificada.
     fn finalize_arena(&mut self, arena_id: u32) {
-        // Coletar ids vivos pertencentes à arena
-        let ids: Vec<u64> = self
+        // Coletar ids vivos pertencentes à arena (ordenados para determinismo)
+        let mut ids: Vec<u64> = self
             .heap_objects
             .iter()
             .filter_map(|(id, obj)| {
@@ -207,15 +229,15 @@ impl Interpreter {
                 }
             })
             .collect();
-        for id in ids {
+        ids.sort_unstable();
+    // attribute promotions during finalization to this arena
+    let prev_promo_target = self.current_finalizer_promotion_target;
+    self.current_finalizer_promotion_target = Some(arena_id);
+    for id in ids {
             // Forçar queda de strong para 0 e disparar finalização recursiva
             // limitar o escopo do borrow mutável para evitar conflitos durante a recursão
-            if let Some(obj) = self.heap_objects.get_mut(&id) {
-                // garantir que pelo menos um dec fará com que alive=false
-                if obj.strong > 0 {
-                    obj.strong = 1;
-                }
-            }
+            // garantir que pelo menos um dec fará com que alive=false
+            self.force_heap_strong_to_one(id);
             self.dec_object_strong_recursive(id);
         }
         // Passo de limpeza: remover entradas mortas da arena que já não têm weaks.
@@ -235,6 +257,19 @@ impl Interpreter {
         for id in dead_ids {
             self.heap_objects.remove(&id);
         }
+        // Additional stabilization: perform a few sweep passes to remove objects that
+        // became dead as a result of finalizer-promoted changes or temporary references.
+        // This reduces the chance of leaving transient dead objects referenced only
+        // by other dead objects.
+        for _ in 0..3 {
+            let before = self.heap_objects.len();
+            self.debug_sweep_dead();
+            if self.heap_objects.len() == before {
+                break;
+            }
+        }
+    // restore previous promotion target
+    self.current_finalizer_promotion_target = prev_promo_target;
         // Hardening: normalizar invariantes após finalização da arena.
         // Se por alguma razão existirem objetos com strong==0 mas alive==true,
         // marcamos como mortos para que a varredura os remova corretamente.
@@ -264,9 +299,9 @@ impl Interpreter {
 
     fn drop_scope_heap_objects(&mut self, env: &Rc<RefCell<Environment>>) {
         let handles = env.borrow().strong_handles.clone();
-        for h in handles {
-            self.dec_object_strong_recursive(h.0);
-        }
+            for h in handles {
+                self.dec_object_strong_recursive(h.0);
+            }
     }
 
     fn dec_value_if_heap(&mut self, v: &ArtValue) {
@@ -280,31 +315,28 @@ impl Interpreter {
         match v {
             ArtValue::Array(a) => {
                 for child in a {
-                    if let ArtValue::HeapComposite(h) = child
-                        && let Some(c) = self.heap_objects.get_mut(&h.0)
+                        if let ArtValue::HeapComposite(h) = child
+                        && let Some(_c) = self.heap_objects.get(&h.0)
                     {
-                        c.inc_strong();
-                        self.strong_increments += 1;
+                        self.inc_heap_strong(h.0);
                     }
                 }
             }
             ArtValue::StructInstance { fields, .. } => {
                 for child in fields.values() {
                     if let ArtValue::HeapComposite(h) = child
-                        && let Some(c) = self.heap_objects.get_mut(&h.0)
+                        && let Some(_c) = self.heap_objects.get(&h.0)
                     {
-                        c.inc_strong();
-                        self.strong_increments += 1;
+                        self.inc_heap_strong(h.0);
                     }
                 }
             }
             ArtValue::EnumInstance { values, .. } => {
                 for child in values {
                     if let ArtValue::HeapComposite(h) = child
-                        && let Some(c) = self.heap_objects.get_mut(&h.0)
+                        && let Some(_c) = self.heap_objects.get(&h.0)
                     {
-                        c.inc_strong();
-                        self.strong_increments += 1;
+                        self.inc_heap_strong(h.0);
                     }
                 }
             }
@@ -341,25 +373,67 @@ impl Interpreter {
     }
 
     fn dec_object_strong_recursive(&mut self, id: u64) {
+        // Prepare debug info before taking mutable borrow to avoid borrow conflicts
+        let debug_keys_opt: Option<Vec<u64>> = if self.finalizers.contains_key(&id) {
+            Some(self.heap_objects.keys().cloned().collect())
+        } else {
+            None
+        };
         // Limitar o escopo do borrow mutável para não conflitar com chamadas recursivas
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             if obj.strong > 0 {
+                // perform decrement inline to avoid re-borrowing `self`
                 obj.dec_strong();
                 self.strong_decrements += 1;
             }
             let should_recurse = !obj.alive; // caiu a zero agora
             if should_recurse {
                 self.objects_finalized += 1;
+                // attribute finalized object to its arena if present
+                if let Some(aid) = obj.arena_id {
+                    *self.objects_finalized_per_arena.entry(aid).or_insert(0) += 1;
+                }
             }
             if should_recurse {
                 // Executar finalizer se existir (snapshot para usar depois do borrow)
+                if let Some(keys) = debug_keys_opt.as_ref() {
+                    // debug info collected earlier (no-op in release)
+                    let _ = keys;
+                }
                 let finalizer = self.finalizers.remove(&id);
                 // liberar filhos fortes
                 let snapshot = obj.value.clone(); // clone para evitar emprestimo duplo
+                // debug info omitted in release
+                let _ = snapshot; // snapshot used later in logic
                 // encerra o borrow mutável aqui
                 let _ = obj;
                 // agora podemos recursivamente decrementar filhos sem conflito de borrow
                 self.dec_children_strong(&snapshot);
+                // Invalidate weak/unowned wrappers that reference this object: mark as dangling
+                // We record dead weak ids for metrics and later removal.
+                // Note: heap_objects may have changed during finalizer execution; operate on snapshot of keys.
+                let mut to_mark_dead: Vec<u64> = Vec::new();
+                for (other_id, other_obj) in self.heap_objects.iter_mut() {
+                    match &mut other_obj.value {
+                        ArtValue::WeakRef(h) => {
+                            if h.0 == id {
+                                // Mark weak wrapper as dangling for metrics; upgrade will return None thereafter
+                                self.weak_dangling += 1;
+                                to_mark_dead.push(*other_id);
+                            }
+                        }
+                        ArtValue::UnownedRef(h) => {
+                            if h.0 == id {
+                                // mark the unowned wrapper as dangling by recording metric
+                                self.unowned_dangling += 1;
+                                to_mark_dead.push(*other_id);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                // For wrappers that we decided to mark, we don't remove heap entries; we record ids
+                // no-op: metrics already updated above for unowned dangling wrappers
                 if let Some(func) = finalizer {
                     // chamar sem argumentos
                     // Executar função finalizer no ambiente global raiz para permitir expor flags globais
@@ -398,6 +472,9 @@ impl Interpreter {
                     let promoted = local_handles.len();
                     if promoted > 0 {
                         self.finalizer_promotions += promoted;
+                        if let Some(aid) = self.current_finalizer_promotion_target {
+                            *self.finalizer_promotions_per_arena.entry(aid).or_insert(0) += promoted;
+                        }
                     }
                     for h in local_handles.iter() {
                         root.borrow_mut().strong_handles.push(*h);
@@ -426,9 +503,35 @@ impl Interpreter {
             }
         }
 
-        // Segunda fase: se o objeto foi finalizado e não tem weaks, removê-lo do heap para liberar memória
-        if let Some(obj2) = self.heap_objects.get(&id) && !obj2.alive && obj2.weak == 0 {
-            self.heap_objects.remove(&id);
+        // Segunda fase: se o objeto foi finalizado e não tem weaks, remover do heap somente se
+        // nenhum outro objeto vivo referencia este id (evita dangling handles).
+        if let Some(obj2) = self.heap_objects.get(&id)
+            && !obj2.alive
+            && obj2.weak == 0
+        {
+            // verificar se algum objeto vivo referencia este id
+            fn referenced_in(value: &ArtValue, target: u64) -> bool {
+                match value {
+                    ArtValue::HeapComposite(h) => h.0 == target,
+                    ArtValue::Array(a) => a.iter().any(|e| referenced_in(e, target)),
+                    ArtValue::StructInstance { fields, .. } =>
+                        fields.values().any(|e| referenced_in(e, target)),
+                    ArtValue::EnumInstance { values, .. } =>
+                        values.iter().any(|e| referenced_in(e, target)),
+                    _ => false,
+                }
+            }
+            let mut referenced = false;
+            for (_other_id, other_obj) in self.heap_objects.iter() {
+                if other_obj.alive && referenced_in(&other_obj.value, id) {
+                    referenced = true;
+                    break;
+                }
+            }
+            if !referenced {
+                // safe to remove
+                self.heap_objects.remove(&id);
+            }
         }
     }
 
@@ -438,9 +541,7 @@ impl Interpreter {
     }
     /// Debug/testing: remove id simulando queda de último strong ref
     pub fn debug_heap_remove(&mut self, id: u64) {
-        if let Some(obj) = self.heap_objects.get_mut(&id) {
-            obj.dec_strong();
-        }
+    self.dec_heap_strong(id);
     }
     pub fn debug_heap_upgrade_weak(&self, id: u64) -> Option<ArtValue> {
         self.heap_upgrade_weak(id)
@@ -452,22 +553,73 @@ impl Interpreter {
             None
         }
     }
-    pub fn debug_heap_dec_strong(&mut self, id: u64) {
-        if let Some(obj) = self.heap_objects.get_mut(&id) {
-            obj.dec_strong();
-        }
-    }
-    pub fn debug_heap_inc_weak(&mut self, id: u64) {
+
+    /// Central helper to increment weak counter on a heap object if present.
+    /// Keeping this small wrapper makes it easier to audit all weak operations
+    /// in one place when adapting the internal Arc semantics.
+    pub fn inc_heap_weak(&mut self, id: u64) {
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             obj.inc_weak();
         }
     }
 
-    /// Test helper: decrementa contador weak (para simulação em testes)
-    pub fn debug_heap_dec_weak(&mut self, id: u64) {
+    /// Central helper to decrement weak counter on a heap object if present.
+    pub fn dec_heap_weak(&mut self, id: u64) {
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             obj.dec_weak();
         }
+    }
+    /// Central helper to increment strong counter on a heap object and update metrics.
+    pub fn inc_heap_strong(&mut self, id: u64) {
+        if let Some(obj) = self.heap_objects.get_mut(&id) {
+            obj.inc_strong();
+            self.strong_increments += 1;
+        }
+    }
+
+    /// Central helper to decrement strong counter on a heap object and update metrics.
+    /// This is a low-level helper; high-level finalization logic remains in
+    /// `dec_object_strong_recursive` which handles finalizers and sweeping.
+    pub fn dec_heap_strong(&mut self, id: u64) {
+        if let Some(obj) = self.heap_objects.get_mut(&id) {
+            // perform decrement inline to avoid re-borrowing `self` while a
+            // mutable reference into `heap_objects` is held (prevents E0499).
+            obj.dec_strong();
+            self.strong_decrements += 1;
+        }
+    }
+
+    /// Inner helper that performs the decrement on an existing mutable reference
+    /// to a `HeapObject`. This avoids performing multiple `get_mut` borrows when
+    /// the caller already holds a mutable reference (used by finalizer flow).
+    // NOTE: the previous implementation used a helper method that took
+    // `&mut self` plus `&mut HeapObject`. That caused borrow-checker
+    // conflicts when callers already held a mutable borrow into
+    // `self.heap_objects` and then attempted to call another `&mut self`
+    // method. To avoid E0499 we inline the decrement where the mutable
+    // borrow is available and update metrics directly.
+
+    /// Force the strong counter to 1 by mutating state in a single, auditable helper.
+    /// This mirrors previous behavior where some paths set strong=1 to ensure a
+    /// subsequent dec drops the object; centralizing makes it easier to find
+    /// all write-sites to strong when adapting Arc semantics.
+    pub fn force_heap_strong_to_one(&mut self, id: u64) {
+        if let Some(obj) = self.heap_objects.get_mut(&id) {
+            if obj.strong > 0 {
+                obj.strong = 1;
+            }
+        }
+    }
+    pub fn debug_heap_dec_strong(&mut self, id: u64) {
+        self.dec_heap_strong(id);
+    }
+    pub fn debug_heap_inc_weak(&mut self, id: u64) {
+    self.inc_heap_weak(id);
+    }
+
+    /// Test helper: decrementa contador weak (para simulação em testes)
+    pub fn debug_heap_dec_weak(&mut self, id: u64) {
+    self.dec_heap_weak(id);
     }
 
     /// Test helper: coleta e remove do heap todos objetos finalizados (!alive) que
@@ -477,18 +629,46 @@ impl Interpreter {
         let dead_ids: Vec<u64> = self
             .heap_objects
             .iter()
-            .filter_map(|(id, obj)| if !obj.alive && obj.weak == 0 { Some(*id) } else { None })
+            .filter_map(|(id, obj)| {
+                if !obj.alive && obj.weak == 0 {
+                    Some(*id)
+                } else {
+                    None
+                }
+            })
             .collect();
+        // Helper to check whether a live object references target id
+        fn referenced_in(value: &ArtValue, target: u64) -> bool {
+            match value {
+                ArtValue::HeapComposite(h) => h.0 == target,
+                ArtValue::Array(a) => a.iter().any(|e| referenced_in(e, target)),
+                ArtValue::StructInstance { fields, .. } =>
+                    fields.values().any(|e| referenced_in(e, target)),
+                ArtValue::EnumInstance { values, .. } =>
+                    values.iter().any(|e| referenced_in(e, target)),
+                _ => false,
+            }
+        }
         for id in dead_ids {
-            self.heap_objects.remove(&id);
+            let mut referenced = false;
+            for (_other_id, other_obj) in self.heap_objects.iter() {
+                if other_obj.alive && referenced_in(&other_obj.value, id) {
+                    referenced = true;
+                    break;
+                }
+            }
+            if !referenced {
+                self.heap_objects.remove(&id);
+            }
         }
     }
 
     /// Test helper: forçar execução do fluxo de finalização para um id específico.
     /// Isto chama o decremento recursivo e em seguida faz sweep de mortos.
     pub fn debug_run_finalizer(&mut self, id: u64) {
-        self.dec_object_strong_recursive(id);
-        self.debug_sweep_dead();
+    // Restore original behavior: force a decrement/sweep for the helper
+    self.dec_object_strong_recursive(id);
+    self.debug_sweep_dead();
     }
 
     /// Test helper: registra valor na arena especificada e retorna id
@@ -503,7 +683,7 @@ impl Interpreter {
 
     /// Test helper: verifica se um id ainda existe no heap
     pub fn debug_heap_contains(&self, id: u64) -> bool {
-    self.heap_objects.contains_key(&id)
+        self.heap_objects.contains_key(&id)
     }
 
     /// Habilitar checagem de invariantes em pontos críticos (útil para testes)
@@ -518,7 +698,7 @@ impl Interpreter {
 
     /// Verificação básica de invariantes do heap. Retorna true se OK.
     pub fn debug_check_invariants(&self) -> bool {
-    for (_id, obj) in self.heap_objects.iter() {
+        for (_id, obj) in self.heap_objects.iter() {
             if obj.strong == 0 && obj.alive {
                 return false;
             }
@@ -527,11 +707,16 @@ impl Interpreter {
                 return false;
             }
             // handles referenciem objetos existentes quando array/struct contêm HeapComposite
-            fn scan(v: &ArtValue, heap: &std::collections::HashMap<u64, crate::heap::HeapObject>) -> bool {
+            fn scan(
+                v: &ArtValue,
+                heap: &std::collections::HashMap<u64, crate::heap::HeapObject>,
+            ) -> bool {
                 match v {
                     ArtValue::HeapComposite(h) => heap.contains_key(&h.0),
                     ArtValue::Array(a) => a.iter().all(|e| scan(e, heap)),
-                    ArtValue::StructInstance { fields, .. } => fields.values().all(|e| scan(e, heap)),
+                    ArtValue::StructInstance { fields, .. } => {
+                        fields.values().all(|e| scan(e, heap))
+                    }
                     ArtValue::EnumInstance { values, .. } => values.iter().all(|e| scan(e, heap)),
                     _ => true,
                 }
@@ -543,9 +728,54 @@ impl Interpreter {
         true
     }
 
+    /// Debug helper: return textual descriptions of invariant violations (empty if none)
+    pub fn debug_invariant_violations(&self) -> Vec<String> {
+        let mut msgs = Vec::new();
+        for (id, obj) in self.heap_objects.iter() {
+            if obj.strong == 0 && obj.alive {
+                msgs.push(format!("object {} is alive but has strong==0", id));
+            }
+            if obj.weak > 1_000_000 || obj.strong > 1_000_000 {
+                msgs.push(format!("object {} has absurd refcounts strong={} weak={}", id, obj.strong, obj.weak));
+            }
+            // scan children for dangling handles
+            fn scan(v: &ArtValue, heap: &std::collections::HashMap<u64, crate::heap::HeapObject>, msgs: &mut Vec<String>, parent: u64) {
+                match v {
+                    ArtValue::HeapComposite(h) => {
+                        if !heap.contains_key(&h.0) {
+                            msgs.push(format!("parent {} references missing child {}", parent, h.0));
+                        }
+                    }
+                    ArtValue::Array(a) => {
+                        for e in a { scan(e, heap, msgs, parent); }
+                    }
+                    ArtValue::StructInstance { fields, .. } => {
+                        for val in fields.values() { scan(val, heap, msgs, parent); }
+                    }
+                    ArtValue::EnumInstance { values, .. } => {
+                        for val in values { scan(val, heap, msgs, parent); }
+                    }
+                    _ => {}
+                }
+            }
+            scan(&obj.value, &self.heap_objects, &mut msgs, *id);
+        }
+        msgs
+    }
+
     /// Test helper: define valor no ambiente global
     pub fn debug_define_global(&mut self, name: &str, val: ArtValue) {
-        self.environment.borrow_mut().define(name, val);
+        // Mimic the real `let` semantics: if a previous value exists, decrement its heap refs
+        let old_opt = self.environment.borrow().get(name);
+        if let Some(old) = old_opt {
+            self.dec_value_if_heap(&old);
+        }
+        // define and register strong handle if heap composite (mirror `let`)
+        let mut env = self.environment.borrow_mut();
+        if let ArtValue::HeapComposite(h) = &val {
+            env.strong_handles.push(*h);
+        }
+        env.define(name, val);
     }
     pub fn debug_get_global(&self, name: &str) -> Option<ArtValue> {
         self.environment.borrow().get(name)
@@ -678,7 +908,7 @@ impl Interpreter {
             (0.0, 0.0)
         };
         let mut candidate_owner_edges = Vec::new();
-    for (id, obj) in self.heap_objects.iter() {
+        for (id, obj) in self.heap_objects.iter() {
             if !obj.alive {
                 continue;
             }
@@ -1626,17 +1856,13 @@ impl Interpreter {
                     let val = self.evaluate(first)?;
                     let (_id, handle) = match val {
                         ArtValue::HeapComposite(h) => {
-                            if let Some(obj) = self.heap_objects.get_mut(&h.0) {
-                                obj.inc_weak();
-                            }
+                            self.inc_heap_weak(h.0);
                             (h.0, h)
                         }
                         other => {
                             // Para tipos escalares ainda criar wrapper heap para permitir weak.
                             let id = self.heap_register(other);
-                            if let Some(obj) = self.heap_objects.get_mut(&id) {
-                                obj.inc_weak();
-                            }
+                            self.inc_heap_weak(id);
                             (id, ObjHandle(id))
                         }
                     };
@@ -1944,7 +2170,7 @@ impl Interpreter {
         // 2. Construir grafo usando heap ids (apenas objetos vivos)
         let mut edges: HashMap<u64, Vec<u64>> = HashMap::new();
         let mut incoming: HashMap<u64, Vec<u64>> = HashMap::new();
-    for (id, obj) in self.heap_objects.iter() {
+        for (id, obj) in self.heap_objects.iter() {
             if !obj.alive {
                 continue;
             }
@@ -2280,7 +2506,7 @@ impl Interpreter {
         s
     }
 
-    /// Versão prettificada (indentação 2 espaços) para debug humano.
+    /// Versão prettificada (indentação 2 espaços)
     pub fn detect_cycles_json_pretty(&mut self) -> String {
         let mut raw = self.detect_cycles_json();
         // Simples pretty printer para nosso JSON restrito (sem strings com braces dentro)

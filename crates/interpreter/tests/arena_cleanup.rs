@@ -1,5 +1,5 @@
-use interpreter::interpreter::Interpreter;
 use core::ast::ArtValue;
+use interpreter::interpreter::Interpreter;
 
 #[test]
 fn arena_cleanup_removes_dead_objects_without_weaks() {
@@ -15,5 +15,8 @@ fn arena_cleanup_removes_dead_objects_without_weaks() {
     // Finalizar arena explicitamente
     interp.debug_finalize_arena(aid);
     // Como não há weaks, o objeto deve ser removido do heap
-    assert!(!interp.debug_heap_contains(id), "objeto de arena deveria ser removido");
+    assert!(
+        !interp.debug_heap_contains(id),
+        "objeto de arena deveria ser removido"
+    );
 }

@@ -1,0 +1,61 @@
+name: Metrics validation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build workspace
+        run: cargo build --workspace --all-targets --locked
+      - name: Run interpreter tests
+        run: cargo test -p interpreter --tests --locked
+      - name: Run cli integration tests
+        run: cargo test -p cli --test metrics_integration --locked
+      - name: Smoke run art metrics on example and validate JSON
+        run: |
+          set -euo pipefail
+          cargo build -p cli --locked --release
+          mkdir -p artifacts
+          ./target/release/art metrics --json cli/examples/metrics_arena_demo.art > artifacts/metrics.json
+          # Basic presence checks
+          jq -e 'has("arena_alloc_count") and has("objects_finalized_per_arena") and has("finalizer_promotions_per_arena")' artifacts/metrics.json
+          # Ensure top-level numeric fields have expected types
+          jq -e '.handled_errors | numbers' artifacts/metrics.json
+          jq -e '.executed_statements | numbers' artifacts/metrics.json
+          jq -e '.crash_free | numbers' artifacts/metrics.json
+          # Ensure arena maps are objects mapping string keys to non-negative integers
+          jq -e '.arena_alloc_count | type == "object"' artifacts/metrics.json
+          jq -e '.arena_alloc_count[] | (type == "number") and (. >= 0)' artifacts/metrics.json
+          jq -e '.objects_finalized_per_arena[] | (type == "number") and (. >= 0)' artifacts/metrics.json
+          jq -e '.finalizer_promotions_per_arena[] | (type == "number") and (. >= 0)' artifacts/metrics.json
+      - name: Upload metrics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrics-json
+          path: artifacts/metrics.json
+        env:
+          RUST_BACKTRACE: 1

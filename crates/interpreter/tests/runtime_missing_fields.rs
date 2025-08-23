@@ -9,7 +9,13 @@ fn struct_missing_field_diagnostic() {
         let p = Pessoa { nome: "Ana" }
     "#;
     let mut lx = Lexer::new(src.to_string());
-    let tokens = lx.scan_tokens().unwrap();
+    let tokens = match lx.scan_tokens() {
+        Ok(t) => t,
+        Err(e) => {
+            assert!(false, "lexer scan_tokens in runtime_missing_fields.rs failed: {:?}", e);
+            Vec::new()
+        }
+    };
     let mut parser = Parser::new(tokens);
     let (program, _) = parser.parse();
     let mut interp = Interpreter::new();
@@ -29,7 +35,13 @@ fn enum_missing_field_diagnostic() {
         let s = Status.Ok()
     "#;
     let mut lx = Lexer::new(src.to_string());
-    let tokens = lx.scan_tokens().unwrap();
+    let tokens = match lx.scan_tokens() {
+        Ok(t) => t,
+        Err(e) => {
+            assert!(false, "lexer scan_tokens in runtime_missing_fields.rs failed: {:?}", e);
+            Vec::new()
+        }
+    };
     let mut parser = Parser::new(tokens);
     let (program, _) = parser.parse();
     let mut interp = Interpreter::new();

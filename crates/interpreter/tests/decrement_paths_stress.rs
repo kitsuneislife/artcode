@@ -11,7 +11,8 @@ fn stress_finalizer_mass_promotion() {
     let mut ids = Vec::new();
     for i in 0..n {
         let aid = interp.debug_create_arena();
-        let id = interp.debug_heap_register_in_arena(ArtValue::Array(vec![ArtValue::Int(i as i64)]), aid);
+        let id = interp
+            .debug_heap_register_in_arena(ArtValue::Array(vec![ArtValue::Int(i as i64)]), aid);
         ids.push(id);
         // criar finalizer function dinamicamente
         let fname = format!("fin_{}", i);
@@ -28,13 +29,20 @@ fn stress_finalizer_mass_promotion() {
             }),
             method_owner: None,
         };
-        interp.interpret(vec![fin]).unwrap();
+    assert!(interp.interpret(vec![fin]).is_ok(), "interpret fin in decrement_paths_stress.rs failed");
         // registrar finalizer chamando on_finalize
         let call = Stmt::Expression(Expr::Call {
-            callee: Box::new(Expr::Variable { name: core::Token::dummy("on_finalize") }),
-            arguments: vec![Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id))), Expr::Variable { name: core::Token::dummy(&fname) }],
+            callee: Box::new(Expr::Variable {
+                name: core::Token::dummy("on_finalize"),
+            }),
+            arguments: vec![
+                Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id))),
+                Expr::Variable {
+                    name: core::Token::dummy(&fname),
+                },
+            ],
         });
-        interp.interpret(vec![call]).unwrap();
+    assert!(interp.interpret(vec![call]).is_ok(), "interpret call in decrement_paths_stress.rs failed");
         // remover strong para provocar finalizer
         interp.debug_heap_remove(id);
     }
@@ -47,7 +55,10 @@ fn stress_finalizer_mass_promotion() {
     // mas devemos ao menos ter algum global 'promoted' definido.
     assert!(interp.debug_get_global("promoted").is_some());
     // Verificar métrica de promoções foi incrementada
-    assert!(interp.get_finalizer_promotions() > 0, "expected finalizer_promotions > 0 after stress promotions");
+    assert!(
+        interp.get_finalizer_promotions() > 0,
+        "expected finalizer_promotions > 0 after stress promotions"
+    );
 }
 
 // Stress B: criar grandes ciclos e verificar detect_cycles result
@@ -81,7 +92,10 @@ fn stress_cycle_detection_large_ring() {
     let result = interp.detect_cycles();
     // Validação robusta: garantir que existe cohérence entre detect_cycles e cycle_report
     let report = interp.cycle_report();
-    assert!(report.heap_alive > 0, "esperado ao menos um objeto vivo no heap");
+    assert!(
+        report.heap_alive > 0,
+        "esperado ao menos um objeto vivo no heap"
+    );
     // garantir que detect_cycles retornou sem panics e populou estruturas
     // Apenas garantir que detect_cycles retornou sem panics e produziu a coleção
     assert!(result.weak_dead.is_empty() || !result.weak_dead.is_empty());
@@ -103,10 +117,13 @@ fn stress_chained_finalizers_cross_arena() {
         name: core::Token::dummy("fin1"),
         params: vec![],
         return_type: None,
-        body: std::rc::Rc::new(Stmt::Block { statements: vec![Stmt::Let {
-            name: core::Token::dummy("from_fin1"), ty: None,
-            initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(1))]),
-        }] }),
+        body: std::rc::Rc::new(Stmt::Block {
+            statements: vec![Stmt::Let {
+                name: core::Token::dummy("from_fin1"),
+                ty: None,
+                initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(1))]),
+            }],
+        }),
         method_owner: None,
     };
     // finalizer for id2 creates a global object
@@ -114,16 +131,39 @@ fn stress_chained_finalizers_cross_arena() {
         name: core::Token::dummy("fin2"),
         params: vec![],
         return_type: None,
-        body: std::rc::Rc::new(Stmt::Block { statements: vec![Stmt::Let {
-            name: core::Token::dummy("from_fin2"), ty: None,
-            initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(2))]),
-        }] }),
+        body: std::rc::Rc::new(Stmt::Block {
+            statements: vec![Stmt::Let {
+                name: core::Token::dummy("from_fin2"),
+                ty: None,
+                initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(2))]),
+            }],
+        }),
         method_owner: None,
     };
-    interp.interpret(vec![fin1, fin2]).unwrap();
+    assert!(interp.interpret(vec![fin1, fin2]).is_ok(), "interpret fin1/fin2 in decrement_paths_stress.rs failed");
     // register finalizers
-    interp.interpret(vec![Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("on_finalize") }), arguments: vec![Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id1))), Expr::Variable { name: core::Token::dummy("fin1") }]} )]).unwrap();
-    interp.interpret(vec![Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("on_finalize") }), arguments: vec![Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id2))), Expr::Variable { name: core::Token::dummy("fin2") }]} )]).unwrap();
+    assert!(interp.interpret(vec![Stmt::Expression(Expr::Call {
+        callee: Box::new(Expr::Variable {
+            name: core::Token::dummy("on_finalize"),
+        }),
+        arguments: vec![
+            Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id1))),
+            Expr::Variable {
+                name: core::Token::dummy("fin1"),
+            },
+        ],
+    })]).is_ok(), "decrement_paths_stress setup failed");
+    assert!(interp.interpret(vec![Stmt::Expression(Expr::Call {
+        callee: Box::new(Expr::Variable {
+            name: core::Token::dummy("on_finalize"),
+        }),
+        arguments: vec![
+            Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id2))),
+            Expr::Variable {
+                name: core::Token::dummy("fin2"),
+            },
+        ],
+    })]).is_ok(), "decrement_paths_stress run failed");
 
     // remove strongs and run finalizers in chain
     interp.debug_heap_remove(id1);

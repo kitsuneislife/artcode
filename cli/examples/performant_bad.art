@@ -1,0 +1,8 @@
+performant {
+  let x = [1,2,3];
+  return x; // should be rejected by TypeInfer static check
+}
+performant {
+  let x = [1,2,3];
+  return x; // should be rejected by TypeInfer static check
+}

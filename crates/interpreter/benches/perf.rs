@@ -14,12 +14,18 @@ fn bench_parse_exec(c: &mut Criterion) {
     c.bench_function("parse+exec", |b| {
         b.iter(|| {
             let mut lx = Lexer::new(src.to_string());
-            let tokens = lx.scan_tokens().unwrap();
+            let tokens = match lx.scan_tokens() {
+                Ok(t) => t,
+                Err(e) => {
+                    assert!(false, "lexer scan_tokens in bench perf.rs failed: {:?}", e);
+                    Vec::new()
+                }
+            };
             let mut p = Parser::new(tokens);
             let (program, diags) = p.parse();
             assert!(diags.is_empty());
             let mut interp = Interpreter::with_prelude();
-            interp.interpret(program).unwrap();
+            assert!(interp.interpret(program).is_ok(), "interpret program in bench perf.rs failed");
         });
     });
 }

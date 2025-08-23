@@ -5,6 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch: {}
 
 jobs:
   build-and-test:
@@ -44,6 +45,41 @@ jobs:
         with:
           name: metrics
           path: artifacts/metrics.json
+  coverage:
+    needs: build-and-test
+    # Run coverage only when manually triggered via workflow_dispatch to avoid long runs on every push.
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+      - name: Run coverage
+        run: cargo llvm-cov --workspace --ignore-filename-regex ".*/target/.*" --lcov --output-path lcov.info
+      - name: Coverage threshold
+        run: |
+          # lcov DA lines are 'DA:<line>,<count>' - sum counts and number of lines
+          lines=$(grep -h '^DA:' lcov.info | awk -F',' '{covered+=$2; total+=1} END { if (total==0) { print "0 0" } else { print covered" "total }}')
+          covered=$(echo $lines | awk '{print $1}')
+          total=$(echo $lines | awk '{print $2}')
+          pct=0
+          if [ "$total" -gt 0 ]; then pct=$(awk -v c=$covered -v t=$total 'BEGIN { printf("%.2f", (c/t)*100) }'); fi
+          echo "Coverage: $pct%";
+          awk -v p=$pct 'BEGIN { exit (p < 60.0) ? 1 : 0 }'
+      - name: Generate badge
+        run: scripts/gen_coverage_badge.sh lcov.info target/coverage_badge.svg
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov
+          path: lcov.info
+      - name: Upload coverage badge
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-badge
+          path: target/coverage_badge.svg
 
 
 
