@@ -1,4 +1,5 @@
 use diagnostics::format_diagnostic;
+mod resolver;
 use interpreter::interpreter::Interpreter;
 use interpreter::type_infer::{TypeEnv, TypeInfer};
 use lexer::lexer::Lexer;
@@ -59,11 +60,32 @@ fn run_with_source(_name: &str, source: String) {
 }
 
 fn run_file(path: &str) {
-    match fs::read_to_string(path) {
-        Ok(src) => run_with_source(path, src),
-        Err(e) => {
-            eprintln!("Error reading file: {}", e);
-            process::exit(74);
+    // Use resolver to expand imports
+    match crate::resolver::resolve(path) {
+        Ok((program, main_source)) => {
+            // We have a flattened program; run type-infer and interpreter on it
+            let mut tenv = TypeEnv::new();
+            let mut tinf = TypeInfer::new(&mut tenv);
+            if let Err(type_diags) = tinf.run(&program) {
+                for d in &type_diags {
+                    eprintln!("{}", format_diagnostic(&main_source, d));
+                }
+                return;
+            }
+            let mut interpreter = Interpreter::with_prelude();
+            if let Err(e) = interpreter.interpret(program) {
+                eprintln!("Erro de execução: {}", e);
+            }
+            for d in interpreter.take_diagnostics() {
+                eprintln!("{}", format_diagnostic(&main_source, &d));
+            }
+            return;
+        }
+        Err(diags) => {
+            for (src, d) in diags {
+                eprintln!("{}", format_diagnostic(&src, &d));
+            }
+            process::exit(65);
         }
     }
 }
@@ -107,39 +129,93 @@ fn main() {
         };
         match fs::read_to_string(f) {
             Ok(source) => {
-                let mut lexer = Lexer::new(source.clone());
-                let tokens = match lexer.scan_tokens() {
-                    Ok(t) => t,
-                    Err(d) => {
-                        eprintln!("{}", format_diagnostic(&source, &d));
+                // Use resolver to expand imports before collecting metrics
+                match crate::resolver::resolve(f) {
+                    Ok((program, main_source)) => {
+                        // Run type inference/static checks before interpretation in metrics mode as well.
+                        let mut tenv = TypeEnv::new();
+                        let mut tinf = TypeInfer::new(&mut tenv);
+                        if let Err(type_diags) = tinf.run(&program) {
+                            for d in &type_diags {
+                                eprintln!("{}", format_diagnostic(&main_source, d));
+                            }
+                            return;
+                        }
+                        let mut interpreter = Interpreter::with_prelude();
+                        // habilitar checagens de invariantes por padrão ao coletar métricas
+                        interpreter.enable_invariant_checks(true);
+                        if let Err(e) = interpreter.interpret(program) {
+                            eprintln!("Erro de execução: {}", e);
+                        }
+                        for d in interpreter.take_diagnostics() {
+                            eprintln!("{}", format_diagnostic(&main_source, &d));
+                        }
+                        // continue to JSON printing path below using interpreter
+                        // (we reuse interpreter variable by shadowing via a block)
+                        {
+                            // move interpreter metrics into scope for JSON serialization
+                            let interpreter = interpreter;
+                            if json {
+                                #[derive(Serialize)]
+                                struct Metrics {
+                                    handled_errors: usize,
+                                    executed_statements: usize,
+                                    crash_free: f64,
+                                    finalizer_promotions: usize,
+                                    objects_finalized_per_arena: std::collections::HashMap<u32, usize>,
+                                    arena_alloc_count: std::collections::HashMap<u32, usize>,
+                                    finalizer_promotions_per_arena: std::collections::HashMap<u32, usize>,
+                                    weak_created: usize,
+                                    weak_upgrades: usize,
+                                    weak_dangling: usize,
+                                    unowned_created: usize,
+                                    unowned_dangling: usize,
+                                    cycle_reports_run: usize,
+                                }
+
+                                // Ensure per-arena promotion map has entries for all arenas seen (default 0)
+                                let mut finalizer_promotions_per_arena = interpreter.finalizer_promotions_per_arena.clone();
+                                for aid in interpreter.arena_alloc_count.keys() {
+                                    finalizer_promotions_per_arena.entry(*aid).or_insert(0usize);
+                                }
+
+                                let metrics = Metrics {
+                                    handled_errors: interpreter.handled_errors,
+                                    executed_statements: interpreter.executed_statements,
+                                    crash_free: 100.0
+                                        * (1.0
+                                            - (interpreter.handled_errors as f64
+                                                / interpreter.executed_statements.max(1) as f64)),
+                                    finalizer_promotions: interpreter.get_finalizer_promotions(),
+                                    objects_finalized_per_arena: interpreter.objects_finalized_per_arena.clone(),
+                                    arena_alloc_count: interpreter.arena_alloc_count.clone(),
+                                    finalizer_promotions_per_arena: finalizer_promotions_per_arena,
+                                    weak_created: interpreter.weak_created,
+                                    weak_upgrades: interpreter.weak_upgrades,
+                                    weak_dangling: interpreter.weak_dangling,
+                                    unowned_created: interpreter.unowned_created,
+                                    unowned_dangling: interpreter.unowned_dangling,
+                                    cycle_reports_run: interpreter.cycle_reports_run.get(),
+                                };
+
+                                match serde_json::to_string(&metrics) {
+                                    Ok(s) => println!("{}", s),
+                                    Err(e) => {
+                                        eprintln!("Failed to serialize metrics: {}", e);
+                                        process::exit(70);
+                                    }
+                                }
+                                return;
+                            }
+                        }
                         return;
                     }
-                };
-                let mut parser = Parser::new(tokens);
-                let (program, diags) = parser.parse();
-                if !diags.is_empty() {
-                    for d in &diags {
-                        eprintln!("{}", format_diagnostic(&source, d));
+                    Err(diags) => {
+                        for (src, d) in diags {
+                            eprintln!("{}", format_diagnostic(&src, &d));
+                        }
+                        return;
                     }
-                    return;
-                }
-                // Run type inference/static checks before interpretation in metrics mode as well.
-                let mut tenv = TypeEnv::new();
-                let mut tinf = TypeInfer::new(&mut tenv);
-                if let Err(type_diags) = tinf.run(&program) {
-                    for d in &type_diags {
-                        eprintln!("{}", format_diagnostic(&source, d));
-                    }
-                    return;
-                }
-                let mut interpreter = Interpreter::with_prelude();
-                // habilitar checagens de invariantes por padrão ao coletar métricas
-                interpreter.enable_invariant_checks(true);
-                if let Err(e) = interpreter.interpret(program) {
-                    eprintln!("Erro de execução: {}", e);
-                }
-                for d in interpreter.take_diagnostics() {
-                    eprintln!("{}", format_diagnostic(&source, &d));
                 }
                 if json {
                     #[derive(Serialize)]
