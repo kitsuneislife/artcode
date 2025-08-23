@@ -5,8 +5,8 @@ func fin_promote() {
 }
 
 performant {
-  let a = [1,2,3];
-  on_finalize(a, fin_promote);
+  let _a = [1,2,3];
+  on_finalize(_a, fin_promote);
 }
 // 14_finalizer_examples.art
 // Exemplo mínimo para demonstrar finalizers e promoção de handles.
@@ -22,8 +22,8 @@ func fin_promote() {
 on_finalize(target, fin_save_owner);
 
 performant {
-  let a = [1, 2, 3];
-  on_finalize(a, fin_promote);
+  let _a = [1, 2, 3];
+  on_finalize(_a, fin_promote);
 }
 
 // Nota: este arquivo é didático; os testes automatizados no repositório usam helpers de debug

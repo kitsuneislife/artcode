@@ -188,17 +188,20 @@ impl<'a> TypeInfer<'a> {
                 }
                 // Declare this name in the current lexical scope so nested checks know it's local.
                 self.declare_var(&name.lexeme);
-                // Se inicializador é potencialmente composto, emitir aviso conservador
+                // Se inicializador é potencialmente composto, emitir aviso conservador.
+                // Suprimir para bindings que começam com '_' (convencionalmente temporários).
                 match initializer {
                     Expr::Array(_)
                     | Expr::StructInit { .. }
                     | Expr::EnumInit { .. }
                     | Expr::Call { .. } => {
-                        self.diags.push(Diagnostic::new(
-                            DiagnosticKind::Type,
-                            format!("Variable '{}' initialized with a composite value inside `performant` — ensure it does not escape the block", name.lexeme),
-                            Span::new(name.start, name.end, name.line, name.col),
-                        ));
+                        if !name.lexeme.starts_with('_') {
+                            self.diags.push(Diagnostic::new(
+                                DiagnosticKind::Type,
+                                format!("Variable '{}' initialized with a composite value inside `performant` — ensure it does not escape the block", name.lexeme),
+                                Span::new(name.start, name.end, name.line, name.col),
+                            ));
+                        }
                     }
                     _ => {}
                 }
@@ -219,6 +222,8 @@ impl<'a> TypeInfer<'a> {
                 // Conservative extra: if the variable name looks like a non-temporary (doesn't start with _)
                 // we warn that assigning to an outer-named variable may escape. This is a heuristic
                 // until a full symbol-table/outer-scope analysis is implemented.
+                // If the binding starts with '_' it's a temporary by convention; suppress this
+                // heuristic diagnostic which otherwise triggers for normal names.
                 if !name.lexeme.starts_with('_') {
                     self.diags.push(Diagnostic::new(
                         DiagnosticKind::Type,

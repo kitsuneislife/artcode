@@ -53,7 +53,14 @@ impl Lexer {
             ':' => self.add_token(TokenType::Colon),
             '*' => self.add_token(TokenType::Star),
             '?' => self.add_token(TokenType::Question),
-            '_' => self.add_token(TokenType::Underscore),
+            '_' => {
+                // If underscore is followed by alphanumeric, treat as identifier (e.g. _tmp).
+                if self.peek().is_alphanumeric() {
+                    self.identifier();
+                } else {
+                    self.add_token(TokenType::Underscore);
+                }
+            }
             '!' => {
                 let token = if self.match_char('=') {
                     TokenType::BangEqual
