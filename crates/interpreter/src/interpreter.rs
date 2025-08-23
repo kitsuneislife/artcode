@@ -14,8 +14,11 @@ use std::rc::Rc;
 // requiring a second `&mut self` borrow. Metric updates remain the
 // responsibility of the caller so incrementing `strong_decrements` can be
 // done where `&mut self` is available.
-fn dec_strong_obj(obj: &mut crate::heap::HeapObject) {
+fn dec_strong_obj(obj: &mut crate::heap::HeapObject) -> bool {
+    // return true if a decrement actually occurred (strong was > 0)
+    let had = obj.strong > 0;
     obj.dec_strong();
+    had
 }
 
 pub struct Interpreter {
@@ -393,8 +396,9 @@ impl Interpreter {
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             if obj.strong > 0 {
                 // centralize the mutation so further changes live in one place
-                dec_strong_obj(obj);
-                self.strong_decrements += 1;
+                if dec_strong_obj(obj) {
+                    self.strong_decrements += 1;
+                }
             }
             let should_recurse = !obj.alive; // caiu a zero agora
             if should_recurse {
@@ -593,8 +597,9 @@ impl Interpreter {
     pub fn dec_heap_strong(&mut self, id: u64) {
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             // delegate to centralized mutation helper
-            dec_strong_obj(obj);
-            self.strong_decrements += 1;
+            if dec_strong_obj(obj) {
+                self.strong_decrements += 1;
+            }
         }
     }
 
