@@ -382,8 +382,9 @@ impl Interpreter {
         // Limitar o escopo do borrow mutável para não conflitar com chamadas recursivas
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             if obj.strong > 0 {
-                // use inner helper to mutate and account metrics without extra borrows
-                self.dec_heap_strong_inner(obj);
+                // perform decrement inline to avoid re-borrowing `self`
+                obj.dec_strong();
+                self.strong_decrements += 1;
             }
             let should_recurse = !obj.alive; // caiu a zero agora
             if should_recurse {
@@ -581,18 +582,22 @@ impl Interpreter {
     /// `dec_object_strong_recursive` which handles finalizers and sweeping.
     pub fn dec_heap_strong(&mut self, id: u64) {
         if let Some(obj) = self.heap_objects.get_mut(&id) {
-            // delegate to inner helper to centralize metric update
-            self.dec_heap_strong_inner(obj);
+            // perform decrement inline to avoid re-borrowing `self` while a
+            // mutable reference into `heap_objects` is held (prevents E0499).
+            obj.dec_strong();
+            self.strong_decrements += 1;
         }
     }
 
     /// Inner helper that performs the decrement on an existing mutable reference
     /// to a `HeapObject`. This avoids performing multiple `get_mut` borrows when
     /// the caller already holds a mutable reference (used by finalizer flow).
-    fn dec_heap_strong_inner(&mut self, obj: &mut crate::heap::HeapObject) {
-        obj.dec_strong();
-        self.strong_decrements += 1;
-    }
+    // NOTE: the previous implementation used a helper method that took
+    // `&mut self` plus `&mut HeapObject`. That caused borrow-checker
+    // conflicts when callers already held a mutable borrow into
+    // `self.heap_objects` and then attempted to call another `&mut self`
+    // method. To avoid E0499 we inline the decrement where the mutable
+    // borrow is available and update metrics directly.
 
     /// Force the strong counter to 1 by mutating state in a single, auditable helper.
     /// This mirrors previous behavior where some paths set strong=1 to ensure a

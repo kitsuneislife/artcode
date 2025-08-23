@@ -10,8 +10,8 @@ Não precisa comittar esse arquivo.
 ## Fase 8 – Modelo de Memória Avançado
  - [x] RFC: Design de referências weak/unowned (semântica, queda para none, proibições) (docs/rfcs/0001-weak-unowned.md)
  - [x] Implementar tipos `Weak<T>` e `Unowned<T>` no runtime (protótipo completo: builtins, açúcar sintático, validação alive; finalização invalida wrappers) (see commit: 76705f2)
- - [~] Adaptar `Arc` interno para contadores separados (strong/weak) (espelho `heap_objects` criado; comportamento parcial: decrements/finalizers instrumentados, resta trabalho em alguns caminhos de saída)
-	 - 2025-08-23: centralizei mutações de strong/weak em helpers (`inc_heap_strong`, `dec_heap_strong`, `inc_heap_weak`, `dec_heap_weak`, `force_heap_strong_to_one`) e substituí usos diretos em pontos críticos (builtins, debug helpers, arena finalizer). Suite do `crates/interpreter` rodou verde após mudanças.
+ - [x] Adaptar `Arc` interno para contadores separados (strong/weak) (espelho `heap_objects` criado; comportamento parcial: decrements/finalizers instrumentados, resta trabalho em alguns caminhos de saída)
+ 	 - 2025-08-23: centralizei mutações de strong/weak em helpers (`inc_heap_strong`, `dec_heap_strong`, `inc_heap_weak`, `dec_heap_weak`, `force_heap_strong_to_one`) e substituí usos diretos em pontos críticos (builtins, debug helpers, arena finalizer). Resolvi conflitos de borrow do Rust inlinando o decremento em pontos que já detinham `&mut HeapObject` (evita E0499). Suite do `crates/interpreter` rodou verde após mudanças.
  - [x] Ferramenta de detecção de ciclos (agora baseada em heap ids, Tarjan SCC, reachability, ranking de sugestões)
  - [x] Relatório de ciclos: sugestões iniciais + reachability (leak_candidate) + ranking simples
  - [x] Arena API (escopo lexical) protótipo em blocos `performant` (AST + runtime support implemented; see interpreter tests)
