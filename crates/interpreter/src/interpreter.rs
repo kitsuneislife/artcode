@@ -7,19 +7,7 @@ use diagnostics::{Diagnostic, DiagnosticKind, Span};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
-
-// Small free helper to centralize the actual mutation of the HeapObject strong
-// counter. This function does not touch Interpreter state so it can be called
-// by code that already holds a mutable reference into `heap_objects` without
-// requiring a second `&mut self` borrow. Metric updates remain the
-// responsibility of the caller so incrementing `strong_decrements` can be
-// done where `&mut self` is available.
-fn dec_strong_obj(obj: &mut crate::heap::HeapObject) -> bool {
-    // return true if a decrement actually occurred (strong was > 0)
-    let had = obj.strong > 0;
-    obj.dec_strong();
-    had
-}
+use crate::heap_utils::dec_strong_obj;
 
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
