@@ -8,6 +8,16 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
+// Small free helper to centralize the actual mutation of the HeapObject strong
+// counter. This function does not touch Interpreter state so it can be called
+// by code that already holds a mutable reference into `heap_objects` without
+// requiring a second `&mut self` borrow. Metric updates remain the
+// responsibility of the caller so incrementing `strong_decrements` can be
+// done where `&mut self` is available.
+fn dec_strong_obj(obj: &mut crate::heap::HeapObject) {
+    obj.dec_strong();
+}
+
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
     type_registry: TypeRegistry,
@@ -382,8 +392,8 @@ impl Interpreter {
         // Limitar o escopo do borrow mutável para não conflitar com chamadas recursivas
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             if obj.strong > 0 {
-                // perform decrement inline to avoid re-borrowing `self`
-                obj.dec_strong();
+                // centralize the mutation so further changes live in one place
+                dec_strong_obj(obj);
                 self.strong_decrements += 1;
             }
             let should_recurse = !obj.alive; // caiu a zero agora
@@ -582,9 +592,8 @@ impl Interpreter {
     /// `dec_object_strong_recursive` which handles finalizers and sweeping.
     pub fn dec_heap_strong(&mut self, id: u64) {
         if let Some(obj) = self.heap_objects.get_mut(&id) {
-            // perform decrement inline to avoid re-borrowing `self` while a
-            // mutable reference into `heap_objects` is held (prevents E0499).
-            obj.dec_strong();
+            // delegate to centralized mutation helper
+            dec_strong_obj(obj);
             self.strong_decrements += 1;
         }
     }
