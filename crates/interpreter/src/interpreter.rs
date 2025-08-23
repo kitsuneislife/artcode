@@ -560,21 +560,26 @@ impl Interpreter {
     /// Keeping this small wrapper makes it easier to audit all weak operations
     /// in one place when adapting the internal Arc semantics.
     pub fn inc_heap_weak(&mut self, id: u64) {
+        use crate::heap_utils::inc_weak_obj;
         if let Some(obj) = self.heap_objects.get_mut(&id) {
-            obj.inc_weak();
+            inc_weak_obj(obj);
         }
     }
 
     /// Central helper to decrement weak counter on a heap object if present.
     pub fn dec_heap_weak(&mut self, id: u64) {
+        use crate::heap_utils::dec_weak_obj;
         if let Some(obj) = self.heap_objects.get_mut(&id) {
-            obj.dec_weak();
+            if dec_weak_obj(obj) {
+                // metric kept at interpreter level if callers want to track
+            }
         }
     }
     /// Central helper to increment strong counter on a heap object and update metrics.
     pub fn inc_heap_strong(&mut self, id: u64) {
+        use crate::heap_utils::inc_strong_obj;
         if let Some(obj) = self.heap_objects.get_mut(&id) {
-            obj.inc_strong();
+            inc_strong_obj(obj);
             self.strong_increments += 1;
         }
     }
@@ -583,8 +588,8 @@ impl Interpreter {
     /// This is a low-level helper; high-level finalization logic remains in
     /// `dec_object_strong_recursive` which handles finalizers and sweeping.
     pub fn dec_heap_strong(&mut self, id: u64) {
+        use crate::heap_utils::dec_strong_obj;
         if let Some(obj) = self.heap_objects.get_mut(&id) {
-            // delegate to centralized mutation helper
             if dec_strong_obj(obj) {
                 self.strong_decrements += 1;
             }
@@ -606,10 +611,9 @@ impl Interpreter {
     /// subsequent dec drops the object; centralizing makes it easier to find
     /// all write-sites to strong when adapting Arc semantics.
     pub fn force_heap_strong_to_one(&mut self, id: u64) {
+        use crate::heap_utils::force_strong_to_one_obj;
         if let Some(obj) = self.heap_objects.get_mut(&id) {
-            if obj.strong > 0 {
-                obj.strong = 1;
-            }
+            force_strong_to_one_obj(obj);
         }
     }
     pub fn debug_heap_dec_strong(&mut self, id: u64) {

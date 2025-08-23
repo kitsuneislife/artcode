@@ -141,6 +141,24 @@ APIs destinadas a testes e diagnósticos (visíveis nos helpers do `Interpreter`
 
 Use estes helpers quando precisar tornar cenários determinísticos em testes de unidade/integrção.
 
+### Centralização das mutações de contadores (implementação)
+
+Nota de implementação: para tornar a adaptação do Arc interno consistente e evitar duplicação
+de escrita nos campos `strong`/`weak`, as mutações diretas de `HeapObject` foram centralizadas
+em `crates/interpreter/src/heap_utils.rs`.
+
+- As funções exportadas em `heap_utils` aceitam apenas `&mut HeapObject` e realizam a mutação
+	sobre o objeto: `inc_strong_obj`, `dec_strong_obj -> bool`, `inc_weak_obj`, `dec_weak_obj -> bool`,
+	`force_strong_to_one_obj`.
+- Contrato: os helpers NÃO atualizam métricas do `Interpreter` porque muitas chamadas ocorrem
+	quando já há um borrow mutável ao mapa de heap; atualizar métricas dali causaria conflitos
+	de borrowing. O `Interpreter` permanece responsável por incrementar `strong_increments`,
+	`strong_decrements` e outras métricas quando apropriado, usando o valor retornado pelos
+	helpers (`bool`) para decidir se um decrement foi efetivo.
+
+Essa separação mantém os pontos de mutação auditáveis (um arquivo) e evita erros do
+borrow-checker do compilador ao mesmo tempo que preserva a telemetria no nível do runtime.
+
 ## Exemplos práticos
 
 Exemplo: finalizer que cria um handle promovido (pseudo-Artcode)

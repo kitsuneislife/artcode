@@ -11,7 +11,7 @@ Não precisa comittar esse arquivo.
  - [x] RFC: Design de referências weak/unowned (semântica, queda para none, proibições) (docs/rfcs/0001-weak-unowned.md)
  - [x] Implementar tipos `Weak<T>` e `Unowned<T>` no runtime (protótipo completo: builtins, açúcar sintático, validação alive; finalização invalida wrappers) (see commit: 76705f2)
  - [x] Adaptar `Arc` interno para contadores separados (strong/weak) (espelho `heap_objects` criado; comportamento parcial: decrements/finalizers instrumentados, resta trabalho em alguns caminhos de saída)
- 	 - 2025-08-23: centralizei mutações de strong/weak em helpers (`inc_heap_strong`, `dec_heap_strong`, `inc_heap_weak`, `dec_heap_weak`, `force_heap_strong_to_one`) e substituí usos diretos em pontos críticos (builtins, debug helpers, arena finalizer). Resolvi conflitos de borrow do Rust inlinando o decremento em pontos que já detinham `&mut HeapObject` (evita E0499). Suite do `crates/interpreter` rodou verde após mudanças.
+	 - 2025-08-23: implementação consistente: centralizei mutações de strong/weak em helpers e movi as mutações diretas para `crates/interpreter/src/heap_utils.rs` (`inc_strong_obj`, `dec_strong_obj`, `inc_weak_obj`, `dec_weak_obj`, `force_strong_to_one_obj`). Atualizei chamadores para usar os helpers, mantive a atualização de métricas no `Interpreter` e documentei o contrato dos helpers em `docs/memory.md`. Suite do `crates/interpreter` e `cargo test --all` rodaram verdes após as mudanças.
  - [x] Ferramenta de detecção de ciclos (agora baseada em heap ids, Tarjan SCC, reachability, ranking de sugestões)
  - [x] Relatório de ciclos: sugestões iniciais + reachability (leak_candidate) + ranking simples
  - [x] Arena API (escopo lexical) protótipo em blocos `performant` (AST + runtime support implemented; see interpreter tests)
@@ -19,6 +19,8 @@ Não precisa comittar esse arquivo.
  - [x] Análise estática mínima: impedir escape de referências de arena (checagem conservadora implementada — `return` e capturas/lets compostos sinalizados; see `crates/interpreter/src/type_infer.rs`)
  - [x] Métricas: `cycle_leaks_detected` present; strong_increments/decrements partially instrumented; weak/unowned counters present. Implemented & exported: `arena_alloc_count`, `finalizer_promotions_per_arena`, `objects_finalized_per_arena` (see commits d5ae06e, 0ae8e1b, be27791)
  - [~] Docs: `docs/memory.md` (seção inicial adicionada; precisa refinamento e exemplos de métricas/trade-offs)
+
+- [x] Docs: `docs/memory.md` (seção inicial adicionada e refinada — agora documenta centralização de mutações e o contrato dos helpers; exemplos/trade-offs podem ser expandidos futuramente)
  - [x] Infra interna: closures usam Weak + retained_env para evitar ciclos
  - [x] Finalizar caminho de decremento forte automático (escopos, rebind, coleta recursiva) e invalidar weak/unowned (NOVA) — cobertura de testes adicionada e runtime ajustado; testes do crate `interpreter` verdes localmente (2025-08-21)
  - [x] (2025-08-22) Marca: invalidação de weak/unowned em finalização implementada; testes adicionados e commit criado (main: 76705f2)
