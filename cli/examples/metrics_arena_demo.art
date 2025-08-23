@@ -13,4 +13,4 @@ performant {
 }
 
 // after performant block, 'a' should be finalized; finalizer may promote 'outside' into promoted
-println("demo complete");
+// demo complete (removed println to keep metrics JSON clean for CI)

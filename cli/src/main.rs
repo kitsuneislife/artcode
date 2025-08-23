@@ -159,6 +159,12 @@ fn main() {
                         cycle_reports_run: usize,
                     }
 
+                    // Ensure per-arena promotion map has entries for all arenas seen (default 0)
+                    let mut finalizer_promotions_per_arena = interpreter.finalizer_promotions_per_arena.clone();
+                    for aid in interpreter.arena_alloc_count.keys() {
+                        finalizer_promotions_per_arena.entry(*aid).or_insert(0usize);
+                    }
+
                     let metrics = Metrics {
                         handled_errors: interpreter.handled_errors,
                         executed_statements: interpreter.executed_statements,
@@ -169,7 +175,7 @@ fn main() {
                         finalizer_promotions: interpreter.get_finalizer_promotions(),
                         objects_finalized_per_arena: interpreter.objects_finalized_per_arena.clone(),
                         arena_alloc_count: interpreter.arena_alloc_count.clone(),
-                        finalizer_promotions_per_arena: interpreter.finalizer_promotions_per_arena.clone(),
+                            finalizer_promotions_per_arena: finalizer_promotions_per_arena,
                         weak_created: interpreter.weak_created,
                         weak_upgrades: interpreter.weak_upgrades,
                         weak_dangling: interpreter.weak_dangling,
