@@ -136,7 +136,8 @@ impl<'a> TypeInfer<'a> {
             Stmt::StructDecl { .. }
             | Stmt::Function { .. }
             | Stmt::Return { .. }
-            | Stmt::Match { .. } => {}
+            | Stmt::Match { .. }
+            | Stmt::Import { .. } => {}
             Stmt::Performant { statements } => {
                 self.check_performant_block(statements);
             }
@@ -263,7 +264,7 @@ impl<'a> TypeInfer<'a> {
                 }
                 self.pop_scope();
             }
-            StructDecl { .. } | EnumDecl { .. } | Expression(_) => { /* allowed */ }
+            StructDecl { .. } | EnumDecl { .. } | Expression(_) | Import { .. } => { /* allowed */ }
         }
     }
 

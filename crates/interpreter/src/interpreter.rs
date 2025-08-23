@@ -1154,6 +1154,10 @@ impl Interpreter {
                 self.environment = previous;
                 Ok(())
             }
+            Stmt::Import { path: _ } => {
+                // Import is a compile-time / resolver concern; runtime no-op for now.
+                Ok(())
+            }
         }
     }
 
