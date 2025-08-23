@@ -7,8 +7,9 @@ func fin_promote() {
 }
 
 performant {
-  let a = [1,2,3];
-  on_finalize(a, fin_promote);
+  let _a = [1,2,3];
+  on_finalize(_a, fin_promote);
+
 }
 
 // after performant block, 'a' should be finalized; finalizer may promote 'outside' into promoted
