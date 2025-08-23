@@ -130,7 +130,7 @@ impl Interpreter {
     pub fn interpret(&mut self, program: Program) -> Result<()> {
         self.last_value = None;
         for statement in program {
-            if let Err(RuntimeError::Return(_)) = self.execute(statement) {
+                if let Err(RuntimeError::Return(_)) = self.execute(statement) {
                 break;
             }
         }
@@ -236,12 +236,8 @@ impl Interpreter {
     for id in ids {
             // Forçar queda de strong para 0 e disparar finalização recursiva
             // limitar o escopo do borrow mutável para evitar conflitos durante a recursão
-            if let Some(obj) = self.heap_objects.get_mut(&id) {
-                // garantir que pelo menos um dec fará com que alive=false
-                if obj.strong > 0 {
-                    obj.strong = 1;
-                }
-            }
+            // garantir que pelo menos um dec fará com que alive=false
+            self.force_heap_strong_to_one(id);
             self.dec_object_strong_recursive(id);
         }
         // Passo de limpeza: remover entradas mortas da arena que já não têm weaks.
@@ -319,34 +315,28 @@ impl Interpreter {
         match v {
             ArtValue::Array(a) => {
                 for child in a {
-                    if let ArtValue::HeapComposite(h) = child
-                        && let Some(c) = self.heap_objects.get_mut(&h.0)
+                        if let ArtValue::HeapComposite(h) = child
+                        && let Some(_c) = self.heap_objects.get(&h.0)
                     {
-                        let _before = c.strong;
-                        c.inc_strong();
-                        self.strong_increments += 1;
+                        self.inc_heap_strong(h.0);
                     }
                 }
             }
             ArtValue::StructInstance { fields, .. } => {
                 for child in fields.values() {
                     if let ArtValue::HeapComposite(h) = child
-                        && let Some(c) = self.heap_objects.get_mut(&h.0)
+                        && let Some(_c) = self.heap_objects.get(&h.0)
                     {
-                        let _before = c.strong;
-                        c.inc_strong();
-                        self.strong_increments += 1;
+                        self.inc_heap_strong(h.0);
                     }
                 }
             }
             ArtValue::EnumInstance { values, .. } => {
                 for child in values {
                     if let ArtValue::HeapComposite(h) = child
-                        && let Some(c) = self.heap_objects.get_mut(&h.0)
+                        && let Some(_c) = self.heap_objects.get(&h.0)
                     {
-                        let _before = c.strong;
-                        c.inc_strong();
-                        self.strong_increments += 1;
+                        self.inc_heap_strong(h.0);
                     }
                 }
             }
@@ -392,8 +382,8 @@ impl Interpreter {
         // Limitar o escopo do borrow mutável para não conflitar com chamadas recursivas
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             if obj.strong > 0 {
-                obj.dec_strong();
-                self.strong_decrements += 1;
+                // use inner helper to mutate and account metrics without extra borrows
+                self.dec_heap_strong_inner(obj);
             }
             let should_recurse = !obj.alive; // caiu a zero agora
             if should_recurse {
@@ -550,9 +540,7 @@ impl Interpreter {
     }
     /// Debug/testing: remove id simulando queda de último strong ref
     pub fn debug_heap_remove(&mut self, id: u64) {
-        if let Some(obj) = self.heap_objects.get_mut(&id) {
-            obj.dec_strong();
-        }
+    self.dec_heap_strong(id);
     }
     pub fn debug_heap_upgrade_weak(&self, id: u64) -> Option<ArtValue> {
         self.heap_upgrade_weak(id)
@@ -564,22 +552,69 @@ impl Interpreter {
             None
         }
     }
-    pub fn debug_heap_dec_strong(&mut self, id: u64) {
-        if let Some(obj) = self.heap_objects.get_mut(&id) {
-            obj.dec_strong();
-        }
-    }
-    pub fn debug_heap_inc_weak(&mut self, id: u64) {
+
+    /// Central helper to increment weak counter on a heap object if present.
+    /// Keeping this small wrapper makes it easier to audit all weak operations
+    /// in one place when adapting the internal Arc semantics.
+    pub fn inc_heap_weak(&mut self, id: u64) {
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             obj.inc_weak();
         }
     }
 
-    /// Test helper: decrementa contador weak (para simulação em testes)
-    pub fn debug_heap_dec_weak(&mut self, id: u64) {
+    /// Central helper to decrement weak counter on a heap object if present.
+    pub fn dec_heap_weak(&mut self, id: u64) {
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             obj.dec_weak();
         }
+    }
+    /// Central helper to increment strong counter on a heap object and update metrics.
+    pub fn inc_heap_strong(&mut self, id: u64) {
+        if let Some(obj) = self.heap_objects.get_mut(&id) {
+            obj.inc_strong();
+            self.strong_increments += 1;
+        }
+    }
+
+    /// Central helper to decrement strong counter on a heap object and update metrics.
+    /// This is a low-level helper; high-level finalization logic remains in
+    /// `dec_object_strong_recursive` which handles finalizers and sweeping.
+    pub fn dec_heap_strong(&mut self, id: u64) {
+        if let Some(obj) = self.heap_objects.get_mut(&id) {
+            // delegate to inner helper to centralize metric update
+            self.dec_heap_strong_inner(obj);
+        }
+    }
+
+    /// Inner helper that performs the decrement on an existing mutable reference
+    /// to a `HeapObject`. This avoids performing multiple `get_mut` borrows when
+    /// the caller already holds a mutable reference (used by finalizer flow).
+    fn dec_heap_strong_inner(&mut self, obj: &mut crate::heap::HeapObject) {
+        obj.dec_strong();
+        self.strong_decrements += 1;
+    }
+
+    /// Force the strong counter to 1 by mutating state in a single, auditable helper.
+    /// This mirrors previous behavior where some paths set strong=1 to ensure a
+    /// subsequent dec drops the object; centralizing makes it easier to find
+    /// all write-sites to strong when adapting Arc semantics.
+    pub fn force_heap_strong_to_one(&mut self, id: u64) {
+        if let Some(obj) = self.heap_objects.get_mut(&id) {
+            if obj.strong > 0 {
+                obj.strong = 1;
+            }
+        }
+    }
+    pub fn debug_heap_dec_strong(&mut self, id: u64) {
+        self.dec_heap_strong(id);
+    }
+    pub fn debug_heap_inc_weak(&mut self, id: u64) {
+    self.inc_heap_weak(id);
+    }
+
+    /// Test helper: decrementa contador weak (para simulação em testes)
+    pub fn debug_heap_dec_weak(&mut self, id: u64) {
+    self.dec_heap_weak(id);
     }
 
     /// Test helper: coleta e remove do heap todos objetos finalizados (!alive) que
@@ -1816,17 +1851,13 @@ impl Interpreter {
                     let val = self.evaluate(first)?;
                     let (_id, handle) = match val {
                         ArtValue::HeapComposite(h) => {
-                            if let Some(obj) = self.heap_objects.get_mut(&h.0) {
-                                obj.inc_weak();
-                            }
+                            self.inc_heap_weak(h.0);
                             (h.0, h)
                         }
                         other => {
                             // Para tipos escalares ainda criar wrapper heap para permitir weak.
                             let id = self.heap_register(other);
-                            if let Some(obj) = self.heap_objects.get_mut(&id) {
-                                obj.inc_weak();
-                            }
+                            self.inc_heap_weak(id);
                             (id, ObjHandle(id))
                         }
                     };

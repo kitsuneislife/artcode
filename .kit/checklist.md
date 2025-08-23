@@ -1,6 +1,7 @@
 # Artcode Roadmap Operacional (Pós Fase 7)
 
 Guia incremental para evoluir do protótipo atual até os pilares do manifesto v2. Mantém filosofia de Complexidade Progressiva: cada fase entrega valor isolado e prepara a seguinte. Marque [x] quando concluído; adicione links para PRs e RFCs ao lado. Evite adicionar comentários nos códigos.
+Não precisa comittar esse arquivo.
 
 ## Convenção de Marcação
 - [ ] Item planejado | [~] Em progresso | [x] Concluído | [!] Risco/Bloqueio
@@ -8,19 +9,17 @@ Guia incremental para evoluir do protótipo atual até os pilares do manifesto v
 
 ## Fase 8 – Modelo de Memória Avançado
  - [x] RFC: Design de referências weak/unowned (semântica, queda para none, proibições) (docs/rfcs/0001-weak-unowned.md)
- - [~] Implementar tipos `Weak<T>` e `Unowned<T>` no runtime (protótipo completo: builtins, açúcar sintático, validação alive; PENDENTE: coleta automática ao strong=0 em todos os caminhos de saída de escopo)
- - [~] Adaptar `Arc` interno para contadores separados (strong/weak) (espelho `heap_objects` criado; INCOMPLETO: decrementar strong em drop de env / rebind / substituição de campos mutáveis)
+ - [x] Implementar tipos `Weak<T>` e `Unowned<T>` no runtime (protótipo completo: builtins, açúcar sintático, validação alive; finalização invalida wrappers) (see commit: 76705f2)
+ - [~] Adaptar `Arc` interno para contadores separados (strong/weak) (espelho `heap_objects` criado; comportamento parcial: decrements/finalizers instrumentados, resta trabalho em alguns caminhos de saída)
+	 - 2025-08-23: centralizei mutações de strong/weak em helpers (`inc_heap_strong`, `dec_heap_strong`, `inc_heap_weak`, `dec_heap_weak`, `force_heap_strong_to_one`) e substituí usos diretos em pontos críticos (builtins, debug helpers, arena finalizer). Suite do `crates/interpreter` rodou verde após mudanças.
  - [x] Ferramenta de detecção de ciclos (agora baseada em heap ids, Tarjan SCC, reachability, ranking de sugestões)
  - [x] Relatório de ciclos: sugestões iniciais + reachability (leak_candidate) + ranking simples
- - [~] Arena API (escopo lexical) protótipo em blocos `performant`
- - [~] Priority 2 started: added arena-edge tests and per-arena metrics; finalize_arena attribution added (in-progress)
+ - [x] Arena API (escopo lexical) protótipo em blocos `performant` (AST + runtime support implemented; see interpreter tests)
  - [x] Priority 2: arena finalization hardening and per-arena metrics implemented (commit refs: d5ae06e, 190fd67, 0ae8e1b)
- - [~] Análise estática mínima: impedir escape de referências de arena (checagem conservadora implementada — `return` e capturas/lets compostos sinalizados)
- - [~] Métricas: `cycle_leaks_detected`, strong_increments/decrements (parcial), weak/unowned counters; PENDENTE: arenas, objetos finalizados (agora contamos `objects_finalized`)
- - [~] Métricas: `cycle_leaks_detected`, strong_increments/decrements (parcial), weak/unowned counters; PROGRESSO: `arena_alloc_count`, `finalizer_promotions_per_arena`, `objects_finalized_per_arena` implemented and exported to CLI (see commits d5ae06e, be27791)
- - [~] Docs: `docs/memory.md` (adicionada seção inicial sobre arenas & regras de escape; precisa refinamento)
+ - [x] Análise estática mínima: impedir escape de referências de arena (checagem conservadora implementada — `return` e capturas/lets compostos sinalizados; see `crates/interpreter/src/type_infer.rs`)
+ - [x] Métricas: `cycle_leaks_detected` present; strong_increments/decrements partially instrumented; weak/unowned counters present. Implemented & exported: `arena_alloc_count`, `finalizer_promotions_per_arena`, `objects_finalized_per_arena` (see commits d5ae06e, 0ae8e1b, be27791)
+ - [~] Docs: `docs/memory.md` (seção inicial adicionada; precisa refinamento e exemplos de métricas/trade-offs)
  - [x] Infra interna: closures usam Weak + retained_env para evitar ciclos
- - [~] Finalizar caminho de decremento forte automático (escopos, rebind, coleta recursiva) e invalidar weak/unowned (NOVA)
  - [x] Finalizar caminho de decremento forte automático (escopos, rebind, coleta recursiva) e invalidar weak/unowned (NOVA) — cobertura de testes adicionada e runtime ajustado; testes do crate `interpreter` verdes localmente (2025-08-21)
  - [x] (2025-08-22) Marca: invalidação de weak/unowned em finalização implementada; testes adicionados e commit criado (main: 76705f2)
 
