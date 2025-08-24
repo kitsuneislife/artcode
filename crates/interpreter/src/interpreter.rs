@@ -265,6 +265,15 @@ impl Interpreter {
             (Token::dummy("Err"), Some(vec!["E".to_string()])),
         ];
         interp.type_registry.register_enum(name, variants);
+        // Register Envelope struct type for actor messages (sender: Optional<Int>, payload: Any, priority: Int)
+        interp.type_registry.register_struct(
+            Token::dummy("Envelope"),
+            vec![
+                (Token::dummy("sender"), "Optional<Int>".to_string()),
+                (Token::dummy("payload"), "Any".to_string()),
+                (Token::dummy("priority"), "Int".to_string()),
+            ],
+        );
         interp
     }
 

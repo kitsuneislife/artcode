@@ -13,4 +13,37 @@ Casos de teste desejados:
 - Backpressure (erro quando mailbox cheia).
 - Actor pode encerrar-se e liberar recursos.
 
+Exemplos básicos
+
+Spawn e enviar mensagens:
+
+```art
+let a = spawn actor {
+	// esperar por mensagens
+	let msg = actor_receive();
+	println(msg);
+}
+
+actor_send(a, 1);
+actor_send(a, 2);
+```
+
+Receber envelope completo (sender, payload, priority):
+
+```art
+let a = spawn actor { /* body that calls actor_receive_envelope() */ };
+// dentro do actor, actor_receive_envelope() retorna um `Envelope` struct com campos `sender`, `payload`, `priority`
+let env = actor_receive_envelope();
+// acessar campos: env.sender, env.payload, env.priority
+```
+
+Backpressure:
+
+```art
+let a = spawn actor { /* ... */ };
+actor_set_mailbox_limit(a, 1);
+let ok = actor_send(a, 1); // true
+let ok2 = actor_send(a, 2); // false (mailbox limit)
+```
+
 Notas de design e trade-offs estão na RFC `docs/rfcs/0003-actors.md`.
