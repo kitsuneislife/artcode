@@ -15,8 +15,8 @@ func fin_promote() {
 
 // Create a target object and register a finalizer that references `outside`.
 performant {
-  let target = [1,2,3];
-  on_finalize(target, fin_promote);
+  let _target = [1,2,3];
+  on_finalize(_target, fin_promote);
 }
 
 // Note: in the real runtime finalizers run asynchronously; this example demonstrates
