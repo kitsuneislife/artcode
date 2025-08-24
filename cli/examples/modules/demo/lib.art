@@ -1,1 +1,1 @@
-export let lib_val = 7;
+let lib_val = 7;
