@@ -239,6 +239,78 @@ fn main() {
         }
         return;
     }
+    if args[1] == "add" && args.len() == 3 {
+        let src = &args[2];
+        let src_path = std::path::Path::new(src);
+        if !src_path.exists() {
+            eprintln!("Source path does not exist: {}", src);
+            process::exit(64);
+        }
+        // default cache dir
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        let cache_dir = std::path::PathBuf::from(format!("{}/.artcode/cache", home));
+        let _ = std::fs::create_dir_all(&cache_dir);
+        // try to read Art.toml to name the package
+        let mut dest_name = src_path.file_name().and_then(|s| s.to_str()).unwrap_or("pkg").to_string();
+        let mut dest_version = "0.0.0".to_string();
+        let art_toml = src_path.join("Art.toml");
+        if art_toml.exists() {
+            if let Ok(s) = std::fs::read_to_string(&art_toml) {
+                for line in s.lines() {
+                    if let Some(rest) = line.strip_prefix("name = ") {
+                        dest_name = rest.trim().trim_matches('"').to_string();
+                    }
+                    if let Some(rest) = line.strip_prefix("version = ") {
+                        dest_version = rest.trim().trim_matches('"').to_string();
+                    }
+                }
+            }
+        }
+        let dest = cache_dir.join(format!("{}-{}", dest_name, dest_version));
+        if dest.exists() {
+            eprintln!("Destination already exists: {}", dest.display());
+            process::exit(65);
+        }
+        // copy file or directory
+        let res = if src_path.is_file() {
+            if let Err(e) = std::fs::create_dir_all(&dest) {
+                Err(e)
+            } else {
+                let filename = src_path.file_name().unwrap();
+                std::fs::copy(src_path, dest.join(filename))
+            }
+        } else {
+            // simple directory copy: walk entries
+            fn copy_dir(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<()> {
+                std::fs::create_dir_all(to)?;
+                for entry in std::fs::read_dir(from)? {
+                    let entry = entry?;
+                    let ty = entry.file_type()?;
+                    let dest = to.join(entry.file_name());
+                    if ty.is_dir() {
+                        copy_dir(&entry.path(), &dest)?;
+                    } else {
+                        std::fs::copy(entry.path(), dest)?;
+                    }
+                }
+                Ok(())
+            }
+            match copy_dir(src_path, &dest) {
+                Ok(()) => Ok(0u64),
+                Err(e) => Err(e),
+            }
+        };
+        match res {
+            Ok(_) => {
+                println!("Installed to {}", dest.display());
+                return;
+            }
+            Err(e) => {
+                eprintln!("Failed to add package: {}", e);
+                process::exit(70);
+            }
+        }
+    }
     if args[1] == "detect-cycles" {
         let mut json = false;
         let mut json_pretty = false;

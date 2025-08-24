@@ -93,9 +93,9 @@ Não precisa comittar esse arquivo.
 
 ## Fase 13 – Sistema de Módulos & Pacotes
  - [~] PRIORIDADE: Fase 13 — Sistema de Módulos & Pacotes (focar implementação MVP)
-	 - [ ] RFC: Sintaxe `import foo.bar` e resolução (docs/rfcs/0002-modules.md)
-	 - [ ] Parser: reconhecer `import` e gerar AST
-	 - [ ] Resolver local: mapear `import` para arquivo no workspace
+ 	 - [x] RFC: Sintaxe `import foo.bar` e resolução (docs/rfcs/0002-modules.md)
+ 	 - [x] Parser: reconhecer `import` e gerar AST
+ 	 - [x] Resolver local: mapear `import` para arquivo no workspace
 	 - [ ] Manifesto de pacote `Art.toml` (nome, versão, deps, profile build)
 	 - [ ] Cache local: `~/.artcode/cache` e regra de resolução
 	 - [ ] CLI: `art add <path-or-git>` instalar no cache + atualizar `.art-lock`
