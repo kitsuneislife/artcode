@@ -53,15 +53,15 @@ Não precisa comittar esse arquivo.
 - Testes: novos testes cobrindo rebind/finalizer e comportamento básico de arena; suíte do crate `interpreter` e `parser` estão verdes.
 
 ## Fase 9 – Concorrência Híbrida
-- [ ] RFC: Runtime de Atores (mailbox FIFO, isolamento por mensagem)
-- [ ] Implementar `spawn actor { ... }` sintaxe (ou função builtin temporária)
-- [ ] Tipo de mensagem polimórfico (enum ValueEnvelope)
-- [ ] Scheduler cooperativo inicial (round-robin / prioridade simples)
-- [ ] Backpressure: limite configurável de mailbox + diagnóstico
-- [ ] Blocos `performant {}` parse + verificação de restrições
-- [ ] Primitivas compartilhadas autorizadas em performant: Mutex, AtomicInt
-- [ ] Análise básica: proibir captura de valor não Send-safe (placeholder rule)
-- [ ] Docs: `docs/concurrency.md` com exemplos comparando estilos
+ - [~] RFC: Runtime de Atores (mailbox FIFO, isolamento por mensagem)
+ - [ ] Implementar `spawn actor { ... }` sintaxe (ou função builtin temporária)
+ - [ ] Tipo de mensagem polimórfico (enum ValueEnvelope)
+ - [~] Scheduler cooperativo inicial (round-robin / prioridade simples)
+ - [ ] Backpressure: limite configurável de mailbox + diagnóstico
+ - [ ] Blocos `performant {}` parse + verificação de restrições
+ - [ ] Primitivas compartilhadas autorizadas em performant: Mutex, AtomicInt
+ - [ ] Análise básica: proibir captura de valor não Send-safe (placeholder rule)
+ - [~] Docs: `docs/concurrency.md` com exemplos comparando estilos
 
 ## Fase 10 – Pipeline JIT/AOT + PGO
 - [ ] RFC: Arquitetura IR interna (lowering AST -> IR -> LLVM)
