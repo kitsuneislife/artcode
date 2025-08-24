@@ -107,7 +107,7 @@ impl Mailbox {
             MailboxImpl::Linear(v) => v.iter().cloned().collect(),
             MailboxImpl::Map(m) => {
                 let mut out = Vec::new();
-                for (&pri, q) in m.iter().rev() { // descending priority
+                for (&_pri, q) in m.iter().rev() { // descending priority
                     for e in q {
                         out.push(e.clone());
                     }
@@ -218,6 +218,10 @@ impl Interpreter {
         global_env.borrow_mut().define(
             "actor_set_mailbox_limit",
             ArtValue::Builtin(core::ast::BuiltinFn::ActorSetMailboxLimit),
+        );
+        global_env.borrow_mut().define(
+            "envelope",
+            ArtValue::Builtin(core::ast::BuiltinFn::EnvelopeNew),
         );
 
         Interpreter {
@@ -2309,6 +2313,35 @@ impl Interpreter {
                 // actor_yield is a cooperative hint; scheduler will rotate after statement
                 // For runtime, just return None; scheduler sees it's a normal statement boundary.
                 Ok(ArtValue::none())
+            }
+            core::ast::BuiltinFn::EnvelopeNew => {
+                // envelope(sender, payload, priority)
+                if arguments.len() != 3 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "envelope expects 3 args".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let sender_val = self.evaluate(arguments[0].clone())?;
+                let payload_val = self.evaluate(arguments[1].clone())?;
+                let priority_val = self.evaluate(arguments[2].clone())?;
+                let sender_field = match sender_val {
+                    ArtValue::Optional(boxed) => match *boxed {
+                        Some(ArtValue::Int(n)) => ArtValue::Int(n),
+                        _ => ArtValue::Optional(Box::new(None)),
+                    },
+                    ArtValue::Int(n) => ArtValue::Int(n),
+                    other => other,
+                };
+                let priority = if let ArtValue::Int(n) = priority_val { n as i32 } else { 0 };
+                let mut fields = std::collections::HashMap::new();
+                fields.insert("sender".to_string(), sender_field);
+                fields.insert("payload".to_string(), payload_val);
+                fields.insert("priority".to_string(), ArtValue::Int(priority as i64));
+                let struct_val = ArtValue::StructInstance { struct_name: "Envelope".to_string(), fields };
+                Ok(self.heapify_composite(struct_val))
             }
         }
     }

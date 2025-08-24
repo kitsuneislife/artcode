@@ -46,4 +46,12 @@ let ok = actor_send(a, 1); // true
 let ok2 = actor_send(a, 2); // false (mailbox limit)
 ```
 
+Construir um envelope manualmente
+
+```art
+// em tempos de construção dinâmica, é mais conveniente criar um Envelope via builtin
+let e = envelope(None, 42, 5);
+// e é um objeto heapificado com tipo `Envelope` e campos `sender`, `payload`, `priority`
+```
+
 Notas de design e trade-offs estão na RFC `docs/rfcs/0003-actors.md`.

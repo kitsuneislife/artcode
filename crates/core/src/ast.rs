@@ -196,6 +196,7 @@ pub enum BuiltinFn {
     UnownedNew, // __unowned(x)
     UnownedGet, // __unowned_get(u)
     OnFinalize, // __on_finalize(comp, fn)
+    EnvelopeNew, // envelope(sender, payload, priority)
     ActorSend,   // actor_send(actor, value)
     ActorReceive, // actor_receive()
     ActorReceiveEnvelope, // actor_receive_envelope()
@@ -214,6 +215,7 @@ impl fmt::Debug for BuiltinFn {
             BuiltinFn::UnownedNew => write!(f, "<builtin __unowned>"),
             BuiltinFn::UnownedGet => write!(f, "<builtin __unowned_get>"),
             BuiltinFn::OnFinalize => write!(f, "<builtin __on_finalize>"),
+            BuiltinFn::EnvelopeNew => write!(f, "<builtin envelope>"),
             BuiltinFn::ActorSend => write!(f, "<builtin actor_send>"),
                 BuiltinFn::ActorReceive => write!(f, "<builtin actor_receive>"),
                 BuiltinFn::ActorReceiveEnvelope => write!(f, "<builtin actor_receive_envelope>"),
@@ -279,6 +281,7 @@ impl fmt::Display for ArtValue {
                 BuiltinFn::UnownedNew => write!(f, "<builtin __unowned>"),
                 BuiltinFn::UnownedGet => write!(f, "<builtin __unowned_get>"),
                 BuiltinFn::OnFinalize => write!(f, "<builtin __on_finalize>"),
+                BuiltinFn::EnvelopeNew => write!(f, "<builtin envelope>"),
                 BuiltinFn::ActorSend => write!(f, "<builtin actor_send>"),
                 BuiltinFn::ActorReceive => write!(f, "<builtin actor_receive>"),
                 BuiltinFn::ActorReceiveEnvelope => write!(f, "<builtin actor_receive_envelope>"),
