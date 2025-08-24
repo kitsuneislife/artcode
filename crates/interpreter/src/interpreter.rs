@@ -2235,19 +2235,21 @@ impl Interpreter {
                 Ok(ArtValue::Optional(Box::new(None)))
             }
             core::ast::BuiltinFn::ActorReceiveEnvelope => {
-                // Return the full envelope (sender, payload, priority) as an EnumInstance-like struct
+                // Return the full envelope (sender, payload, priority) as a StructInstance
                 if let Some(aid) = self.current_actor {
                     if let Some(actor) = self.actors.get_mut(&aid) {
                         if let Some(env) = actor.mailbox.pop_front() {
-                            // Build a struct-like EnumInstance to carry fields: sender, payload, priority
-                            // For simplicity, return an Array [sender_or_none, payload, priority]
+                            // Build a StructInstance with fields: sender, payload, priority
+                            let mut fields = std::collections::HashMap::new();
                             let sender_val = match env.sender {
                                 Some(s) => ArtValue::Int(s as i64),
                                 None => ArtValue::Optional(Box::new(None)),
                             };
-                            let priority_val = ArtValue::Int(env.priority as i64);
-                            let arr = ArtValue::Array(vec![sender_val, env.payload, priority_val]);
-                            return Ok(arr);
+                            fields.insert("sender".to_string(), sender_val);
+                            fields.insert("payload".to_string(), env.payload);
+                            fields.insert("priority".to_string(), ArtValue::Int(env.priority as i64));
+                            let struct_val = ArtValue::StructInstance { struct_name: "Envelope".to_string(), fields };
+                            return Ok(self.heapify_composite(struct_val));
                         } else {
                             actor.parked = true;
                             return Ok(ArtValue::Optional(Box::new(None)));
