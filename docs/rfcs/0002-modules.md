@@ -76,4 +76,16 @@ Riscos
 Notas finais
 ---
 Esta RFC é um esqueleto. Implementação detalhada, API e testes devem ser preenchidos em PRs vinculados a esta RFC.
+ 
+Implementação (status atual)
+---
+- Parser: `import` syntax implemented and AST node `Stmt::Import` added.
+- Resolver: local resolution and cache-aware resolver implemented in `cli/src/resolver.rs`.
+- CLI: `art add` implemented for local paths, `file://` and git URLs; writes `.art-lock` with name/version/path/commit when available.
+- Manifesto: `Art.toml` parsing implemented via `toml` crate and supports `name`, `version` and optional `main` field.
+
+Limitations e próximos passos
+---
+- Semver/constraints, registries and dependency graph resolution are out-of-scope for this MVP.
+- `art add` uses system `git` CLI; consider `git2` if we want to avoid external dependency.
 """

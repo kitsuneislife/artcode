@@ -5,6 +5,7 @@ use interpreter::type_infer::{TypeEnv, TypeInfer};
 use lexer::lexer::Lexer;
 use parser::parser::Parser;
 use serde::Serialize;
+use toml::Value as TomlValue;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
@@ -241,43 +242,136 @@ fn main() {
     }
     if args[1] == "add" && args.len() == 3 {
         let src = &args[2];
-        let src_path = std::path::Path::new(src);
-        if !src_path.exists() {
-            eprintln!("Source path does not exist: {}", src);
-            process::exit(64);
-        }
         // default cache dir
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
         let cache_dir = std::path::PathBuf::from(format!("{}/.artcode/cache", home));
         let _ = std::fs::create_dir_all(&cache_dir);
-        // try to read Art.toml to name the package
-        let mut dest_name = src_path.file_name().and_then(|s| s.to_str()).unwrap_or("pkg").to_string();
-        let mut dest_version = "0.0.0".to_string();
-        let art_toml = src_path.join("Art.toml");
+
+        // Determine source kind: local path, file://, or git URL
+        let mut working_src: std::path::PathBuf;
+        let mut tmp_clone: Option<std::path::PathBuf> = None;
+
+        let src_path = std::path::Path::new(src);
+        if src_path.exists() {
+            working_src = src_path.to_path_buf();
+        } else if let Some(stripped) = src.strip_prefix("file://") {
+            let p = std::path::Path::new(stripped);
+            if p.exists() {
+                working_src = p.to_path_buf();
+            } else {
+                eprintln!("Source path does not exist: {}", src);
+                process::exit(64);
+            }
+        } else if src.starts_with("git@") || src.starts_with("http://") || src.starts_with("https://") || src.ends_with(".git") {
+            // clone into temp dir using system git
+            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+            let tmp = std::env::temp_dir().join(format!("art_add_{}", now));
+            if let Err(e) = std::fs::create_dir_all(&tmp) {
+                eprintln!("Failed to create temp dir for git clone: {}", e);
+                process::exit(70);
+            }
+            let status = std::process::Command::new("git")
+                .arg("clone")
+                .arg("--depth")
+                .arg("1")
+                .arg(src)
+                .arg(&tmp)
+                .status();
+            match status {
+                Ok(s) if s.success() => {
+                    working_src = tmp.clone();
+                    tmp_clone = Some(tmp);
+                }
+                Ok(s) => {
+                    eprintln!("git clone failed with status: {}", s);
+                    process::exit(70);
+                }
+                Err(e) => {
+                    eprintln!("Failed to spawn git: {}", e);
+                    process::exit(70);
+                }
+            }
+        } else {
+            eprintln!("Source path does not exist or not a supported URL: {}", src);
+            process::exit(64);
+        }
+
+        // parse Art.toml if present and require name/version when available
+    let mut dest_name = working_src.file_name().and_then(|s| s.to_str()).unwrap_or("pkg").to_string();
+    let mut dest_version = "0.0.0".to_string();
+    let mut _main_field: Option<String> = None;
+        let art_toml = working_src.join("Art.toml");
         if art_toml.exists() {
             if let Ok(s) = std::fs::read_to_string(&art_toml) {
-                for line in s.lines() {
-                    if let Some(rest) = line.strip_prefix("name = ") {
-                        dest_name = rest.trim().trim_matches('"').to_string();
+                if let Ok(v) = toml::from_str::<TomlValue>(&s) {
+                    if let Some(name_v) = v.get("name").and_then(|n| n.as_str()) {
+                        dest_name = name_v.to_string();
                     }
-                    if let Some(rest) = line.strip_prefix("version = ") {
-                        dest_version = rest.trim().trim_matches('"').to_string();
+                    if let Some(ver_v) = v.get("version").and_then(|n| n.as_str()) {
+                        dest_version = ver_v.to_string();
                     }
+                        if let Some(main_v) = v.get("main").and_then(|m| m.as_str()) {
+                            _main_field = Some(main_v.to_string());
+                        }
                 }
             }
         }
         let dest = cache_dir.join(format!("{}-{}", dest_name, dest_version));
         if dest.exists() {
             eprintln!("Destination already exists: {}", dest.display());
+            // cleanup clone if we made one
+            if let Some(t) = tmp_clone {
+                let _ = std::fs::remove_dir_all(t);
+            }
             process::exit(65);
         }
-        // copy file or directory
-        let res = if src_path.is_file() {
+
+        // detect git commit (if any) before copying/cloning cleanup
+        let mut commit: Option<String> = None;
+        if let Some(tmp) = &tmp_clone {
+            // we cloned into tmp; get commit from tmp
+            let out = std::process::Command::new("git")
+                .arg("-C")
+                .arg(tmp)
+                .arg("rev-parse")
+                .arg("HEAD")
+                .output();
+            if let Ok(o) = out {
+                if o.status.success() {
+                    if let Ok(s) = String::from_utf8(o.stdout) {
+                        commit = Some(s.trim().to_string());
+                    }
+                }
+            }
+        } else {
+            // if source is a local git repo, try to get commit
+            if src_path.exists() {
+                let gitdir = src_path.join(".git");
+                if gitdir.exists() {
+                    let out = std::process::Command::new("git")
+                        .arg("-C")
+                        .arg(src_path)
+                        .arg("rev-parse")
+                        .arg("HEAD")
+                        .output();
+                    if let Ok(o) = out {
+                        if o.status.success() {
+                            if let Ok(s) = String::from_utf8(o.stdout) {
+                                commit = Some(s.trim().to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // copy file or directory from working_src to dest
+        let res = if working_src.is_file() {
             if let Err(e) = std::fs::create_dir_all(&dest) {
                 Err(e)
             } else {
-                let filename = src_path.file_name().unwrap();
-                std::fs::copy(src_path, dest.join(filename))
+                let filename = working_src.file_name().unwrap();
+                std::fs::copy(&working_src, dest.join(filename))
             }
         } else {
             // simple directory copy: walk entries
@@ -295,20 +389,37 @@ fn main() {
                 }
                 Ok(())
             }
-            match copy_dir(src_path, &dest) {
+            match copy_dir(&working_src, &dest) {
                 Ok(()) => Ok(0u64),
                 Err(e) => Err(e),
             }
         };
+
+        // cleanup clone if any (after copy)
+        if let Some(t) = &tmp_clone {
+            let _ = std::fs::remove_dir_all(t);
+        }
+
         match res {
             Ok(_) => {
                 println!("Installed to {}", dest.display());
-                // write .art-lock in current directory (simple mapping)
-                let lock = serde_json::json!({
-                    "name": dest_name,
-                    "version": dest_version,
-                    "source": dest.to_string_lossy().to_string()
-                });
+
+                // write enhanced .art-lock in current directory
+                #[derive(Serialize)]
+                struct LockEntry {
+                    name: String,
+                    version: String,
+                    source: String,
+                    path: String,
+                    commit: Option<String>,
+                }
+                let lock = LockEntry {
+                    name: dest_name.clone(),
+                    version: dest_version.clone(),
+                    source: src.to_string(),
+                    path: dest.to_string_lossy().to_string(),
+                    commit,
+                };
                 let _ = std::fs::write(".art-lock", serde_json::to_string_pretty(&lock).unwrap());
                 return;
             }
