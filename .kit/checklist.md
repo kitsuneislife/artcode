@@ -102,10 +102,10 @@ Não precisa comittar esse arquivo.
  	 - [x] Docs: `docs/modules.md` + exemplos em `cli/examples/modules/` (docs e RFC atualizados)
 
 ## Fase 14 – Governança & RFC Processual
-- [ ] Criar `docs/rfcs/0000-template.md`
-- [ ] Documento `GOVERNANCE.md` (papéis, fluxo de decisão)
-- [ ] Atualizar `contributing.md` ligando para processo RFC
-- [ ] Registro de decisões: `docs/decisions/` com changelog de design
+- [~] Criar `docs/rfcs/0000-template.md`
+- [~] Documento `GOVERNANCE.md` (papéis, fluxo de decisão)
+- [~] Atualizar `contributing.md` ligando para processo RFC
+- [~] Registro de decisões: `docs/decisions/` com changelog de design
 - [ ] Issue labeler (futuro CI) para categorias: lang-design / runtime / tooling
 
 ## Fase 15 – Expansão da Stdlib

@@ -66,6 +66,8 @@ ln -s "$(pwd)/scripts/check_ast_docs.sh" .git/hooks/pre-commit
 ## RFCs
 Inclua: motivação, design detalhado, exemplos de código, impacto em runtime, riscos, plano de migração.
 
+Veja o template de RFC em `docs/rfcs/0000-template.md` para um esqueleto padronizado ao abrir propostas.
+
 ## Revisão
 Critérios:
 - Correção sem quebrar exemplos existentes
