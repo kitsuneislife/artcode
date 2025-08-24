@@ -96,10 +96,10 @@ Não precisa comittar esse arquivo.
  	 - [x] RFC: Sintaxe `import foo.bar` e resolução (docs/rfcs/0002-modules.md)
  	 - [x] Parser: reconhecer `import` e gerar AST
  	 - [x] Resolver local: mapear `import` para arquivo no workspace
-	 - [ ] Manifesto de pacote `Art.toml` (nome, versão, deps, profile build)
-	 - [ ] Cache local: `~/.artcode/cache` e regra de resolução
-	 - [ ] CLI: `art add <path-or-git>` instalar no cache + atualizar `.art-lock`
-	 - [ ] Docs: `docs/modules.md` + exemplos em `cli/examples/modules/`
+ 	 - [x] Manifesto de pacote `Art.toml` (nome, versão, deps, profile build) (parsing TOML MVP aplicado)
+ 	 - [x] Cache local: `~/.artcode/cache` e regra de resolução (lookup por nome/main)
+ 	 - [x] CLI: `art add <path-or-git>` instalar no cache + atualizar `.art-lock` (suporte file:// e git/local)
+ 	 - [x] Docs: `docs/modules.md` + exemplos em `cli/examples/modules/` (docs e RFC atualizados)
 
 ## Fase 14 – Governança & RFC Processual
 - [ ] Criar `docs/rfcs/0000-template.md`
