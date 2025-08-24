@@ -6,8 +6,11 @@ use core::environment::Environment;
 use diagnostics::{Diagnostic, DiagnosticKind, Span};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::rc::Rc;
 use crate::heap_utils::dec_strong_obj;
+
+use std::collections::BTreeMap;
 
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
@@ -44,6 +47,125 @@ pub struct Interpreter {
     // Arena support
     pub current_arena: Option<u32>,
     pub next_arena_id: u32,
+    // Actor support (Fase 9 MVP)
+    pub actors: HashMap<u32, ActorState>,
+    pub next_actor_id: u32,
+    // Currently running actor id (set by scheduler during actor execution)
+    pub current_actor: Option<u32>,
+    // Default mailbox limit (simple global backpressure setting for MVP)
+    pub actor_mailbox_limit: usize,
+}
+
+pub struct ActorState {
+    pub id: u32,
+    pub mailbox: Mailbox,
+    pub body: VecDeque<Stmt>,
+    pub env: Rc<RefCell<Environment>>,
+    pub finished: bool,
+    pub parked: bool,
+    pub mailbox_limit: usize,
+}
+
+/// Mailbox with small-size linear insert and large-size BTreeMap per-priority buckets.
+pub struct Mailbox {
+    inner: MailboxImpl,
+}
+
+enum MailboxImpl {
+    Linear(VecDeque<core::ast::ValueEnvelope>),
+    Map(BTreeMap<i32, VecDeque<core::ast::ValueEnvelope>>), // key = priority (ascending)
+}
+
+impl Mailbox {
+    const MIGRATE_THRESHOLD: usize = 64; // simple heuristic
+
+    pub fn new() -> Self {
+        Mailbox { inner: MailboxImpl::Linear(VecDeque::new()) }
+    }
+
+    pub fn len(&self) -> usize {
+        match &self.inner {
+            MailboxImpl::Linear(v) => v.len(),
+            MailboxImpl::Map(m) => m.values().map(|q| q.len()).sum(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool { self.len() == 0 }
+
+    pub fn front(&self) -> Option<&core::ast::ValueEnvelope> {
+        match &self.inner {
+            MailboxImpl::Linear(v) => v.front(),
+            MailboxImpl::Map(m) => {
+                // highest priority -> last key in BTreeMap
+                m.keys().rev().next().and_then(|k| m.get(k)).and_then(|q| q.front())
+            }
+        }
+    }
+
+    pub fn to_vec(&self) -> Vec<core::ast::ValueEnvelope> {
+        match &self.inner {
+            MailboxImpl::Linear(v) => v.iter().cloned().collect(),
+            MailboxImpl::Map(m) => {
+                let mut out = Vec::new();
+                for (&pri, q) in m.iter().rev() { // descending priority
+                    for e in q {
+                        out.push(e.clone());
+                    }
+                }
+                out
+            }
+        }
+    }
+
+    pub fn pop_front(&mut self) -> Option<core::ast::ValueEnvelope> {
+        match &mut self.inner {
+            MailboxImpl::Linear(v) => v.pop_front(),
+            MailboxImpl::Map(m) => {
+                if let Some((&pri, _)) = m.iter().rev().next() {
+                    if let Some(q) = m.get_mut(&pri) {
+                        let res = q.pop_front();
+                        if q.is_empty() {
+                            m.remove(&pri);
+                        }
+                        return res;
+                    }
+                }
+                None
+            }
+        }
+    }
+
+    pub fn insert(&mut self, env: core::ast::ValueEnvelope) {
+        match &mut self.inner {
+            MailboxImpl::Linear(v) => {
+                // linear insert by priority with FIFO among equals
+                let mut insert_pos = 0usize;
+                while insert_pos < v.len() {
+                    if v[insert_pos].priority < env.priority {
+                        break;
+                    }
+                    insert_pos += 1;
+                }
+                while insert_pos < v.len() && v[insert_pos].priority == env.priority {
+                    insert_pos += 1;
+                }
+                v.insert(insert_pos, env);
+                if v.len() > Mailbox::MIGRATE_THRESHOLD {
+                    // migrate to map
+                    let mut map: BTreeMap<i32, VecDeque<core::ast::ValueEnvelope>> = BTreeMap::new();
+                    for e in v.drain(..) {
+                        map.entry(e.priority).or_default().push_back(e);
+                    }
+                    self.inner = MailboxImpl::Map(map);
+                }
+            }
+            MailboxImpl::Map(m) => {
+                m.entry(env.priority).or_default().push_back(env);
+            }
+        }
+    }
+
+    pub fn iter(&self) -> Vec<core::ast::ValueEnvelope> { self.to_vec() }
 }
 
 impl Interpreter {
@@ -77,6 +199,26 @@ impl Interpreter {
             "on_finalize",
             ArtValue::Builtin(core::ast::BuiltinFn::OnFinalize),
         );
+        global_env.borrow_mut().define(
+            "actor_send",
+            ArtValue::Builtin(core::ast::BuiltinFn::ActorSend),
+        );
+        global_env.borrow_mut().define(
+            "actor_receive",
+            ArtValue::Builtin(core::ast::BuiltinFn::ActorReceive),
+        );
+        global_env.borrow_mut().define(
+            "actor_receive_envelope",
+            ArtValue::Builtin(core::ast::BuiltinFn::ActorReceiveEnvelope),
+        );
+        global_env.borrow_mut().define(
+            "actor_yield",
+            ArtValue::Builtin(core::ast::BuiltinFn::ActorYield),
+        );
+        global_env.borrow_mut().define(
+            "actor_set_mailbox_limit",
+            ArtValue::Builtin(core::ast::BuiltinFn::ActorSetMailboxLimit),
+        );
 
         Interpreter {
             environment: global_env,
@@ -106,6 +248,10 @@ impl Interpreter {
             finalizers: HashMap::new(),
             current_arena: None,
             next_arena_id: 1,
+            actors: HashMap::new(),
+            next_actor_id: 1,
+            current_actor: None,
+            actor_mailbox_limit: 1024,
         }
     }
 
@@ -1158,6 +1304,17 @@ impl Interpreter {
                 // Import is a compile-time / resolver concern; runtime no-op for now.
                 Ok(())
             }
+            Stmt::SpawnActor { body } => {
+                // Create a new actor with its own lexical environment snapshot
+                let aid = self.next_actor_id;
+                self.next_actor_id += 1;
+                let actor_env = Rc::new(RefCell::new(Environment::new(Some(self.environment.clone()))));
+                let actor = ActorState { id: aid, mailbox: Mailbox::new(), body: VecDeque::from(body), env: actor_env, finished: false, parked: false, mailbox_limit: self.actor_mailbox_limit };
+                self.actors.insert(aid, actor);
+                // Return actor id as Int for now
+                self.last_value = Some(ArtValue::Int(aid as i64));
+                Ok(())
+            }
         }
     }
 
@@ -2006,6 +2163,227 @@ impl Interpreter {
                 }
                 Ok(ArtValue::none())
             }
+            core::ast::BuiltinFn::ActorSend => {
+                // Accepts actor_send(actor_id, value [, priority])
+                if arguments.len() < 2 || arguments.len() > 3 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "actor_send expects 2 or 3 args".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let aid_val = self.evaluate(arguments[0].clone())?;
+                let msg_val = self.evaluate(arguments[1].clone())?;
+                let priority = if arguments.len() == 3 {
+                    match self.evaluate(arguments[2].clone())? {
+                        ArtValue::Int(n) => n as i32,
+                        _ => 0,
+                    }
+                } else {
+                    0
+                };
+                if let ArtValue::Int(n) = aid_val {
+                    let aid = n as u32;
+                    if let Some(actor) = self.actors.get_mut(&aid) {
+                        let limit = actor.mailbox_limit;
+                        if actor.mailbox.len() >= limit {
+                            // mailbox full: signal backpressure (return false)
+                            return Ok(ArtValue::Bool(false));
+                        }
+                        let env = core::ast::ValueEnvelope { sender: self.current_actor, payload: msg_val, priority };
+                        actor.mailbox.insert(env);
+                        // If actor was parked waiting for messages, unpark it
+                        if actor.parked {
+                            actor.parked = false;
+                        }
+                        return Ok(ArtValue::Bool(true));
+                    } else {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            format!("actor_send: unknown actor id {}", aid),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                    }
+                } else {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "actor_send: actor id must be Int".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                }
+                Ok(ArtValue::none())
+            }
+            core::ast::BuiltinFn::ActorReceive => {
+                // actor_receive reads from the current actor's mailbox
+                if let Some(aid) = self.current_actor {
+                    if let Some(actor) = self.actors.get_mut(&aid) {
+                        if let Some(env) = actor.mailbox.pop_front() {
+                            return Ok(env.payload);
+                        } else {
+                            // Park the actor: scheduler should skip it until a message arrives
+                            actor.parked = true;
+                            return Ok(ArtValue::Optional(Box::new(None)));
+                        }
+                    }
+                }
+                self.diagnostics.push(Diagnostic::new(
+                    DiagnosticKind::Runtime,
+                    "actor_receive: no current actor context".to_string(),
+                    Span::new(0, 0, 0, 0),
+                ));
+                Ok(ArtValue::Optional(Box::new(None)))
+            }
+            core::ast::BuiltinFn::ActorReceiveEnvelope => {
+                // Return the full envelope (sender, payload, priority) as an EnumInstance-like struct
+                if let Some(aid) = self.current_actor {
+                    if let Some(actor) = self.actors.get_mut(&aid) {
+                        if let Some(env) = actor.mailbox.pop_front() {
+                            // Build a struct-like EnumInstance to carry fields: sender, payload, priority
+                            // For simplicity, return an Array [sender_or_none, payload, priority]
+                            let sender_val = match env.sender {
+                                Some(s) => ArtValue::Int(s as i64),
+                                None => ArtValue::Optional(Box::new(None)),
+                            };
+                            let priority_val = ArtValue::Int(env.priority as i64);
+                            let arr = ArtValue::Array(vec![sender_val, env.payload, priority_val]);
+                            return Ok(arr);
+                        } else {
+                            actor.parked = true;
+                            return Ok(ArtValue::Optional(Box::new(None)));
+                        }
+                    }
+                }
+                self.diagnostics.push(Diagnostic::new(
+                    DiagnosticKind::Runtime,
+                    "actor_receive_envelope: no current actor context".to_string(),
+                    Span::new(0, 0, 0, 0),
+                ));
+                Ok(ArtValue::Optional(Box::new(None)))
+            }
+            core::ast::BuiltinFn::ActorSetMailboxLimit => {
+                if arguments.len() != 2 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "actor_set_mailbox_limit expects 2 args".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let aid_val = self.evaluate(arguments[0].clone())?;
+                let limit_val = self.evaluate(arguments[1].clone())?;
+                if let (core::ast::ArtValue::Int(n), core::ast::ArtValue::Int(l)) = (aid_val, limit_val) {
+                    let aid = n as u32;
+                    let lim = if l < 0 { 0 } else { l as usize };
+                    if let Some(actor) = self.actors.get_mut(&aid) {
+                        actor.mailbox_limit = lim;
+                        return Ok(ArtValue::Bool(true));
+                    } else {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            format!("actor_set_mailbox_limit: unknown actor id {}", aid),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                    }
+                } else {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "actor_set_mailbox_limit: invalid args".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                }
+                Ok(ArtValue::none())
+            }
+            core::ast::BuiltinFn::ActorYield => {
+                // actor_yield is a cooperative hint; scheduler will rotate after statement
+                // For runtime, just return None; scheduler sees it's a normal statement boundary.
+                Ok(ArtValue::none())
+            }
+        }
+    }
+
+    /// Run actors in a simple round-robin scheduler. Each actor executes at most one
+    /// statement per turn. Actors with empty body but non-empty mailbox will be considered runnable
+    /// (so user code can `actor_receive()` in the body to consume messages). max_steps limits total turns.
+    pub fn run_actors_round_robin(&mut self, max_steps: usize) {
+        let mut steps = 0usize;
+        let mut actor_ids: Vec<u32> = self.actors.keys().cloned().collect();
+        actor_ids.sort_unstable();
+        let mut idx = 0usize;
+        while steps < max_steps && !actor_ids.is_empty() {
+            if idx >= actor_ids.len() {
+                idx = 0;
+            }
+            let aid = actor_ids[idx];
+            // If actor was removed or finished, skip
+            let should_remove = if let Some(actor) = self.actors.get(&aid) {
+                if actor.finished {
+                    true
+                } else {
+                    false
+                }
+            } else { true };
+            if should_remove {
+                // remove from list
+                actor_ids.remove(idx);
+                continue;
+            }
+
+            // Execute one statement of the actor if available
+            if let Some(actor_entry) = self.actors.remove(&aid) {
+                let mut actor = actor_entry;
+                // If parked (waiting for message) skip until unparked (actor_send will unpark)
+                if actor.parked {
+                    self.actors.insert(aid, actor);
+                    idx += 1;
+                    continue;
+                }
+                // Determine if actor is runnable: has body statements or mailbox with content
+                if actor.body.is_empty() && actor.mailbox.is_empty() {
+                    // nothing to do for this actor; reinsert and skip
+                    self.actors.insert(aid, actor);
+                    idx += 1;
+                    continue;
+                }
+                // set current actor context
+                self.current_actor = Some(aid);
+                if let Some(stmt) = actor.body.pop_front() {
+                    // Swap environment
+                    let previous_env = self.environment.clone();
+                    self.environment = actor.env.clone();
+                    // Execute statement; ignore return errors for now
+                    let _ = self.execute(stmt);
+                    // Drop handles created in actor frame to avoid leaking into global
+                    let env_for_drop = self.environment.clone();
+                    self.drop_scope_heap_objects(&env_for_drop);
+                    // restore env
+                    actor.env = self.environment.clone();
+                    self.environment = previous_env;
+                } else {
+                    // No statements; actor may be waiting for mailbox messages handled by actor_receive
+                    // nothing to step here
+                }
+                // Clear current actor
+                self.current_actor = None;
+                // If actor has no body and mailbox empty, mark finished
+                if actor.body.is_empty() && actor.mailbox.is_empty() {
+                    actor.finished = true;
+                }
+                // reinsert actor state
+                self.actors.insert(aid, actor);
+            }
+
+            steps += 1;
+            idx += 1;
+        }
+        // Cleanup finished actors
+        let finished_ids: Vec<u32> = self
+            .actors
+            .iter()
+            .filter_map(|(id, a)| if a.finished { Some(*id) } else { None })
+            .collect();
+        for id in finished_ids {
+            self.actors.remove(&id);
         }
     }
 

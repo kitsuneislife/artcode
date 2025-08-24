@@ -3,6 +3,14 @@ use core::TokenType;
 use core::ast::{ArtValue, Expr, MatchPattern, Stmt};
 
 pub fn statement(parser: &mut Parser) -> Stmt {
+    if parser.check(&TokenType::Spawn) {
+        // syntax: spawn actor { ... }
+        parser.advance();
+        parser.consume(TokenType::Actor, "Expect 'actor' after 'spawn'.");
+        parser.consume(TokenType::LeftBrace, "Expect '{' to start actor body.");
+        let body = block(parser);
+        return Stmt::SpawnActor { body };
+    }
     if parser.check(&TokenType::Match) {
         return match_statement(parser);
     }

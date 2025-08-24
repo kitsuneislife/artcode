@@ -5,6 +5,13 @@ use std::fmt;
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ValueEnvelope {
+    pub sender: Option<u32>,
+    pub payload: ArtValue,
+    pub priority: i32,
+}
+
 pub type Program = Vec<Stmt>;
 
 #[derive(Debug, Clone)]
@@ -49,6 +56,9 @@ pub enum Stmt {
     // para alocações dentro do bloco.
     Return {
         value: Option<Expr>,
+    },
+    SpawnActor {
+        body: Vec<Stmt>,
     },
     Import {
         path: Vec<Token>,
@@ -186,6 +196,11 @@ pub enum BuiltinFn {
     UnownedNew, // __unowned(x)
     UnownedGet, // __unowned_get(u)
     OnFinalize, // __on_finalize(comp, fn)
+    ActorSend,   // actor_send(actor, value)
+    ActorReceive, // actor_receive()
+    ActorReceiveEnvelope, // actor_receive_envelope()
+    ActorYield, // actor_yield()
+    ActorSetMailboxLimit, // actor_set_mailbox_limit(actor, limit)
 }
 
 impl fmt::Debug for BuiltinFn {
@@ -199,6 +214,11 @@ impl fmt::Debug for BuiltinFn {
             BuiltinFn::UnownedNew => write!(f, "<builtin __unowned>"),
             BuiltinFn::UnownedGet => write!(f, "<builtin __unowned_get>"),
             BuiltinFn::OnFinalize => write!(f, "<builtin __on_finalize>"),
+            BuiltinFn::ActorSend => write!(f, "<builtin actor_send>"),
+                BuiltinFn::ActorReceive => write!(f, "<builtin actor_receive>"),
+                BuiltinFn::ActorReceiveEnvelope => write!(f, "<builtin actor_receive_envelope>"),
+                BuiltinFn::ActorYield => write!(f, "<builtin actor_yield>"),
+                BuiltinFn::ActorSetMailboxLimit => write!(f, "<builtin actor_set_mailbox_limit>"),
         }
     }
 }
@@ -259,6 +279,11 @@ impl fmt::Display for ArtValue {
                 BuiltinFn::UnownedNew => write!(f, "<builtin __unowned>"),
                 BuiltinFn::UnownedGet => write!(f, "<builtin __unowned_get>"),
                 BuiltinFn::OnFinalize => write!(f, "<builtin __on_finalize>"),
+                BuiltinFn::ActorSend => write!(f, "<builtin actor_send>"),
+                BuiltinFn::ActorReceive => write!(f, "<builtin actor_receive>"),
+                BuiltinFn::ActorReceiveEnvelope => write!(f, "<builtin actor_receive_envelope>"),
+                BuiltinFn::ActorYield => write!(f, "<builtin actor_yield>"),
+                BuiltinFn::ActorSetMailboxLimit => write!(f, "<builtin actor_set_mailbox_limit>"),
             },
             ArtValue::WeakRef(_) => write!(f, "<weak ref>"),
             ArtValue::UnownedRef(_) => write!(f, "<unowned ref>"),

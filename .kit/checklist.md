@@ -54,10 +54,10 @@ Não precisa comittar esse arquivo.
 
 ## Fase 9 – Concorrência Híbrida
  - [~] RFC: Runtime de Atores (mailbox FIFO, isolamento por mensagem)
- - [ ] Implementar `spawn actor { ... }` sintaxe (ou função builtin temporária)
- - [ ] Tipo de mensagem polimórfico (enum ValueEnvelope)
+ - [x] Implementar `spawn actor { ... }` sintaxe (ou função builtin temporária)
+ - [x] Tipo de mensagem polimórfico (enum ValueEnvelope)
  - [~] Scheduler cooperativo inicial (round-robin / prioridade simples)
- - [ ] Backpressure: limite configurável de mailbox + diagnóstico
+ - [~] Backpressure: limite configurável de mailbox + diagnóstico (MVP implemented: mailbox_limit + return bool; docs pending)
  - [ ] Blocos `performant {}` parse + verificação de restrições
  - [ ] Primitivas compartilhadas autorizadas em performant: Mutex, AtomicInt
  - [ ] Análise básica: proibir captura de valor não Send-safe (placeholder rule)

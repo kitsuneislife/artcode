@@ -41,6 +41,8 @@ pub enum TokenType {
     Import,
     Func,
     Performant,
+        Spawn,
+        Actor,
     Return,
     Weak,    // keyword 'weak' (açúcar)
     Unowned, // keyword 'unowned' (açúcar)
@@ -89,11 +91,13 @@ impl Token {
                 | TokenType::Match
                 | TokenType::Case
                 | TokenType::Func
-                | TokenType::Return
+                   | TokenType::Return
                 | TokenType::None
                 | TokenType::As
                 | TokenType::Weak
                 | TokenType::Unowned
+                   | TokenType::Spawn
+                   | TokenType::Actor
         )
         .then(|| intern(&lexeme));
         Token {

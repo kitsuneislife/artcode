@@ -141,6 +141,10 @@ impl<'a> TypeInfer<'a> {
             Stmt::Performant { statements } => {
                 self.check_performant_block(statements);
             }
+            Stmt::SpawnActor { body } => {
+                // For now, accept top-level actor declarations but don't deeply type-check their body here.
+                let _ = body;
+            }
         }
     }
 
@@ -263,6 +267,13 @@ impl<'a> TypeInfer<'a> {
                     self.check_performant_stmt(s, outer_vars);
                 }
                 self.pop_scope();
+            }
+            SpawnActor { .. } => {
+                self.diags.push(Diagnostic::new(
+                    DiagnosticKind::Type,
+                    "spawn actor is not allowed inside performant blocks".to_string(),
+                    Span::new(0,0,0,0),
+                ));
             }
             StructDecl { .. } | EnumDecl { .. } | Expression(_) | Import { .. } => { /* allowed */ }
         }
