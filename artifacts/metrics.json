@@ -1,5 +1,1 @@
-inside block weak_get:
-after block: owner foi dropado ao sair do bloco
-inside block unowned_get:
-after block: owner2 foi dropado ao sair do bloco
-{"handled_errors":0,"executed_statements":10,"crash_free":100.0,"finalizer_promotions":0,"weak_created":1,"weak_upgrades":0,"weak_dangling":0,"unowned_created":1,"unowned_dangling":0,"cycle_reports_run":0}
+{"handled_errors":0,"executed_statements":7,"crash_free":100.0,"finalizer_promotions":2,"objects_finalized_per_arena":{"1":1},"arena_alloc_count":{"1":1},"finalizer_promotions_per_arena":{"1":0},"weak_created":0,"weak_upgrades":0,"weak_dangling":0,"unowned_created":0,"unowned_dangling":0,"cycle_reports_run":0}

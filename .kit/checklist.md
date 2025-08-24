@@ -18,7 +18,7 @@ Não precisa comittar esse arquivo.
  - [x] Priority 2: arena finalization hardening and per-arena metrics implemented (commit refs: d5ae06e, 190fd67, 0ae8e1b)
  - [x] Análise estática mínima: impedir escape de referências de arena (checagem conservadora implementada — `return` e capturas/lets compostos sinalizados; see `crates/interpreter/src/type_infer.rs`)
  - [x] Métricas: `cycle_leaks_detected` present; strong_increments/decrements partially instrumented; weak/unowned counters present. Implemented & exported: `arena_alloc_count`, `finalizer_promotions_per_arena`, `objects_finalized_per_arena` (see commits d5ae06e, 0ae8e1b, be27791)
- - [~] Docs: `docs/memory.md` (seção inicial adicionada; precisa refinamento e exemplos de métricas/trade-offs)
+ - [x] Docs: `docs/memory.md` (seção inicial adicionada e refinada — agora documenta centralização de mutações e o contrato dos helpers; exemplos/trade-offs podem ser expandidos futuramente)
 
 - [x] Docs: `docs/memory.md` (seção inicial adicionada e refinada — agora documenta centralização de mutações e o contrato dos helpers; exemplos/trade-offs podem ser expandidos futuramente)
  - [x] Infra interna: closures usam Weak + retained_env para evitar ciclos
@@ -92,12 +92,14 @@ Não precisa comittar esse arquivo.
 - [ ] Docs: `docs/debugging.md`
 
 ## Fase 13 – Sistema de Módulos & Pacotes
-- [ ] RFC: Sintaxe `import foo.bar` e resolução
-- [ ] Manifesto de pacote `Art.toml` (nome, versão, deps, profile build)
-- [ ] Resolver com cache local (`~/.artcode/cache`)
-- [ ] Namespaces: separar prelude mínimo vs. imports explícitos
-- [ ] CLI: `art add <pkg>` baixa e fixa versão (sem publicar ainda)
-- [ ] Docs: `docs/modules.md`
+ - [~] PRIORIDADE: Fase 13 — Sistema de Módulos & Pacotes (focar implementação MVP)
+	 - [ ] RFC: Sintaxe `import foo.bar` e resolução (docs/rfcs/0002-modules.md)
+	 - [ ] Parser: reconhecer `import` e gerar AST
+	 - [ ] Resolver local: mapear `import` para arquivo no workspace
+	 - [ ] Manifesto de pacote `Art.toml` (nome, versão, deps, profile build)
+	 - [ ] Cache local: `~/.artcode/cache` e regra de resolução
+	 - [ ] CLI: `art add <path-or-git>` instalar no cache + atualizar `.art-lock`
+	 - [ ] Docs: `docs/modules.md` + exemplos em `cli/examples/modules/`
 
 ## Fase 14 – Governança & RFC Processual
 - [ ] Criar `docs/rfcs/0000-template.md`

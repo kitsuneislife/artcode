@@ -23,14 +23,13 @@ O runtime agora expõe métricas por arena quando blocos `performant {}` são us
 - `objects_finalized_per_arena: { arena_id: finalized_count }` — quantos objetos daquela arena tiveram seus finalizers executados e foram contabilizados como finalizados.
 - `finalizer_promotions_per_arena: { arena_id: promotions }` — quantos handles foram promovidos ao root porque um finalizer daquela arena criou referências sobreviventes.
 
+# Modelo de Memória — Fase 8 (Consolidado)
+
+## Introdução
 Notas de interpretação e limites:
 
 - `arena_id` é um identificador interno (u32) estável durante a execução do programa. Não há garantia sobre densidade ou ordenação entre ids (pode haver gaps).
 - Valores são contadores não-negativos (usize) e podem ser zero quando a execução não usou arenas.
-- As métricas por arena são úteis para localizar hotspots temporários e para validar que finalizers não estão promovendo referências inesperadas para o heap global.
-## Modelo de Memória (Fase 8 — Documentação consolidada)
-
-Esta página descreve o modelo de memória projetado e implementado na Fase 8. Ela resume a semântica de ownership, layout do heap, política de finalização, arenas (`performant {}`), métricas expostas pelo runtime e ferramentas de debug/test.
 
 ## Visão geral
 
@@ -52,24 +51,12 @@ Esta página descreve o modelo de memória projetado e implementado na Fase 8. E
 	- arena_id: Option<u32> — se o objeto foi alocado/atribuído a uma arena
 
 Observação: a implementação atual usa um único mapa `heap_objects` contendo todos os objetos; o `arena_id` é uma etiqueta lógica usada para finalização e métricas.
-
-## Semântica de Weak e Unowned
-
-- Weak:
 	- `weak(x)` cria um wrapper fraco ao redor de `x` (ou reusa o id se `x` já for composto).
 	- `upgrade(weak)` / postfix `?` tenta retornar `Some(handle)` se o alvo estiver `alive`, senão `None`.
 	- Weak não afeta a vida do objeto (não incrementa `strong`).
-
-- Unowned:
-	- `unowned(x)` cria uma referência que pressupõe validade enquanto o dono existir.
-	- Em modo debug, `unowned_get` valida `alive` e emite diagnóstico `dangling unowned reference` quando o alvo já foi finalizado.
 	- Em produção, `unowned` é mais permissivo (sem checagens) para reduzir overhead, mas é categorizado como comportamento inseguro se usado incorretamente.
 
 ## Ciclos e detector de ciclos
-
-- A runtime expõe um detector de ciclos orientado a testes que opera sobre o grafo de `heap_objects` (usa Tarjan SCC).
-- Cada SCC é classificada com metadados: `isolated`, `reachable_from_root`, `leak_candidate`.
-- O detector gera sugestões de arestas a enfraquecer (candidate_owner_edges) e um ranking simples para ajudar a triagem manual.
 
 ## Política de finalização (dois passos)
 
@@ -94,11 +81,7 @@ Observações de estabilidade e robustez:
 	- Finalizers de objetos de arena podem promover handles para o root; tais promoções são atribuídas à arena via `finalizer_promotions_per_arena`.
 
 - Regras estáticas (checagem conservadora):
-	- `return` dentro de `performant` é proibido (TypeInfer sinaliza).
-	- Funções definidas dentro de `performant` são desaconselhadas/diagnosticadas (podem capturar arena values).
-	- `let` com inicializador composto dentro de `performant` é sinalizado quando há risco de escape.
 
-## Métricas expostas
 
 O runtime expõe métricas voltadas para diagnóstico e telemetria. As chaves principais disponíveis via `art metrics --json`:
 

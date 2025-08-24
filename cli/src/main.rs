@@ -128,7 +128,7 @@ fn main() {
             process::exit(64);
         };
         match fs::read_to_string(f) {
-            Ok(source) => {
+        Ok(_source) => {
                 // Use resolver to expand imports before collecting metrics
                 match crate::resolver::resolve(f) {
                     Ok((program, main_source)) => {
@@ -150,65 +150,78 @@ fn main() {
                         for d in interpreter.take_diagnostics() {
                             eprintln!("{}", format_diagnostic(&main_source, &d));
                         }
-                        // continue to JSON printing path below using interpreter
-                        // (we reuse interpreter variable by shadowing via a block)
-                        {
-                            // move interpreter metrics into scope for JSON serialization
-                            let interpreter = interpreter;
-                            if json {
-                                #[derive(Serialize)]
-                                struct Metrics {
-                                    handled_errors: usize,
-                                    executed_statements: usize,
-                                    crash_free: f64,
-                                    finalizer_promotions: usize,
-                                    objects_finalized_per_arena: std::collections::HashMap<u32, usize>,
-                                    arena_alloc_count: std::collections::HashMap<u32, usize>,
-                                    finalizer_promotions_per_arena: std::collections::HashMap<u32, usize>,
-                                    weak_created: usize,
-                                    weak_upgrades: usize,
-                                    weak_dangling: usize,
-                                    unowned_created: usize,
-                                    unowned_dangling: usize,
-                                    cycle_reports_run: usize,
-                                }
 
-                                // Ensure per-arena promotion map has entries for all arenas seen (default 0)
-                                let mut finalizer_promotions_per_arena = interpreter.finalizer_promotions_per_arena.clone();
-                                for aid in interpreter.arena_alloc_count.keys() {
-                                    finalizer_promotions_per_arena.entry(*aid).or_insert(0usize);
-                                }
-
-                                let metrics = Metrics {
-                                    handled_errors: interpreter.handled_errors,
-                                    executed_statements: interpreter.executed_statements,
-                                    crash_free: 100.0
-                                        * (1.0
-                                            - (interpreter.handled_errors as f64
-                                                / interpreter.executed_statements.max(1) as f64)),
-                                    finalizer_promotions: interpreter.get_finalizer_promotions(),
-                                    objects_finalized_per_arena: interpreter.objects_finalized_per_arena.clone(),
-                                    arena_alloc_count: interpreter.arena_alloc_count.clone(),
-                                    finalizer_promotions_per_arena: finalizer_promotions_per_arena,
-                                    weak_created: interpreter.weak_created,
-                                    weak_upgrades: interpreter.weak_upgrades,
-                                    weak_dangling: interpreter.weak_dangling,
-                                    unowned_created: interpreter.unowned_created,
-                                    unowned_dangling: interpreter.unowned_dangling,
-                                    cycle_reports_run: interpreter.cycle_reports_run.get(),
-                                };
-
-                                match serde_json::to_string(&metrics) {
-                                    Ok(s) => println!("{}", s),
-                                    Err(e) => {
-                                        eprintln!("Failed to serialize metrics: {}", e);
-                                        process::exit(70);
-                                    }
-                                }
-                                return;
+                        // Print metrics (JSON or plain) while `interpreter` is in scope.
+                        if json {
+                            #[derive(Serialize)]
+                            struct Metrics {
+                                handled_errors: usize,
+                                executed_statements: usize,
+                                crash_free: f64,
+                                finalizer_promotions: usize,
+                                objects_finalized_per_arena: std::collections::HashMap<u32, usize>,
+                                arena_alloc_count: std::collections::HashMap<u32, usize>,
+                                finalizer_promotions_per_arena: std::collections::HashMap<u32, usize>,
+                                weak_created: usize,
+                                weak_upgrades: usize,
+                                weak_dangling: usize,
+                                unowned_created: usize,
+                                unowned_dangling: usize,
+                                cycle_reports_run: usize,
                             }
+
+                            // Ensure per-arena promotion map has entries for all arenas seen (default 0)
+                            let mut finalizer_promotions_per_arena = interpreter.finalizer_promotions_per_arena.clone();
+                            for aid in interpreter.arena_alloc_count.keys() {
+                                finalizer_promotions_per_arena.entry(*aid).or_insert(0usize);
+                            }
+
+                            let metrics = Metrics {
+                                handled_errors: interpreter.handled_errors,
+                                executed_statements: interpreter.executed_statements,
+                                crash_free: 100.0
+                                    * (1.0
+                                        - (interpreter.handled_errors as f64
+                                            / interpreter.executed_statements.max(1) as f64)),
+                                finalizer_promotions: interpreter.get_finalizer_promotions(),
+                                objects_finalized_per_arena: interpreter.objects_finalized_per_arena.clone(),
+                                arena_alloc_count: interpreter.arena_alloc_count.clone(),
+                                finalizer_promotions_per_arena: finalizer_promotions_per_arena,
+                                weak_created: interpreter.weak_created,
+                                weak_upgrades: interpreter.weak_upgrades,
+                                weak_dangling: interpreter.weak_dangling,
+                                unowned_created: interpreter.unowned_created,
+                                unowned_dangling: interpreter.unowned_dangling,
+                                cycle_reports_run: interpreter.cycle_reports_run.get(),
+                            };
+
+                            match serde_json::to_string(&metrics) {
+                                Ok(s) => println!("{}", s),
+                                Err(e) => {
+                                    eprintln!("Failed to serialize metrics: {}", e);
+                                    process::exit(70);
+                                }
+                            }
+                        } else {
+                            println!("[metrics] handled_errors={} executed_statements={} crash_free={:.1}% finalizer_promotions={}",
+                                interpreter.handled_errors,
+                                interpreter.executed_statements,
+                                100.0 * (1.0 - (interpreter.handled_errors as f64 / interpreter.executed_statements.max(1) as f64)),
+                                interpreter.get_finalizer_promotions()
+                            );
+                            // print a compact arena summary
+                            if !interpreter.arena_alloc_count.is_empty() {
+                                let arenas: Vec<String> = interpreter.arena_alloc_count.iter().map(|(aid,c)| format!("arena{}:{}alloc", aid, c)).collect();
+                                println!("[arena] {}", arenas.join(","));
+                            }
+                            if !interpreter.objects_finalized_per_arena.is_empty() {
+                                let fin: Vec<String> = interpreter.objects_finalized_per_arena.iter().map(|(aid,c)| format!("arena{}:{}finalized", aid, c)).collect();
+                                println!("[arena_finalized] {}", fin.join(","));
+                            }
+                            println!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
+                                interpreter.weak_created, interpreter.weak_upgrades, interpreter.weak_dangling,
+                                interpreter.unowned_created, interpreter.unowned_dangling, interpreter.cycle_reports_run.get());
                         }
-                        return;
                     }
                     Err(diags) => {
                         for (src, d) in diags {
@@ -217,78 +230,7 @@ fn main() {
                         return;
                     }
                 }
-                if json {
-                    #[derive(Serialize)]
-                    struct Metrics {
-                        handled_errors: usize,
-                        executed_statements: usize,
-                        crash_free: f64,
-                        finalizer_promotions: usize,
-                        objects_finalized_per_arena: std::collections::HashMap<u32, usize>,
-                        arena_alloc_count: std::collections::HashMap<u32, usize>,
-                        finalizer_promotions_per_arena: std::collections::HashMap<u32, usize>,
-                        weak_created: usize,
-                        weak_upgrades: usize,
-                        weak_dangling: usize,
-                        unowned_created: usize,
-                        unowned_dangling: usize,
-                        cycle_reports_run: usize,
-                    }
-
-                    // Ensure per-arena promotion map has entries for all arenas seen (default 0)
-                    let mut finalizer_promotions_per_arena = interpreter.finalizer_promotions_per_arena.clone();
-                    for aid in interpreter.arena_alloc_count.keys() {
-                        finalizer_promotions_per_arena.entry(*aid).or_insert(0usize);
-                    }
-
-                    let metrics = Metrics {
-                        handled_errors: interpreter.handled_errors,
-                        executed_statements: interpreter.executed_statements,
-                        crash_free: 100.0
-                            * (1.0
-                                - (interpreter.handled_errors as f64
-                                    / interpreter.executed_statements.max(1) as f64)),
-                        finalizer_promotions: interpreter.get_finalizer_promotions(),
-                        objects_finalized_per_arena: interpreter.objects_finalized_per_arena.clone(),
-                        arena_alloc_count: interpreter.arena_alloc_count.clone(),
-                            finalizer_promotions_per_arena: finalizer_promotions_per_arena,
-                        weak_created: interpreter.weak_created,
-                        weak_upgrades: interpreter.weak_upgrades,
-                        weak_dangling: interpreter.weak_dangling,
-                        unowned_created: interpreter.unowned_created,
-                        unowned_dangling: interpreter.unowned_dangling,
-                        cycle_reports_run: interpreter.cycle_reports_run.get(),
-                    };
-
-                    // Print compact JSON, handling serialization errors without panicking
-                    match serde_json::to_string(&metrics) {
-                        Ok(s) => println!("{}", s),
-                        Err(e) => {
-                            eprintln!("Failed to serialize metrics: {}", e);
-                            // Use EX_SOFTWARE-like exit code
-                            process::exit(70);
-                        }
-                    }
-                } else {
-                    println!("[metrics] handled_errors={} executed_statements={} crash_free={:.1}% finalizer_promotions={}",
-                        interpreter.handled_errors,
-                        interpreter.executed_statements,
-                        100.0 * (1.0 - (interpreter.handled_errors as f64 / interpreter.executed_statements.max(1) as f64)),
-                        interpreter.get_finalizer_promotions()
-                    );
-                    // print a compact arena summary
-                    if !interpreter.arena_alloc_count.is_empty() {
-                        let arenas: Vec<String> = interpreter.arena_alloc_count.iter().map(|(aid,c)| format!("arena{}:{}alloc", aid, c)).collect();
-                        println!("[arena] {}", arenas.join(","));
-                    }
-                    if !interpreter.objects_finalized_per_arena.is_empty() {
-                        let fin: Vec<String> = interpreter.objects_finalized_per_arena.iter().map(|(aid,c)| format!("arena{}:{}finalized", aid, c)).collect();
-                        println!("[arena_finalized] {}", fin.join(","));
-                    }
-                    println!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
-                        interpreter.weak_created, interpreter.weak_upgrades, interpreter.weak_dangling,
-                        interpreter.unowned_created, interpreter.unowned_dangling, interpreter.cycle_reports_run.get());
-                }
+                // metrics already printed above while `interpreter` was in scope
             }
             Err(e) => {
                 eprintln!("Error reading file: {}", e);

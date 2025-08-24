@@ -11,7 +11,6 @@ use parser::parser::Parser;
 pub fn resolve(entry: &str) -> Result<(core::Program, String), Vec<(String, diagnostics::Diagnostic)>> {
     let mut visited: HashSet<PathBuf> = HashSet::new();
     let entry_path = PathBuf::from(entry);
-    let entry_parent = entry_path.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
 
     // Read entry source early to return it for formatting runtime diagnostics
     let main_source = match fs::read_to_string(&entry_path) {
@@ -106,7 +105,7 @@ pub fn resolve(entry: &str) -> Result<(core::Program, String), Vec<(String, diag
                 if let Some(cand) = resolve_candidate(base_dir, &rel) {
                     process_file(&cand, visited, out, errors);
                 } else {
-                    errors.push((source.clone(), diagnostics::Diagnostic::new(diagnostics::DiagnosticKind::Parse, format!("Cannot resolve import '{}' from {}", rel, path.display()), diagnostics::Span::new(0,0,0,0))));
+                    errors.push((source.clone(), diagnostics::Diagnostic::new(diagnostics::DiagnosticKind::Parse, format!("Cannot resolve import '{}' from {}", rel, base_dir.display()), diagnostics::Span::new(0,0,0,0))));
                 }
             }
         }
