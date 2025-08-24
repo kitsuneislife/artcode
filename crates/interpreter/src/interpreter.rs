@@ -223,6 +223,10 @@ impl Interpreter {
             "envelope",
             ArtValue::Builtin(core::ast::BuiltinFn::EnvelopeNew),
         );
+        global_env.borrow_mut().define(
+            "make_envelope",
+            ArtValue::Builtin(core::ast::BuiltinFn::MakeEnvelope),
+        );
 
         Interpreter {
             environment: global_env,
@@ -2336,6 +2340,37 @@ impl Interpreter {
                     other => other,
                 };
                 let priority = if let ArtValue::Int(n) = priority_val { n as i32 } else { 0 };
+                let mut fields = std::collections::HashMap::new();
+                fields.insert("sender".to_string(), sender_field);
+                fields.insert("payload".to_string(), payload_val);
+                fields.insert("priority".to_string(), ArtValue::Int(priority as i64));
+                let struct_val = ArtValue::StructInstance { struct_name: "Envelope".to_string(), fields };
+                Ok(self.heapify_composite(struct_val))
+            }
+            core::ast::BuiltinFn::MakeEnvelope => {
+                // make_envelope(payload [, priority]) -> Envelope with sender=current_actor
+                if arguments.is_empty() || arguments.len() > 2 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "make_envelope expects 1 or 2 args".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let payload_val = self.evaluate(arguments[0].clone())?;
+                let priority = if arguments.len() == 2 {
+                    match self.evaluate(arguments[1].clone())? {
+                        ArtValue::Int(n) => n as i32,
+                        _ => 0,
+                    }
+                } else {
+                    0
+                };
+                let sender_field = if let Some(sid) = self.current_actor {
+                    ArtValue::Int(sid as i64)
+                } else {
+                    ArtValue::Optional(Box::new(None))
+                };
                 let mut fields = std::collections::HashMap::new();
                 fields.insert("sender".to_string(), sender_field);
                 fields.insert("payload".to_string(), payload_val);
