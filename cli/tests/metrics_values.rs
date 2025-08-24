@@ -7,7 +7,7 @@ use interpreter::interpreter::Interpreter;
 // Parse the demo example and run the Interpreter in-process, then assert metric values.
 #[test]
 fn metrics_values_for_arena_demo() {
-    let source = include_str!("../examples/metrics_arena_demo.art");
+    let source = include_str!("../examples/17_metrics_arena_demo.art");
     let mut lexer = Lexer::new(source.to_string());
     let tokens = lexer.scan_tokens().expect("lex ok");
     let mut parser = Parser::new(tokens);
