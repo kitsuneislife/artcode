@@ -303,6 +303,13 @@ fn main() {
         match res {
             Ok(_) => {
                 println!("Installed to {}", dest.display());
+                // write .art-lock in current directory (simple mapping)
+                let lock = serde_json::json!({
+                    "name": dest_name,
+                    "version": dest_version,
+                    "source": dest.to_string_lossy().to_string()
+                });
+                let _ = std::fs::write(".art-lock", serde_json::to_string_pretty(&lock).unwrap());
                 return;
             }
             Err(e) => {
