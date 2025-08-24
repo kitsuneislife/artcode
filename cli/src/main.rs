@@ -248,7 +248,7 @@ fn main() {
         let _ = std::fs::create_dir_all(&cache_dir);
 
         // Determine source kind: local path, file://, or git URL
-        let mut working_src: std::path::PathBuf;
+    let working_src: std::path::PathBuf;
         let mut tmp_clone: Option<std::path::PathBuf> = None;
 
         let src_path = std::path::Path::new(src);

@@ -1,3 +1,13 @@
+This folder contains runnable examples for the `art` CLI. Files are named with a two-digit prefix to
+enforce ordering (00..99) and a descriptive suffix. Subdirectories (like `modules/`) may contain
+package-style examples with their own `Art.toml`, `lib.art`, and `main.art`.
+
+When adding examples, follow the existing pattern:
+- `00_hello.art`
+- `01_values_and_variables.art`
+- `...`
+
+Module/package examples live in `cli/examples/modules/<name>/` and should include `Art.toml`.
 # Exemplos Artcode
 
 Coleção progressiva de exemplos numerados demonstrando as capacidades atuais da linguagem.

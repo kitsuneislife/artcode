@@ -1,6 +1,6 @@
 use assert_cmd::Command;
 use tempfile::TempDir;
-use std::fs;
+// use std::fs; // intentionally not required; use fully qualified std::fs in test body
 use std::process::Command as ProcCommand;
 
 #[test]

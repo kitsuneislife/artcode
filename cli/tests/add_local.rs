@@ -1,6 +1,6 @@
 use assert_cmd::Command;
 use tempfile::TempDir;
-use std::fs;
+// use std::fs; // avoid unused import; calls use fully-qualified std::fs:: in test
 
 #[test]
 fn art_add_installs_local_path() {

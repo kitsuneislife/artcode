@@ -1,6 +1,6 @@
 use assert_cmd::Command;
 use tempfile::TempDir;
-use std::fs;
+// use std::fs; // not needed
 
 #[test]
 fn resolver_prefers_art_lock() {

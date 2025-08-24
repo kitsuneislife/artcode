@@ -1,6 +1,6 @@
 use assert_cmd::Command;
 use tempfile::TempDir;
-use std::fs;
+// use std::fs; // not needed directly
 
 #[test]
 fn resolver_finds_package_in_cache() {
