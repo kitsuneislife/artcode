@@ -55,3 +55,60 @@ let e = envelope(None, 42, 5);
 ```
 
 Notas de design e trade-offs estão na RFC `docs/rfcs/0003-actors.md`.
+
+## Protótipo: `Atomic` e `Mutex` (heap-backed)
+
+Status: protótipo implementado no runtime (single-threaded) e exposto via builtins.
+
+Resumo rápido:
+- As primitivas compartilhadas são representadas por handles heap-backed (`ArtValue::Atomic` e `ArtValue::Mutex`).
+- Implementação atual é single-threaded; operações são _semânticas_ (não mapeiam diretamente para primitivos nativos de CPU).
+- Builtins disponíveis (protótipo):
+  - `atomic_new(value)` -> cria um `Atomic` com valor inicial.
+  - `atomic_load(a)` -> retorna o valor atual.
+  - `atomic_store(a, v)` -> substitui o valor, retorna `true` em sucesso.
+  - `atomic_add(a, delta)` -> soma um inteiro e retorna o novo/antigo (convenção do runtime).
+  - `mutex_new(value)` -> cria um `Mutex` contendo um valor inicial.
+  - `mutex_lock(m)` / `mutex_unlock(m)` -> operações de bloqueio (protótipo cooperativo/no-op em single-threaded).
+
+Exemplo de uso (Art):
+
+```art
+let a = atomic_new(0);
+let old = atomic_add(a, 1);
+let cur = atomic_load(a);
+
+let m = mutex_new([1, 2, 3]);
+mutex_lock(m);
+// mutações seguras enquanto "possuímos" o lock no protótipo
+mutex_unlock(m);
+```
+
+Observações e limitações:
+- Atualmente as primitivas são um protótipo runtime: a semântica multithreaded formal (fences, ordering, atomicity real) ainda precisa ser definida.
+- Os objetos são heapificados e referenciados por handles; finalizadores/arenas e o coletor atual tratam desses handles como objetos normais.
+
+## Análise conservadora de Send-safety
+
+O compilador/analizador tem uma verificação conservadora para evitar capturas/envios de valores potencialmente não-send-safe entre atores/threads.
+
+Regras aplicadas (heurística conservadora):
+- Em chamadas para `actor_send(...)`, `make_envelope(...)` e em `spawn actor { ... }` analisamos o payload/capturas; expressões simples (números, strings, nomes de variáveis locais primitivas, handles explícitos como `Atomic`/`Mutex`) são consideradas seguras.
+- Expressões compostas, arrays/structs que contêm handles de objetos heap ou closures são consideradas não-send-safe e geram diagnóstico durante a fase de inference.
+
+Comportamento do diagnóstico:
+- O analisador emite diagnósticos informativos e impede (em fase de diagnóstico) padrões óbvios de envio de valores não-send-safe. A regra é propositalmente conservadora para evitar erros de tempo-de-execução.
+
+Limitações e próximos passos (prioritizados):
+1. Formalizar tipos Send/Sync no sistema de tipos e propagar propriedades pelos composites (arrays/structs) para reduzir falsos-positivos.
+2. Definir semântica multithreaded das primitivas `Atomic`/`Mutex` (ordenações, fences, atomicidade) e, quando apropriado, mapear para primitivas nativas ou bibliotecas.
+3. Representar `Atomic`/`Mutex` como kind explícito no `HeapObject` (em vez de snapshot de `StructInstance`) para reduzir complexidade e facilitar finalização/promotion.
+4. Adicionar mais testes: misuse (double-unlock), tipos inválidos para `atomic_add`, interações com arenas e finalizadores, e testes de regressão de send-safety (spawn/make_envelope em vários cenários).
+
+## Estado atual e como contribuir
+
+- Protótipo implementado no crate `interpreter` com testes unitários em `crates/interpreter/tests/atomic_mutex.rs` e `atomic_mutex_send_safety.rs`.
+- Checklist atualizado (`.kit/checklist.md`) marcando o protótipo; a análise rica de Send-safety ainda está pendente.
+- Para contribuir: implementar formalização de tipos Send/Sync, mapear operações atômicas para primitivas reais e adicionar testes de integração multithreaded.
+
+---
