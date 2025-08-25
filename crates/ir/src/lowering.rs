@@ -18,13 +18,14 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
                 ir_params.push((pname, Type::I64));
             }
 
-            // helper to create unique temps
-            let mut next_temp: usize = 0;
-            let mut mktemp = || {
-                let t = format!("%{}", next_temp);
-                next_temp += 1;
-                t
-            };
+                // helper to create unique temps (prefixed with function name)
+                let mut next_temp: usize = 0;
+                let fname_prefix = func_name.replace("@", "");
+                let mut mktemp = || {
+                    let t = format!("%{}_{}", fname_prefix, next_temp);
+                    next_temp += 1;
+                    t
+                };
 
             // inspect body
             let ret_expr = match &**body {
@@ -102,6 +103,25 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
                         Some(Function { name: func_name, params: ir_params, ret: Some(Type::I64), body })
                     } else { None }
                 }
+                Expr::Call { callee, arguments } => {
+                    // Lower a direct call returning a value: produce Call instr
+                    // Only support simple variable callee for now
+                    if let Expr::Variable { name } = &**callee {
+                        let mut arg_names: Vec<String> = Vec::new();
+                        for a in arguments {
+                            match a {
+                                Expr::Variable { name } => arg_names.push(name.lexeme.clone()),
+                                Expr::Literal(core::ast::ArtValue::Int(n)) => arg_names.push(n.to_string()),
+                                _ => return None,
+                            }
+                        }
+                        let dest = mktemp();
+                        let call = Instr::Call(dest.clone(), name.lexeme.clone(), arg_names);
+                        let body = vec![call, Instr::Ret(Some(dest))];
+                        return Some(Function { name: func_name, params: ir_params, ret: Some(Type::I64), body });
+                    }
+                    None
+                }
                 _ => None,
             }
         }
@@ -135,9 +155,9 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
             if let Stmt::If { condition, then_branch, else_branch } = &statements[0] {
                 // build temps and labels
                 let mut next_temp: usize = 0; let mut mktemp = || { let t = format!("%{}", next_temp); next_temp += 1; t };
-                let then_bb = "then_bb".to_string();
-                let else_bb = "else_bb".to_string();
-                let merge_bb = "merge_bb".to_string();
+                let then_bb = format!("{}_then", fname_prefix);
+                let else_bb = format!("{}_else", fname_prefix);
+                let merge_bb = format!("{}_merge", fname_prefix);
 
                 // lower condition: only var or literal supported for now
                 let cond_name = match condition {

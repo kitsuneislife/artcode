@@ -60,6 +60,47 @@ pub struct Interpreter {
     pub executing_actor: Option<ActorState>,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::ast::ArtValue;
+    use std::rc::Rc;
+
+    #[test]
+    fn atomic_add_overflow_emits_diag() {
+        let mut interp = Interpreter::new();
+        let hv = interp.heap_create_atomic(ArtValue::Int(i64::MAX - 1));
+        if let ArtValue::Atomic(h) = hv {
+            let res = interp.heap_atomic_add(h, 10);
+            assert!(res.is_none());
+            let diags = interp.take_diagnostics();
+            assert!(diags.iter().any(|d| d.message.contains("overflow")));
+        } else {
+            panic!("expected atomic handle");
+        }
+    }
+
+    #[test]
+    fn finalizer_skipped_for_atomic_and_mutex() {
+        let mut interp = Interpreter::new();
+        let a = interp.heap_create_atomic(ArtValue::Int(1));
+        let m = interp.heap_create_mutex(ArtValue::Int(2));
+        if let ArtValue::Atomic(h) = a {
+            interp.finalizers.insert(h.0, Rc::new(Function { name: Some("f".to_string()), params: vec![], body: Rc::new(Stmt::Block { statements: vec![] }), closure: std::rc::Weak::new(), retained_env: None }));
+        }
+        if let ArtValue::Mutex(h) = m {
+            interp.finalizers.insert(h.0, Rc::new(Function { name: Some("g".to_string()), params: vec![], body: Rc::new(Stmt::Block { statements: vec![] }), closure: std::rc::Weak::new(), retained_env: None }));
+        }
+        for id in interp.heap_objects.keys().cloned().collect::<Vec<u64>>() {
+            interp.force_heap_strong_to_one(id);
+            interp.dec_object_strong_recursive(id);
+        }
+        let diags = interp.take_diagnostics();
+        // ensure we did not add a runtime diag complaining about finalizer execution (skip is allowed)
+        assert!(!diags.iter().any(|d| d.message.contains("Finalizer skipped")));
+    }
+}
+
 #[derive(Clone)]
 pub struct ActorState {
     pub id: u32,
