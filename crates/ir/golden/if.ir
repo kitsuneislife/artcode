@@ -1,0 +1,5 @@
+func @f() -> i64 {
+  entry:
+    const i64 %0 1
+    ret %0
+}

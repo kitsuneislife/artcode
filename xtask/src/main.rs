@@ -30,6 +30,12 @@ enum Commands {
         #[arg(long, default_value_t = false)]
         html: bool,
     },
+        /// Generate or verify IR golden files
+        Irgen {
+            /// write golden files instead of printing
+            #[arg(long)]
+            write: bool,
+        },
 }
 
 fn run(cmd: &mut Command) -> ExitStatus {
@@ -170,6 +176,18 @@ fn main() {
                 if !status.success() {
                     std::process::exit(status.code().unwrap_or(1));
                 }
+            }
+        }
+        Commands::Irgen { write } => {
+            // Run the irgen binary to print or write golden files
+            let mut cmd = Command::new("cargo");
+            cmd.args(["run", "-p", "ir", "--bin", "irgen", "--quiet"]);
+            if write {
+                cmd.arg("--").arg("--write");
+            }
+            let status = run(&mut cmd);
+            if !status.success() {
+                std::process::exit(status.code().unwrap_or(1));
             }
         }
         Commands::Scan => scan_panics(),
