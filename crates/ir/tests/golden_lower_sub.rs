@@ -13,6 +13,6 @@ fn golden_lower_sub() {
     let func = Stmt::Function { name, params, return_type: Some("i64".to_string()), body: std::rc::Rc::new(Stmt::Return { value: Some(ret_expr) }), method_owner: None };
     let irf = lower_stmt(&func).expect("lowering failed");
     let text = irf.emit_text();
-    let expected = "func @sub(i64 a, i64 b) -> i64 {\n  entry:\n    sub i64 a, b\n    ret %0\n}\n";
+    let expected = "func @sub(i64 a, i64 b) -> i64 {\n  entry:\n  %0 = sub i64 a, b\n  ret %0\n}\n";
     assert_eq!(text, expected);
 }

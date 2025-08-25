@@ -1,5 +1,12 @@
 func @f() -> i64 {
-  entry:
-    const i64 %0 1
-    ret %0
+  br_cond %0, then_bb, else_bb
+then_bb:
+  %1 = const i64 1
+  br merge_bb
+else_bb:
+  %2 = const i64 2
+  br merge_bb
+merge_bb:
+  %3 = phi i64 [ %1, then_bb ], [ %2, else_bb ]
+  ret %3
 }

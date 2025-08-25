@@ -1,5 +1,4 @@
 func @sub(i64 a, i64 b) -> i64 {
-  entry:
-    sub i64 a, b
-    ret %0
+  %0 = sub i64 a, b
+  ret %0
 }
