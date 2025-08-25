@@ -25,6 +25,10 @@ pub struct Function {
     pub body: Vec<Instr>,
 }
 
+pub mod lowering;
+
+pub use lowering::lower_stmt;
+
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
