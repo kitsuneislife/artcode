@@ -54,8 +54,13 @@ pub struct Interpreter {
     pub current_actor: Option<u32>,
     // Default mailbox limit (simple global backpressure setting for MVP)
     pub actor_mailbox_limit: usize,
+    // Temporarily holds the actor state being executed by the scheduler so builtins
+    // that need to access the running actor can find it even while the actor is
+    // removed from `actors` to avoid mutable borrow conflicts.
+    pub executing_actor: Option<ActorState>,
 }
 
+#[derive(Clone)]
 pub struct ActorState {
     pub id: u32,
     pub mailbox: Mailbox,
@@ -69,6 +74,15 @@ pub struct ActorState {
 /// Mailbox with small-size linear insert and large-size BTreeMap per-priority buckets.
 pub struct Mailbox {
     inner: MailboxImpl,
+}
+
+impl Clone for Mailbox {
+    fn clone(&self) -> Self {
+        Mailbox { inner: match &self.inner {
+            MailboxImpl::Linear(v) => MailboxImpl::Linear(v.clone()),
+            MailboxImpl::Map(m) => MailboxImpl::Map(m.clone()),
+        }}
+    }
 }
 
 enum MailboxImpl {
@@ -227,6 +241,39 @@ impl Interpreter {
             "make_envelope",
             ArtValue::Builtin(core::ast::BuiltinFn::MakeEnvelope),
         );
+        global_env.borrow_mut().define(
+            "run_actors",
+            ArtValue::Builtin(core::ast::BuiltinFn::RunActors),
+        );
+        // Concurrency primitive prototypes
+        global_env.borrow_mut().define(
+            "atomic_new",
+            ArtValue::Builtin(core::ast::BuiltinFn::AtomicNew),
+        );
+        global_env.borrow_mut().define(
+            "atomic_load",
+            ArtValue::Builtin(core::ast::BuiltinFn::AtomicLoad),
+        );
+        global_env.borrow_mut().define(
+            "atomic_store",
+            ArtValue::Builtin(core::ast::BuiltinFn::AtomicStore),
+        );
+        global_env.borrow_mut().define(
+            "atomic_add",
+            ArtValue::Builtin(core::ast::BuiltinFn::AtomicAdd),
+        );
+        global_env.borrow_mut().define(
+            "mutex_new",
+            ArtValue::Builtin(core::ast::BuiltinFn::MutexNew),
+        );
+        global_env.borrow_mut().define(
+            "mutex_lock",
+            ArtValue::Builtin(core::ast::BuiltinFn::MutexLock),
+        );
+        global_env.borrow_mut().define(
+            "mutex_unlock",
+            ArtValue::Builtin(core::ast::BuiltinFn::MutexUnlock),
+        );
 
         Interpreter {
             environment: global_env,
@@ -260,6 +307,7 @@ impl Interpreter {
             next_actor_id: 1,
             current_actor: None,
             actor_mailbox_limit: 1024,
+            executing_actor: None,
         }
     }
 
@@ -378,6 +426,86 @@ impl Interpreter {
             }
             other => other,
         }
+    }
+
+    /// Create a heap-backed atomic integer and return an ArtValue::Atomic handle.
+    fn heap_create_atomic(&mut self, initial: ArtValue) -> ArtValue {
+        // store as a StructInstance-like value internally but expose as Atomic handle
+        let mut fields = std::collections::HashMap::new();
+        fields.insert("kind".to_string(), ArtValue::String(std::sync::Arc::from("atomic")));
+        fields.insert("value".to_string(), initial);
+        let id = if let Some(aid) = self.current_arena {
+            self.heap_register_in_arena(ArtValue::StructInstance { struct_name: "Atomic".to_string(), fields }, aid)
+        } else {
+            self.heap_register(ArtValue::StructInstance { struct_name: "Atomic".to_string(), fields })
+        };
+        ArtValue::Atomic(ObjHandle(id))
+    }
+
+    fn heap_atomic_load(&self, h: ObjHandle) -> Option<ArtValue> {
+        self.heap_objects.get(&h.0).and_then(|obj| {
+            if let ArtValue::StructInstance { fields, .. } = &obj.value {
+                fields.get("value").cloned()
+            } else {
+                None
+            }
+        })
+    }
+
+    fn heap_atomic_store(&mut self, h: ObjHandle, val: ArtValue) -> bool {
+        if let Some(obj) = self.heap_objects.get_mut(&h.0) {
+            if let ArtValue::StructInstance { fields, .. } = &mut obj.value {
+                fields.insert("value".to_string(), val);
+                return true;
+            }
+        }
+        false
+    }
+
+    fn heap_atomic_add(&mut self, h: ObjHandle, delta: i64) -> Option<i64> {
+        if let Some(obj) = self.heap_objects.get_mut(&h.0) {
+            if let ArtValue::StructInstance { fields, .. } = &mut obj.value {
+                if let Some(ArtValue::Int(curr)) = fields.get("value") {
+                    let new = curr + delta;
+                    fields.insert("value".to_string(), ArtValue::Int(new));
+                    return Some(new);
+                }
+            }
+        }
+        None
+    }
+
+    fn heap_create_mutex(&mut self, initial: ArtValue) -> ArtValue {
+        let mut fields = std::collections::HashMap::new();
+        fields.insert("kind".to_string(), ArtValue::String(std::sync::Arc::from("mutex")));
+        fields.insert("locked".to_string(), ArtValue::Bool(false));
+        fields.insert("value".to_string(), initial);
+        let id = if let Some(aid) = self.current_arena {
+            self.heap_register_in_arena(ArtValue::StructInstance { struct_name: "Mutex".to_string(), fields }, aid)
+        } else {
+            self.heap_register(ArtValue::StructInstance { struct_name: "Mutex".to_string(), fields })
+        };
+        ArtValue::Mutex(ObjHandle(id))
+    }
+
+    fn heap_mutex_lock(&mut self, h: ObjHandle) -> bool {
+        if let Some(obj) = self.heap_objects.get_mut(&h.0) {
+            if let ArtValue::StructInstance { fields, .. } = &mut obj.value {
+                fields.insert("locked".to_string(), ArtValue::Bool(true));
+                return true;
+            }
+        }
+        false
+    }
+
+    fn heap_mutex_unlock(&mut self, h: ObjHandle) -> bool {
+        if let Some(obj) = self.heap_objects.get_mut(&h.0) {
+            if let ArtValue::StructInstance { fields, .. } = &mut obj.value {
+                fields.insert("locked".to_string(), ArtValue::Bool(false));
+                return true;
+            }
+        }
+        false
     }
     /// Finaliza (libera) todos objetos alocados na arena especificada.
     fn finalize_arena(&mut self, arena_id: u32) {
@@ -1328,8 +1456,8 @@ impl Interpreter {
                 let actor_env = Rc::new(RefCell::new(Environment::new(Some(self.environment.clone()))));
                 let actor = ActorState { id: aid, mailbox: Mailbox::new(), body: VecDeque::from(body), env: actor_env, finished: false, parked: false, mailbox_limit: self.actor_mailbox_limit };
                 self.actors.insert(aid, actor);
-                // Return actor id as Int for now
-                self.last_value = Some(ArtValue::Int(aid as i64));
+                // Return actor handle as Actor variant (IDs still exposed as Int in tests where needed)
+                self.last_value = Some(ArtValue::Actor(aid));
                 Ok(())
             }
         }
@@ -1896,6 +2024,15 @@ impl Interpreter {
                 }
                 Ok(self.heapify_composite(ArtValue::Array(evaluated_elements)))
             }
+            Expr::SpawnActor { body } => {
+                // Create a new actor from an expression context and return its handle
+                let aid = self.next_actor_id;
+                self.next_actor_id += 1;
+                let actor_env = Rc::new(RefCell::new(Environment::new(Some(self.environment.clone()))));
+                let actor = ActorState { id: aid, mailbox: Mailbox::new(), body: VecDeque::from(body), env: actor_env, finished: false, parked: false, mailbox_limit: self.actor_mailbox_limit };
+                self.actors.insert(aid, actor);
+                Ok(ArtValue::Actor(aid))
+            }
         }
     }
 
@@ -2023,6 +2160,9 @@ impl Interpreter {
                         ArtValue::WeakRef(_) => "WeakRef",
                         ArtValue::UnownedRef(_) => "UnownedRef",
                         ArtValue::HeapComposite(_) => "Composite",
+                        ArtValue::Atomic(_) => "Atomic",
+                        ArtValue::Mutex(_) => "Mutex",
+                        ArtValue::Actor(_) => "Actor",
                     };
                     Ok(ArtValue::String(std::sync::Arc::from(t)))
                 } else {
@@ -2043,9 +2183,9 @@ impl Interpreter {
                             self.inc_heap_weak(h.0);
                             (h.0, h)
                         }
-                        other => {
+                        _other => {
                             // Para tipos escalares ainda criar wrapper heap para permitir weak.
-                            let id = self.heap_register(other);
+                            let id = self.heap_register(_other);
                             self.inc_heap_weak(id);
                             (id, ObjHandle(id))
                         }
@@ -2097,8 +2237,8 @@ impl Interpreter {
                     let val = self.evaluate(first)?;
                     let handle = match val {
                         ArtValue::HeapComposite(h) => h,
-                        other => {
-                            let id = self.heap_register(other);
+                        _other => {
+                            let id = self.heap_register(_other);
                             ObjHandle(id)
                         }
                     };
@@ -2200,8 +2340,13 @@ impl Interpreter {
                 } else {
                     0
                 };
-                if let ArtValue::Int(n) = aid_val {
-                    let aid = n as u32;
+                // accept Actor handle variant or Int for backward compatibility
+                let aid_opt = match aid_val {
+                    ArtValue::Actor(id) => Some(id),
+                    ArtValue::Int(n) => Some(n as u32),
+                    _ => None,
+                };
+                if let Some(aid) = aid_opt {
                     if let Some(actor) = self.actors.get_mut(&aid) {
                         let limit = actor.mailbox_limit;
                         if actor.mailbox.len() >= limit {
@@ -2215,6 +2360,19 @@ impl Interpreter {
                             actor.parked = false;
                         }
                         return Ok(ArtValue::Bool(true));
+                    } else if let Some(exec) = &mut self.executing_actor {
+                        if exec.id == aid {
+                            let limit = exec.mailbox_limit;
+                            if exec.mailbox.len() >= limit {
+                                return Ok(ArtValue::Bool(false));
+                            }
+                            let env = core::ast::ValueEnvelope { sender: self.current_actor, payload: msg_val, priority };
+                            exec.mailbox.insert(env);
+                            if exec.parked {
+                                exec.parked = false;
+                            }
+                            return Ok(ArtValue::Bool(true));
+                        }
                     } else {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
@@ -2234,6 +2392,7 @@ impl Interpreter {
             core::ast::BuiltinFn::ActorReceive => {
                 // actor_receive reads from the current actor's mailbox
                 if let Some(aid) = self.current_actor {
+                    // First try to get the actor from actors map
                     if let Some(actor) = self.actors.get_mut(&aid) {
                         if let Some(env) = actor.mailbox.pop_front() {
                             return Ok(env.payload);
@@ -2241,6 +2400,18 @@ impl Interpreter {
                             // Park the actor: scheduler should skip it until a message arrives
                             actor.parked = true;
                             return Ok(ArtValue::Optional(Box::new(None)));
+                        }
+                    }
+                    // If actor not found because it's currently executing and removed from map,
+                    // try executing_actor
+                    if let Some(exec) = &mut self.executing_actor {
+                        if exec.id == aid {
+                            if let Some(env) = exec.mailbox.pop_front() {
+                                return Ok(env.payload);
+                            } else {
+                                exec.parked = true;
+                                return Ok(ArtValue::Optional(Box::new(None)));
+                            }
                         }
                     }
                 }
@@ -2272,6 +2443,25 @@ impl Interpreter {
                             return Ok(ArtValue::Optional(Box::new(None)));
                         }
                     }
+                    if let Some(exec) = &mut self.executing_actor {
+                        if exec.id == aid {
+                            if let Some(env) = exec.mailbox.pop_front() {
+                                let mut fields = std::collections::HashMap::new();
+                                let sender_val = match env.sender {
+                                    Some(s) => ArtValue::Int(s as i64),
+                                    None => ArtValue::Optional(Box::new(None)),
+                                };
+                                fields.insert("sender".to_string(), sender_val);
+                                fields.insert("payload".to_string(), env.payload);
+                                fields.insert("priority".to_string(), ArtValue::Int(env.priority as i64));
+                                let struct_val = ArtValue::StructInstance { struct_name: "Envelope".to_string(), fields };
+                                return Ok(self.heapify_composite(struct_val));
+                            } else {
+                                exec.parked = true;
+                                return Ok(ArtValue::Optional(Box::new(None)));
+                            }
+                        }
+                    }
                 }
                 self.diagnostics.push(Diagnostic::new(
                     DiagnosticKind::Runtime,
@@ -2291,8 +2481,12 @@ impl Interpreter {
                 }
                 let aid_val = self.evaluate(arguments[0].clone())?;
                 let limit_val = self.evaluate(arguments[1].clone())?;
-                if let (core::ast::ArtValue::Int(n), core::ast::ArtValue::Int(l)) = (aid_val, limit_val) {
-                    let aid = n as u32;
+                let aid_opt = match aid_val {
+                    core::ast::ArtValue::Actor(id) => Some(id),
+                    core::ast::ArtValue::Int(n) => Some(n as u32),
+                    _ => None,
+                };
+                if let (Some(aid), core::ast::ArtValue::Int(l)) = (aid_opt, limit_val) {
                     let lim = if l < 0 { 0 } else { l as usize };
                     if let Some(actor) = self.actors.get_mut(&aid) {
                         actor.mailbox_limit = lim;
@@ -2378,6 +2572,130 @@ impl Interpreter {
                 let struct_val = ArtValue::StructInstance { struct_name: "Envelope".to_string(), fields };
                 Ok(self.heapify_composite(struct_val))
             }
+            core::ast::BuiltinFn::RunActors => {
+                // run_actors([max_steps]) -> drive scheduler until idle or up to max_steps
+                let max_steps = if arguments.len() == 1 {
+                    match self.evaluate(arguments[0].clone())? {
+                        ArtValue::Int(n) if n >= 0 => n as usize,
+                        _other => {
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                "run_actors: invalid max_steps argument".to_string(),
+                                Span::new(0, 0, 0, 0),
+                            ));
+                            return Ok(ArtValue::none());
+                        }
+                    }
+                } else {
+                    usize::MAX
+                };
+                self.run_actors_round_robin(max_steps);
+                Ok(ArtValue::none())
+            }
+            // Prototype atomic/mutex builtins for performant blocks (single-threaded semantics)
+            core::ast::BuiltinFn::AtomicNew => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "atomic_new expects 1 arg".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let val = self.evaluate(arguments[0].clone())?;
+                Ok(self.heap_create_atomic(val))
+            }
+            core::ast::BuiltinFn::AtomicLoad => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "atomic_load expects 1 arg".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let a = self.evaluate(arguments[0].clone())?;
+                if let ArtValue::Atomic(h) = a {
+                    return Ok(self.heap_atomic_load(h).unwrap_or(ArtValue::none()));
+                }
+                Ok(ArtValue::none())
+            }
+            core::ast::BuiltinFn::AtomicStore => {
+                if arguments.len() != 2 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "atomic_store expects 2 args".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let a = self.evaluate(arguments[0].clone())?;
+                let v = self.evaluate(arguments[1].clone())?;
+                if let ArtValue::Atomic(h) = a {
+                    return Ok(ArtValue::Bool(self.heap_atomic_store(h, v)));
+                }
+                Ok(ArtValue::Bool(false))
+            }
+            core::ast::BuiltinFn::AtomicAdd => {
+                if arguments.len() != 2 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "atomic_add expects 2 args".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let a = self.evaluate(arguments[0].clone())?;
+                let delta = self.evaluate(arguments[1].clone())?;
+                if let (ArtValue::Atomic(h), ArtValue::Int(d)) = (a, delta) {
+                    if let Some(new) = self.heap_atomic_add(h, d) {
+                        return Ok(ArtValue::Int(new));
+                    }
+                }
+                Ok(ArtValue::none())
+            }
+            core::ast::BuiltinFn::MutexNew => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "mutex_new expects 1 arg".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let v = self.evaluate(arguments[0].clone())?;
+                Ok(self.heap_create_mutex(v))
+            }
+            core::ast::BuiltinFn::MutexLock => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "mutex_lock expects 1 arg".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let a = self.evaluate(arguments[0].clone())?;
+                if let ArtValue::Mutex(h) = a {
+                    return Ok(ArtValue::Bool(self.heap_mutex_lock(h)));
+                }
+                Ok(ArtValue::Bool(false))
+            }
+            core::ast::BuiltinFn::MutexUnlock => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "mutex_unlock expects 1 arg".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let a = self.evaluate(arguments[0].clone())?;
+                if let ArtValue::Mutex(h) = a {
+                    return Ok(ArtValue::Bool(self.heap_mutex_unlock(h)));
+                }
+                Ok(ArtValue::Bool(false))
+            }
         }
     }
 
@@ -2389,8 +2707,16 @@ impl Interpreter {
         let mut actor_ids: Vec<u32> = self.actors.keys().cloned().collect();
         actor_ids.sort_unstable();
         let mut idx = 0usize;
+        // rotation_progress = whether any actor made progress during the current full pass
+        let mut rotation_progress = false;
         while steps < max_steps && !actor_ids.is_empty() {
             if idx >= actor_ids.len() {
+                // completed a full pass
+                if !rotation_progress {
+                    // no actor made progress during the full rotation -> quiescent
+                    break;
+                }
+                rotation_progress = false;
                 idx = 0;
             }
             let aid = actor_ids[idx];
@@ -2409,10 +2735,14 @@ impl Interpreter {
             }
 
             // Execute one statement of the actor if available
-            if let Some(actor_entry) = self.actors.remove(&aid) {
+                if let Some(actor_entry) = self.actors.remove(&aid) {
                 let mut actor = actor_entry;
+                // Store in executing_actor during execution to allow builtins to access
+                // the actor state even though it's temporarily removed from the map.
+                self.executing_actor = Some(actor.clone());
                 // If parked (waiting for message) skip until unparked (actor_send will unpark)
                 if actor.parked {
+                    self.executing_actor = None;
                     self.actors.insert(aid, actor);
                     idx += 1;
                     continue;
@@ -2432,6 +2762,8 @@ impl Interpreter {
                     self.environment = actor.env.clone();
                     // Execute statement; ignore return errors for now
                     let _ = self.execute(stmt);
+                    // Mark that we made progress this rotation (executed a statement)
+                    rotation_progress = true;
                     // Drop handles created in actor frame to avoid leaking into global
                     let env_for_drop = self.environment.clone();
                     self.drop_scope_heap_objects(&env_for_drop);
@@ -2442,8 +2774,9 @@ impl Interpreter {
                     // No statements; actor may be waiting for mailbox messages handled by actor_receive
                     // nothing to step here
                 }
-                // Clear current actor
+                // Clear current actor and executing_actor
                 self.current_actor = None;
+                self.executing_actor = None;
                 // If actor has no body and mailbox empty, mark finished
                 if actor.body.is_empty() && actor.mailbox.is_empty() {
                     actor.finished = true;

@@ -7,7 +7,11 @@ fn actor_priority_and_backpressure_stress() {
 
     // spawn actor
     interp.interpret(vec![Stmt::SpawnActor { body: vec![] }]).unwrap();
-    let aid = match interp.last_value.clone().unwrap() { core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
+    let aid = match interp.last_value.clone().unwrap() {
+        core::ast::ArtValue::Actor(id) => id,
+        core::ast::ArtValue::Int(n) => n as u32,
+        _ => panic!(),
+    };
 
     // send many messages with varying priorities
     for i in 0..200 {
@@ -26,7 +30,11 @@ fn actor_priority_and_backpressure_stress() {
 
     // set small mailbox limit and verify backpressure
     interp.interpret(vec![Stmt::SpawnActor { body: vec![] }]).unwrap();
-    let aid2 = match interp.last_value.clone().unwrap() { core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
+    let aid2 = match interp.last_value.clone().unwrap() {
+        core::ast::ArtValue::Actor(id) => id,
+        core::ast::ArtValue::Int(n) => n as u32,
+        _ => panic!(),
+    };
     interp.interpret(vec![Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("actor_set_mailbox_limit") }), arguments: vec![Expr::Literal(core::ast::ArtValue::Int(aid2 as i64)), Expr::Literal(core::ast::ArtValue::Int(3))] })]).unwrap();
     // send 3 messages
     for i in 0..3 {

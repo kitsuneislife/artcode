@@ -1,7 +1,7 @@
 <!-- RFC: Runtime de Atores (MVP) -->
 # RFC 0003 - Runtime de Atores (MVP)
 
-Status: Draft
+Status: Accepted (MVP implemented)
 
 Authors: equipe Artcode
 
@@ -54,21 +54,22 @@ Concorrência baseada em atores simplifica isolamento de estado e evita data rac
 
 ## Plano incremental
 
-1. Documentação + RFC (este documento).
-2. Implementar builtins e scheduler cooperativo que executa atores via `Interpreter` per-actor state, sem threads.
-3. Tests: happy path (send/receive), backpressure, mailbox ordering, graceful shutdown.
-4. Iterar: permitir trabalho em background (threads) quando ArtValue estiver seguro para Send.
+1. Implementação MVP concluída: builtins e scheduler cooperativo implementados no `Interpreter`.
+2. Tests: `crates/interpreter/tests/actors_mvp.rs` e `crates/interpreter/tests/actors_stress.rs` adicionados e passando localmente.
+3. Próximos: avaliar heurística Send-safe e projetar primitivas compartilhadas para blocos `performant`.
 
 ## Riscos
 
 - Sem threads, atores podem monopolizar CPU se não cooperarem. Mitigação: limitar fatia por ator e exigir `yield` ou steps automáticos.
 - Heurística de Send-safe pode ser conservadora, reduzindo expressividade; aceitável no MVP.
 
-## Checklist de aceitação
+## Checklist de aceitação (status)
 
-- [ ] Parser: reconhecer `spawn actor { ... }`.
-- [ ] Interpreter: criar actor handle e registrar programa.
-- [ ] Builtins: `actor_send`, `actor_receive` funcionando no modo cooperativo.
-- [ ] Scheduler: round-robin simples que executa atores até esgotarem (ou até limite de passos).
-- [ ] Tests: send/receive, backpressure, mailbox FIFO.
-- [ ] Docs e exemplo em `cli/examples/concurrency/`.
+- [x] Parser: reconhecer `spawn actor { ... }`.
+- [x] Interpreter: criar actor handle e registrar programa.
+- [x] Builtins: `actor_send`, `actor_receive` funcionando no modo cooperativo.
+- [x] Scheduler: round-robin simples que executa atores até esgotarem (ou até limite de passos).
+- [x] Tests: send/receive, backpressure, mailbox FIFO (tests added).
+- [ ] Docs e exemplo em `cli/examples/concurrency/` (docs present but examples directory pending).
+
+Observação: a opção de multi-threading (swapping para threads OS) foi deliberadamente adiada até que tenhamos uma análise robusta de Send-safe e primitivas sincronizadas para blocos `performant`.

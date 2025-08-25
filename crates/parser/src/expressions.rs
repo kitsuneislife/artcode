@@ -54,6 +54,25 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
             }
         }
         TokenType::Identifier => Expr::Variable { name: token },
+        TokenType::Spawn => {
+            // parse spawn actor { ... } as an expression returning an actor id
+            // consume 'actor' and the block
+            // Note: parser.advance() already consumed the 'spawn' token
+            if parser.check(&TokenType::Actor) {
+                // consume 'actor'
+                parser.advance();
+                parser.consume(TokenType::LeftBrace, "Expect '{' to start actor body.");
+                let body = crate::statements::block(parser);
+                Expr::SpawnActor { body }
+            } else {
+                parser.diagnostics.push(diagnostics::Diagnostic::new(
+                    diagnostics::DiagnosticKind::Parse,
+                    "Expect 'actor' after 'spawn'".to_string(),
+                    diagnostics::Span::new(token.start, token.end, token.line, token.col),
+                ));
+                Expr::Literal(core::ast::ArtValue::none())
+            }
+        }
         TokenType::Weak => {
             // próximo é expressão de menor precedência que unary
             let inner = parse_precedence(parser, Precedence::Unary as u8);

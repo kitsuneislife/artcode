@@ -1,0 +1,19 @@
+// Exemplo 19: atores simples — spawn como expressão, envio de Envelope e execução do scheduler
+
+// Spawn do ator como expressão (retorna actor id)
+let a = spawn actor {
+	// Espera por uma mensagem (payload) e imprime quando chegar
+	let msg = actor_receive();
+	if msg {
+		println(msg);
+	}
+};
+
+// Enviar um envelope manualmente para o ator `a`
+let ok1 = actor_send(a, envelope(none, 7, 1));
+let ok2 = actor_send(a, make_envelope(42, 5));
+println(ok1);
+println(ok2);
+
+// Drive the scheduler so the actor body runs e consome mensagens
+run_actors();

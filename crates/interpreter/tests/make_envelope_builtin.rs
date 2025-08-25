@@ -6,7 +6,11 @@ fn make_envelope_auto_fills_sender_and_heapifies() {
     let mut interp = Interpreter::with_prelude();
     // spawn a dummy actor to get an id
     interp.interpret(vec![Stmt::SpawnActor { body: vec![] }]).unwrap();
-    let aid = match interp.last_value.clone().unwrap() { core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
+    let aid = match interp.last_value.clone().unwrap() {
+        core::ast::ArtValue::Actor(id) => id,
+        core::ast::ArtValue::Int(n) => n as u32,
+        _ => panic!(),
+    };
     // set current_actor to aid
     interp.current_actor = Some(aid);
     // call make_envelope(7, 2)

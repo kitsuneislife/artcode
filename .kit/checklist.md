@@ -52,16 +52,22 @@ Não precisa comittar esse arquivo.
 - Segurança: análise estática conservadora (TypeInfer) sinaliza `return` dentro de `performant`, funções definidas no bloco e `let` com inicializadores compostos; runtime checa e (em debug) panica ao detectar escape de objetos de arena.
 - Testes: novos testes cobrindo rebind/finalizer e comportamento básico de arena; suíte do crate `interpreter` e `parser` estão verdes.
 
-## Fase 9 – Concorrência Híbrida
- - [~] RFC: Runtime de Atores (mailbox FIFO, isolamento por mensagem)
- - [x] Implementar `spawn actor { ... }` sintaxe (ou função builtin temporária)
- - [x] Tipo de mensagem polimórfico (enum ValueEnvelope)
- - [~] Scheduler cooperativo inicial (round-robin / prioridade simples)
- - [~] Backpressure: limite configurável de mailbox + diagnóstico (MVP implemented: mailbox_limit + return bool; docs pending)
- - [ ] Blocos `performant {}` parse + verificação de restrições
- - [ ] Primitivas compartilhadas autorizadas em performant: Mutex, AtomicInt
- - [ ] Análise básica: proibir captura de valor não Send-safe (placeholder rule)
- - [~] Docs: `docs/concurrency.md` com exemplos comparando estilos
+ ## Fase 9 – Concorrência Híbrida
+	- [x] RFC: Runtime de Atores (mailbox FIFO, isolamento por mensagem) (see `docs/rfcs/0003-actors.md`)
+	- [x] Implementar `spawn actor { ... }` sintaxe (ou função builtin temporária)
+	- [x] Tipo de mensagem polimórfico (enum ValueEnvelope)
+	- [x] Scheduler cooperativo inicial (round-robin / prioridade simples)
+	- [x] Backpressure: limite configurável de mailbox + diagnóstico (MVP implemented: mailbox_limit + return bool; docs pending)
+	- [x] Blocos `performant {}` parse + verificação de restrições (parser + runtime prototype present)
+	- [x] Primitivas compartilhadas autorizadas em performant: Mutex, AtomicInt (prototype runtime implemented)
+	- [~] Análise básica: proibir captura de valor não Send-safe (placeholder rule) (conservative checks in place; richer analysis pending)
+	- [x] Docs: `docs/concurrency.md` com exemplos comparando estilos
+
+Notas rápidas:
+- Implementação: builtins `actor_send`, `actor_receive`, `actor_receive_envelope`, `actor_set_mailbox_limit`, `make_envelope` e scheduler round-robin implementados em `crates/interpreter/src/interpreter.rs`.
+- Testes: `crates/interpreter/tests/actors_mvp.rs` e `crates/interpreter/tests/actors_stress.rs` exercitam FIFO, prioridade e backpressure (passando localmente).
+- Pendências principais: primitives compartilhadas (`Mutex`, `AtomicInt`) e análise Send-safe para captures entre atores.
+ - Pendências principais: análise Send-safe enriquecida (proibir envio/compartilhamento de valores não-Send-safe entre atores/threads); formalizar semântica multithreaded das primitivas (atualmente single-threaded prototype)
 
 ## Fase 10 – Pipeline JIT/AOT + PGO
 - [ ] RFC: Arquitetura IR interna (lowering AST -> IR -> LLVM)

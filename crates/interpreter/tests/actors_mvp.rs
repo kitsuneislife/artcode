@@ -9,6 +9,7 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
     let spawn_stmt = Stmt::SpawnActor { body: vec![] };
     interp.interpret(vec![spawn_stmt]).unwrap();
     let actor_id = match interp.last_value.clone().unwrap() {
+        core::ast::ArtValue::Actor(id) => id,
         core::ast::ArtValue::Int(n) => n as u32,
         _ => panic!("unexpected actor id value"),
     };
@@ -34,9 +35,9 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
     // sender propagation: send from a 'current_actor' context
     // Spawn actor A and B; set current_actor artificially and send
     interp.interpret(vec![Stmt::SpawnActor { body: vec![] }]).unwrap();
-    let aid_sender = match interp.last_value.clone().unwrap() { core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
+    let aid_sender = match interp.last_value.clone().unwrap() { core::ast::ArtValue::Actor(id) => id, core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
     interp.interpret(vec![Stmt::SpawnActor { body: vec![] }]).unwrap();
-    let aid_target = match interp.last_value.clone().unwrap() { core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
+    let aid_target = match interp.last_value.clone().unwrap() { core::ast::ArtValue::Actor(id) => id, core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
     // simulate running as sender by setting current_actor and using actor_send
     interp.current_actor = Some(aid_sender);
     interp.interpret(vec![Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("actor_send") }), arguments: vec![Expr::Literal(core::ast::ArtValue::Int(aid_target as i64)), Expr::Literal(core::ast::ArtValue::Int(99))] })]).unwrap();
@@ -46,7 +47,7 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
 
     // priority ordering: send low priority then high priority
     interp.interpret(vec![Stmt::SpawnActor { body: vec![] }]).unwrap();
-    let aid_pri = match interp.last_value.clone().unwrap() { core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
+    let aid_pri = match interp.last_value.clone().unwrap() { core::ast::ArtValue::Actor(id) => id, core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
     // send priority 0 then priority 10
     interp.interpret(vec![Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("actor_send") }), arguments: vec![Expr::Literal(core::ast::ArtValue::Int(aid_pri as i64)), Expr::Literal(core::ast::ArtValue::Int(1)), Expr::Literal(core::ast::ArtValue::Int(0))] })]).unwrap();
     interp.interpret(vec![Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("actor_send") }), arguments: vec![Expr::Literal(core::ast::ArtValue::Int(aid_pri as i64)), Expr::Literal(core::ast::ArtValue::Int(2)), Expr::Literal(core::ast::ArtValue::Int(10))] })]).unwrap();
@@ -58,6 +59,7 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
     interp2.actor_mailbox_limit = 1;
     interp2.interpret(vec![Stmt::SpawnActor { body: vec![] }]).unwrap();
     let aid2 = match interp2.last_value.clone().unwrap() {
+        core::ast::ArtValue::Actor(id) => id,
         core::ast::ArtValue::Int(n) => n as u32,
         _ => panic!("unexpected actor id"),
     };
@@ -77,14 +79,14 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
         Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("println") }), arguments: vec![Expr::Literal(core::ast::ArtValue::Int(2))] }),
     ];
     interp3.interpret(vec![Stmt::SpawnActor { body }]).unwrap();
-    let aid3 = match interp3.last_value.clone().unwrap() { core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
+    let aid3 = match interp3.last_value.clone().unwrap() { core::ast::ArtValue::Actor(id) => id, core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
     interp3.run_actors_round_robin(10);
     assert!(!interp3.actors.contains_key(&aid3));
 
     // 4) actor_receive_envelope returns a StructInstance 'Envelope' with named fields
     let mut interp4 = Interpreter::with_prelude();
     interp4.interpret(vec![Stmt::SpawnActor { body: vec![] }]).unwrap();
-    let aid4 = match interp4.last_value.clone().unwrap() { core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
+    let aid4 = match interp4.last_value.clone().unwrap() { core::ast::ArtValue::Actor(id) => id, core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
     // send a message from no actor context
     interp4.interpret(vec![Stmt::Expression(Expr::Call { callee: Box::new(Expr::Variable { name: core::Token::dummy("actor_send") }), arguments: vec![Expr::Literal(core::ast::ArtValue::Int(aid4 as i64)), Expr::Literal(core::ast::ArtValue::Int(123))] })]).unwrap();
     // prepare actor body that calls actor_receive_envelope and stores to global for inspection
@@ -93,7 +95,7 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
     ];
     // spawn actor that will receive the envelope
     interp4.interpret(vec![Stmt::SpawnActor { body: body.clone() }]).unwrap();
-    let receiver = match interp4.last_value.clone().unwrap() { core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
+    let receiver = match interp4.last_value.clone().unwrap() { core::ast::ArtValue::Actor(id) => id, core::ast::ArtValue::Int(n) => n as u32, _ => panic!() };
     // run scheduler to let actor execute
     interp4.run_actors_round_robin(10);
     // check global variable 'm' (should be None because actor ran in its own env; instead inspect mailbox front earlier)

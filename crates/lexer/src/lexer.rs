@@ -228,6 +228,8 @@ impl Lexer {
             "as" => TokenType::As,
             "weak" => TokenType::Weak,
             "unowned" => TokenType::Unowned,
+            "spawn" => TokenType::Spawn,
+            "actor" => TokenType::Actor,
             _ => TokenType::Identifier,
         };
         self.add_token(token_type);

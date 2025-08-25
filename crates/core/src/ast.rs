@@ -14,7 +14,7 @@ pub struct ValueEnvelope {
 
 pub type Program = Vec<Stmt>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     Expression(Expr),
     Let {
@@ -65,7 +65,7 @@ pub enum Stmt {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FunctionParam {
     pub name: Token,
     pub ty: Option<String>,
@@ -122,6 +122,7 @@ pub enum Expr {
     Unowned(Box<Expr>),       // açúcar: unowned expr -> builtin unowned()
     WeakUpgrade(Box<Expr>),   // açúcar: expr?  (onde expr avalia para WeakRef)
     UnownedAccess(Box<Expr>), // açúcar: expr! (onde expr avalia para UnownedRef)
+    SpawnActor { body: Vec<Stmt> },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -176,6 +177,12 @@ pub enum ArtValue {
     },
     // Novo: wrapper para objetos compostos alocados no heap (fase de transição ARC real)
     HeapComposite(ObjHandle),
+    /// Handle para tipo atômico (heap-backed)
+    Atomic(ObjHandle),
+    /// Handle para mutex (heap-backed)
+    Mutex(ObjHandle),
+    /// Handle para ator (ID interno)
+    Actor(u32),
     Function(Rc<Function>),
     Builtin(BuiltinFn),
     // Fase 8 (protótipo): referências não-fortes
@@ -203,6 +210,15 @@ pub enum BuiltinFn {
     ActorReceiveEnvelope, // actor_receive_envelope()
     ActorYield, // actor_yield()
     ActorSetMailboxLimit, // actor_set_mailbox_limit(actor, limit)
+    RunActors, // run_actors([max_steps]) -> drive scheduler until idle or max_steps
+    // Concurrency primitives (prototype): Mutex and AtomicInt
+    AtomicNew, // atomic_new(initial:Int)
+    AtomicLoad, // atomic_load(atomic)
+    AtomicStore, // atomic_store(atomic, value:Int)
+    AtomicAdd, // atomic_add(atomic, delta:Int) -> returns new value
+    MutexNew, // mutex_new(value)
+    MutexLock, // mutex_lock(mutex) -> Bool
+    MutexUnlock, // mutex_unlock(mutex) -> Bool
 }
 
 impl fmt::Debug for BuiltinFn {
@@ -223,6 +239,14 @@ impl fmt::Debug for BuiltinFn {
                 BuiltinFn::ActorReceiveEnvelope => write!(f, "<builtin actor_receive_envelope>"),
                 BuiltinFn::ActorYield => write!(f, "<builtin actor_yield>"),
                 BuiltinFn::ActorSetMailboxLimit => write!(f, "<builtin actor_set_mailbox_limit>"),
+                BuiltinFn::RunActors => write!(f, "<builtin run_actors>"),
+                BuiltinFn::AtomicNew => write!(f, "<builtin atomic_new>"),
+                BuiltinFn::AtomicLoad => write!(f, "<builtin atomic_load>"),
+                BuiltinFn::AtomicStore => write!(f, "<builtin atomic_store>"),
+                BuiltinFn::AtomicAdd => write!(f, "<builtin atomic_add>"),
+                BuiltinFn::MutexNew => write!(f, "<builtin mutex_new>"),
+                BuiltinFn::MutexLock => write!(f, "<builtin mutex_lock>"),
+                BuiltinFn::MutexUnlock => write!(f, "<builtin mutex_unlock>"),
         }
     }
 }
@@ -290,10 +314,21 @@ impl fmt::Display for ArtValue {
                 BuiltinFn::ActorReceiveEnvelope => write!(f, "<builtin actor_receive_envelope>"),
                 BuiltinFn::ActorYield => write!(f, "<builtin actor_yield>"),
                 BuiltinFn::ActorSetMailboxLimit => write!(f, "<builtin actor_set_mailbox_limit>"),
+                BuiltinFn::RunActors => write!(f, "<builtin run_actors>"),
+                BuiltinFn::AtomicNew => write!(f, "<builtin atomic_new>"),
+                BuiltinFn::AtomicLoad => write!(f, "<builtin atomic_load>"),
+                BuiltinFn::AtomicStore => write!(f, "<builtin atomic_store>"),
+                BuiltinFn::AtomicAdd => write!(f, "<builtin atomic_add>"),
+                BuiltinFn::MutexNew => write!(f, "<builtin mutex_new>"),
+                BuiltinFn::MutexLock => write!(f, "<builtin mutex_lock>"),
+                BuiltinFn::MutexUnlock => write!(f, "<builtin mutex_unlock>"),
             },
             ArtValue::WeakRef(_) => write!(f, "<weak ref>"),
             ArtValue::UnownedRef(_) => write!(f, "<unowned ref>"),
             ArtValue::HeapComposite(_) => write!(f, "<composite>"),
+            ArtValue::Atomic(h) => write!(f, "<atomic {}>", h.0),
+            ArtValue::Mutex(h) => write!(f, "<mutex {}>", h.0),
+            ArtValue::Actor(id) => write!(f, "<actor {}>", id),
         }
     }
 }
@@ -323,7 +358,7 @@ impl ArtValue {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MatchPattern {
     EnumVariant {
         enum_name: Option<Token>, // Nome qualificado do enum (opcional para compatibilidade)

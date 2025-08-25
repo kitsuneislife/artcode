@@ -25,6 +25,7 @@ Current examples (ordered):
 - `16_weak_unowned_demo.art` — Weak / Unowned demos
 - `17_metrics_arena_demo.art` — Arena/metrics demo
 - `18_performant_bad.art` — Exemplos que violam restrições `performant`
+- `19_actors_simple.art` — Exemplo simples de atores: spawn, actor_send, actor_receive_envelope, envelope/make_envelope
 
 Module/package examples live in `cli/examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 

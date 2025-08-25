@@ -100,9 +100,7 @@ impl<'a> TypeInfer<'a> {
             Stmt::Expression(e) => {
                 self.infer_expr(e);
             }
-            Stmt::Let {
-                name, initializer, ..
-            } => {
+            Stmt::Let { name, initializer, .. } => {
                 let t = self.infer_expr(initializer);
                 self.tenv.set_var(&name.lexeme, t);
                 // declare in current lexical scope
@@ -115,11 +113,7 @@ impl<'a> TypeInfer<'a> {
                 }
                 self.pop_scope();
             }
-            Stmt::If {
-                condition,
-                then_branch,
-                else_branch,
-            } => {
+            Stmt::If { condition, then_branch, else_branch } => {
                 self.infer_expr(condition);
                 self.visit_stmt(then_branch);
                 if let Some(e) = else_branch {
@@ -142,8 +136,24 @@ impl<'a> TypeInfer<'a> {
                 self.check_performant_block(statements);
             }
             Stmt::SpawnActor { body } => {
-                // For now, accept top-level actor declarations but don't deeply type-check their body here.
-                let _ = body;
+                // Conservative check: ensure the actor body does not capture outer variables
+                // that might be non-send-safe. We scan statements for uses of outer vars and
+                // emit a diagnostic if found.
+                let outer_vars = self.visible_vars();
+                for s in body {
+                    if let Stmt::Expression(e) = s {
+                        let captures = self.expr_uses_outer_vars(e, &self.visible_vars(), &outer_vars);
+                        if !captures.is_empty() {
+                            for cap in captures {
+                                self.diags.push(Diagnostic::new(
+                                    DiagnosticKind::Type,
+                                    format!("Spawned actor body references outer variable '{}' which may not be Send-safe", cap),
+                                    Span::new(0,0,0,0),
+                                ));
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -352,12 +362,52 @@ impl<'a> TypeInfer<'a> {
             Cast { object, .. } => {
                 found.extend(self.expr_uses_outer_vars(object, current_locals, outer_vars));
             }
+            Expr::SpawnActor { body: _ } => {
+                // For spawn actor expressions, conservatively treat body as not capturing outer vars
+                // (body is a sequence of statements; deeper analysis can be added later)
+            }
             Literal(_) => {}
         }
         // Deduplicate
         found.sort();
         found.dedup();
         found
+    }
+
+    // Conservative heuristic: decide whether an expression is safe to send/share across actor
+    // boundaries. Allowed: Int, Float, Bool, String. Arrays/Structs/Enums are send-safe if
+    // all their components are send-safe. HeapComposite is conservatively NOT send-safe.
+    fn is_send_safe_expr(&self, expr: &Expr) -> bool {
+        use Expr::*;
+        match expr {
+            Literal(v) => match v {
+                ArtValue::Int(_) => true,
+                ArtValue::Float(_) => true,
+                ArtValue::Bool(_) => true,
+                ArtValue::String(_) => true,
+                ArtValue::Optional(boxed) => match &**boxed {
+                    Some(inner) => matches!(inner, ArtValue::Int(_)),
+                    None => true,
+                },
+                _ => false,
+            },
+            Array(elements) => elements.iter().all(|e| self.is_send_safe_expr(e)),
+            StructInit { fields, .. } => fields.iter().all(|(_n, e)| self.is_send_safe_expr(e)),
+            EnumInit { values, .. } => values.iter().all(|e| self.is_send_safe_expr(e)),
+            Grouping { expression } => self.is_send_safe_expr(expression),
+            Unary { right, .. } => self.is_send_safe_expr(right),
+            Binary { left, right, .. } => self.is_send_safe_expr(left) && self.is_send_safe_expr(right),
+            Logical { left, right, .. } => self.is_send_safe_expr(left) && self.is_send_safe_expr(right),
+            Call { .. } => false,
+            Variable { .. } => false,
+            FieldAccess { object, .. } => self.is_send_safe_expr(object),
+            InterpolatedString(parts) => parts.iter().all(|p| match p {
+                InterpolatedPart::Literal(_) => true,
+                InterpolatedPart::Expr { expr, .. } => self.is_send_safe_expr(expr),
+            }),
+            Cast { object, .. } => self.is_send_safe_expr(object),
+            Try(_) | Weak(_) | Unowned(_) | WeakUpgrade(_) | UnownedAccess(_) | SpawnActor { .. } => false,
+        }
     }
 
     fn infer_expr(&mut self, expr: &Expr) -> Type {
@@ -399,7 +449,37 @@ impl<'a> TypeInfer<'a> {
                 .cloned()
                 .unwrap_or(Type::Unknown),
             Call { callee, arguments } => {
+                // Infer callee first
                 self.infer_expr(callee);
+                // If callee is a plain variable named `actor_send` or `make_envelope`,
+                // apply a conservative send-safe check on payload argument(s).
+                if let Expr::Variable { name } = &**callee {
+                    if name.lexeme == "actor_send" {
+                        // actor_send(actor, value [, priority])
+                        if arguments.len() >= 2 {
+                            let payload_expr = &arguments[1];
+                            if !self.is_send_safe_expr(payload_expr) {
+                                self.diags.push(Diagnostic::new(
+                                    DiagnosticKind::Type,
+                                    "actor_send: payload expression is not send-safe".to_string(),
+                                    Span::new(0,0,0,0),
+                                ));
+                            }
+                        }
+                    } else if name.lexeme == "make_envelope" {
+                        // make_envelope(payload [, priority])
+                        if arguments.len() >= 1 {
+                            let payload_expr = &arguments[0];
+                            if !self.is_send_safe_expr(payload_expr) {
+                                self.diags.push(Diagnostic::new(
+                                    DiagnosticKind::Type,
+                                    "make_envelope: payload expression is not send-safe".to_string(),
+                                    Span::new(0,0,0,0),
+                                ));
+                            }
+                        }
+                    }
+                }
                 for a in arguments {
                     self.infer_expr(a);
                 }
@@ -523,6 +603,12 @@ impl<'a> TypeInfer<'a> {
                     Type::Array(Box::new(Type::Unknown))
                 }
             }
+            Expr::SpawnActor { body } => {
+                // spawn actor retorna um handle (Actor). Para inferência simplificada,
+                // tratamos como Unknown (não tentamos modelar Actor no sistema de tipos agora).
+                let _ = body; // body not deeply type-checked here
+                Type::Unknown
+            }
             Cast { target_type, .. } => Type::Struct(target_type.clone()),
             InterpolatedString(_) => Type::String,
         };
@@ -551,6 +637,9 @@ fn value_type(v: &ArtValue) -> Type {
         ArtValue::Builtin(_) => Type::Function(vec![], Box::new(Type::Unknown)),
         ArtValue::WeakRef(_) => Type::Unknown,
         ArtValue::UnownedRef(_) => Type::Unknown,
+        ArtValue::Atomic(_) => Type::Unknown,
+        ArtValue::Mutex(_) => Type::Unknown,
+    ArtValue::Actor(_) => Type::Unknown,
         ArtValue::HeapComposite(_) => Type::Unknown, // resolução ocorre em nível de interpretador; para inferência simplificada tratamos como Unknown
     }
 }
