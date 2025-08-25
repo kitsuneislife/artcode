@@ -439,6 +439,10 @@ impl Interpreter {
         } else {
             self.heap_register(ArtValue::StructInstance { struct_name: "Atomic".to_string(), fields })
         };
+        // mark kind for downstream logic
+        if let Some(obj) = self.heap_objects.get_mut(&id) {
+            obj.kind = Some(crate::heap::HeapKind::Atomic);
+        }
         ArtValue::Atomic(ObjHandle(id))
     }
 
@@ -465,10 +469,36 @@ impl Interpreter {
     fn heap_atomic_add(&mut self, h: ObjHandle, delta: i64) -> Option<i64> {
         if let Some(obj) = self.heap_objects.get_mut(&h.0) {
             if let ArtValue::StructInstance { fields, .. } = &mut obj.value {
-                if let Some(ArtValue::Int(curr)) = fields.get("value") {
-                    let new = curr + delta;
-                    fields.insert("value".to_string(), ArtValue::Int(new));
-                    return Some(new);
+                match fields.get("value") {
+                    Some(ArtValue::Int(curr)) => {
+                        if let Some(new) = curr.checked_add(delta) {
+                            fields.insert("value".to_string(), ArtValue::Int(new));
+                            return Some(new);
+                        } else {
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                format!("atomic_add: overflow when adding {} to {}", delta, curr),
+                                Span::new(0,0,0,0),
+                            ));
+                            return None;
+                        }
+                    }
+                    Some(other) => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            format!("atomic_add: underlying atomic value is not an Int: {:?}", other),
+                            Span::new(0,0,0,0),
+                        ));
+                        return None;
+                    }
+                    None => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "atomic_add: atomic has no 'value' field".to_string(),
+                            Span::new(0,0,0,0),
+                        ));
+                        return None;
+                    }
                 }
             }
         }
@@ -485,14 +515,29 @@ impl Interpreter {
         } else {
             self.heap_register(ArtValue::StructInstance { struct_name: "Mutex".to_string(), fields })
         };
+        if let Some(obj) = self.heap_objects.get_mut(&id) {
+            obj.kind = Some(crate::heap::HeapKind::Mutex);
+        }
         ArtValue::Mutex(ObjHandle(id))
     }
 
     fn heap_mutex_lock(&mut self, h: ObjHandle) -> bool {
         if let Some(obj) = self.heap_objects.get_mut(&h.0) {
             if let ArtValue::StructInstance { fields, .. } = &mut obj.value {
-                fields.insert("locked".to_string(), ArtValue::Bool(true));
-                return true;
+                match fields.get("locked") {
+                    Some(ArtValue::Bool(true)) => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "mutex_lock: mutex already locked".to_string(),
+                            Span::new(0,0,0,0),
+                        ));
+                        return false;
+                    }
+                    _ => {
+                        fields.insert("locked".to_string(), ArtValue::Bool(true));
+                        return true;
+                    }
+                }
             }
         }
         false
@@ -501,8 +546,20 @@ impl Interpreter {
     fn heap_mutex_unlock(&mut self, h: ObjHandle) -> bool {
         if let Some(obj) = self.heap_objects.get_mut(&h.0) {
             if let ArtValue::StructInstance { fields, .. } = &mut obj.value {
-                fields.insert("locked".to_string(), ArtValue::Bool(false));
-                return true;
+                match fields.get("locked") {
+                    Some(ArtValue::Bool(false)) => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "mutex_unlock: mutex was not locked".to_string(),
+                            Span::new(0,0,0,0),
+                        ));
+                        return false;
+                    }
+                    _ => {
+                        fields.insert("locked".to_string(), ArtValue::Bool(false));
+                        return true;
+                    }
+                }
             }
         }
         false
@@ -694,6 +751,11 @@ impl Interpreter {
                     let _ = keys;
                 }
                 let finalizer = self.finalizers.remove(&id);
+                // Skip running finalizers for special heap-backed kinds (Atomic/Mutex).
+                let skip_finalizer_due_to_kind = match obj.kind {
+                    Some(crate::heap::HeapKind::Atomic) | Some(crate::heap::HeapKind::Mutex) => true,
+                    _ => false,
+                };
                 // liberar filhos fortes
                 let snapshot = obj.value.clone(); // clone para evitar emprestimo duplo
                 // debug info omitted in release
@@ -728,6 +790,15 @@ impl Interpreter {
                 // For wrappers that we decided to mark, we don't remove heap entries; we record ids
                 // no-op: metrics already updated above for unowned dangling wrappers
                 if let Some(func) = finalizer {
+                    if skip_finalizer_due_to_kind {
+                        if self.invariant_checks {
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                "Finalizer skipped for special heap-backed object (Atomic/Mutex)".to_string(),
+                                Span::new(0,0,0,0),
+                            ));
+                        }
+                    } else {
                     // chamar sem argumentos
                     // Executar função finalizer no ambiente global raiz para permitir expor flags globais
                     let previous_env = self.environment.clone();
@@ -791,6 +862,7 @@ impl Interpreter {
                             "Invariant check failed after finalizer promotion".to_string(),
                             Span::new(0, 0, 0, 0),
                         ));
+                    }
                     }
                 }
             }
@@ -981,6 +1053,11 @@ impl Interpreter {
     /// Test helper: verifica se um id ainda existe no heap
     pub fn debug_heap_contains(&self, id: u64) -> bool {
         self.heap_objects.contains_key(&id)
+    }
+
+    /// Test helper: return the HeapKind for an object id if set.
+    pub fn debug_heap_kind(&self, id: u64) -> Option<crate::heap::HeapKind> {
+        self.heap_objects.get(&id).and_then(|o| o.kind.clone())
     }
 
     /// Habilitar checagem de invariantes em pontos críticos (útil para testes)

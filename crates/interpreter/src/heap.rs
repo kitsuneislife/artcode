@@ -6,6 +6,11 @@ pub struct ObjHandle(pub u64);
 /// Representa um objeto gerenciado com contadores strong/weak.
 /// Protótipo: não faz coleta automática ainda; apenas mantém contagens e estado alive.
 #[derive(Debug, Clone)]
+pub enum HeapKind {
+    Atomic,
+    Mutex,
+}
+
 pub struct HeapObject {
     pub id: u64,
     pub value: ArtValue,
@@ -13,6 +18,7 @@ pub struct HeapObject {
     pub weak: u32,
     pub alive: bool,
     pub arena_id: Option<u32>, // se alocado dentro de uma arena (bloco performant)
+    pub kind: Option<HeapKind>,
 }
 
 impl HeapObject {
@@ -24,6 +30,7 @@ impl HeapObject {
             weak: 0,
             alive: true,
             arena_id: None,
+            kind: None,
         }
     }
     pub fn new_in_arena(id: u64, value: ArtValue, arena: u32) -> Self {
@@ -34,6 +41,7 @@ impl HeapObject {
             weak: 0,
             alive: true,
             arena_id: Some(arena),
+            kind: None,
         }
     }
     pub fn inc_strong(&mut self) {

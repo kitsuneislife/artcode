@@ -38,6 +38,11 @@ pub struct TypeInfer<'a> {
     enums: HashMap<String, HashMap<String, Option<usize>>>,
     // lexical scopes stack: each scope maps declared variable names
     scopes: Vec<HashSet<String>>,
+    // track variable bindings per lexical scope so we can restore previous
+    // types when a scope is popped (shadowing must not permanently clobber outer vars)
+    var_bindings: Vec<Vec<(String, Option<Type>)>>,
+    // store top-level function declarations for simple callsite simulation
+    functions: HashMap<String, (Vec<String>, std::rc::Rc<Stmt>)>,
 }
 
 impl<'a> TypeInfer<'a> {
@@ -47,20 +52,43 @@ impl<'a> TypeInfer<'a> {
             tenv,
             enums: HashMap::new(),
             scopes: vec![HashSet::new()],
+            var_bindings: vec![Vec::new()],
+            functions: HashMap::new(),
         }
     }
 
     fn push_scope(&mut self) {
         self.scopes.push(HashSet::new());
+    self.var_bindings.push(Vec::new());
     }
 
     fn pop_scope(&mut self) {
+        // restore variable bindings for the scope being popped
+        if let Some(bindings) = self.var_bindings.pop() {
+            for (name, prev) in bindings.into_iter().rev() {
+                match prev {
+                    Some(t) => {
+                        self.tenv.set_var(&name, t);
+                    }
+                    None => {
+                        self.tenv.vars.remove(&name);
+                    }
+                }
+            }
+        }
         self.scopes.pop();
     }
 
     fn declare_var(&mut self, name: &str) {
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(name.to_string());
+        }
+    }
+
+    fn record_var_binding(&mut self, name: &str) {
+        let prev = self.tenv.get_var(name).cloned();
+        if let Some(bindings) = self.var_bindings.last_mut() {
+            bindings.push((name.to_string(), prev));
         }
     }
 
@@ -101,7 +129,19 @@ impl<'a> TypeInfer<'a> {
                 self.infer_expr(e);
             }
             Stmt::Let { name, initializer, .. } => {
-                let t = self.infer_expr(initializer);
+                // If initializer is a simple variable reference, propagate its known type
+                let t = match initializer {
+                    Expr::Variable { name: src } => {
+                        if let Some(ty) = self.tenv.get_var(&src.lexeme).cloned() {
+                            ty
+                        } else {
+                            self.infer_expr(initializer)
+                        }
+                    }
+                    _ => self.infer_expr(initializer),
+                };
+                // record previous binding so we can restore on scope pop
+                self.record_var_binding(&name.lexeme);
                 self.tenv.set_var(&name.lexeme, t);
                 // declare in current lexical scope
                 self.declare_var(&name.lexeme);
@@ -128,10 +168,14 @@ impl<'a> TypeInfer<'a> {
                 self.enums.insert(name.lexeme.clone(), map);
             }
             Stmt::StructDecl { .. }
-            | Stmt::Function { .. }
             | Stmt::Return { .. }
             | Stmt::Match { .. }
             | Stmt::Import { .. } => {}
+            Stmt::Function { name, params, return_type: _, body, method_owner: _ } => {
+                // record simple top-level function for callsite simulation: store param names and body
+                let param_names: Vec<String> = params.iter().map(|p| p.name.lexeme.clone()).collect();
+                self.functions.insert(name.lexeme.clone(), (param_names, body.clone()));
+            }
             Stmt::Performant { statements } => {
                 self.check_performant_block(statements);
             }
@@ -384,6 +428,8 @@ impl<'a> TypeInfer<'a> {
                 ArtValue::Int(_) => true,
                 ArtValue::Float(_) => true,
                 ArtValue::Bool(_) => true,
+                ArtValue::Atomic(_) => true,
+                ArtValue::Mutex(_) => true,
                 ArtValue::String(_) => true,
                 ArtValue::Optional(boxed) => match &**boxed {
                     Some(inner) => matches!(inner, ArtValue::Int(_)),
@@ -399,7 +445,15 @@ impl<'a> TypeInfer<'a> {
             Binary { left, right, .. } => self.is_send_safe_expr(left) && self.is_send_safe_expr(right),
             Logical { left, right, .. } => self.is_send_safe_expr(left) && self.is_send_safe_expr(right),
             Call { .. } => false,
-            Variable { .. } => false,
+            Variable { name } => {
+                // If the variable has a known type in the TypeEnv, use the type-based
+                // send-safety check. Otherwise conservatively assume not send-safe.
+                if let Some(t) = self.tenv.get_var(&name.lexeme) {
+                    self.is_send_safe_type(t)
+                } else {
+                    false
+                }
+            }
             FieldAccess { object, .. } => self.is_send_safe_expr(object),
             InterpolatedString(parts) => parts.iter().all(|p| match p {
                 InterpolatedPart::Literal(_) => true,
@@ -407,6 +461,16 @@ impl<'a> TypeInfer<'a> {
             }),
             Cast { object, .. } => self.is_send_safe_expr(object),
             Try(_) | Weak(_) | Unowned(_) | WeakUpgrade(_) | UnownedAccess(_) | SpawnActor { .. } => false,
+        }
+    }
+
+    fn is_send_safe_type(&self, t: &Type) -> bool {
+        match t {
+            Type::Int | Type::Float | Type::Bool | Type::String => true,
+            Type::Array(inner) => self.is_send_safe_type(inner),
+            Type::EnumInstance(_name, types) => types.iter().all(|tt| self.is_send_safe_type(tt)),
+            // Struct without field info is conservative: not send-safe unless proven otherwise
+            _ => false,
         }
     }
 
@@ -478,6 +542,27 @@ impl<'a> TypeInfer<'a> {
                                 ));
                             }
                         }
+                    }
+                }
+                // Simple callsite propagation: if the callee is a known top-level function,
+                // bind parameter names to argument types (for literal or known-variable args)
+                if let Expr::Variable { name } = &**callee {
+                    if let Some(entry) = self.functions.get(&name.lexeme).cloned() {
+                        let (param_names, body) = entry;
+                        // create a temporary scope for params
+                        self.push_scope();
+                        for (i, p) in param_names.iter().enumerate() {
+                            if i < arguments.len() {
+                                let arg = &arguments[i];
+                                let ty = self.infer_expr(arg);
+                                self.record_var_binding(p);
+                                self.tenv.set_var(p, ty);
+                            }
+                        }
+                        // Optionally infer the body to propagate types inside function (cheap simulation)
+                        // We don't attempt full signature/return inference here.
+                        self.visit_stmt(&*body);
+                        self.pop_scope();
                     }
                 }
                 for a in arguments {
