@@ -52,8 +52,7 @@ impl fmt::Display for Type {
 impl Function {
     pub fn emit_text(&self) -> String {
         let mut out = String::new();
-        let params: Vec<String> = self.params.iter().map(|(n,t)| format!("{} {}", t, n)).collect();
-    let header = format!("func @{}({}) -> {} {{\n", self.name, params.join(", "), self.ret.as_ref().map(|t| t.to_string()).unwrap_or_else(|| "void".to_string()));
+    let params: Vec<String> = self.params.iter().map(|(n,t)| format!("{} {}", t, n)).collect();
         // Build body text first
         let mut body = String::new();
         let mut printed_label = false;
@@ -80,7 +79,8 @@ impl Function {
             }
         }
 
-        let header = format!("func @{}({}) -> {} {{\n", self.name, params.join(", "), self.ret.as_ref().map(|t| t.to_string()).unwrap_or_else(|| "void".to_string()));
+    // header string used for function emission
+    let header = format!("func @{}({}) -> {} {{\n", self.name, params.join(", "), self.ret.as_ref().map(|t| t.to_string()).unwrap_or_else(|| "void".to_string()));
         if printed_label {
             out.push_str(&header);
             out.push_str(&body);
