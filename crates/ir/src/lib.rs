@@ -12,8 +12,11 @@ pub enum Type {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Instr {
-    ConstI64(i64),
+    ConstI64(String, i64), // name, value
     Add(String, String), // %a + %b
+    Sub(String, String),
+    Mul(String, String),
+    Div(String, String),
     Ret(Option<String>),
 }
 
@@ -27,6 +30,8 @@ pub struct Function {
 
 pub mod lowering;
 
+// Keep existing name `lower_stmt` exported; if the module implements fallback
+// we re-export the top-level dispatcher.
 pub use lowering::lower_stmt;
 
 impl fmt::Display for Type {
@@ -48,8 +53,11 @@ impl Function {
         out.push_str("  entry:\n");
         for instr in &self.body {
             match instr {
-                Instr::ConstI64(v) => out.push_str(&format!("    const i64 {}\n", v)),
+                Instr::ConstI64(name, v) => out.push_str(&format!("    const i64 {} {}\n", name, v)),
                 Instr::Add(a,b) => out.push_str(&format!("    add i64 {}, {}\n", a, b)),
+                Instr::Sub(a,b) => out.push_str(&format!("    sub i64 {}, {}\n", a, b)),
+                Instr::Mul(a,b) => out.push_str(&format!("    mul i64 {}, {}\n", a, b)),
+                Instr::Div(a,b) => out.push_str(&format!("    div i64 {}, {}\n", a, b)),
                 Instr::Ret(Some(v)) => out.push_str(&format!("    ret {}\n", v)),
                 Instr::Ret(None) => out.push_str("    ret\n"),
             }
