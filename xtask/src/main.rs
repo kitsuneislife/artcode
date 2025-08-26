@@ -32,10 +32,16 @@ enum Commands {
     },
         /// Generate or verify IR golden files
         Irgen {
-            /// write golden files instead of printing
-            #[arg(long)]
-            write: bool,
-        },
+                /// write golden files instead of printing
+                #[arg(long)]
+                write: bool,
+                /// check existing golden files against generated output
+                #[arg(long)]
+                check: bool,
+                /// output directory for golden files (default: crates/ir/golden)
+                #[arg(long)]
+                outdir: Option<PathBuf>,
+            },
 }
 
 fn run(cmd: &mut Command) -> ExitStatus {
@@ -178,12 +184,21 @@ fn main() {
                 }
             }
         }
-        Commands::Irgen { write } => {
-            // Run the irgen binary to print or write golden files
+        Commands::Irgen { write, check, outdir } => {
+            // Run the irgen binary to print, write, or check golden files
             let mut cmd = Command::new("cargo");
             cmd.args(["run", "-p", "ir", "--bin", "irgen", "--quiet"]);
-            if write {
-                cmd.arg("--").arg("--write");
+            if write || check || outdir.is_some() {
+                cmd.arg("--");
+                if write {
+                    cmd.arg("--write");
+                }
+                if check {
+                    cmd.arg("--check");
+                }
+                if let Some(p) = outdir {
+                    cmd.arg("--outdir").arg(p.as_os_str());
+                }
             }
             let status = run(&mut cmd);
             if !status.success() {

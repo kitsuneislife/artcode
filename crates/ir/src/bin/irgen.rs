@@ -43,23 +43,54 @@ fn build_if() -> (String, String) {
 fn main() {
     let args: Vec<String> = env::args().collect();
     let write_golden = args.iter().any(|s| s == "--write");
+    let check_golden = args.iter().any(|s| s == "--check");
 
-    let outdir = PathBuf::from("crates/ir/golden");
+    let outdir = match args.windows(2).find(|w| w[0] == "--outdir") {
+        Some(pair) => PathBuf::from(&pair[1]),
+        None => PathBuf::from("crates/ir/golden"),
+    };
     if write_golden && !outdir.exists() {
         let _ = std::fs::create_dir_all(&outdir);
     }
 
     let fixtures: Vec<(String,String)> = vec![build_add(), build_sub(), build_if()];
+    let mut failed = false;
     for (name, text) in fixtures {
+        let path = outdir.join(&name);
         if write_golden {
-            let path = outdir.join(&name);
             if let Err(e) = write(&path, &text) {
                 eprintln!("failed to write {}: {}", path.display(), e);
+                failed = true;
             } else {
                 println!("wrote {}", path.display());
             }
-        } else {
-            println!("---- {} ----\n{}", name, text);
+            continue;
         }
+
+        if check_golden {
+            match std::fs::read_to_string(&path) {
+                Ok(existing) => {
+                    if existing != text {
+                        eprintln!("golden mismatch: {}", path.display());
+                        eprintln!("--- expected ---\n{}\n--- actual ---\n{}", existing, text);
+                        failed = true;
+                    } else {
+                        println!("ok: {}", path.display());
+                    }
+                }
+                Err(_) => {
+                    eprintln!("missing golden: {}", path.display());
+                    failed = true;
+                }
+            }
+            continue;
+        }
+
+        // default: print to stdout
+        println!("---- {} ----\n{}", name, text);
+    }
+
+    if failed {
+        std::process::exit(2);
     }
 }

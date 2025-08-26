@@ -1,0 +1,16 @@
+[package]
+name = "jit"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "jit"
+path = "src/lib.rs"
+
+# This crate is optional and should be compiled with `--features jit` when LLVM/inkwell
+# is available on the developer machine or CI runner.
+
+[features]
+# feature flag placeholder. Implementations depending on `inkwell` should be behind
+# this feature to avoid imposing LLVM on all contributors.
+jit = []
