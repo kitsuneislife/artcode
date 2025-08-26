@@ -1,8 +1,9 @@
 # RFC 0004 — IR / JIT / AOT Architecture
 
-Status: Draft
+Status: Proposed
 
-Proponente: (preencher; proponho: eng-runtime + eng-compiler)
+Proponente: eng-runtime + eng-compiler
+Owner: eng-compiler (primary), eng-runtime (integration)
 
 ## Resumo curto
 Propor uma arquitetura IR intermediária e um pipeline JIT/AOT com suporte a Profile-Guided Optimization (PGO). Começaremos com uma IR textual simples, infra para lowering do AST -> IR, um JIT experimental (LLVM/inkwell) para trechos quentes e um caminho AOT opt-in que aceita perfis para otimização. O objetivo é prover uma estrada de migração da VM interpretada atual para um compilador híbrido, mantendo o runtime interpretado como fallback.
@@ -96,6 +97,13 @@ Dependências propostas:
 - Golden tests: for small functions and examples in `cli/examples/`.
 - Microbenchmarks: a small harness comparing interpreter vs JIT for selected kernels (array sum, factorial, fib).
 - Integration: `art run --gen-profile` exercise and end-to-end AOT build.
+
+## Aceitação inicial (Mínima)
+- `crates/ir` scaffold presente e testável (`cargo test -p ir` passes)
+- `art run --gen-profile <out>` produces a JSON profile with `functions` and `edges` keys
+- `art build --with-profile <profile>` consumes the profile and emits an AOT plan JSON (stub acceptable)
+
+Se esses pontos forem atendidos, consideramos a RFC pronta para revisão técnica ampliada.
 
 CI changes
 - Add a matrix entry for a job with LLVM installed (optional) to run JIT smoke tests; default CI continues to run interpreter-based tests.
