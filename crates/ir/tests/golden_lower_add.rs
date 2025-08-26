@@ -20,6 +20,6 @@ fn golden_lower_add() {
 
     let irf = lower_stmt(&func).expect("lowering failed");
     let text = irf.emit_text();
-    let expected = "func @add(i64 a, i64 b) -> i64 {\n  entry:\n  %0 = add i64 a, b\n  ret %0\n}\n";
+    let expected = "func @add(i64 a, i64 b) -> i64 {\n  entry:\n  %add_0 = add i64 a, b\n  ret %add_0\n}\n";
     assert_eq!(text, expected);
 }

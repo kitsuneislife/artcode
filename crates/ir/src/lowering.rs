@@ -106,7 +106,7 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
                 Expr::Call { callee, arguments } => {
                     // Lower a direct call returning a value: produce Call instr
                     // Only support simple variable callee for now
-                    if let Expr::Variable { name } = &**callee {
+                    if let Expr::Variable { name: callee_name } = &*callee {
                         let mut arg_names: Vec<String> = Vec::new();
                         for a in arguments {
                             match a {
@@ -116,7 +116,7 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
                             }
                         }
                         let dest = mktemp();
-                        let call = Instr::Call(dest.clone(), name.lexeme.clone(), arg_names);
+                        let call = Instr::Call(dest.clone(), callee_name.lexeme.clone(), arg_names);
                         let body = vec![call, Instr::Ret(Some(dest))];
                         return Some(Function { name: func_name, params: ir_params, ret: Some(Type::I64), body });
                     }
@@ -154,7 +154,9 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
             if statements.len() != 1 { return None }
             if let Stmt::If { condition, then_branch, else_branch } = &statements[0] {
                 // build temps and labels
-                let mut next_temp: usize = 0; let mut mktemp = || { let t = format!("%{}", next_temp); next_temp += 1; t };
+                let mut next_temp: usize = 0;
+                let fname_prefix = func_name.replace("@", "");
+                let mut mktemp = || { let t = format!("%{}_{}", fname_prefix, next_temp); next_temp += 1; t };
                 let then_bb = format!("{}_then", fname_prefix);
                 let else_bb = format!("{}_else", fname_prefix);
                 let merge_bb = format!("{}_merge", fname_prefix);
