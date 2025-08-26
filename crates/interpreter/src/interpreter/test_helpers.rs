@@ -1,9 +1,8 @@
 use crate::interpreter::Interpreter;
-use core::ast::{ArtValue, Function, ObjHandle, Stmt};
+use core::ast::{ArtValue, Function, ObjHandle};
 use std::rc::Rc;
 
 /// Test helpers dentro do módulo `interpreter` para acessar helpers privados em testes.
-use super::*;
 
 pub fn heap_create_atomic(interp: &mut Interpreter, initial: ArtValue) -> ArtValue {
     interp.heap_create_atomic(initial)
