@@ -12,6 +12,8 @@ use crate::heap_utils::dec_strong_obj;
 
 use std::collections::BTreeMap;
 
+pub mod test_helpers;
+
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
     type_registry: TypeRegistry,
