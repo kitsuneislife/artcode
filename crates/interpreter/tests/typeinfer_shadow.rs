@@ -1,6 +1,7 @@
-use crate::type_infer::TypeEnv;
-use crate::type_infer::TypeInfer;
-use core::ast::{Stmt, Expr, Token, FunctionParam};
+use interpreter::type_infer::TypeEnv;
+use interpreter::type_infer::TypeInfer;
+use core::ast::{Stmt, Expr, FunctionParam};
+use core::token::Token;
 
 #[test]
 fn typeinfer_restores_outer_bindings_on_shadow() {

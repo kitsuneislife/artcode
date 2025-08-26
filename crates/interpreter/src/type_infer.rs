@@ -34,7 +34,7 @@ impl TypeEnv {
 
 pub struct TypeInfer<'a> {
     pub diags: Vec<Diagnostic>,
-    tenv: &'a mut TypeEnv,
+    pub tenv: &'a mut TypeEnv,
     enums: HashMap<String, HashMap<String, Option<usize>>>,
     // lexical scopes stack: each scope maps declared variable names
     scopes: Vec<HashSet<String>>,
@@ -123,7 +123,7 @@ impl<'a> TypeInfer<'a> {
         Ok(())
     }
 
-    fn visit_stmt(&mut self, stmt: &Stmt) {
+    pub fn visit_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Expression(e) => {
                 self.infer_expr(e);

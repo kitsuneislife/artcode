@@ -36,6 +36,12 @@ pub struct Interpreter {
     pub objects_finalized_per_arena: std::collections::HashMap<u32, usize>,
     // New metrics / debug helpers
     pub finalizer_promotions: usize,
+    // Perfil: contadores simples por função name (hotness)
+    pub call_counters: std::collections::HashMap<String, u64>,
+    // Perfil: contadores de arestas (caller -> callee) para PGO simples
+    pub edge_counters: std::collections::HashMap<String, u64>,
+    // runtime stack of currently executing named functions (None for top-level)
+    pub fn_stack: Vec<Option<String>>,
     // Per-arena allocation counters (experimental)
     pub arena_alloc_count: std::collections::HashMap<u32, usize>,
     // Per-arena promotions counter (experimental)
@@ -98,6 +104,24 @@ mod tests {
         let diags = interp.take_diagnostics();
         // ensure we did not add a runtime diag complaining about finalizer execution (skip is allowed)
         assert!(!diags.iter().any(|d| d.message.contains("Finalizer skipped")));
+    }
+
+    #[test]
+    fn write_profile_emits_functions_and_edges() {
+        let mut interp = Interpreter::new();
+        // simulate two functions and some edges
+        interp.call_counters.insert("foo".to_string(), 5);
+        interp.call_counters.insert("bar".to_string(), 2);
+        interp.edge_counters.insert("<root>->foo".to_string(), 3);
+        interp.edge_counters.insert("foo->bar".to_string(), 4);
+        let tmp = std::env::temp_dir().join("art_profile_test.json");
+        let _ = interp.write_profile(&tmp).expect("write profile");
+        let s = std::fs::read_to_string(&tmp).expect("read profile");
+        let v: serde_json::Value = serde_json::from_str(&s).expect("parse profile json");
+        assert!(v.get("functions").is_some());
+        assert!(v.get("edges").is_some());
+        // cleanup
+        let _ = std::fs::remove_file(&tmp);
     }
 }
 
@@ -349,6 +373,9 @@ impl Interpreter {
             current_actor: None,
             actor_mailbox_limit: 1024,
             executing_actor: None,
+            call_counters: std::collections::HashMap::new(),
+            edge_counters: std::collections::HashMap::new(),
+            fn_stack: Vec::new(),
         }
     }
 
@@ -1014,7 +1041,7 @@ impl Interpreter {
     /// This mirrors previous behavior where some paths set strong=1 to ensure a
     /// subsequent dec drops the object; centralizing makes it easier to find
     /// all write-sites to strong when adapting Arc semantics.
-    pub fn force_heap_strong_to_one(&mut self, id: u64) {
+    fn force_heap_strong_to_one(&mut self, id: u64) {
         use crate::heap_utils::force_strong_to_one_obj;
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             force_strong_to_one_obj(obj);
@@ -2170,6 +2197,25 @@ impl Interpreter {
     }
 
     fn call_function(&mut self, func: Rc<Function>, arguments: Vec<Expr>) -> Result<ArtValue> {
+        // record call counter by function name (if present)
+        let callee_name_opt = func.name.clone();
+        if let Some(name) = &callee_name_opt {
+            *self.call_counters.entry(name.clone()).or_insert(0) += 1;
+        }
+        // record edge from caller -> callee using fn_stack top as caller if present
+        let caller_name_opt = match self.fn_stack.last() {
+            Some(opt) => opt.clone(),
+            None => None,
+        };
+        if let Some(callee) = &callee_name_opt {
+            let key = match &caller_name_opt {
+                Some(caller) => format!("{}->{}", caller, callee),
+                None => format!("<root>->{}", callee),
+            };
+            *self.edge_counters.entry(key).or_insert(0) += 1;
+        }
+        // push callee onto stack for nested call attribution
+        self.fn_stack.push(callee_name_opt.clone());
         let argc = arguments.len();
         if func.params.len() != argc {
             self.diagnostics.push(Diagnostic::new(
@@ -2211,10 +2257,55 @@ impl Interpreter {
         self.drop_scope_heap_objects(&func_env);
         // Restaurar ambiente anterior (usamos `previous_env` original)
         self.environment = previous_env;
+    // pop fn stack
+    let _ = self.fn_stack.pop();
         match result {
             Ok(()) => Ok(ArtValue::none()),
             Err(RuntimeError::Return(val)) => Ok(val),
         }
+    }
+
+    /// Write a simple profile JSON file to `path` containing function call counts.
+    /// This implementation avoids introducing serde as a dependency by emitting
+    /// a tiny JSON object manually.
+    pub fn write_profile(&self, path: &std::path::Path) -> std::result::Result<(), std::io::Error> {
+        let mut out = String::new();
+        out.push_str("{\n");
+        // functions
+        out.push_str("  \"functions\": {\n");
+        let mut first = true;
+        for (k, v) in &self.call_counters {
+            if !first {
+                out.push_str(",\n");
+            }
+            first = false;
+            out.push_str(&format!("    \"{}\": {}", k.replace('"', "\\\""), v));
+        }
+        out.push_str("\n  },\n");
+        // edges as array of { caller, callee, count }
+        out.push_str("  \"edges\": [\n");
+        let mut first_e = true;
+        for (k, v) in &self.edge_counters {
+            if !first_e {
+                out.push_str(",\n");
+            }
+            first_e = false;
+            // parse key "caller->callee" into parts
+            let parts: Vec<&str> = k.split("->").collect();
+            let (caller, callee) = if parts.len() == 2 {
+                (parts[0], parts[1])
+            } else {
+                ("<unknown>", k.as_str())
+            };
+            out.push_str(&format!(
+                "    {{\"caller\": \"{}\", \"callee\": \"{}\", \"count\": {}}}",
+                caller.replace('"', "\\\""),
+                callee.replace('"', "\\\""),
+                v
+            ));
+        }
+        out.push_str("\n  ]\n}\n");
+        std::fs::write(path, out)
     }
 
     fn call_builtin(&mut self, b: core::ast::BuiltinFn, arguments: Vec<Expr>) -> Result<ArtValue> {

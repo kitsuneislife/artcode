@@ -5,13 +5,14 @@ use interpreter::type_infer::{TypeEnv, TypeInfer};
 use lexer::lexer::Lexer;
 use parser::parser::Parser;
 use serde::Serialize;
+use serde_json;
 use toml::Value as TomlValue;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::process;
 
-fn run_with_source(_name: &str, source: String) {
+fn run_with_source(_name: &str, source: String, profile: Option<&str>) {
     let mut lexer = Lexer::new(source.clone());
     let tokens = match lexer.scan_tokens() {
         Ok(t) => t,
@@ -41,6 +42,10 @@ fn run_with_source(_name: &str, source: String) {
     if let Err(e) = interpreter.interpret(program) {
         eprintln!("Erro de execução: {}", e);
     }
+    if let Some(p) = profile {
+        let _ = interpreter.write_profile(std::path::Path::new(p));
+        eprintln!("wrote profile to {}", p);
+    }
     for d in interpreter.take_diagnostics() {
         eprintln!("{}", format_diagnostic(&source, &d));
     }
@@ -60,7 +65,7 @@ fn run_with_source(_name: &str, source: String) {
     }
 }
 
-fn run_file(path: &str) {
+fn run_file(path: &str, profile: Option<&str>) {
     // Use resolver to expand imports
     match crate::resolver::resolve(path) {
         Ok((program, main_source)) => {
@@ -76,6 +81,10 @@ fn run_file(path: &str) {
             let mut interpreter = Interpreter::with_prelude();
             if let Err(e) = interpreter.interpret(program) {
                 eprintln!("Erro de execução: {}", e);
+            }
+            if let Some(p) = profile {
+                let _ = interpreter.write_profile(std::path::Path::new(p));
+                eprintln!("wrote profile to {}", p);
             }
             for d in interpreter.take_diagnostics() {
                 eprintln!("{}", format_diagnostic(&main_source, &d));
@@ -99,20 +108,143 @@ fn run_prompt() {
         if io::stdin().read_line(&mut line).is_err() || line.trim().is_empty() {
             break;
         }
-        run_with_source("<repl>", line);
+    run_with_source("<repl>", line, None);
     }
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let mut args: Vec<String> = env::args().collect();
+    // global: support --gen-profile <path>
+    let mut gen_profile: Option<String> = None;
+    let mut i = 1usize;
+    while i < args.len() {
+        if args[i] == "--gen-profile" && i + 1 < args.len() {
+            gen_profile = Some(args[i + 1].clone());
+            // remove the two entries from args to simplify downstream parsing
+            args.remove(i);
+            args.remove(i);
+            continue;
+        }
+        i += 1;
+    }
     if args.len() == 1 {
         return run_prompt();
     }
+    // simple build command: art build --with-profile <profile> [--out <path>]
+    if args[1] == "build" {
+        // parse simple flags
+        let mut profile: Option<String> = None;
+        let mut out: Option<String> = None;
+        let mut i = 2usize;
+        while i < args.len() {
+            if args[i] == "--with-profile" && i + 1 < args.len() {
+                profile = Some(args[i + 1].clone());
+                i += 2;
+                continue;
+            }
+            if args[i] == "--out" && i + 1 < args.len() {
+                out = Some(args[i + 1].clone());
+                i += 2;
+                continue;
+            }
+            i += 1;
+        }
+        if let Some(p) = profile {
+            match std::fs::read_to_string(&p) {
+                Ok(s) => {
+                    // parse minimal profile format { "functions": { name: count }, "edges": { "a->b": count } }
+                    let parsed: serde_json::Value = match serde_json::from_str(&s) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            eprintln!("failed to parse profile {}: {}", p, e);
+                            std::process::exit(65);
+                        }
+                    };
+                    // collect functions map
+                    let mut func_map: Vec<(String, u64)> = Vec::new();
+                    if let Some(funcs) = parsed.get("functions") {
+                        if let Some(map) = funcs.as_object() {
+                            for (k, v) in map.iter() {
+                                if let Some(n) = v.as_u64() {
+                                    func_map.push((k.clone(), n));
+                                }
+                            }
+                        }
+                    }
+                    // build callee scores using edges when available
+                    let mut callee_score: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+                    // if edges present as array
+                    if let Some(edges_val) = parsed.get("edges") {
+                        if edges_val.is_array() {
+                            if let Some(arr) = edges_val.as_array() {
+                                for e in arr.iter() {
+                                    if let (Some(caller), Some(callee), Some(cnt)) = (
+                                        e.get("caller").and_then(|v| v.as_str()),
+                                        e.get("callee").and_then(|v| v.as_str()),
+                                        e.get("count").and_then(|v| v.as_u64()),
+                                    ) {
+                                        *callee_score.entry(callee.to_string()).or_insert(0) += cnt;
+                                    }
+                                }
+                            }
+                        } else if edges_val.is_object() {
+                            if let Some(map) = edges_val.as_object() {
+                                for (k, v) in map.iter() {
+                                    if let Some(cnt) = v.as_u64() {
+                                        // parse key like caller->callee
+                                        if let Some(pos) = k.find("->") {
+                                            let callee = &k[pos + 2..];
+                                            *callee_score.entry(callee.to_string()).or_insert(0) += cnt;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // mix function counts with callee_score: base score = function count + edge-derived score
+                    for (name, cnt) in func_map.iter() {
+                        let edge_contrib = *callee_score.get(name).unwrap_or(&0);
+                        callee_score.insert(name.clone(), edge_contrib + *cnt);
+                    }
+
+                    // collect and sort by combined score
+                    let mut scored: Vec<(String, u64)> = callee_score.into_iter().collect();
+                    scored.sort_by(|a, b| b.1.cmp(&a.1));
+
+                    // choose top-10 as inline candidates
+                    let mut plan = serde_json::Map::new();
+                    let inline: Vec<serde_json::Value> = scored
+                        .iter()
+                        .take(10)
+                        .map(|(n, c)| serde_json::json!({"name": n, "score": *c}))
+                        .collect();
+                    plan.insert("inline_candidates".to_string(), serde_json::Value::Array(inline));
+                    let out_path = out.unwrap_or_else(|| "aot_plan.json".to_string());
+                    match std::fs::write(&out_path, serde_json::to_string_pretty(&serde_json::Value::Object(plan)).unwrap()) {
+                        Ok(_) => println!("wrote AOT plan to {}", out_path),
+                        Err(e) => {
+                            eprintln!("failed to write aot plan: {}", e);
+                            std::process::exit(70);
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("failed to read profile {}: {}", p, e);
+                    std::process::exit(65);
+                }
+            }
+            return;
+        } else {
+            eprintln!("Usage: art build --with-profile <profile.json> [--out <path>]");
+            process::exit(64);
+        }
+    }
     if args[1] == "run" && args.len() == 3 {
-        return run_file(&args[2]);
+        return run_file(&args[2], gen_profile.as_deref());
     }
     if args[1] == "metrics" {
-        if args.len() < 3 {
+    if args.len() < 3 {
             println!("Usage: art metrics [--json] <script>");
             process::exit(64);
         }
@@ -222,6 +354,10 @@ fn main() {
                             println!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
                                 interpreter.weak_created, interpreter.weak_upgrades, interpreter.weak_dangling,
                                 interpreter.unowned_created, interpreter.unowned_dangling, interpreter.cycle_reports_run.get());
+                        }
+                        if let Some(p) = gen_profile.as_deref() {
+                            let _ = interpreter.write_profile(std::path::Path::new(p));
+                            eprintln!("wrote profile to {}", p);
                         }
                     }
                     Err(diags) => {
