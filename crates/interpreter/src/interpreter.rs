@@ -12,6 +12,7 @@ use crate::heap_utils::dec_strong_obj;
 
 use std::collections::BTreeMap;
 
+#[cfg(test)]
 pub mod test_helpers;
 
 pub struct Interpreter {
