@@ -7,6 +7,7 @@ use parser::parser::Parser;
 use serde::Serialize;
 use serde_json;
 use toml::Value as TomlValue;
+mod aot;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
@@ -152,126 +153,11 @@ fn main() {
         if let Some(p) = profile {
             match std::fs::read_to_string(&p) {
                 Ok(s) => {
-                    // parse minimal profile format { "functions": { name: count }, "edges": { "a->b": count } }
-                    let parsed: serde_json::Value = match serde_json::from_str(&s) {
-                        Ok(v) => v,
-                        Err(e) => {
-                            eprintln!("failed to parse profile {}: {}", p, e);
-                            std::process::exit(65);
-                        }
-                    };
-                    // collect functions map
-                    let mut func_map: Vec<(String, u64)> = Vec::new();
-                    if let Some(funcs) = parsed.get("functions") {
-                        if let Some(map) = funcs.as_object() {
-                            for (k, v) in map.iter() {
-                                if let Some(n) = v.as_u64() {
-                                    func_map.push((k.clone(), n));
-                                }
-                            }
-                        }
-                    }
-                    // build callee scores using edges when available
-                    let mut callee_score: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
-                    // if edges present as array
-                    if let Some(edges_val) = parsed.get("edges") {
-                        if edges_val.is_array() {
-                            if let Some(arr) = edges_val.as_array() {
-                                for e in arr.iter() {
-                                    if let (Some(caller), Some(callee), Some(cnt)) = (
-                                        e.get("caller").and_then(|v| v.as_str()),
-                                        e.get("callee").and_then(|v| v.as_str()),
-                                        e.get("count").and_then(|v| v.as_u64()),
-                                    ) {
-                                        *callee_score.entry(callee.to_string()).or_insert(0) += cnt;
-                                    }
-                                }
-                            }
-                        } else if edges_val.is_object() {
-                            if let Some(map) = edges_val.as_object() {
-                                for (k, v) in map.iter() {
-                                    if let Some(cnt) = v.as_u64() {
-                                        // parse key like caller->callee
-                                        if let Some(pos) = k.find("->") {
-                                            let callee = &k[pos + 2..];
-                                            *callee_score.entry(callee.to_string()).or_insert(0) += cnt;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Improved scoring: edge-derived weight is more significant than raw function call count.
-                    // Compute top callers per callee so the AOT plan can include callsite examples.
-                    let mut callers_by_callee: std::collections::HashMap<String, Vec<(String, u64)>> = std::collections::HashMap::new();
-                    // if edges present as array, we already parsed callee_score from edges; but we want callers too
-                    if let Some(edges_val) = parsed.get("edges") {
-                        if edges_val.is_array() {
-                            if let Some(arr) = edges_val.as_array() {
-                                for e in arr.iter() {
-                                    if let (Some(caller), Some(callee), Some(cnt)) = (
-                                        e.get("caller").and_then(|v| v.as_str()),
-                                        e.get("callee").and_then(|v| v.as_str()),
-                                        e.get("count").and_then(|v| v.as_u64()),
-                                    ) {
-                                        callers_by_callee.entry(callee.to_string()).or_default().push((caller.to_string(), cnt));
-                                    }
-                                }
-                            }
-                        } else if edges_val.is_object() {
-                            if let Some(map) = edges_val.as_object() {
-                                for (k, v) in map.iter() {
-                                    if let Some(cnt) = v.as_u64() {
-                                        if let Some(pos) = k.find("->") {
-                                            let caller = &k[..pos];
-                                            let callee = &k[pos + 2..];
-                                            callers_by_callee.entry(callee.to_string()).or_default().push((caller.to_string(), cnt));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // mix function counts with callee_score: use stronger weight for incoming edges
-                    // base score = function count + 2 * incoming_edge_sum
-                    for (name, cnt) in func_map.iter() {
-                        let edge_contrib = callers_by_callee.get(name).map(|v| v.iter().map(|(_,c)| *c).sum::<u64>()).unwrap_or(0);
-                        let score = *cnt + 2 * edge_contrib;
-                        callee_score.insert(name.clone(), score);
-                    }
-
-                    // collect and sort by combined score, also prepare caller examples
-                    let mut scored: Vec<(String, u64)> = callee_score.into_iter().collect();
-                    scored.sort_by(|a, b| b.1.cmp(&a.1));
-
-                    // choose top-10 as inline candidates, but filter recursive candidates and low-score ones
-                    let mut plan = serde_json::Map::new();
-                    let mut inline: Vec<serde_json::Value> = Vec::new();
-                    for (name, score) in scored.iter().take(50) { // consider more and filter down
-                        if inline.len() >= 10 { break; }
-                        if *score < 3 { break; } // threshold: ignore low-scoring functions
-                        // avoid obvious recursion: if callers include same function name, skip
-                        let mut is_recursive = false;
-                        if let Some(callers) = callers_by_callee.get(name) {
-                            for (cname, _) in callers.iter() { if cname == name { is_recursive = true; break; } }
-                        }
-                        if is_recursive { continue; }
-                        // prepare top-3 callers as examples
-                        let caller_examples = callers_by_callee.get(name).map(|v| {
-                            let mut vv = v.clone();
-                            vv.sort_by(|a,b| b.1.cmp(&a.1));
-                            vv.iter().take(3).map(|(c,n)| serde_json::json!({"caller": c, "count": *n})).collect::<Vec<_>>()
-                        }).unwrap_or_else(|| Vec::new());
-                        inline.push(serde_json::json!({"name": name, "score": *score, "caller_examples": caller_examples}));
-                    }
-                    plan.insert("inline_candidates".to_string(), serde_json::Value::Array(inline));
                     let out_path = out.unwrap_or_else(|| "aot_plan.json".to_string());
-                    match std::fs::write(&out_path, serde_json::to_string_pretty(&serde_json::Value::Object(plan)).unwrap()) {
-                        Ok(_) => println!("wrote AOT plan to {}", out_path),
+                    match aot::generate_aot_plan_from_profile_str(&s, std::path::Path::new(&out_path)) {
+                        Ok(()) => println!("wrote AOT plan to {}", out_path),
                         Err(e) => {
-                            eprintln!("failed to write aot plan: {}", e);
+                            eprintln!("failed to generate aot plan: {}", e);
                             std::process::exit(70);
                         }
                     }
