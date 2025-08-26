@@ -28,3 +28,7 @@ pub fn force_heap_strong_to_one(interp: &mut Interpreter, id: u64) {
 pub fn dec_object_strong_recursive(interp: &mut Interpreter, id: u64) {
     interp.dec_object_strong_recursive(id);
 }
+
+pub fn heap_object_ids(interp: &Interpreter) -> Vec<u64> {
+    interp.heap_objects.keys().cloned().collect()
+}

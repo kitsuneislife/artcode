@@ -1,6 +1,6 @@
 use interpreter::Interpreter;
 use core::ast::ArtValue;
-use interpreter::test_helpers::test_helpers as th;
+use interpreter::test_helpers as th;
 
 #[test]
 fn atomic_add_overflow_emits_diag() {
