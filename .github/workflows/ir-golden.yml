@@ -1,0 +1,25 @@
+name: IR Golden Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ir-golden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Build and run xtask gen-golden --check
+        run: |
+          cargo install --path xtask --force || true
+          cargo xtask -- gen-golden --check
+        env:
+          CARGO_HOME: ${{ runner.temp }}/cargo

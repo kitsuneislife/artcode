@@ -1,3 +1,27 @@
+//! Crate `jit` - scaffold
+//!
+//! Implementação mínima para permitir que o workspace compile sem habilitar `--features=jit`.
+
+#[cfg(feature = "jit")]
+mod enabled {
+    // Aqui, futuramente, colocaremos a integração com `inkwell` e ORC
+    pub fn compile_function(_name: &str, _ir: &str) -> Result<*const u8, String> {
+        // placeholder: implementação real dependerá de inkwell/LLVM
+        Err("JIT feature not yet implemented".to_string())
+    }
+}
+
+#[cfg(not(feature = "jit"))]
+mod disabled {
+    pub fn compile_function(_name: &str, _ir: &str) -> Result<*const u8, String> {
+        Err("JIT feature not enabled; build with --features=jit".to_string())
+    }
+}
+
+#[cfg(feature = "jit")]
+pub use enabled::compile_function;
+#[cfg(not(feature = "jit"))]
+pub use disabled::compile_function;
 // Minimal scaffold for a JIT crate. Feature-gated real implementation (inkwell) should
 // be behind the `jit` feature. This file provides lightweight stubs so the workspace
 // can build and tests run for contributors without LLVM.
