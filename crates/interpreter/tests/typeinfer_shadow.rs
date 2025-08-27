@@ -1,6 +1,6 @@
 use interpreter::type_infer::TypeEnv;
 use interpreter::type_infer::TypeInfer;
-use core::ast::{Stmt, Expr, FunctionParam};
+use core::ast::{Stmt, Expr};
 use core::token::Token;
 
 #[test]
