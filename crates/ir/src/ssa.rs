@@ -35,7 +35,7 @@ pub fn rename_temps(func: &mut Function) {
                 let nb = map_name(b);
                 *dest = nd; *a = na; *b = nb;
             }
-            Instr::Call(dest, fnn, args) => {
+            Instr::Call(dest, _fnn, args) => {
                 let nd = map_name(dest);
                 let mut narr: Vec<String> = Vec::new();
                 for a in args.iter() { narr.push(map_name(a)); }
@@ -44,7 +44,7 @@ pub fn rename_temps(func: &mut Function) {
             }
             Instr::Label(_) => { /* labels keep original names */ }
             Instr::Br(_) => { /* branch labels unchanged */ }
-            Instr::BrCond(pred, t, f) => {
+            Instr::BrCond(pred, _t, _f) => {
                 let np = map_name(pred);
                 *pred = np; // targets unchanged
                 // t and f are labels, keep them

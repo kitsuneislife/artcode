@@ -381,6 +381,21 @@ pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
                             }
                         }
                     }
+                    core::ast::MatchPattern::EnumVariant { enum_name: _ename, variant, params: _ } => {
+                        // If the match expression is an EnumInstance literal, compare variant names at lowering time
+                        match expr {
+                            Expr::Literal(core::ast::ArtValue::EnumInstance { enum_name: _, variant: vname, values: _ }) => {
+                                let equal = if vname == &variant.lexeme { 1 } else { 0 };
+                                let t = mktemp();
+                                body.push(Instr::ConstI64(t.clone(), equal));
+                                body.push(Instr::BrCond(t.clone(), then_bb.clone(), else_bb.clone()));
+                            }
+                            _ => {
+                                // fallback: branch on truthiness of match_var
+                                body.push(Instr::BrCond(match_var.clone(), then_bb.clone(), else_bb.clone()));
+                            }
+                        }
+                    }
                     _ => {
                         // default: branch on truthiness of match_var (non-zero true)
                         body.push(Instr::BrCond(match_var.clone(), then_bb.clone(), else_bb.clone()));
