@@ -8,9 +8,18 @@ pub fn rename_temps(func: &mut Function) {
     let mut map: HashMap<String, String> = HashMap::new();
     let mut next: usize = 0;
 
-    // helper to map a value if it looks like a temp (starts with '%')
+    // infer function-local prefix used by mktemp in lowering: "<fname>_"
+    let fname_prefix = func.name.replace("@", "");
+    let local_prefix = format!("%{}_", fname_prefix);
+
+    // helper: decide whether to remap a name. We only remap names that start with the
+    // local prefix (e.g. "%foo_3") and leave params, labels and extern names intact.
     let mut map_name = |s: &str| -> String {
         if !s.starts_with('%') {
+            return s.to_string(); // keep non-temp names
+        }
+        // only remap temps that look like %<fname>_... to avoid touching binding-like names
+        if !s.starts_with(&local_prefix) {
             return s.to_string();
         }
         if let Some(m) = map.get(s) {
@@ -23,6 +32,9 @@ pub fn rename_temps(func: &mut Function) {
     };
 
     // Walk instructions and rewrite in place
+    // Also ensure function parameter names are preserved (do not rename)
+    // leave func.params untouched
+
     for instr in func.body.iter_mut() {
         match instr {
             Instr::ConstI64(name, _) => {
