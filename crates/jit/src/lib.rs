@@ -5,6 +5,10 @@
 //! - permitir que o workspace compile sem LLVM;
 //! - documentar a API pública e os pontos de extensão para uma futura integração
 //!   com LLVM/ORC.
+//!
+//! Nota (pt-br): Por padrão esta crate compila como stub. Para ativar a implementação
+//! real, habilite a feature `jit` e instale as bibliotecas de desenvolvimento do LLVM
+//! no seu sistema.
 
 #[cfg(feature = "jit")]
 mod enabled {
@@ -54,6 +58,9 @@ pub fn compile_function_stub(name: &str, ir_text: &str) -> Option<usize> {
         Err(_) => None,
     }
 }
+
+pub mod llvm_builder;
+pub use llvm_builder::LlvmBuilder;
 
 #[cfg(test)]
 mod tests {
