@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use core::ast::{Expr, FunctionParam, Stmt};
 use core::Token;
-use ir::lower_stmt;
+use ir::{lower_stmt, ssa};
 
 fn build_add() -> (String, String) {
     let name = Token::dummy("add");
@@ -13,7 +13,8 @@ fn build_add() -> (String, String) {
     let params = vec![FunctionParam { name: a.clone(), ty: None }, FunctionParam { name: b.clone(), ty: None }];
     let ret_expr = Expr::Binary { left: Box::new(Expr::Variable { name: a }), operator: Token::dummy("+"), right: Box::new(Expr::Variable { name: b }) };
     let func = Stmt::Function { name, params, return_type: Some("i64".to_string()), body: std::rc::Rc::new(Stmt::Return { value: Some(ret_expr) }), method_owner: None };
-    let irf = lower_stmt(&func).expect("lower failed");
+    let mut irf = lower_stmt(&func).expect("lower failed");
+    ssa::rename_temps(&mut irf);
     ("add.ir".to_string(), irf.emit_text())
 }
 
@@ -24,7 +25,8 @@ fn build_sub() -> (String, String) {
     let params = vec![FunctionParam { name: a.clone(), ty: None }, FunctionParam { name: b.clone(), ty: None }];
     let ret_expr = Expr::Binary { left: Box::new(Expr::Variable { name: a }), operator: Token::dummy("-"), right: Box::new(Expr::Variable { name: b }) };
     let func = Stmt::Function { name, params, return_type: Some("i64".to_string()), body: std::rc::Rc::new(Stmt::Return { value: Some(ret_expr) }), method_owner: None };
-    let irf = lower_stmt(&func).expect("lower failed");
+    let mut irf = lower_stmt(&func).expect("lower failed");
+    ssa::rename_temps(&mut irf);
     ("sub.ir".to_string(), irf.emit_text())
 }
 
@@ -36,7 +38,8 @@ fn build_if() -> (String, String) {
     let else_stmt = Stmt::Return { value: Some(Expr::Literal(core::ast::ArtValue::Int(2))) };
     let if_stmt = Stmt::If { condition: cond, then_branch: Box::new(then_stmt), else_branch: Some(Box::new(else_stmt)) };
     let func = Stmt::Function { name, params, return_type: Some("i64".to_string()), body: std::rc::Rc::new(Stmt::Block { statements: vec![if_stmt] }), method_owner: None };
-    let irf = lower_stmt(&func).expect("lower failed");
+    let mut irf = lower_stmt(&func).expect("lower failed");
+    ssa::rename_temps(&mut irf);
     ("if.ir".to_string(), irf.emit_text())
 }
 

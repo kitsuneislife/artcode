@@ -34,6 +34,7 @@ pub struct Function {
 }
 
 pub mod lowering;
+pub mod ssa;
 
 // Keep existing name `lower_stmt` exported; if the module implements fallback
 // we re-export the top-level dispatcher.
