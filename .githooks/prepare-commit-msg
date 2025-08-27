@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Append Co-authored-by line if not present
+HOOK_MSG_FILE="$1"
+
+if grep -iq "Co-authored-by: thurzinhos <joaquim.5922@aluno.pr.senac.br@gmail.com>" "$HOOK_MSG_FILE"; then
+  exit 0
+fi
+
+echo "\nCo-authored-by: thurzinhos <joaquim.5922@aluno.pr.senac.br@gmail.com>" >> "$HOOK_MSG_FILE"

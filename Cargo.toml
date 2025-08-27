@@ -12,6 +12,7 @@ members = [
     "crates/diagnostics",
     "cli",
     "xtask",
+    "crates/jit",
 ]
 
 [profile.release]
