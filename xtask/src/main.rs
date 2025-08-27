@@ -42,6 +42,12 @@ enum Commands {
                 #[arg(long)]
                 outdir: Option<PathBuf>,
             },
+        /// Emit IR for examples or fixtures (prints textual IR or writes to outdir)
+        EmitIr {
+            /// optional output directory for IR files
+            #[arg(long)]
+            path: Option<PathBuf>,
+        },
 }
 
 fn run(cmd: &mut Command) -> ExitStatus {
@@ -184,7 +190,7 @@ fn main() {
                 }
             }
         }
-        Commands::Irgen { write, check, outdir } => {
+    Commands::Irgen { write, check, outdir } => {
             // Run the irgen binary to print, write, or check golden files
             let mut cmd = Command::new("cargo");
             cmd.args(["run", "-p", "ir", "--bin", "irgen", "--quiet"]);
@@ -199,6 +205,17 @@ fn main() {
                 if let Some(p) = outdir {
                     cmd.arg("--outdir").arg(p.as_os_str());
                 }
+            }
+            let status = run(&mut cmd);
+            if !status.success() {
+                std::process::exit(status.code().unwrap_or(1));
+            }
+        }
+        Commands::EmitIr { path } => {
+            let mut cmd = Command::new("cargo");
+            cmd.args(["run", "-p", "ir", "--bin", "irgen", "--quiet"]);
+            if let Some(p) = path {
+                cmd.arg("--").arg("--outdir").arg(p.as_os_str());
             }
             let status = run(&mut cmd);
             if !status.success() {

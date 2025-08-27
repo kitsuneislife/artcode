@@ -201,6 +201,7 @@ dependencies = [
  "diagnostics",
  "dirs",
  "interpreter",
+ "ir",
  "lexer",
  "parser",
  "predicates 2.1.5",

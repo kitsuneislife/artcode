@@ -103,6 +103,13 @@ Dependências propostas:
 - `art run --gen-profile <out>` produces a JSON profile with `functions` and `edges` keys
 - `art build --with-profile <profile>` consumes the profile and emits an AOT plan JSON (stub acceptable)
 
+### Progress update (2025-08-26)
+- `crates/ir` crate scaffold and textual emitter implemented; `lowering` supports arithmetic, calls and simple `if` lowering with golden tests present and passing.
+- `xtask Irgen` and `crates/ir` `irgen` binary support generating/checking golden files under `crates/ir/golden/`.
+- CLI integration: `art run --emit-ir <path|->` and `art build --with-profile` implemented (emit-ir prints/writes IR and build consumes profile into aot_plan.json).
+
+These items satisfy the minimal acceptance above for an initial review; next steps are JIT prototype and further lowering coverage.
+
 Se esses pontos forem atendidos, consideramos a RFC pronta para revisão técnica ampliada.
 
 CI changes

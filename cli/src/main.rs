@@ -13,7 +13,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::process;
 
-fn run_with_source(_name: &str, source: String, profile: Option<&str>) {
+fn run_with_source(_name: &str, source: String, profile: Option<&str>, emit_ir: Option<&str>) {
     let mut lexer = Lexer::new(source.clone());
     let tokens = match lexer.scan_tokens() {
         Ok(t) => t,
@@ -39,6 +39,26 @@ fn run_with_source(_name: &str, source: String, profile: Option<&str>) {
         }
         return;
     }
+    // If emit_ir requested, lower functions and write/print IR before interpretation
+    if let Some(path) = emit_ir {
+        // If path == "-" print to stdout, else write to path
+        let mut out = String::new();
+        for s in &program {
+            if let Some(irfn) = ir::lower_stmt(s) {
+                out.push_str(&format!("--- IR for {} ---\n{}\n", irfn.name, irfn.emit_text()));
+            }
+        }
+        if path == "-" {
+            println!("{}", out);
+        } else {
+            if let Err(e) = std::fs::write(path, out) {
+                eprintln!("failed to write ir to {}: {}", path, e);
+            } else {
+                eprintln!("wrote ir to {}", path);
+            }
+        }
+    }
+
     let mut interpreter = Interpreter::with_prelude();
     if let Err(e) = interpreter.interpret(program) {
         eprintln!("Erro de execução: {}", e);
@@ -66,7 +86,7 @@ fn run_with_source(_name: &str, source: String, profile: Option<&str>) {
     }
 }
 
-fn run_file(path: &str, profile: Option<&str>) {
+fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>) {
     // Use resolver to expand imports
     match crate::resolver::resolve(path) {
         Ok((program, main_source)) => {
@@ -79,6 +99,25 @@ fn run_file(path: &str, profile: Option<&str>) {
                 }
                 return;
             }
+            // If emit_ir requested, lower functions and write/print IR before interpretation
+            if let Some(path) = emit_ir {
+                let mut out = String::new();
+                for s in &program {
+                    if let Some(irfn) = ir::lower_stmt(s) {
+                        out.push_str(&format!("--- IR for {} ---\n{}\n", irfn.name, irfn.emit_text()));
+                    }
+                }
+                if path == "-" {
+                    println!("{}", out);
+                } else {
+                    if let Err(e) = std::fs::write(path, out) {
+                        eprintln!("failed to write ir to {}: {}", path, e);
+                    } else {
+                        eprintln!("wrote ir to {}", path);
+                    }
+                }
+            }
+
             let mut interpreter = Interpreter::with_prelude();
             if let Err(e) = interpreter.interpret(program) {
                 eprintln!("Erro de execução: {}", e);
@@ -101,7 +140,7 @@ fn run_file(path: &str, profile: Option<&str>) {
     }
 }
 
-fn run_prompt() {
+fn run_prompt(emit_ir: Option<&str>) {
     loop {
         print!("> ");
         io::stdout().flush().ok();
@@ -109,14 +148,15 @@ fn run_prompt() {
         if io::stdin().read_line(&mut line).is_err() || line.trim().is_empty() {
             break;
         }
-    run_with_source("<repl>", line, None);
+    run_with_source("<repl>", line, None, emit_ir);
     }
 }
 
 fn main() {
     let mut args: Vec<String> = env::args().collect();
-    // global: support --gen-profile <path>
+    // global: support --gen-profile <path> and --emit-ir <path|->
     let mut gen_profile: Option<String> = None;
+    let mut emit_ir: Option<String> = None;
     let mut i = 1usize;
     while i < args.len() {
         if args[i] == "--gen-profile" && i + 1 < args.len() {
@@ -126,10 +166,16 @@ fn main() {
             args.remove(i);
             continue;
         }
+        if args[i] == "--emit-ir" && i + 1 < args.len() {
+            emit_ir = Some(args[i + 1].clone());
+            args.remove(i);
+            args.remove(i);
+            continue;
+        }
         i += 1;
     }
     if args.len() == 1 {
-        return run_prompt();
+        return run_prompt(emit_ir.as_deref());
     }
     // simple build command: art build --with-profile <profile> [--out <path>]
     if args[1] == "build" {
@@ -150,7 +196,7 @@ fn main() {
             }
             i += 1;
         }
-        if let Some(p) = profile {
+    if let Some(p) = profile {
             match std::fs::read_to_string(&p) {
                 Ok(s) => {
                     let out_path = out.unwrap_or_else(|| "aot_plan.json".to_string());
@@ -174,7 +220,7 @@ fn main() {
         }
     }
     if args[1] == "run" && args.len() == 3 {
-        return run_file(&args[2], gen_profile.as_deref());
+        return run_file(&args[2], gen_profile.as_deref(), emit_ir.as_deref());
     }
     if args[1] == "metrics" {
     if args.len() < 3 {
