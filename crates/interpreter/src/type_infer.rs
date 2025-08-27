@@ -731,7 +731,6 @@ fn value_type(v: &ArtValue) -> Type {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::type_infer::{TypeEnv, TypeInfer};
     use core::ast::{Stmt, Expr};
 
