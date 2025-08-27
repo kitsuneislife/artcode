@@ -1,3 +1,45 @@
+# LLVM development Docker image
+
+This document shows a small Dockerfile and usage to create a reproducible image with LLVM dev libs and Rust toolchain for building the `jit` feature locally or in CI.
+
+Dockerfile (example):
+
+```dockerfile
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential ca-certificates curl git cmake pkg-config llvm-dev clang && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Rust toolchain
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+WORKDIR /workspaces
+
+CMD ["/bin/bash"]
+```
+
+Usage:
+
+1. Build the image:
+
+```sh
+docker build -t artcode-llvm -f Dockerfile .
+```
+
+2. Run a shell and build with JIT feature:
+
+```sh
+docker run --rm -it -v "$PWD":/workspaces -w /workspaces artcode-llvm bash
+# inside container
+rustup default stable
+cargo build -p jit --features=jit
+```
+
+Notes:
+- Building with `--features=jit` requires LLVM dev headers/libraries available to the system package manager. Versions may vary across distributions; prefer an Ubuntu LTS image with matching `inkwell`/LLVM versions.
+- This image is intentionally minimal; for CI pin to a stable Ubuntu runner or provide a hosted runner with LLVM preinstalled.
 # Como preparar um ambiente com LLVM (dev) via Docker
 
 Este documento descreve um container Docker leve para desenvolver e testar o backend JIT baseado em LLVM (`inkwell`). O objetivo é fornecer uma imagem reutilizável que facilite a execução de testes JIT em runners locais ou CI opt-in.

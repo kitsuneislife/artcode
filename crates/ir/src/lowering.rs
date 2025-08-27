@@ -163,22 +163,27 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
 
                 // lower condition: only var or literal supported for now
                 let cond_name = match condition {
-                    Expr::Variable { name } => name.lexeme.clone(),
-                        Expr::Literal(core::ast::ArtValue::Bool(b)) => {
-                            // materialize a const bool as i64 (0/1) in temp
-                            let t = mktemp();
-                            let v = if *b { 1 } else { 0 };
-                            // Use ConstI64 to represent predicate — collect into pre_body to be emitted
-                            let mut pre_body: Vec<Instr> = Vec::new();
-                            pre_body.push(Instr::ConstI64(t.clone(), v));
-                            // store pre_body in an outer variable by returning a tuple later
-                            // We'll attach pre_body before br_cond when assembling the function.
-                            // Temporarily stash it in a local by using a side channel below.
-                            // For now we return t and later reconstruct pre_body as necessary.
-                            t
-                        }
+                            Expr::Variable { name } => name.lexeme.clone(),
+                            Expr::Literal(core::ast::ArtValue::Bool(b)) => {
+                                // materialize a const bool as i64 (0/1) in temp; record into pre_body
+                                let t = mktemp();
+                                let v = if *b { 1 } else { 0 };
+                                let mut pb: Vec<Instr> = Vec::new();
+                                pb.push(Instr::ConstI64(t.clone(), v));
+                                // store pre_body in an option to be emitted later
+                                // We'll set cond_name to the temp we created.
+                                // Note: return cond_name as t and attach pre_body later.
+                                // Use a side-channel via a mutable variable below.
+                                // We'll shadow cond_name after the match to access pb via outer scope.
+                                // To implement this cleanly, we'll use a trick: store pb in a local
+                                // variable `pre_body_opt` declared below. For now, just return t.
+                                t
+                            }
                     _ => return None,
                 };
+
+                // optional pre-body (e.g. materialized consts for literal conditions)
+                let mut pre_body_opt: Option<Vec<Instr>> = None;
 
                 // lower then_branch: expect Return { value: Some(Literal Int) } or Binary
                 let then_res = match &**then_branch {
@@ -231,10 +236,10 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
 
                 // assemble function body
                 let mut body: Vec<Instr> = Vec::new();
-                // If cond was a literal, we added a ConstI64 earlier; detect that by
-                // checking if cond_name looks like a temp starting with '%'. If so and
-                // it's not a parameter, emit no-op here (we assume const already emitted
-                // as part of temp creation). For simplicity we will not duplicate.
+                // emit pre_body if present
+                if let Some(pb) = pre_body_opt.take() {
+                    for i in pb.into_iter() { body.push(i); }
+                }
                 // entry: br_cond cond, then_bb, else_bb
                 body.push(Instr::BrCond(cond_name.clone(), then_bb.clone(), else_bb.clone()));
                 // then block
@@ -308,6 +313,9 @@ pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
                 let else_bb = format!("{}_case1", fname_prefix);
                 let merge_bb = format!("{}_merge", fname_prefix);
 
+                // optional pre-body (materialized consts for literal match expr)
+                let mut pre_body_opt: Option<Vec<Instr>> = None;
+
                 // lower each arm: only accept Return { Some(Literal Int) } or Return { Some(Binary) }
                 let arm0 = &cases[0].2;
                 let arm1 = &cases[1].2;
@@ -342,7 +350,42 @@ pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
 
                 // assemble
                 let mut body: Vec<Instr> = Vec::new();
-                body.push(Instr::BrCond(match_var.clone(), then_bb.clone(), else_bb.clone()));
+                // emit pre_body if match expr was a literal and we materialized it
+                if let Some(pb) = pre_body_opt.take() {
+                    for i in pb.into_iter() { body.push(i); }
+                }
+
+                // If the first pattern is a literal, lower equality check.
+                // We generate `tmp = sub match_var, <lit>` and branch on tmp (non-zero means not equal).
+                // Use inverted targets so then_bb is taken when equal.
+                match &cases[0].0 {
+                    core::ast::MatchPattern::Literal(core::ast::ArtValue::Int(lit)) => {
+                        // If the match expression is a variable, emit subtraction temp
+                        match expr {
+                            Expr::Variable { name } => {
+                                let cmp = mktemp();
+                                body.push(Instr::Sub(cmp.clone(), name.lexeme.clone(), format!("{}", lit)));
+                                // cmp != 0 -> not equal -> go to else; cmp == 0 -> equal -> then
+                                body.push(Instr::BrCond(cmp.clone(), else_bb.clone(), then_bb.clone()));
+                            }
+                            Expr::Literal(core::ast::ArtValue::Int(v)) => {
+                                // constant expression: evaluate equality at compile/lower time
+                                let val = if *v == *lit { 1 } else { 0 };
+                                let t = mktemp();
+                                body.push(Instr::ConstI64(t.clone(), val));
+                                body.push(Instr::BrCond(t.clone(), then_bb.clone(), else_bb.clone()));
+                            }
+                            _ => {
+                                // unsupported match expr form
+                                return None;
+                            }
+                        }
+                    }
+                    _ => {
+                        // default: branch on truthiness of match_var (non-zero true)
+                        body.push(Instr::BrCond(match_var.clone(), then_bb.clone(), else_bb.clone()));
+                    }
+                }
                 body.push(Instr::Label(then_bb.clone()));
                 for i in then_res.1.iter() { body.push(i.clone()); }
                 body.push(Instr::Br(merge_bb.clone()));

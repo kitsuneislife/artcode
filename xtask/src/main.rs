@@ -42,6 +42,18 @@ enum Commands {
                 #[arg(long)]
                 outdir: Option<PathBuf>,
             },
+            /// Alias for Irgen (gen-golden)
+            GenGolden {
+                /// write golden files instead of printing
+                #[arg(long)]
+                write: bool,
+                /// check existing golden files against generated output
+                #[arg(long)]
+                check: bool,
+                /// output directory for golden files (default: crates/ir/golden)
+                #[arg(long)]
+                outdir: Option<PathBuf>,
+            },
         /// Emit IR for examples or fixtures (prints textual IR or writes to outdir)
         EmitIr {
             /// optional output directory for IR files
@@ -192,6 +204,27 @@ fn main() {
         }
     Commands::Irgen { write, check, outdir } => {
             // Run the irgen binary to print, write, or check golden files
+            let mut cmd = Command::new("cargo");
+            cmd.args(["run", "-p", "ir", "--bin", "irgen", "--quiet"]);
+            if write || check || outdir.is_some() {
+                cmd.arg("--");
+                if write {
+                    cmd.arg("--write");
+                }
+                if check {
+                    cmd.arg("--check");
+                }
+                if let Some(p) = outdir {
+                    cmd.arg("--outdir").arg(p.as_os_str());
+                }
+            }
+            let status = run(&mut cmd);
+            if !status.success() {
+                std::process::exit(status.code().unwrap_or(1));
+            }
+        }
+        Commands::GenGolden { write, check, outdir } => {
+            // alias for Irgen
             let mut cmd = Command::new("cargo");
             cmd.args(["run", "-p", "ir", "--bin", "irgen", "--quiet"]);
             if write || check || outdir.is_some() {

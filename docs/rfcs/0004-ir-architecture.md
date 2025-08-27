@@ -1,9 +1,13 @@
 # RFC 0004 — IR / JIT / AOT Architecture
 
-Status: In Review
+Status: Accepted
 
 Proponente: eng-runtime + eng-compiler
 Owner: eng-compiler (primary), eng-runtime (integration)
+
+Accepted: 2025-08-27 by eng-compiler / eng-runtime
+
+Note: This RFC reached an initial implementation milestone: `crates/ir` textual emitter, `crates/ir::lowering` hook, `xtask irgen`/`xtask gen-golden` tooling and a `crates/jit` scaffold are present in the repository. See implementation pointers below.
 
 ## Resumo curto
 Propor uma arquitetura IR intermediária e um pipeline JIT/AOT com suporte a Profile-Guided Optimization (PGO). Começaremos com uma IR textual simples, infra para lowering do AST -> IR, um JIT experimental (LLVM/inkwell) para trechos quentes e um caminho AOT opt-in que aceita perfis para otimização. O objetivo é prover uma estrada de migração da VM interpretada atual para um compilador híbrido, mantendo o runtime interpretado como fallback.
@@ -121,6 +125,29 @@ CI changes
 - Week 3–4: prototype JIT for pure numeric functions using `inkwell` (feature `jit`).
 - Week 5–6: profiling instrumentation + `--gen-profile` harness; run microbench.
 - Week 7+: AOT/PGO experiments and compare performance.
+
+## Status local (implementação incremental)
+
+- `crates/ir` scaffold and textual emitter are present with `Function::emit_text` and golden tests under `crates/ir/golden` (add, sub, if).
+- `xtask` supports `irgen --write` and `--check` which delegate to the `ir` binary for generating and verifying golden files.
+- `crates/jit` crate scaffold exists and is buildable without the `jit` feature; real JIT implementation will be feature-gated behind `--features=jit` and will depend on `inkwell`/LLVM.
+ - `crates/jit` crate scaffold exists and is buildable without the `jit` feature; real JIT implementation will be feature-gated behind `--features=jit` and will depend on `inkwell`/LLVM.
+
+Implementation pointers
+- `crates/ir` textual emitter: `crates/ir::Function::emit_text()`
+- Lowering entrypoint: `crates/ir::lowering::lower_stmt` (publicly re-exported by `crates/ir` crate root)
+- Golden tests: `crates/ir/tests/` (golden files under `crates/ir/golden/`)
+- xtask: `xtask` command `irgen` / alias `gen-golden` drives IR generation and verification
+- JIT scaffold: `crates/jit` with feature `jit` and `inkwell` optional dependency
+
+Next steps
+- Expand lowering coverage (patterns, variants, loops) with test-driven golden files.
+- Add a small SSA renaming/phi-insertion pass to harden phi placement.
+- Prototype `crates/jit` backend behind `--features=jit` using `inkwell` in a Docker/CI opt-in job.
+
+This file will be the canonical RFC record; further changes should be made via PR referencing this acceptance note.
+
+These incremental items keep the workspace buildable for contributors without LLVM while enabling CI to opt-in for `jit`-smoke jobs.
 
 Critérios de aceitação por fase:
 - IR/golden: lowering pipeline passes all golden tests.
