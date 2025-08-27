@@ -1,6 +1,6 @@
 # RFC 0004 — IR / JIT / AOT Architecture
 
-Status: Proposed
+Status: In Review
 
 Proponente: eng-runtime + eng-compiler
 Owner: eng-compiler (primary), eng-runtime (integration)
