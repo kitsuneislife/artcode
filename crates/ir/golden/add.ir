@@ -1,5 +1,5 @@
 func @add(i64 a, i64 b) -> i64 {
   entry:
-  %add_0 = add i64 a, b
-  ret %add_0
+  %t0 = add i64 a, b
+  ret %t0
 }
