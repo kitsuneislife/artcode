@@ -1,5 +1,6 @@
 use core::ast::{Expr, Stmt};
 use crate::{Function, Instr, Type};
+use std::collections::HashMap;
 
 /// Attempt to lower a `Stmt` to an IR `Function`.
 /// Currently supports `Stmt::Function` whose body is a `Return` of a Binary Add
@@ -320,12 +321,45 @@ pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
                 let arm0 = &cases[0].2;
                 let arm1 = &cases[1].2;
 
-                let lower_arm = |s: &Stmt, mktemp: &mut dyn FnMut() -> String| -> Option<(String, Vec<crate::Instr>)> {
+                // (old lower_arm removed; replaced below by a variant-aware lower_arm)
+
+                // If the first pattern contains bindings, pre-create temps for them
+                // and keep a map from binding name -> temp so arm bodies can reference
+                // the placeholder temps.
+                let mut binding_map: HashMap<String, String> = HashMap::new();
+                let mut binding_instrs: Vec<Instr> = Vec::new();
+                if let core::ast::MatchPattern::EnumVariant { params: Some(pats), .. } = &cases[0].0 {
+                    for pat in pats.iter() {
+                        if let core::ast::MatchPattern::Binding(tok) = pat {
+                            let tmp = mktemp();
+                            let bname = tok.lexeme.clone();
+                            let prefix = format!("%{}_", fname_prefix);
+                            let suffix = if let Some(s) = tmp.strip_prefix(&prefix) { s.to_string() } else { tmp.clone() };
+                            let btemp = format!("%{}_{}", bname, suffix);
+                            // materialize 0 as placeholder for bound values
+                            binding_instrs.push(Instr::ConstI64(btemp.clone(), 0));
+                            binding_map.insert(bname, btemp);
+                        }
+                    }
+                }
+
+                // updated lower_arm: recognizes variable returns and maps bound names
+                let lower_arm = |s: &Stmt, mktemp: &mut dyn FnMut() -> String, binding_map: &HashMap<String, String>| -> Option<(String, Vec<crate::Instr>)> {
                     match s {
                         Stmt::Return { value: Some(Expr::Literal(core::ast::ArtValue::Int(n))) } => {
                             let tname = mktemp();
                             let instrs = vec![Instr::ConstI64(tname.clone(), *n)];
                             Some((tname, instrs))
+                        }
+                        Stmt::Return { value: Some(Expr::Variable { name }) } => {
+                            let v = name.lexeme.clone();
+                            // if this variable is a bound name, use the mapped temp
+                            if let Some(mapped) = binding_map.get(&v) {
+                                Some((mapped.clone(), vec![]))
+                            } else {
+                                // otherwise return the variable name itself (arg or local)
+                                Some((v, vec![]))
+                            }
                         }
                         Stmt::Return { value: Some(Expr::Binary { left, operator, right }) } => {
                             let l = if let Expr::Variable { name } = &**left { name.lexeme.clone() } else { return None };
@@ -345,8 +379,8 @@ pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
                     }
                 };
 
-                let then_res = lower_arm(arm0, &mut mktemp)?;
-                let else_res = lower_arm(arm1, &mut mktemp)?;
+                let then_res = lower_arm(arm0, &mut mktemp, &binding_map)?;
+                let else_res = lower_arm(arm1, &mut mktemp, &binding_map)?;
 
                 // assemble
                 let mut body: Vec<Instr> = Vec::new();
@@ -402,6 +436,8 @@ pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
                     }
                 }
                 body.push(Instr::Label(then_bb.clone()));
+                // emit binding placeholders (if any)
+                for i in binding_instrs.iter() { body.push(i.clone()); }
                 for i in then_res.1.iter() { body.push(i.clone()); }
                 body.push(Instr::Br(merge_bb.clone()));
                 body.push(Instr::Label(else_bb.clone()));
