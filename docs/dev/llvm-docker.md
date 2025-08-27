@@ -1,3 +1,31 @@
+# LLVM Dev Docker image
+
+Este documento descreve como criar uma imagem Docker com LLVM dev libs necessárias
+para compilar e testar a feature `jit` localmente ou em CI runners.
+
+Exemplo de Dockerfile mínimo (Ubuntu):
+
+```dockerfile
+FROM ubuntu:24.04
+RUN apt-get update && apt-get install -y build-essential ca-certificates curl \
+    llvm-dev libclang-dev clang pkg-config cmake git ca-certificates
+RUN useradd -m builder
+USER builder
+WORKDIR /home/builder
+```
+
+Build e use:
+
+```bash
+docker build -t artcode-llvm:latest .
+docker run --rm -it -v $(pwd):/work -w /work artcode-llvm:latest bash
+# dentro do container
+cargo test -p jit --features=jit
+```
+
+Notas:
+- Ajuste a versão do LLVM conforme necessário para compatibilidade com `inkwell`.
+- Em runners CI prefira imagens oficiais ou cache de pacotes para reduzir tempo de setup.
 # LLVM development Docker image
 
 This document shows a small Dockerfile and usage to create a reproducible image with LLVM dev libs and Rust toolchain for building the `jit` feature locally or in CI.

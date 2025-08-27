@@ -1,0 +1,22 @@
+name: CI - JIT smoke (opt-in)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  jit-smoke:
+    if: contains(github.event.pull_request.labels.*.name, 'jit-smoke')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Docker (for reproducible LLVM)
+        run: |
+          echo "Using runner packages; install LLVM dev libs"
+          sudo apt-get update && sudo apt-get install -y llvm-dev libclang-dev clang pkg-config cmake
+      - name: Run JIT smoke tests
+        run: |
+          cargo test -p jit --features=jit -- --nocapture
