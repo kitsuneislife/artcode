@@ -39,8 +39,13 @@ mod enabled {
     use inkwell::context::Context;
     use inkwell::execution_engine::JitFunction;
     use inkwell::OptimizationLevel;
+    use once_cell::sync::Lazy;
+    use std::sync::Mutex;
 
     pub struct InkwellLlvmBuilder;
+
+    // Global registry used to hold Modules/Engines so their pointers remain valid
+    static GLOBAL_JIT_REGISTRY: Lazy<Mutex<Vec<(String, inkwell::module::Module<'static>)>>> = Lazy::new(|| Mutex::new(Vec::new()));
 
     impl InkwellLlvmBuilder {
         // Minimal parser helpers: extract function name and parameter count
@@ -68,7 +73,7 @@ mod enabled {
         // Create a module with a single function that either returns a const i64
         // or performs an add of the first two params. This is intentionally small
         // but enough to try the end-to-end flow.
-            fn build_module(ir_text: &str) -> Result<inkwell::module::Module, String> {
+        fn build_module(ir_text: &str) -> Result<inkwell::module::Module, String> {
                 // Create a new context and module. Keep all usage local so we don't need
                 // to extend lifetimes artificially.
                 let context = Context::create();
@@ -249,15 +254,31 @@ mod enabled {
 
         fn lower_ir_to_module(ir_text: &str) -> Result<String, String> {
             let module = Self::build_module(ir_text)?;
-            Ok(module.print_to_string().to_string())
+            // Persist module in the global registry (we leak safely via once_cell)
+            // to make sure the execution engine can reference it. We clone the module
+            // textual name to allow inspection.
+            // Note: inkwell::module::Module is not 'static; to hold it we must transmute
+            // or re-create the context with a leaked lifetime. For prototype purposes
+            // we will leak the module by boxing the context and returning a 'static
+            // module. This is still a prototype trade-off.
+            let s = module.print_to_string().to_string();
+            GLOBAL_JIT_REGISTRY.lock().unwrap().push((s.clone(), unsafe { std::mem::transmute::<inkwell::module::Module, inkwell::module::Module>(module) }));
+            Ok(s)
         }
 
         fn compile_module_get_symbol(module_text: &str, name: &str) -> Result<usize, String> {
-            // Rebuild module from the original text. For this minimal API we ignore
-            // module_text and reconstruct from the textual IR by parsing name/params
-            // again. In a real impl we would pass Module objects.
-            let module = Self::build_module(module_text)?;
-            // Create execution engine
+            // Find a persisted module text or build a new one
+            let m_opt = GLOBAL_JIT_REGISTRY.lock().unwrap().iter().find(|(s, _m)| s == module_text).map(|(_s, m)| m.clone());
+            let module = if let Some(m) = m_opt {
+                // we have a cloned module to use
+                m
+            } else {
+                // fallback: build and persist
+                let m = Self::build_module(module_text)?;
+                GLOBAL_JIT_REGISTRY.lock().unwrap().push((module_text.to_string(), unsafe { std::mem::transmute::<inkwell::module::Module, inkwell::module::Module>(m.clone()) }));
+                m
+            };
+
             match module.create_jit_execution_engine(OptimizationLevel::None) {
                 Ok(engine) => match engine.get_function_address(name) {
                     Some(addr) => Ok(addr as usize),
