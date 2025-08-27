@@ -1,79 +1,80 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use crate::{Function, Instr};
 
-/// Very small SSA renaming pass: maps per-function temps with pattern `%<name>_<n>` to
-/// normalized names `%t0`, `%t1`, ... in order of first definition. This keeps golden
-/// outputs stable and prevents accidental name leaks when lowering generates ad-hoc temps.
+/// Two-pass SSA renamer for the IR.
+///
+/// Collects lowering-local temps of the form "%<fname>_..." in order of
+/// appearance and assigns them stable names "%t0","%t1", ... then rewrites
+/// operand uses to the new names. Parameters, labels and non-local names are
+/// preserved.
 pub fn rename_temps(func: &mut Function) {
-    let mut map: HashMap<String, String> = HashMap::new();
-    let mut next: usize = 0;
-
-    // infer function-local prefix used by mktemp in lowering: "<fname>_"
     let fname_prefix = func.name.replace("@", "");
     let local_prefix = format!("%{}_", fname_prefix);
 
-    // helper: decide whether to remap a name. We only remap names that start with the
-    // local prefix (e.g. "%foo_3") and leave params, labels and extern names intact.
-    let mut map_name = |s: &str| -> String {
-        if !s.starts_with('%') {
-            return s.to_string(); // keep non-temp names
-        }
-        // only remap temps that look like %<fname>_... to avoid touching binding-like names
-        if !s.starts_with(&local_prefix) {
-            return s.to_string();
-        }
-        if let Some(m) = map.get(s) {
-            return m.clone();
-        }
-        let new = format!("%t{}", next);
-        next += 1;
-        map.insert(s.to_string(), new.clone());
-        new
+    let is_candidate = |s: &str| -> bool {
+        s.starts_with('%') && s.starts_with(&local_prefix) && !s.starts_with("%t")
     };
 
-    // Walk instructions and rewrite in place
-    // Also ensure function parameter names are preserved (do not rename)
-    // leave func.params untouched
+    // Pass 1: collect defs in order
+    let mut defs: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    for instr in func.body.iter() {
+        match instr {
+            Instr::ConstI64(name, _) => {
+                if is_candidate(name) && seen.insert(name.clone()) {
+                    defs.push(name.clone());
+                }
+            }
+            Instr::Add(dest, _, _) | Instr::Sub(dest, _, _) | Instr::Mul(dest, _, _) | Instr::Div(dest, _, _) => {
+                if is_candidate(dest) && seen.insert(dest.clone()) {
+                    defs.push(dest.clone());
+                }
+            }
+            Instr::Call(dest, _, _) | Instr::Phi(dest, _, _) => {
+                if is_candidate(dest) && seen.insert(dest.clone()) {
+                    defs.push(dest.clone());
+                }
+            }
+            _ => {}
+        }
+    }
 
+    // Build mapping
+    let mut map: HashMap<String, String> = HashMap::new();
+    for (i, name) in defs.iter().enumerate() {
+        map.insert(name.clone(), format!("%t{}", i));
+    }
+
+    // helper
+    let replace = |s: &str, map: &HashMap<String, String>| -> String {
+        if let Some(n) = map.get(s) { n.clone() } else { s.to_string() }
+    };
+
+    // Pass 2: rewrite operands
     for instr in func.body.iter_mut() {
         match instr {
             Instr::ConstI64(name, _) => {
-                let n = map_name(name);
-                *name = n;
+                *name = replace(name, &map);
             }
             Instr::Add(dest,a,b) | Instr::Sub(dest,a,b) | Instr::Mul(dest,a,b) | Instr::Div(dest,a,b) => {
-                let nd = map_name(dest);
-                let na = map_name(a);
-                let nb = map_name(b);
-                *dest = nd; *a = na; *b = nb;
+                *dest = replace(dest, &map);
+                *a = replace(a, &map);
+                *b = replace(b, &map);
             }
-            Instr::Call(dest, _fnn, args) => {
-                let nd = map_name(dest);
-                let mut narr: Vec<String> = Vec::new();
-                for a in args.iter() { narr.push(map_name(a)); }
-                *dest = nd; *args = narr;
-                // fn name left unchanged
+            Instr::Call(dest, _fn, args) => {
+                *dest = replace(dest, &map);
+                for a in args.iter_mut() { *a = replace(a, &map); }
             }
-            Instr::Label(_) => { /* labels keep original names */ }
-            Instr::Br(_) => { /* branch labels unchanged */ }
+            Instr::Label(_) | Instr::Br(_) => {}
             Instr::BrCond(pred, _t, _f) => {
-                let np = map_name(pred);
-                *pred = np; // targets unchanged
-                // t and f are labels, keep them
+                *pred = replace(pred, &map);
             }
             Instr::Phi(dest, _ty, pairs) => {
-                let nd = map_name(dest);
-                for (v, _bb) in pairs.iter_mut() {
-                    let nv = map_name(v);
-                    *v = nv;
-                }
-                *dest = nd;
+                *dest = replace(dest, &map);
+                for (v, _bb) in pairs.iter_mut() { *v = replace(v, &map); }
             }
             Instr::Ret(opt) => {
-                if let Some(v) = opt {
-                    let nv = map_name(v);
-                    *v = nv;
-                }
+                if let Some(v) = opt { *v = replace(v, &map); }
             }
         }
     }
