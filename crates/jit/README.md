@@ -1,3 +1,32 @@
+# JIT (scaffold)
+
+Esta crate é um scaffold mínimo para a futura implementação do JIT (baseada em LLVM).
+Ela está feature-gated: a feature `jit` ativa dependências e código que requerem LLVM
+e `inkwell`.
+
+Como usar localmente:
+
+- Para compilar sem LLVM (comportamento padrão):
+
+```text
+cargo test -p jit
+```
+
+- Para compilar com a feature (requer LLVM dev libs instaladas):
+
+```text
+cargo test -p jit --features=jit
+```
+
+Planejamento futuro:
+
+- Implementar lowering de IR -> LLVM IR usando `inkwell`.
+- Integrar com ORC/MCJIT para compilação on-demand.
+- Prover mecanismos seguros de fallback para o interpretador.
+
+Por enquanto a crate expõe tipos de conveniência (`JitBuilder`) e stubs de API
+que retornam erros informativos quando a feature não está habilitada.
+
 # Crate `crates/jit` (scaffold)
 
 Este crate contém o scaffold para um JIT experimental usando `inkwell` (bindings LLVM).

@@ -1,6 +1,10 @@
 //! Crate `jit` - scaffold
 //!
-//! Implementação mínima para permitir que o workspace compile sem habilitar `--features=jit`.
+//! Esta crate provê um scaffold mínimo para o JIT. A implementação real deve ficar
+//! atrás da feature `jit` (dependência opcional `inkwell`). O propósito é:
+//! - permitir que o workspace compile sem LLVM;
+//! - documentar a API pública e os pontos de extensão para uma futura integração
+//!   com LLVM/ORC.
 
 #[cfg(feature = "jit")]
 mod enabled {
@@ -9,6 +13,16 @@ mod enabled {
         // placeholder: implementação real dependerá de inkwell/LLVM
         Err("JIT feature not yet implemented".to_string())
     }
+
+    /// Minimal typed builder used by higher-level code to request JIT compilation.
+    pub struct JitBuilder {}
+
+    impl JitBuilder {
+        pub fn new() -> Self { JitBuilder {} }
+        pub fn compile(&self, name: &str, ir: &str) -> Result<*const u8, String> {
+            compile_function(name, ir)
+        }
+    }
 }
 
 #[cfg(not(feature = "jit"))]
@@ -16,28 +30,29 @@ mod disabled {
     pub fn compile_function(_name: &str, _ir: &str) -> Result<*const u8, String> {
         Err("JIT feature not enabled; build with --features=jit".to_string())
     }
+
+    pub struct JitBuilder {}
+
+    impl JitBuilder {
+        pub fn new() -> Self { JitBuilder {} }
+        pub fn compile(&self, _name: &str, _ir: &str) -> Result<*const u8, String> {
+            Err("JIT feature not enabled".to_string())
+        }
+    }
 }
 
 #[cfg(feature = "jit")]
-pub use enabled::compile_function;
+pub use enabled::{compile_function, JitBuilder};
 #[cfg(not(feature = "jit"))]
-pub use disabled::compile_function;
-// Minimal scaffold for a JIT crate. Feature-gated real implementation (inkwell) should
-// be behind the `jit` feature. This file provides lightweight stubs so the workspace
-// can build and tests run for contributors without LLVM.
+pub use disabled::{compile_function, JitBuilder};
 
-#[cfg(feature = "jit")]
-mod impls {
-    // real implementation will go here, using inkwell to lower IR -> LLVM -> native
-    // ... implement compile_function(fn: &ir::Function) -> *const c_void
-}
-
-/// Public API: compile a function to a native pointer. Returns None when JIT feature
-/// is disabled or compilation fails. Concrete implementations live behind the `jit`
-/// feature.
-pub fn compile_function_stub(_name: &str, _ir_text: &str) -> Option<usize> {
-    // Stub: no-op, indicates JIT not enabled.
-    None
+/// Public API: convenience stub that returns None if JIT not enabled or compilation
+/// fails. Useful for higher-level integration tests.
+pub fn compile_function_stub(name: &str, ir_text: &str) -> Option<usize> {
+    match compile_function(name, ir_text) {
+        Ok(ptr) => Some(ptr as usize),
+        Err(_) => None,
+    }
 }
 
 #[cfg(test)]
@@ -48,5 +63,12 @@ mod tests {
     fn stub_returns_none_when_disabled() {
         let p = compile_function_stub("f", "func @f { entry: ret }");
         assert!(p.is_none());
+    }
+
+    #[test]
+    fn builder_returns_error_message() {
+        let jb = JitBuilder::new();
+        let res = jb.compile("f", "func @f { entry: ret }");
+        assert!(res.is_err());
     }
 }
