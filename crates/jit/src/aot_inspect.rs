@@ -3,6 +3,7 @@ use std::fs;
 use std::path::Path;
 mod ir_analyzer;
 use ir_analyzer::analyze_ir_text;
+use rayon::prelude::*;
 
 #[derive(Debug, serde::Deserialize)]
 struct Profile {
@@ -53,44 +54,60 @@ fn load_plan(path: &Path) -> Result<AotPlan, String> {
 
 fn normalize_plan(mut plan: AotPlan, ir_dir: Option<&std::path::Path>) -> AotPlan {
     // Simple normalizations + cost/benefit priority estimation.
-    // Normalizations:
-    // - ensure score >= 1
-    // - cap score to reasonable upper bound (1_000_000)
-    // - dedupe caller_examples by caller name summing counts
-    for c in plan.inline_candidates.iter_mut() {
-        if c.score < 1 {
-            c.score = 1;
-        }
-        if c.score > 1_000_000 {
-            c.score = 1_000_000;
-        }
-        let mut map: HashMap<String, u64> = HashMap::new();
-        for ex in c.caller_examples.drain(..) {
-            *map.entry(ex.caller).or_insert(0) += ex.count;
-        }
-        c.caller_examples = map
-            .into_iter()
-            .map(|(caller, count)| CallerExample { caller, count })
-            .collect();
+    // Approach:
+    // 1) Build a small cache of IR analyses (sequentially) for available <name>.ir files.
+    // 2) Process candidates in parallel using rayon, using the cached results.
+    use std::sync::Arc;
 
-        // estimate cost from IR if available: count IR instruction-like lines in <name>.ir
-        let mut est_cost: Option<usize> = None;
-        if let Some(dir) = ir_dir {
+    // Build analysis cache: name -> (instr_count, block_count)
+    let mut analysis_map: HashMap<String, (usize, usize)> = HashMap::new();
+    if let Some(dir) = ir_dir {
+        for c in &plan.inline_candidates {
             let candidate = dir.join(format!("{}.ir", c.name));
             if candidate.exists() {
                 if let Ok(s) = std::fs::read_to_string(&candidate) {
                     let a = analyze_ir_text(&s);
-                    // combine blocks and instrs into a single cost estimate: instrs + blocks*2
-                    let est = a.instr_count + a.block_count * 2;
-                    est_cost = Some(est);
+                    analysis_map.insert(c.name.clone(), (a.instr_count, a.block_count));
                 }
             }
         }
-        c.estimated_cost = est_cost;
-        // compute priority = score / (1 + cost) as a simple cost-benefit; cost is instruction count
-        let cost = c.estimated_cost.unwrap_or(0) as f64;
-        c.priority = Some((c.score as f64) / (1.0 + cost));
     }
+    let analysis_map = Arc::new(analysis_map);
+
+    // Process candidates in parallel and produce a new vector of normalized candidates.
+    let processed: Vec<InlineCandidate> = plan
+        .inline_candidates
+        .into_par_iter()
+        .map(|mut c| {
+            if c.score < 1 {
+                c.score = 1;
+            }
+            if c.score > 1_000_000 {
+                c.score = 1_000_000;
+            }
+            let mut map: HashMap<String, u64> = HashMap::new();
+            for ex in c.caller_examples.drain(..) {
+                *map.entry(ex.caller).or_insert(0) += ex.count;
+            }
+            c.caller_examples = map
+                .into_iter()
+                .map(|(caller, count)| CallerExample { caller, count })
+                .collect();
+
+            // estimate cost from analysis_map if available
+            let mut est_cost: Option<usize> = None;
+            if let Some((instr_count, block_count)) = analysis_map.get(&c.name) {
+                let est = *instr_count + *block_count * 2;
+                est_cost = Some(est);
+            }
+            c.estimated_cost = est_cost;
+            let cost = c.estimated_cost.unwrap_or(0) as f64;
+            c.priority = Some((c.score as f64) / (1.0 + cost));
+            c
+        })
+        .collect();
+
+    plan.inline_candidates = processed;
     // sort candidates by priority desc to make compile order deterministic
     plan
         .inline_candidates
