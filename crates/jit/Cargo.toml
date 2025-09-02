@@ -25,3 +25,7 @@ serde_json = "1.0"
 [[bin]]
 name = "aot_inspect"
 path = "src/aot_inspect.rs"
+
+[[bin]]
+name = "aot_consumer"
+path = "src/aot_consumer.rs"

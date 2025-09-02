@@ -79,6 +79,12 @@ pub fn jit_compile_text(_name: &str, _ir_text: &str) -> Result<usize, String> {
     }
 }
 
+/// Load AOT plan JSON into a serde_json::Value (public helper for tests/tools)
+pub fn load_aot_plan(path: &std::path::Path) -> Result<serde_json::Value, String> {
+    let s = std::fs::read_to_string(path).map_err(|e| format!("read plan: {}", e))?;
+    serde_json::from_str(&s).map_err(|e| format!("parse plan: {}", e))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,6 +115,15 @@ mod tests {
             let _q: serde_json::Value = serde_json::from_str(&s2).unwrap();
         } else {
             // no-op if samples not available in this environment
+        }
+    }
+
+    #[test]
+    fn load_normalized_plan_smoke() {
+        let p = std::path::Path::new("./aot_plan.normalized.json");
+        if p.exists() {
+            let v = load_aot_plan(p).expect("should parse normalized plan");
+            assert!(v.get("inline_candidates").is_some());
         }
     }
 }
