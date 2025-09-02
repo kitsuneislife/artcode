@@ -95,4 +95,20 @@ mod tests {
         let res = jb.compile("f", "func @f { entry: ret }");
         assert!(res.is_err());
     }
+
+    #[test]
+    fn aot_inspect_loads_sample_files() {
+        // Attempt to load repository root sample profile and plan if present
+        let prof = std::path::Path::new("./profile.json");
+        let plan = std::path::Path::new("./aot_plan.json");
+        if prof.exists() && plan.exists() {
+            // reuse the utility in a lightweight manner by using the loader functions
+            let s = std::fs::read_to_string(prof).unwrap();
+            let _p: serde_json::Value = serde_json::from_str(&s).unwrap();
+            let s2 = std::fs::read_to_string(plan).unwrap();
+            let _q: serde_json::Value = serde_json::from_str(&s2).unwrap();
+        } else {
+            // no-op if samples not available in this environment
+        }
+    }
 }

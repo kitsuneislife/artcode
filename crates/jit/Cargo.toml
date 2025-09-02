@@ -19,3 +19,9 @@ jit = ["inkwell"]
 # inkwell is optional and enabled via the `jit` feature
 # NOTE: building with this feature requires LLVM dev libs available on the system.
 inkwell = { version = "0.1.0", optional = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[[bin]]
+name = "aot_inspect"
+path = "src/aot_inspect.rs"

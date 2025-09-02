@@ -502,6 +502,8 @@ name = "jit"
 version = "0.1.0"
 dependencies = [
  "inkwell",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

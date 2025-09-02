@@ -1,0 +1,24 @@
+{
+  "inline_candidates": [
+    {
+      "name": "sum_work",
+      "score": 120,
+      "caller_examples": [
+        {
+          "caller": "main",
+          "count": 40
+        }
+      ]
+    },
+    {
+      "name": "main",
+      "score": 3,
+      "caller_examples": [
+        {
+          "caller": "<root>",
+          "count": 1
+        }
+      ]
+    }
+  ]
+}
