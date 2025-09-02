@@ -65,6 +65,10 @@ pub use llvm_builder::LlvmBuilderImpl as LlvmBuilder;
 #[cfg(not(feature = "jit"))]
 pub use llvm_builder::DummyLlvmBuilder as LlvmBuilder;
 
+// expose the analyzer/loader to callers and tests
+pub mod ir_analyzer;
+pub mod ir_loader;
+
 /// Convenience: compile textual IR and return a raw function pointer (usize) when
 /// the JIT feature is enabled. Returns Err when not available or compilation fails.
 pub fn jit_compile_text(_name: &str, _ir_text: &str) -> Result<usize, String> {

@@ -31,3 +31,6 @@ path = "src/aot_inspect.rs"
 [[bin]]
 name = "aot_consumer"
 path = "src/aot_consumer.rs"
+
+[dev-dependencies]
+tempfile = "3"
