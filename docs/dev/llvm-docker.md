@@ -1,3 +1,29 @@
+# Imagem Docker com LLVM (dev / CI opt-in)
+
+Este documento descreve um Dockerfile mínimo para criar um runner com LLVM/clang e `llvm-tools` instalados, usado pelo job opt-in `jit-smoke` que testa `--features=jit`.
+
+Resumo rápido
+- Base: `ubuntu:24.04`
+- Instala: `build-essential`, `clang`, `llvm`, `cmake`, `pkg-config`, `libssl-dev`, `git`, `curl`
+- Instala `rustup` e toolchain estável; instala `inkwell` dependência no job se necessário.
+
+Uso (local)
+
+1. Build: `docker build -t artcode-llvm -f ci/docker/llvm/Dockerfile .`
+2. Run (interactive): `docker run --rm -it artcode-llvm /bin/bash`
+
+CI
+- Adicione uma matrix job que usa essa imagem para executar `cargo test -p jit --features=jit` e um pequeno `jit-smoke` que compila um microkernel com `--features=jit`.
+
+Observação: o repositório já documenta a intenção de um job opt-in; este arquivo serve como referência para replicar localmente.
+
+Reprodução rápida (script)
+---------------------------------
+O repositório inclui um script útil que constrói a imagem e executa os testes JIT dentro do container:
+
+    scripts/run_jit_smoke_in_docker.sh
+
+Use este script para reproduzir localmente o job `jit-smoke` antes de abrir PRs que toquem na implementação JIT.
 # LLVM Dev Docker image
 
 Este documento descreve como criar uma imagem Docker com LLVM dev libs necessárias

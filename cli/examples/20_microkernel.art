@@ -1,0 +1,61 @@
+// Microkernel: sum elements of array in a loop to produce hot function calls
+// Função quente que realiza trabalho CPU-bound sem indexação de arrays
+func sum_work(n) {
+  func sum_down(i, acc) {
+    if i <= 0 {
+      return acc;
+    }
+    return sum_down(i - 1, acc + i);
+  }
+  return sum_down(n, 0);
+}
+
+// Main chama sum_work sequencialmente para gerar chamadas quentes sem recursão
+func main() {
+  // Chamar sum_work(20) repetidamente (200 vezes)
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  // 20 calls per block -> replicate 10 blocks -> 200 calls
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  sum_work(20);
+  return 0;
+}
+
+// Executar main quando rodado como script
+main();

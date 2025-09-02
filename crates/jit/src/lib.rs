@@ -60,7 +60,24 @@ pub fn compile_function_stub(name: &str, ir_text: &str) -> Option<usize> {
 }
 
 pub mod llvm_builder;
-pub use llvm_builder::LlvmBuilder;
+#[cfg(feature = "jit")]
+pub use llvm_builder::LlvmBuilderImpl as LlvmBuilder;
+#[cfg(not(feature = "jit"))]
+pub use llvm_builder::DummyLlvmBuilder as LlvmBuilder;
+
+/// Convenience: compile textual IR and return a raw function pointer (usize) when
+/// the JIT feature is enabled. Returns Err when not available or compilation fails.
+pub fn jit_compile_text(_name: &str, _ir_text: &str) -> Result<usize, String> {
+    #[cfg(feature = "jit")]
+    {
+    let _ = <LlvmBuilder as llvm_builder::LlvmBuilder>::initialize();
+    llvm_builder::LlvmBuilder::compile_module_get_symbol(_ir_text, _name)
+    }
+    #[cfg(not(feature = "jit"))]
+    {
+        Err("jit feature not enabled".to_string())
+    }
+}
 
 #[cfg(test)]
 mod tests {

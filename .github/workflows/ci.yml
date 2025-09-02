@@ -17,6 +17,9 @@ jobs:
         with:
           toolchain: stable
           profile: minimal
+      - name: Run xtask gen-golden --check
+        run: |
+          cargo run -p xtask -- gen-golden --check
       - name: Build
         run: cargo build --all
       - name: Run tests

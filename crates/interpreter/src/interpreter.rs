@@ -123,6 +123,8 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&s).expect("parse profile json");
         assert!(v.get("functions").is_some());
         assert!(v.get("edges").is_some());
+    // New: also emit a compact edges_map object
+    assert!(v.get("edges_map").is_some());
         // cleanup
         let _ = std::fs::remove_file(&tmp);
     }
@@ -2272,6 +2274,8 @@ impl Interpreter {
     /// This implementation avoids introducing serde as a dependency by emitting
     /// a tiny JSON object manually.
     pub fn write_profile(&self, path: &std::path::Path) -> std::result::Result<(), std::io::Error> {
+        // Emit both an edges array (backwards compatible) and an edges_map object
+        // for easier programmatic consumption.
         let mut out = String::new();
         out.push_str("{\n");
         // functions
@@ -2285,7 +2289,8 @@ impl Interpreter {
             out.push_str(&format!("    \"{}\": {}", k.replace('"', "\\\""), v));
         }
         out.push_str("\n  },\n");
-        // edges as array of { caller, callee, count }
+
+        // edges as array of { caller, callee, count } (backwards compatible)
         out.push_str("  \"edges\": [\n");
         let mut first_e = true;
         for (k, v) in &self.edge_counters {
@@ -2307,7 +2312,19 @@ impl Interpreter {
                 v
             ));
         }
-        out.push_str("\n  ]\n}\n");
+        out.push_str("\n  ],\n");
+
+        // edges_map object keyed by "caller->callee" for easy lookup
+        out.push_str("  \"edges_map\": {\n");
+        let mut first_m = true;
+        for (k, v) in &self.edge_counters {
+            if !first_m {
+                out.push_str(",\n");
+            }
+            first_m = false;
+            out.push_str(&format!("    \"{}\": {}", k.replace('"', "\\\""), v));
+        }
+        out.push_str("\n  }\n}\n");
         std::fs::write(path, out)
     }
 
