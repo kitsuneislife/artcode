@@ -40,7 +40,15 @@ pub fn analyze_ir_text(s: &str) -> IrAnalysis {
             continue;
         }
         // everything else is treated as an instruction-like line
-        instr += 1;
+        // weight certain opcodes higher because they indicate heavier work
+        let lower = t.to_ascii_lowercase();
+        if lower.starts_with("call ") || lower.contains(" call ") || lower.contains("= call") {
+            instr += 5; // calls are heavier
+        } else if lower.contains("gc_alloc") || lower.contains("arena_alloc") {
+            instr += 10; // allocation intrinsics are costly
+        } else {
+            instr += 1;
+        }
     }
     IrAnalysis {
         instr_count: instr,

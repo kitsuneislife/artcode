@@ -14,8 +14,11 @@ struct Cli {
 enum Commands {
     /// Run full developer quality gate (fmt, clippy, test, panic scan)
     Ci {
-        #[arg(long)]
-        no_fmt: bool,
+    #[arg(long)]
+    no_fmt: bool,
+    /// When set, fail CI if aot_inspect finds issues
+    #[arg(long, default_value_t = false)]
+    aot_inspect_fatal: bool,
     },
     /// Strict developer check: fmt, clippy -D warnings, tests, examples; optional coverage
     Devcheck {
@@ -183,19 +186,27 @@ fn visit(path: &PathBuf, re: &Regex, found: &mut usize) {
 fn main() {
     let cli = Cli::parse();
     match cli.command {
-        Commands::Ci { no_fmt } => {
+    Commands::Ci { no_fmt, aot_inspect_fatal } => {
             fmt(no_fmt);
             clippy();
             test_all();
             type_check_examples();
             scan_panics();
-            // Run AOT inspection non-fatal (helps detect plan/profile mismatches early)
+            // Run AOT inspection; optionally fail the CI when issues are found.
             let mut cmd = Command::new("cargo");
             cmd.args(["run", "-p", "jit", "--bin", "aot_inspect", "--quiet"]);
             cmd.arg("--");
             cmd.arg("profile.json");
             cmd.arg("aot_plan.json");
-            let _ = run(&mut cmd); // ignore failure, only advisory
+            let status = run(&mut cmd);
+            if !status.success() {
+                if aot_inspect_fatal {
+                    eprintln!("aot_inspect failed and --aot-inspect-fatal was set; failing CI");
+                    std::process::exit(status.code().unwrap_or(1));
+                } else {
+                    eprintln!("aot_inspect failed (non-fatal)");
+                }
+            }
         }
         Commands::Devcheck { coverage } => {
             // strict dev flow

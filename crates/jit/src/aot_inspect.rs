@@ -3,6 +3,8 @@ use std::fs;
 use std::path::Path;
 mod ir_analyzer;
 use ir_analyzer::analyze_ir_text;
+mod ir_loader;
+use ir_loader::parse_ir_file;
 use rayon::prelude::*;
 
 #[derive(Debug, serde::Deserialize)]
@@ -65,7 +67,10 @@ fn normalize_plan(mut plan: AotPlan, ir_dir: Option<&std::path::Path>) -> AotPla
         for c in &plan.inline_candidates {
             let candidate = dir.join(format!("{}.ir", c.name));
             if candidate.exists() {
-                if let Ok(s) = std::fs::read_to_string(&candidate) {
+                // Prefer structured loader if it recognizes heavy opcodes
+                if let Some(a) = parse_ir_file(&candidate) {
+                    analysis_map.insert(c.name.clone(), (a.instr_count, a.block_count));
+                } else if let Ok(s) = std::fs::read_to_string(&candidate) {
                     let a = analyze_ir_text(&s);
                     analysis_map.insert(c.name.clone(), (a.instr_count, a.block_count));
                 }
