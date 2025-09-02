@@ -71,18 +71,31 @@ fn normalize_plan(mut plan: AotPlan, ir_dir: Option<&std::path::Path>) -> AotPla
             .map(|(caller, count)| CallerExample { caller, count })
             .collect();
 
-        // estimate cost from IR if available: look for file <name>.ir in ir_dir
+        // estimate cost from IR if available: count IR instruction-like lines in <name>.ir
         let mut est_cost: Option<usize> = None;
         if let Some(dir) = ir_dir {
             let candidate = dir.join(format!("{}.ir", c.name));
             if candidate.exists() {
-                if let Ok(s) = std::fs::read(&candidate) {
-                    est_cost = Some(s.len());
+                if let Ok(s) = std::fs::read_to_string(&candidate) {
+                    let mut instr_count = 0usize;
+                    for line in s.lines() {
+                        let t = line.trim();
+                        if t.is_empty() {
+                            continue;
+                        }
+                        // skip label lines (ending with ':')
+                        if t.ends_with(':') {
+                            continue;
+                        }
+                        // consider remaining non-empty lines as instructions
+                        instr_count += 1;
+                    }
+                    est_cost = Some(instr_count);
                 }
             }
         }
         c.estimated_cost = est_cost;
-        // compute priority = score / (1 + cost) as a simple cost-benefit
+        // compute priority = score / (1 + cost) as a simple cost-benefit; cost is instruction count
         let cost = c.estimated_cost.unwrap_or(0) as f64;
         c.priority = Some((c.score as f64) / (1.0 + cost));
     }

@@ -60,18 +60,7 @@ enum Commands {
             #[arg(long)]
             path: Option<PathBuf>,
         },
-}
-
-fn run(cmd: &mut Command) -> ExitStatus {
-    println!("==> {:?}", cmd);
-    match cmd.status() {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("failed to run command: {}", e);
-            std::process::exit(1);
-        }
-    }
-    #[allow(dead_code)]
+    /// Inspect AOT plan against profile and optional IR dir
     AotInspect {
         /// profile json path
         #[arg(long)]
@@ -83,6 +72,17 @@ fn run(cmd: &mut Command) -> ExitStatus {
         #[arg(long)]
         ir_dir: Option<PathBuf>,
     },
+}
+
+fn run(cmd: &mut Command) -> ExitStatus {
+    println!("==> {:?}", cmd);
+    match cmd.status() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("failed to run command: {}", e);
+            std::process::exit(1);
+        }
+    }
 }
 
 fn fmt(no_fmt: bool) {
@@ -189,6 +189,13 @@ fn main() {
             test_all();
             type_check_examples();
             scan_panics();
+            // Run AOT inspection non-fatal (helps detect plan/profile mismatches early)
+            let mut cmd = Command::new("cargo");
+            cmd.args(["run", "-p", "jit", "--bin", "aot_inspect", "--quiet"]);
+            cmd.arg("--");
+            cmd.arg("profile.json");
+            cmd.arg("aot_plan.json");
+            let _ = run(&mut cmd); // ignore failure, only advisory
         }
         Commands::Devcheck { coverage } => {
             // strict dev flow
