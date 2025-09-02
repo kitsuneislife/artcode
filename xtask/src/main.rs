@@ -71,6 +71,18 @@ fn run(cmd: &mut Command) -> ExitStatus {
             std::process::exit(1);
         }
     }
+    #[allow(dead_code)]
+    AotInspect {
+        /// profile json path
+        #[arg(long)]
+        profile: Option<PathBuf>,
+        /// aot plan json path
+        #[arg(long)]
+        plan: Option<PathBuf>,
+        /// optional IR directory to estimate cost
+        #[arg(long)]
+        ir_dir: Option<PathBuf>,
+    },
 }
 
 fn fmt(no_fmt: bool) {
@@ -254,6 +266,16 @@ fn main() {
             if !status.success() {
                 std::process::exit(status.code().unwrap_or(1));
             }
+        }
+        Commands::AotInspect { profile, plan, ir_dir } => {
+            let mut cmd = Command::new("cargo");
+            cmd.args(["run", "-p", "jit", "--bin", "aot_inspect", "--quiet"]);
+            cmd.arg("--");
+            if let Some(p) = profile { cmd.arg(p.as_os_str()); } else { cmd.arg("profile.json"); }
+            if let Some(p) = plan { cmd.arg(p.as_os_str()); } else { cmd.arg("aot_plan.json"); }
+            if let Some(d) = ir_dir { cmd.arg(d.as_os_str()); }
+            let status = run(&mut cmd);
+            if !status.success() { std::process::exit(status.code().unwrap_or(1)); }
         }
         Commands::Scan => scan_panics(),
         Commands::Coverage { html } => {

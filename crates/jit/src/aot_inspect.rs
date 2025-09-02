@@ -27,6 +27,10 @@ struct InlineCandidate {
     score: i64,
     #[serde(default)]
     caller_examples: Vec<CallerExample>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    estimated_cost: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    priority: Option<f64>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -45,8 +49,9 @@ fn load_plan(path: &Path) -> Result<AotPlan, String> {
     serde_json::from_str(&s).map_err(|e| format!("parse plan json: {}", e))
 }
 
-fn normalize_plan(mut plan: AotPlan) -> AotPlan {
-    // Simple normalizations:
+fn normalize_plan(mut plan: AotPlan, ir_dir: Option<&std::path::Path>) -> AotPlan {
+    // Simple normalizations + cost/benefit priority estimation.
+    // Normalizations:
     // - ensure score >= 1
     // - cap score to reasonable upper bound (1_000_000)
     // - dedupe caller_examples by caller name summing counts
@@ -65,11 +70,26 @@ fn normalize_plan(mut plan: AotPlan) -> AotPlan {
             .into_iter()
             .map(|(caller, count)| CallerExample { caller, count })
             .collect();
+
+        // estimate cost from IR if available: look for file <name>.ir in ir_dir
+        let mut est_cost: Option<usize> = None;
+        if let Some(dir) = ir_dir {
+            let candidate = dir.join(format!("{}.ir", c.name));
+            if candidate.exists() {
+                if let Ok(s) = std::fs::read(&candidate) {
+                    est_cost = Some(s.len());
+                }
+            }
+        }
+        c.estimated_cost = est_cost;
+        // compute priority = score / (1 + cost) as a simple cost-benefit
+        let cost = c.estimated_cost.unwrap_or(0) as f64;
+        c.priority = Some((c.score as f64) / (1.0 + cost));
     }
-    // sort candidates by score desc to make output deterministic
+    // sort candidates by priority desc to make compile order deterministic
     plan
         .inline_candidates
-        .sort_by(|a, b| b.score.cmp(&a.score));
+        .sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap_or(std::cmp::Ordering::Equal));
     plan
 }
 
@@ -116,6 +136,7 @@ fn main() {
     }
     let profile_path = Path::new(&args[1]);
     let plan_path = Path::new(&args[2]);
+    let ir_dir = if args.len() > 3 { Some(std::path::Path::new(&args[3])) } else { None };
 
     let profile = match load_profile(profile_path) {
         Ok(p) => p,
@@ -132,7 +153,7 @@ fn main() {
         }
     };
 
-    let mut out = normalize_plan(plan);
+    let out = normalize_plan(plan, ir_dir);
     let issues = validate_consistency(&profile, &out);
     print_summary(&profile, &out);
     if !issues.is_empty() {
