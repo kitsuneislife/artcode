@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+mod ir_analyzer;
+use ir_analyzer::analyze_ir_text;
 
 #[derive(Debug, serde::Deserialize)]
 struct Profile {
@@ -77,20 +79,10 @@ fn normalize_plan(mut plan: AotPlan, ir_dir: Option<&std::path::Path>) -> AotPla
             let candidate = dir.join(format!("{}.ir", c.name));
             if candidate.exists() {
                 if let Ok(s) = std::fs::read_to_string(&candidate) {
-                    let mut instr_count = 0usize;
-                    for line in s.lines() {
-                        let t = line.trim();
-                        if t.is_empty() {
-                            continue;
-                        }
-                        // skip label lines (ending with ':')
-                        if t.ends_with(':') {
-                            continue;
-                        }
-                        // consider remaining non-empty lines as instructions
-                        instr_count += 1;
-                    }
-                    est_cost = Some(instr_count);
+                    let a = analyze_ir_text(&s);
+                    // combine blocks and instrs into a single cost estimate: instrs + blocks*2
+                    let est = a.instr_count + a.block_count * 2;
+                    est_cost = Some(est);
                 }
             }
         }
