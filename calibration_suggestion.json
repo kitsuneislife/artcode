@@ -1,0 +1,7 @@
+{
+  "instr_weight": 1,
+  "call_weight": 1,
+  "alloc_weight": 1,
+  "block_weight": 1,
+  "note": "Suggested weights produced by constrained calibrator (non-negative, L2-regularized). Review before applying."
+}

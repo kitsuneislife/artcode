@@ -1,0 +1,7 @@
+func @main() -> i64 {
+entry:
+  v = const i64 100
+  w = call sum_work(v)
+  x = call sum_down(v)
+  ret w
+}
