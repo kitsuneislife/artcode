@@ -179,53 +179,110 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
                     _ => return None,
                 };
 
-                // lower then_branch: expect Return { value: Some(Literal Int) } or Binary
-                let then_res = match &**then_branch {
-                    Stmt::Return { value: Some(Expr::Literal(core::ast::ArtValue::Int(n))) } => {
-                        let tname = mktemp();
-                        let instrs = vec![Instr::ConstI64(tname.clone(), *n)];
-                        (tname, instrs)
-                    }
-                    Stmt::Return { value: Some(Expr::Binary { left, operator, right }) } => {
-                        let l = if let Expr::Variable { name } = &**left { name.lexeme.clone() } else { return None };
-                        let r = if let Expr::Variable { name } = &**right { name.lexeme.clone() } else { return None };
-                        let dest = mktemp();
-                        let op = operator.lexeme.as_str();
-                        let bin = match op {
-                            "+" => Instr::Add(dest.clone(), l, r),
-                            "-" => Instr::Sub(dest.clone(), l, r),
-                            "*" => Instr::Mul(dest.clone(), l, r),
-                            "/" => Instr::Div(dest.clone(), l, r),
-                            _ => return None,
-                        };
-                        (dest, vec![bin])
-                    }
-                    _ => return None,
+                // Helper: lower a branch stmt (Return or nested If) into a pair
+                // (result_temp, instrs). For nested If the helper will emit
+                // its own inner labels and a phi at the inner merge point so
+                // outer lowering can treat the branch as producing a single
+                // temp holding the branch result.
+                let mut next_label: usize = 0;
+                let mut mklabel = |s: &str| {
+                    let id = next_label;
+                    next_label += 1;
+                    format!("{}_{}_{}", fname_prefix, s, id)
                 };
 
-                // lower else_branch similarly
-                let else_branch = else_branch.as_ref()?;
-                let else_res = match &**else_branch {
-                    Stmt::Return { value: Some(Expr::Literal(core::ast::ArtValue::Int(n))) } => {
-                        let tname = mktemp();
-                        let instrs = vec![Instr::ConstI64(tname.clone(), *n)];
-                        (tname, instrs)
+                // recursive lowering helper as an inner function so it can call itself
+                fn lower_branch<F, G>(s: &Stmt, mktemp: &mut F, mklabel: &mut G) -> Option<(String, Vec<Instr>)>
+                    where F: FnMut() -> String, G: FnMut(&str) -> String
+                {
+                    match s {
+                        // simple returns
+                        Stmt::Return { value: Some(Expr::Literal(core::ast::ArtValue::Int(n))) } => {
+                            let tname = mktemp();
+                            let instrs = vec![Instr::ConstI64(tname.clone(), *n)];
+                            Some((tname, instrs))
+                        }
+                        Stmt::Return { value: Some(Expr::Variable { name }) } => {
+                            let v = name.lexeme.clone();
+                            Some((v, vec![]))
+                        }
+                        Stmt::Return { value: Some(Expr::Binary { left, operator, right }) } => {
+                            let l = if let Expr::Variable { name } = &**left { name.lexeme.clone() } else { return None };
+                            let r = if let Expr::Variable { name } = &**right { name.lexeme.clone() } else { return None };
+                            let dest = mktemp();
+                            let op = operator.lexeme.as_str();
+                            let bin = match op {
+                                "+" => Instr::Add(dest.clone(), l, r),
+                                "-" => Instr::Sub(dest.clone(), l, r),
+                                "*" => Instr::Mul(dest.clone(), l, r),
+                                "/" => Instr::Div(dest.clone(), l, r),
+                                _ => return None,
+                            };
+                            Some((dest, vec![bin]))
+                        }
+                        // nested if: produce its own inner labels and phi, but do
+                        // not produce a final br to the outer merge (outer will do that).
+                        Stmt::If { condition: icond, then_branch: ib_then, else_branch: ib_else } => {
+                            let ib_else = ib_else.as_ref()?;
+                            // produce unique inner labels
+                            let inner_then = mklabel("then");
+                            let inner_else = mklabel("else");
+                            let inner_merge = mklabel("merge");
+                            // temps for inner arm results
+                            let then_temp = mktemp();
+                            let else_temp = mktemp();
+                            let mut instrs: Vec<Instr> = Vec::new();
+
+                            // lower condition (variable or literal bool)
+                            let cond_owned = icond.clone();
+                            let cond_name = match cond_owned {
+                                Expr::Variable { name } => name.lexeme.clone(),
+                                Expr::Literal(core::ast::ArtValue::Bool(b)) => {
+                                    let t = mktemp();
+                                    let v = if b { 1 } else { 0 };
+                                    instrs.push(Instr::ConstI64(t.clone(), v));
+                                    t
+                                }
+                                _ => return None,
+                            };
+
+                            instrs.push(Instr::BrCond(cond_name.clone(), inner_then.clone(), inner_else.clone()));
+
+                            // inner then
+                            instrs.push(Instr::Label(inner_then.clone()));
+                            // lower inner then into then_temp (we expect a Return or nested)
+                            if let Some((tres, mut tins)) = lower_branch(&*ib_then, mktemp, mklabel) {
+                                // if the nested returned a different temp, move its value into then_temp
+                                if tres != then_temp {
+                                    // if tins already produced the desired temp name, keep; otherwise
+                                    // ensure the computed value is in then_temp by emitting a move-like op
+                                    // since we don't have a mov instr, we materialize by creating a ConstI64
+                                    // fallback: emit a phi between tres and itself by using a temp copy via add 0
+                                    tins.push(Instr::Add(then_temp.clone(), tres.clone(), "0".to_string()));
+                                }
+                                for i in tins.into_iter() { instrs.push(i); }
+                            } else { return None; }
+                            instrs.push(Instr::Br(inner_merge.clone()));
+
+                            // inner else
+                            instrs.push(Instr::Label(inner_else.clone()));
+                            if let Some((eres, mut eins)) = lower_branch(&*ib_else, mktemp, mklabel) {
+                                if eres != else_temp {
+                                    eins.push(Instr::Add(else_temp.clone(), eres.clone(), "0".to_string()));
+                                }
+                                for i in eins.into_iter() { instrs.push(i); }
+                            } else { return None; }
+                            instrs.push(Instr::Br(inner_merge.clone()));
+
+                            // inner merge: phi into a single temp (we'll use then_temp as result)
+                            instrs.push(Instr::Label(inner_merge.clone()));
+                            let phi_pairs = vec![(then_temp.clone(), inner_then.clone()), (else_temp.clone(), inner_else.clone())];
+                            instrs.push(Instr::Phi(then_temp.clone(), Type::I64, phi_pairs));
+
+                            Some((then_temp, instrs))
+                        }
+                        _ => None,
                     }
-                    Stmt::Return { value: Some(Expr::Binary { left, operator, right }) } => {
-                        let l = if let Expr::Variable { name } = &**left { name.lexeme.clone() } else { return None };
-                        let r = if let Expr::Variable { name } = &**right { name.lexeme.clone() } else { return None };
-                        let dest = mktemp();
-                        let op = operator.lexeme.as_str();
-                        let bin = match op {
-                            "+" => Instr::Add(dest.clone(), l, r),
-                            "-" => Instr::Sub(dest.clone(), l, r),
-                            "*" => Instr::Mul(dest.clone(), l, r),
-                            "/" => Instr::Div(dest.clone(), l, r),
-                            _ => return None,
-                        };
-                        (dest, vec![bin])
-                    }
-                    _ => return None,
                 };
 
                 // assemble function body
@@ -236,14 +293,20 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
                 }
                 // entry: br_cond cond, then_bb, else_bb
                 body.push(Instr::BrCond(cond_name.clone(), then_bb.clone(), else_bb.clone()));
-                // then block
+
+                // then block: lower the then_branch (may be nested If)
                 body.push(Instr::Label(then_bb.clone()));
-                for i in then_res.1.iter() { body.push(i.clone()); }
+                let then_res = lower_branch(&*then_branch, &mut mktemp, &mut mklabel)?;
+                for i in then_res.1.into_iter() { body.push(i); }
                 body.push(Instr::Br(merge_bb.clone()));
+
                 // else block
                 body.push(Instr::Label(else_bb.clone()));
-                for i in else_res.1.iter() { body.push(i.clone()); }
+                let else_branch = else_branch.as_ref()?;
+                let else_res = lower_branch(&*else_branch, &mut mktemp, &mut mklabel)?;
+                for i in else_res.1.into_iter() { body.push(i); }
                 body.push(Instr::Br(merge_bb.clone()));
+
                 // merge block
                 body.push(Instr::Label(merge_bb.clone()));
                 // phi

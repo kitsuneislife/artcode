@@ -11,7 +11,7 @@ fn golden_lower_call_literals() {
     let param_name = Token::dummy("x");
     let callee_params = vec![FunctionParam { name: param_name.clone(), ty: None }];
     let callee_body = Stmt::Return { value: Some(Expr::Variable { name: param_name.clone() }) };
-    let callee = Stmt::Function { name: callee_name.clone(), params: callee_params, return_type: Some("i64".to_string()), body: std::rc::Rc::new(Stmt::Block { statements: vec![callee_body] }), method_owner: None };
+    let _callee = Stmt::Function { name: callee_name.clone(), params: callee_params, return_type: Some("i64".to_string()), body: std::rc::Rc::new(Stmt::Block { statements: vec![callee_body] }), method_owner: None };
 
     let caller_name = Token::dummy("caller");
     let caller_params = vec![];
