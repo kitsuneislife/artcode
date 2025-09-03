@@ -10,15 +10,7 @@ use rayon::prelude::*;
 #[derive(Debug, serde::Deserialize)]
 struct Profile {
     functions: HashMap<String, u64>,
-    edges: Option<Vec<EdgeRecord>>,
     edges_map: Option<HashMap<String, u64>>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct EdgeRecord {
-    caller: String,
-    callee: String,
-    count: u64,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
