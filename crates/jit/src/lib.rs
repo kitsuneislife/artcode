@@ -59,6 +59,45 @@ pub fn compile_function_stub(name: &str, ir_text: &str) -> Option<usize> {
     }
 }
 
+/// Try to compile and run a zero-arg i64 function via JIT, otherwise call the
+/// provided interpreter fallback closure. This helper centralizes the safe
+/// fallback behavior so higher-level code can prefer native code when
+/// available but remain correct without LLVM.
+pub fn compile_and_run_or_interpret<F>(name: &str, ir_text: &str, interpret: F) -> Result<i64, String>
+where
+    F: FnOnce() -> i64,
+{
+    // If JIT is enabled, try to compile and execute.
+    #[cfg(feature = "jit")]
+    {
+        // initialize builder/runtime
+        if let Err(e) = <LlvmBuilder as llvm_builder::LlvmBuilder>::initialize() {
+            // fallback to interpret
+            return Ok(interpret());
+        }
+
+        match llvm_builder::LlvmBuilder::lower_ir_to_module(ir_text) {
+            Ok(module_text) => match llvm_builder::LlvmBuilder::compile_module_get_symbol(&module_text, name) {
+                Ok(addr) => {
+                    // SAFETY: assume compiled function has signature extern "C" fn() -> i64
+                    let f: extern "C" fn() -> i64 = unsafe { std::mem::transmute(addr) };
+                    // Call the compiled code and return result. If it faults, so be it.
+                    let res = unsafe { f() };
+                    return Ok(res);
+                }
+                Err(_) => return Ok(interpret()),
+            },
+            Err(_) => return Ok(interpret()),
+        }
+    }
+
+    // If JIT feature not compiled in, always fallback to interpreter.
+    #[cfg(not(feature = "jit"))]
+    {
+        Ok(interpret())
+    }
+}
+
 pub mod llvm_builder;
 #[cfg(feature = "jit")]
 pub use llvm_builder::LlvmBuilderImpl as LlvmBuilder;
@@ -130,4 +169,13 @@ mod tests {
             assert!(v.get("inline_candidates").is_some());
         }
     }
+
+    #[test]
+    fn compile_and_run_falls_back_when_disabled() {
+        // Provide an IR that if interpreted returns 7
+        let ir = "func @f() -> i64 { entry: %c = const i64 7 br end\nend: ret %c }";
+        let v = compile_and_run_or_interpret("f", ir, || 7).expect("should return 7");
+        assert_eq!(v, 7);
+    }
+
 }
