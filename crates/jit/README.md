@@ -48,15 +48,27 @@ Notas
 JIT scaffold crate
 ===================
 
-This crate is a small scaffold for future JIT work. The real implementation should live
-behind the `jit` feature and depend on `inkwell` (LLVM bindings). The scaffold ensures
-the workspace builds for contributors that don't have LLVM installed.
+This crate is a small scaffold for future JIT work. The real implementation lives
+behind the `jit` feature and should depend on `inkwell` (LLVM bindings). The scaffold
+keeps the workspace buildable for contributors without LLVM.
 
-Usage
------
+Quick notes
+-----------
 
-To enable the real JIT implementation (future):
+- To build and run tests without LLVM (default):
 
-1. Install LLVM and the required development headers on your system.
-2. Add `inkwell` to the crate with the `jit` feature and implement `compile_function`.
-3. Build with `cargo build -p jit --features jit`.
+	cargo test -p jit
+
+- To build with the JIT feature (requires LLVM dev libs):
+
+	cargo test -p jit --features=jit
+
+- Current status: the `jit` feature path includes a placeholder `compile_function` that
+	returns `JitError::Other("NotImplemented")`. This is intentional to allow development
+	without a full LLVM toolchain.
+
+Contributing
+------------
+
+If you implement the real JIT, keep the default stub behavior behind `not(feature = "jit")`
+so contributors without LLVM are not blocked.
