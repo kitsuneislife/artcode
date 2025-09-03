@@ -79,63 +79,52 @@ Usage:
 1. Build the image:
 
 ```sh
-docker build -t artcode-llvm -f Dockerfile .
-```
+# docs/dev/llvm-docker.md
 
-2. Run a shell and build with JIT feature:
+Este documento descreve um Dockerfile mínimo e passos para criar um ambiente de desenvolvimento
+com LLVM (útil para implementar e testar a feature `jit` que depende de `inkwell`).
 
-```sh
-docker run --rm -it -v "$PWD":/workspaces -w /workspaces artcode-llvm bash
-# inside container
-rustup default stable
-cargo build -p jit --features=jit
-```
+Resumo
+- Base sugerida: `ubuntu:24.04`
+- Pacotes típicos: `build-essential`, `clang`, `llvm-dev`, `libclang-dev`, `cmake`, `pkg-config`, `git`, `curl`
+- Instalar `rustup` dentro do container para ter toolchain Rust.
 
-Notes:
-- Building with `--features=jit` requires LLVM dev headers/libraries available to the system package manager. Versions may vary across distributions; prefer an Ubuntu LTS image with matching `inkwell`/LLVM versions.
-- This image is intentionally minimal; for CI pin to a stable Ubuntu runner or provide a hosted runner with LLVM preinstalled.
-# Como preparar um ambiente com LLVM (dev) via Docker
-
-Este documento descreve um container Docker leve para desenvolver e testar o backend JIT baseado em LLVM (`inkwell`). O objetivo é fornecer uma imagem reutilizável que facilite a execução de testes JIT em runners locais ou CI opt-in.
-
-Imagem base (Ubuntu LTS)
-
-Dockerfile mínimo (exemplo):
+Exemplo mínimo de Dockerfile
 
 ```dockerfile
 FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential curl ca-certificates pkg-config git cmake clang llvm-dev libclang-dev \
-    libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
+    build-essential clang llvm-dev libclang-dev cmake pkg-config git curl ca-certificates \
+    libssl-dev && rm -rf /var/lib/apt/lists/*
 
-# Rust toolchain
+# Instala Rust
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Opcional: instalar cargo-chef, etc. para builds otimizados
-RUN cargo install cargo-chef --locked || true
-
-# Defina diretório de trabalho
 WORKDIR /work
-
 CMD ["/bin/bash"]
 ```
 
 Como usar
+1. Build:
 
-1. Construa a imagem:
+```bash
+docker build -t artcode-llvm -f Dockerfile .
+```
 
-   docker build -t artcode-dev-llvm .
+2. Run com o código montado:
 
-2. Rode um container interativo montando o código fonte:
+```bash
+docker run --rm -it -v "$(pwd)":/work -w /work artcode-llvm bash
+# dentro do container
+rustup default stable
+cargo build -p jit --features=jit
+```
 
-   docker run --rm -it -v $(pwd):/work -w /work artcode-dev-llvm
+Notas e troubleshooting
+- Se `inkwell` não encontrar `libclang`, instale o pacote de desenvolvimento correto (`libclang-dev`) e ajuste `LD_LIBRARY_PATH` se necessário.
+- Para garantir reproduzibilidade em CI, prefira pinagem de versão (ex.: `llvm-16-dev`) ou uma imagem pré-construída no registry da organização.
 
-3. Dentro do container, habilite a feature `jit` ao compilar:
-
-   cargo build -p jit --features=jit
-
-Notas
-- Dependendo da versão do LLVM/Clang disponível nas distros, pode ser necessário ajustar pacotes (por exemplo `llvm-15-dev`).
-- Use esta imagem apenas para desenvolvimento JIT; a imagem padrão dos colaboradores não precisa de LLVM.
+Próximo passo sugerido
+- Adicionar um job opcional `jit-smoke` na CI que usa esta imagem para compilar e executar um microbenchmark com `--features=jit`.
