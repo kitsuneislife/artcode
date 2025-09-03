@@ -17,6 +17,8 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
     let mut ret_ty: Option<Type> = None;
     let mut body: Vec<Instr> = Vec::new();
     let mut params: Vec<(String, Type)> = Vec::new();
+    let mut seen_header = false;
+    let mut seen_closing = false;
 
     for raw in s.lines() {
         let line = raw.trim();
@@ -26,6 +28,7 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
 
         // function header: func @name(params) -> typ {
         if line.starts_with("func @") {
+            seen_header = true;
             // name
             if let Some(start) = line.find('@') {
                 if let Some(rest) = line[start + 1..].split_whitespace().next() {
@@ -66,10 +69,10 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
             continue;
         }
 
-        if line == "}" { break; }
+    if line == "}" { seen_closing = true; break; }
 
         // label
-        if line.ends_with(':') {
+    if line.ends_with(':') {
             let lbl = line.trim_end_matches(':').to_string();
             body.push(Instr::Label(lbl));
             continue;
@@ -201,13 +204,17 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
                 continue;
             }
 
-            // unknown assignment -> best-effort: assume simple instr
-            body.push(Instr::Add(dest.clone(), "0".to_string(), "0".to_string()));
-            continue;
+            // unknown assignment -> in strict mode, fail parse
+            return None;
         }
 
         // non-assignment instructions (none else for now)
     }
+
+    // Require a valid header and closing brace
+    if !seen_header { return None; }
+    if !seen_closing { return None; }
+    if fname.is_empty() { return None; }
 
     // Build Function and compute metrics
     let func = Function { name: fname, params, ret: ret_ty, body };
