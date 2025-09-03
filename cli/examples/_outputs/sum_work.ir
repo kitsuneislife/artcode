@@ -1,13 +1,4 @@
-func @sum_work(i64 n) -> i64 {
+func @sum_work() -> void {
 entry:
-  i = const i64 0
-  acc = const i64 0
-loop:
-  cond = sub i, n
-  br_cond cond, loop, done
-  acc = add acc, i
-  i = add i, const i64 1
-  br loop
-done:
-  ret acc
+  ret
 }

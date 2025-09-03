@@ -1,19 +1,19 @@
 {
   "functions": {
     "main": 1,
-    "sum_work": 40,
-    "sum_down": 840
+    "sum_down": 840,
+    "sum_work": 40
   },
   "edges": [
-    {"caller": "sum_down", "callee": "sum_down", "count": 800},
+    {"caller": "<root>", "callee": "main", "count": 1},
     {"caller": "main", "callee": "sum_work", "count": 40},
     {"caller": "sum_work", "callee": "sum_down", "count": 40},
-    {"caller": "<root>", "callee": "main", "count": 1}
+    {"caller": "sum_down", "callee": "sum_down", "count": 800}
   ],
   "edges_map": {
-    "sum_down->sum_down": 800,
+    "<root>->main": 1,
     "main->sum_work": 40,
     "sum_work->sum_down": 40,
-    "<root>->main": 1
+    "sum_down->sum_down": 800
   }
 }

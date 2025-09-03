@@ -6,10 +6,11 @@
 //! the full IR parser.
 
 // Analyzer weight constants (can be tuned by calibrator)
-pub const DEFAULT_WEIGHT: usize = 1;
+// Applied calibration suggestion (rounded integers from calibrator)
+pub const DEFAULT_WEIGHT: usize = 10;
 pub const CALL_WEIGHT: usize = 1;
 pub const ALLOC_WEIGHT: usize = 1;
-pub const BLOCK_WEIGHT: usize = 1;
+pub const BLOCK_WEIGHT: usize = 10;
 
 pub struct IrAnalysis {
     pub instr_count: usize, // raw instruction-like lines

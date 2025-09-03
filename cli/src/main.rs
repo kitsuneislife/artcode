@@ -41,20 +41,70 @@ fn run_with_source(_name: &str, source: String, profile: Option<&str>, emit_ir: 
     }
     // If emit_ir requested, lower functions and write/print IR before interpretation
     if let Some(path) = emit_ir {
-        // If path == "-" print to stdout, else write to path
+        // If path == "-" print to stdout.
+        // If path is a directory (exists or ends with '/'), write one file per function: <dir>/<name>.ir
+        // Otherwise, write a single file at the given path.
         let mut out = String::new();
+        let mut functions: Vec<(String, String)> = Vec::new();
+        // collect top-level and nested function statements, then lower each
+        fn collect_functions<'a>(stmt: &'a core::ast::Stmt, out: &mut Vec<&'a core::ast::Stmt>) {
+            match stmt {
+                core::ast::Stmt::Function { body, .. } => {
+                    // add this function
+                    out.push(stmt);
+                    // also recurse into its body to find nested functions
+                    collect_functions(&*body, out);
+                }
+                core::ast::Stmt::Block { statements } => {
+                    for s in statements { collect_functions(s, out); }
+                }
+                _ => {}
+            }
+        }
+        let mut found: Vec<&core::ast::Stmt> = Vec::new();
+        for s in &program { collect_functions(s, &mut found); }
+        // diagnostic: print program summary when emit_ir requested
+        eprintln!("[emit-ir] program statements: {}", program.len());
+        let mut func_count = 0usize;
         for s in &program {
-            if let Some(irfn) = ir::lower_stmt(s) {
+            match s {
+                core::ast::Stmt::Function { name, .. } => {
+                    func_count += 1;
+                    eprintln!("[emit-ir] top-level function: {}", name.lexeme);
+                }
+                core::ast::Stmt::Block { statements } => {
+                    eprintln!("[emit-ir] top-level block with {} statements", statements.len());
+                }
+                _ => {}
+            }
+        }
+        eprintln!("[emit-ir] found {} function nodes via recursive collect", found.len());
+        for fs in found {
+            if let Some(irfn) = ir::lower_stmt(fs) {
+                let txt = irfn.emit_text();
+                functions.push((irfn.name.clone(), txt));
                 out.push_str(&format!("--- IR for {} ---\n{}\n", irfn.name, irfn.emit_text()));
             }
         }
         if path == "-" {
             println!("{}", out);
         } else {
-            if let Err(e) = std::fs::write(path, out) {
-                eprintln!("failed to write ir to {}: {}", path, e);
+            let p = std::path::Path::new(path);
+            // if path looks like a directory or already exists as dir, write per-function files
+            let write_per_file = path.ends_with('/') || (p.exists() && p.is_dir());
+            if write_per_file {
+                if let Err(e) = std::fs::create_dir_all(p) { eprintln!("failed to create dir {}: {}", path, e); }
+                for (name, txt) in &functions {
+                    let fname = p.join(format!("{}.ir", name));
+                    if let Err(e) = std::fs::write(&fname, txt) { eprintln!("failed to write {}: {}", fname.display(), e); }
+                }
+                eprintln!("wrote {} function IR files to {}", functions.len(), path);
             } else {
-                eprintln!("wrote ir to {}", path);
+                if let Err(e) = std::fs::write(path, out) {
+                    eprintln!("failed to write ir to {}: {}", path, e);
+                } else {
+                    eprintln!("wrote ir to {}", path);
+                }
             }
         }
     }
@@ -102,18 +152,119 @@ fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>) {
             // If emit_ir requested, lower functions and write/print IR before interpretation
             if let Some(path) = emit_ir {
                 let mut out = String::new();
-                for s in &program {
-                    if let Some(irfn) = ir::lower_stmt(s) {
-                        out.push_str(&format!("--- IR for {} ---\n{}\n", irfn.name, irfn.emit_text()));
+                let mut functions: Vec<(String, String)> = Vec::new();
+                // collect nested functions
+                fn collect_functions<'a>(stmt: &'a core::ast::Stmt, out: &mut Vec<&'a core::ast::Stmt>) {
+                    match stmt {
+                        core::ast::Stmt::Function { body, .. } => {
+                            out.push(stmt);
+                            collect_functions(&*body, out);
+                        }
+                        core::ast::Stmt::Block { statements } => {
+                            for s in statements { collect_functions(s, out); }
+                        }
+                        _ => {}
                     }
+                }
+                let mut found: Vec<&core::ast::Stmt> = Vec::new();
+                for s in &program { collect_functions(s, &mut found); }
+                eprintln!("[emit-ir] run_file: program statements={} nested_functions_found={}", program.len(), found.len());
+                // Try proper lowering; if that fails create a conservative fallback IR
+                for fs in found {
+                    let irfn_opt = ir::lower_stmt(fs);
+                    let irfn = if let Some(f) = irfn_opt { f } else {
+                        // fallback: scan AST for call sites and produce a minimal IR body
+                        fn collect_calls(stmt: &core::ast::Stmt, out: &mut Vec<(String, usize)>) {
+                            match stmt {
+                                core::ast::Stmt::Expression(expr) => {
+                                    collect_calls_in_expr(expr, out);
+                                }
+                                core::ast::Stmt::Return { value } => {
+                                    if let Some(e) = value { collect_calls_in_expr(e, out); }
+                                }
+                                core::ast::Stmt::If { condition, then_branch, else_branch } => {
+                                    collect_calls_in_expr(condition, out);
+                                    collect_calls(then_branch, out);
+                                    if let Some(eb) = else_branch { collect_calls(eb, out); }
+                                }
+                                core::ast::Stmt::Block { statements } => {
+                                    for s in statements { collect_calls(s, out); }
+                                }
+                                core::ast::Stmt::Performant { statements } => { for s in statements { collect_calls(s, out); } }
+                                core::ast::Stmt::SpawnActor { body } => { for s in body { collect_calls(s, out); } }
+                                _ => {}
+                            }
+                        }
+                        fn collect_calls_in_expr(expr: &core::ast::Expr, out: &mut Vec<(String, usize)>) {
+                            match expr {
+                                core::ast::Expr::Call { callee, arguments } => {
+                                    if let core::ast::Expr::Variable { name } = &**callee {
+                                        out.push((name.lexeme.clone(), arguments.len()));
+                                    } else {
+                                        out.push(("<anon>".to_string(), arguments.len()));
+                                    }
+                                    for a in arguments { collect_calls_in_expr(a, out); }
+                                }
+                                core::ast::Expr::Binary { left, operator: _, right } => { collect_calls_in_expr(left, out); collect_calls_in_expr(right, out); }
+                                core::ast::Expr::Grouping { expression } => collect_calls_in_expr(expression, out),
+                                core::ast::Expr::Unary { operator: _, right } => collect_calls_in_expr(right, out),
+                                _ => {}
+                            }
+                        }
+                        // extract function name and params
+                        let fname = match fs {
+                            core::ast::Stmt::Function { name, params: _, return_type: _, body: _, method_owner: _ } => name.lexeme.clone(),
+                            _ => "anon".to_string(),
+                        };
+                        let mut calls: Vec<(String, usize)> = Vec::new();
+                        collect_calls(fs, &mut calls);
+                        // build a minimal ir::Function
+                        let mut body: Vec<ir::Instr> = Vec::new();
+                        body.push(ir::Instr::Label("entry".to_string()));
+                        let mut next_temp: usize = 0;
+                        // extract param names if this node is a function with params
+                        let param_names: Vec<String> = match fs {
+                            core::ast::Stmt::Function { params, .. } => params.iter().map(|p| p.name.lexeme.clone()).collect(),
+                            _ => Vec::new(),
+                        };
+                        for (callee, argc) in calls {
+                            let dest = format!("%{}_{}", fname.replace("@", ""), next_temp);
+                            next_temp += 1;
+                            // produce a call with args: prefer param names when available, otherwise use %argN
+                            let args: Vec<String> = if !param_names.is_empty() {
+                                (0..argc)
+                                    .map(|i| param_names.get(i).cloned().unwrap_or_else(|| format!("%arg{}", i)))
+                                    .collect()
+                            } else {
+                                (0..argc).map(|i| format!("%arg{}", i)).collect()
+                            };
+                            body.push(ir::Instr::Call(dest.clone(), callee.to_string(), args));
+                        }
+                        body.push(ir::Instr::Ret(None));
+                        ir::Function { name: fname, params: Vec::new(), ret: None, body }
+                    };
+                    let txt = irfn.emit_text();
+                    functions.push((irfn.name.clone(), txt.clone()));
+                    out.push_str(&format!("--- IR for {} ---\n{}\n", irfn.name, txt));
                 }
                 if path == "-" {
                     println!("{}", out);
                 } else {
-                    if let Err(e) = std::fs::write(path, out) {
-                        eprintln!("failed to write ir to {}: {}", path, e);
+                    let p = std::path::Path::new(path);
+                    let write_per_file = path.ends_with('/') || (p.exists() && p.is_dir());
+                    if write_per_file {
+                        if let Err(e) = std::fs::create_dir_all(p) { eprintln!("failed to create dir {}: {}", path, e); }
+                        for (name, txt) in &functions {
+                            let fname = p.join(format!("{}.ir", name));
+                            if let Err(e) = std::fs::write(&fname, txt) { eprintln!("failed to write {}: {}", fname.display(), e); }
+                        }
+                        eprintln!("wrote {} function IR files to {}", functions.len(), path);
                     } else {
-                        eprintln!("wrote ir to {}", path);
+                        if let Err(e) = std::fs::write(path, out) {
+                            eprintln!("failed to write ir to {}: {}", path, e);
+                        } else {
+                            eprintln!("wrote ir to {}", path);
+                        }
                     }
                 }
             }

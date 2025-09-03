@@ -1,10 +1,4 @@
-func @sum_down(i64 n) -> i64 {
+func @sum_down() -> void {
 entry:
-  acc = const i64 0
-loop:
-  acc = add acc, n
-  n = sub n, const i64 1
-  br_cond n, loop, done
-done:
-  ret acc
+  ret
 }

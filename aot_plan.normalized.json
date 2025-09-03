@@ -9,8 +9,8 @@
           "count": 40
         }
       ],
-      "estimated_cost": 14,
-      "priority": 8.0
+      "estimated_cost": 2,
+      "priority": 40.0
     },
     {
       "name": "main",
@@ -21,8 +21,8 @@
           "count": 1
         }
       ],
-      "estimated_cost": 16,
-      "priority": 0.17647058823529413
+      "estimated_cost": 2,
+      "priority": 1.0
     }
   ]
 }

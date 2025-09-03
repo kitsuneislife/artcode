@@ -10,7 +10,7 @@ struct Profile { functions: HashMap<String,u64>, _edges_map: Option<HashMap<Stri
 #[derive(Deserialize)]
 struct AotPlan { inline_candidates: Vec<InlineCandidate> }
 #[derive(Deserialize)]
-struct InlineCandidate { name: String, _score: i64 }
+struct InlineCandidate { name: String, #[serde(flatten)] _other: serde_json::Value }
 
 #[derive(Serialize)]
 struct CalibrationSuggestion {
