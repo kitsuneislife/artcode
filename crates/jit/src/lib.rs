@@ -44,8 +44,8 @@ impl std::error::Error for JitError {}
 mod enabled {
     // Aqui, futuramente, colocaremos a integração com `inkwell` e ORC
     pub fn compile_function(_name: &str, _ir: &str) -> Result<*const u8, crate::JitError> {
-        // placeholder: implementação real dependerá de inkwell/LLVM
-        Err(crate::JitError::Other("JIT feature not yet implemented".to_string()))
+    // placeholder: implementação real dependerá de inkwell/LLVM
+    Err(crate::JitError::Other("NotImplemented".to_string()))
     }
 
     /// Minimal typed builder used by higher-level code to request JIT compilation.
@@ -53,9 +53,9 @@ mod enabled {
 
     impl JitBuilder {
         pub fn new() -> Self { JitBuilder {} }
-        pub fn compile(&self, name: &str, ir: &str) -> Result<*const u8, JitError> {
-                compile_function(name, ir).map_err(|s| JitError::Other(s))
-        }
+    pub fn compile(&self, name: &str, ir: &str) -> Result<*const u8, JitError> {
+        compile_function(name, ir)
+    }
     }
 }
 
