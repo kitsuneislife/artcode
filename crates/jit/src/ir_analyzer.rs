@@ -5,9 +5,17 @@
 //! to provide a cheap cost metric for AOT/JIT heuristics without depending on
 //! the full IR parser.
 
+// Analyzer weight constants (can be tuned by calibrator)
+pub const DEFAULT_WEIGHT: usize = 1;
+pub const CALL_WEIGHT: usize = 5;
+pub const ALLOC_WEIGHT: usize = 10;
+pub const BLOCK_WEIGHT: usize = 2;
+
 pub struct IrAnalysis {
-    pub instr_count: usize,
+    pub instr_count: usize, // raw instruction-like lines
     pub block_count: usize,
+    pub call_count: usize,
+    pub alloc_count: usize,
 }
 
 /// Analyze textual IR and return instruction and block counts.
@@ -20,6 +28,8 @@ pub struct IrAnalysis {
 pub fn analyze_ir_text(s: &str) -> IrAnalysis {
     let mut instr = 0usize;
     let mut blocks = 0usize;
+    let mut calls = 0usize;
+    let mut allocs = 0usize;
     for line in s.lines() {
         let t = line.trim();
         if t.is_empty() {
@@ -43,9 +53,11 @@ pub fn analyze_ir_text(s: &str) -> IrAnalysis {
         // weight certain opcodes higher because they indicate heavier work
         let lower = t.to_ascii_lowercase();
         if lower.starts_with("call ") || lower.contains(" call ") || lower.contains("= call") {
-            instr += 5; // calls are heavier
+            instr += 1;
+            calls += 1;
         } else if lower.contains("gc_alloc") || lower.contains("arena_alloc") {
-            instr += 10; // allocation intrinsics are costly
+            instr += 1;
+            allocs += 1;
         } else {
             instr += 1;
         }
@@ -53,6 +65,8 @@ pub fn analyze_ir_text(s: &str) -> IrAnalysis {
     IrAnalysis {
         instr_count: instr,
         block_count: blocks,
+        call_count: calls,
+        alloc_count: allocs,
     }
 }
 

@@ -53,18 +53,18 @@ fn normalize_plan(mut plan: AotPlan, ir_dir: Option<&std::path::Path>) -> AotPla
     // 2) Process candidates in parallel using rayon, using the cached results.
     use std::sync::Arc;
 
-    // Build analysis cache: name -> (instr_count, block_count)
-    let mut analysis_map: HashMap<String, (usize, usize)> = HashMap::new();
+    // Build analysis cache: name -> IrAnalysis
+    let mut analysis_map: HashMap<String, ir_analyzer::IrAnalysis> = HashMap::new();
     if let Some(dir) = ir_dir {
         for c in &plan.inline_candidates {
             let candidate = dir.join(format!("{}.ir", c.name));
             if candidate.exists() {
                 // Prefer structured loader if it recognizes heavy opcodes
                 if let Some(a) = parse_ir_file(&candidate) {
-                    analysis_map.insert(c.name.clone(), (a.instr_count, a.block_count));
+                    analysis_map.insert(c.name.clone(), a);
                 } else if let Ok(s) = std::fs::read_to_string(&candidate) {
                     let a = analyze_ir_text(&s);
-                    analysis_map.insert(c.name.clone(), (a.instr_count, a.block_count));
+                    analysis_map.insert(c.name.clone(), a);
                 }
             }
         }
@@ -91,10 +91,14 @@ fn normalize_plan(mut plan: AotPlan, ir_dir: Option<&std::path::Path>) -> AotPla
                 .map(|(caller, count)| CallerExample { caller, count })
                 .collect();
 
-            // estimate cost from analysis_map if available
+            // estimate cost from analysis_map if available using feature weights
             let mut est_cost: Option<usize> = None;
-            if let Some((instr_count, block_count)) = analysis_map.get(&c.name) {
-                let est = *instr_count + *block_count * 2;
+            if let Some(a) = analysis_map.get(&c.name) {
+                let est_f = (a.instr_count as f64 * ir_analyzer::DEFAULT_WEIGHT as f64)
+                    + (a.call_count as f64 * ir_analyzer::CALL_WEIGHT as f64)
+                    + (a.alloc_count as f64 * ir_analyzer::ALLOC_WEIGHT as f64)
+                    + (a.block_count as f64 * ir_analyzer::BLOCK_WEIGHT as f64);
+                let est = est_f.max(0.0).round() as usize;
                 est_cost = Some(est);
             }
             c.estimated_cost = est_cost;

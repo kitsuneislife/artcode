@@ -240,8 +240,7 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
 
     if block_count == 0 && !func.body.is_empty() { block_count = 1; }
 
-    // Weighted metric: calls and allocs heavier, plus slight block penalty
-    let weighted = instr_count + call_count * 5 + alloc_count * 10 + block_count * 2;
-    Some(IrAnalysis { instr_count: weighted, block_count })
+    // Return raw feature counts; weighting is applied by the analyzer using tunable constants.
+    Some(IrAnalysis { instr_count, block_count, call_count, alloc_count })
 }
 

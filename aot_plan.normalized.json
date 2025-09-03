@@ -8,7 +8,8 @@
           "caller": "main",
           "count": 40
         }
-      ]
+      ],
+      "priority": 120.0
     },
     {
       "name": "main",
@@ -18,7 +19,8 @@
           "caller": "<root>",
           "count": 1
         }
-      ]
+      ],
+      "priority": 3.0
     }
   ]
 }
