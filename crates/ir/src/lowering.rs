@@ -162,6 +162,8 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
                 let else_bb = format!("{}_else", fname_prefix);
                 let merge_bb = format!("{}_merge", fname_prefix);
 
+                // optional pre-body (e.g. materialized consts for literal conditions)
+                let mut pre_body_opt: Option<Vec<Instr>> = None;
                 // lower condition: only var or literal supported for now
                 let cond_name = match condition {
                             Expr::Variable { name } => name.lexeme.clone(),
@@ -169,22 +171,13 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
                                 // materialize a const bool as i64 (0/1) in temp; record into pre_body
                                 let t = mktemp();
                                 let v = if *b { 1 } else { 0 };
-                                let mut pb: Vec<Instr> = Vec::new();
-                                pb.push(Instr::ConstI64(t.clone(), v));
-                                // store pre_body in an option to be emitted later
-                                // We'll set cond_name to the temp we created.
-                                // Note: return cond_name as t and attach pre_body later.
-                                // Use a side-channel via a mutable variable below.
-                                // We'll shadow cond_name after the match to access pb via outer scope.
-                                // To implement this cleanly, we'll use a trick: store pb in a local
-                                // variable `pre_body_opt` declared below. For now, just return t.
+                                let pb = vec![Instr::ConstI64(t.clone(), v)];
+                                // attach pre_body to be emitted before entry br
+                                pre_body_opt = Some(pb);
                                 t
                             }
                     _ => return None,
                 };
-
-                // optional pre-body (e.g. materialized consts for literal conditions)
-                let mut pre_body_opt: Option<Vec<Instr>> = None;
 
                 // lower then_branch: expect Return { value: Some(Literal Int) } or Binary
                 let then_res = match &**then_branch {

@@ -1,18 +1,20 @@
 // Lightweight LLVM builder trait skeleton. Real implementation lives behind
 // the `jit` feature and depends on `inkwell`.
 
+use crate::JitError;
+
 pub trait LlvmBuilder {
     /// Initialize the builder/runtime. Returns an opaque handle or error.
-    fn initialize() -> Result<(), String>
+    fn initialize() -> Result<(), JitError>
     where
         Self: Sized;
 
     /// Lower textual IR to an LLVM module representation and return the textual
     /// LLVM IR. The real implementation will construct an in-memory module.
-    fn lower_ir_to_module(ir_text: &str) -> Result<String, String>;
+    fn lower_ir_to_module(ir_text: &str) -> Result<String, JitError>;
 
     /// Compile the module (text) and return a function pointer for `name`.
-    fn compile_module_get_symbol(module_text: &str, name: &str) -> Result<usize, String>;
+    fn compile_module_get_symbol(module_text: &str, name: &str) -> Result<usize, JitError>;
 }
 
 #[cfg(not(feature = "jit"))]
@@ -20,16 +22,16 @@ pub struct DummyLlvmBuilder;
 
 #[cfg(not(feature = "jit"))]
 impl LlvmBuilder for DummyLlvmBuilder {
-    fn initialize() -> Result<(), String> {
+    fn initialize() -> Result<(), JitError> {
         Ok(())
     }
 
-    fn lower_ir_to_module(_ir_text: &str) -> Result<String, String> {
-        Err("lowering not available: build with --features=jit".to_string())
+    fn lower_ir_to_module(_ir_text: &str) -> Result<String, JitError> {
+        Err(JitError::LoweringNotAvailable)
     }
 
-    fn compile_module_get_symbol(_module_text: &str, _name: &str) -> Result<usize, String> {
-        Err("jit not available: build with --features=jit".to_string())
+    fn compile_module_get_symbol(_module_text: &str, _name: &str) -> Result<usize, JitError> {
+        Err(JitError::NotEnabled)
     }
 }
 
