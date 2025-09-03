@@ -4,49 +4,68 @@ use crate::ir_analyzer::IrAnalysis;
 use ir::{Function, Instr, Type};
 
 /// Parse a textual IR file into an `IrAnalysis` using `ir::Function` representations.
-/// This parser is intentionally permissive: it supports the documented subset and
-/// falls back to the textual analyzer when the file looks too small/simple.
+/// This parser is permissive but attempts to map the real textual IR emitted by
+/// `crates/ir::Function::emit_text()` into `ir::Function` and its `Instr`s.
 pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
     let s = fs::read_to_string(path).ok()?;
-    // If file doesn't contain interesting tokens, bail out to let the lighter
-    // text analyzer handle it (avoids over-parsing trivial files).
-    if !s.contains("call") && !s.contains("gc_alloc") && !s.contains("arena_alloc") {
+    // only attempt a full parse when file looks like a function emission
+    if !s.contains("func @") {
         return None;
     }
 
-    // Start a permissive parse
     let mut fname = String::new();
     let mut ret_ty: Option<Type> = None;
     let mut body: Vec<Instr> = Vec::new();
+    let mut params: Vec<(String, Type)> = Vec::new();
 
     for raw in s.lines() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with("//") {
             continue;
         }
-        // header: func @name(...) -> typ {
+
+        // function header: func @name(params) -> typ {
         if line.starts_with("func @") {
-            // attempt to extract name and return type
-            if let Some(at) = line.split_whitespace().nth(1) {
-                // at is like @name(params) -> ret {
-                if let Some(rest) = at.strip_prefix("@") {
-                    // name possibly with params; take until '(' or '{'
+            // name
+            if let Some(start) = line.find('@') {
+                if let Some(rest) = line[start + 1..].split_whitespace().next() {
+                    // rest might be like "name(params)"
                     let name = rest.split('(').next().unwrap_or(rest).trim_end_matches('{').to_string();
                     fname = name;
                 }
             }
-            if line.contains("->") {
-                if let Some(ret) = line.split("->").nth(1) {
-                    let part = ret.trim().trim_end_matches('{').trim();
-                    match part.split_whitespace().next().unwrap_or("") {
-                        "i64" => ret_ty = Some(Type::I64),
-                        "f64" => ret_ty = Some(Type::F64),
-                        _ => ret_ty = None,
+            // params
+            if let Some(lp) = line.find('(') {
+                if let Some(rp_rel) = line[lp..].find(')') {
+                    let inside = &line[lp + 1..lp + rp_rel];
+                    for part in inside.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+                        let mut toks = part.split_whitespace();
+                        if let Some(ty) = toks.next() {
+                            if let Some(name) = toks.next() {
+                                let t = match ty {
+                                    "i64" => Type::I64,
+                                    "f64" => Type::F64,
+                                    _ => Type::I64,
+                                };
+                                params.push((name.to_string(), t));
+                            }
+                        }
                     }
+                }
+            }
+            // return type
+            if let Some(idx) = line.find("->") {
+                let after = &line[idx + 2..];
+                let part = after.trim().trim_end_matches('{').trim();
+                match part.split_whitespace().next().unwrap_or("") {
+                    "i64" => ret_ty = Some(Type::I64),
+                    "f64" => ret_ty = Some(Type::F64),
+                    _ => ret_ty = None,
                 }
             }
             continue;
         }
+
         if line == "}" { break; }
 
         // label
@@ -62,8 +81,7 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
             body.push(Instr::Br(arg.to_string()));
             continue;
         }
-        if line.starts_with("br_cond") || line.starts_with("br_cond ") {
-            // formats: br_cond pred, if_true, if_false
+        if line.starts_with("br_cond") {
             let rest = line.trim_start_matches("br_cond").trim();
             let parts: Vec<&str> = rest.split(',').map(|s| s.trim()).collect();
             if parts.len() >= 3 {
@@ -84,7 +102,8 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
             let (lhs, rhs) = line.split_at(eq);
             let dest = lhs.trim().to_string();
             let rhs = rhs.trim_start_matches('=').trim();
-            // const
+
+            // const i64
             if rhs.starts_with("const ") && rhs.contains("i64") {
                 if let Some(vstr) = rhs.split_whitespace().last() {
                     if let Ok(v) = vstr.parse::<i64>() {
@@ -93,9 +112,9 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
                     }
                 }
             }
-            // arithmetic
+
+            // arithmetic: add/sub/mul/div
             if rhs.starts_with("add ") || rhs.contains(" add ") {
-                // pattern: add i64 a, b
                 let parts: Vec<&str> = rhs.split_whitespace().collect();
                 if parts.len() >= 4 {
                     let a = parts[2].trim_end_matches(',').to_string();
@@ -131,12 +150,38 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
                     continue;
                 }
             }
-            // call pattern: call name(args) or call fn(args)
-            if rhs.contains("call") {
-                // simplistic: find 'call ' and parse name and args inside parentheses
+
+            // phi: phi TYPE [ v, bb ], [ v2, bb2 ]
+            if rhs.starts_with("phi ") {
+                let parts: Vec<&str> = rhs.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    let ty_tok = parts[1];
+                    let ty = match ty_tok {
+                        "i64" => Type::I64,
+                        "f64" => Type::F64,
+                        _ => Type::I64,
+                    };
+                    let mut pairs: Vec<(String, String)> = Vec::new();
+                    let mut rest = rhs.to_string();
+                    while let Some(lbr) = rest.find('[') {
+                        if let Some(rbr) = rest[lbr..].find(']') {
+                            let inner = &rest[lbr + 1..lbr + rbr];
+                            let kv: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+                            if kv.len() >= 2 {
+                                pairs.push((kv[0].to_string(), kv[1].to_string()));
+                            }
+                            rest = rest[lbr + rbr + 1..].to_string();
+                        } else { break; }
+                    }
+                    body.push(Instr::Phi(dest, ty, pairs));
+                    continue;
+                }
+            }
+
+            // call pattern: call name(args)
+            if rhs.starts_with("call") || rhs.contains("= call") || rhs.contains(" call ") {
                 if let Some(pos) = rhs.find("call") {
                     let after = rhs[pos + 4..].trim();
-                    // e.g. sum( a, b ) or @sum(a)
                     let fnname = after.split('(').next().unwrap_or(after).trim().to_string();
                     let args = if let Some(start) = after.find('(') {
                         let inner = &after[start + 1..];
@@ -148,22 +193,25 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
                     continue;
                 }
             }
-            // fallback: treat as a call-like to capture heavy ops like gc_alloc
+
+            // fallback: detect allocation intrinsics
             if rhs.contains("gc_alloc") || rhs.contains("arena_alloc") {
                 let fnname = if rhs.contains("gc_alloc") { "gc_alloc" } else { "arena_alloc" };
                 body.push(Instr::Call(dest, fnname.to_string(), vec![]));
                 continue;
             }
-            // unknown assignment -> treat as generic instruction via dest = add (fallback)
+
+            // unknown assignment -> best-effort: assume simple instr
             body.push(Instr::Add(dest.clone(), "0".to_string(), "0".to_string()));
             continue;
         }
 
-        // non-assignment instructions: e.g., 'ret' handled earlier; otherwise ignore
+        // non-assignment instructions (none else for now)
     }
 
     // Build Function and compute metrics
-    let func = Function { name: fname, params: Vec::new(), ret: ret_ty, body };
+    let func = Function { name: fname, params, ret: ret_ty, body };
+
     // Count blocks and instruction kinds
     let mut instr_count = 0usize;
     let mut block_count = 0usize;
@@ -185,7 +233,7 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
 
     if block_count == 0 && !func.body.is_empty() { block_count = 1; }
 
-    // Weighted metric
+    // Weighted metric: calls and allocs heavier, plus slight block penalty
     let weighted = instr_count + call_count * 5 + alloc_count * 10 + block_count * 2;
     Some(IrAnalysis { instr_count: weighted, block_count })
 }
