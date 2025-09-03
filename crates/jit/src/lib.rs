@@ -46,8 +46,23 @@ impl std::error::Error for JitError {}
 mod enabled {
     // Aqui, futuramente, colocaremos a integração com `inkwell` e ORC
     pub fn compile_function(_name: &str, _ir: &str) -> Result<*const u8, crate::JitError> {
-        // placeholder: implementação real dependerá de inkwell/LLVM
-        Err(crate::JitError::Other("NotImplemented".to_string()))
+        // Use the prototype LLVM builder to lower textual IR and compile a symbol.
+        // The LLVM builder prototype returns `String` errors; map them into `JitError`.
+        // Note: this code is only compiled when feature `jit` is enabled.
+        match crate::llvm_builder::LlvmBuilderImpl::initialize() {
+            Ok(()) => {}
+            Err(e) => return Err(crate::JitError::EngineCreation(e)),
+        }
+
+        let module_text = match crate::llvm_builder::LlvmBuilderImpl::lower_ir_to_module(_ir) {
+            Ok(m) => m,
+            Err(e) => return Err(crate::JitError::Other(e)),
+        };
+
+        match crate::llvm_builder::LlvmBuilderImpl::compile_module_get_symbol(&module_text, _name) {
+            Ok(addr) => Ok(addr as *const u8),
+            Err(e) => Err(crate::JitError::Other(e)),
+        }
     }
 
     /// Minimal typed builder used by higher-level code to request JIT compilation.
