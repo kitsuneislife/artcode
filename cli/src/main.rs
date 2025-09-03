@@ -358,6 +358,25 @@ fn main() {
                             std::process::exit(70);
                         }
                     }
+                    // Also write a minimal artifact file derived from the out path.
+                    let art_path = {
+                        let p = std::path::Path::new(&out_path);
+                        if let Some(s) = p.to_str() {
+                            if s.ends_with(".json") {
+                                let base = &s[..s.len()-5];
+                                std::path::PathBuf::from(format!("{}.artifact.json", base))
+                            } else {
+                                std::path::PathBuf::from(format!("{}.artifact.json", s))
+                            }
+                        } else {
+                            p.with_file_name("aot_artifact.json")
+                        }
+                    };
+                    if let Err(e) = aot::write_minimal_aot_artifact(std::path::Path::new(&out_path), &art_path) {
+                        eprintln!("failed to write aot artifact: {}", e);
+                    } else {
+                        println!("wrote AOT artifact to {}", art_path.display());
+                    }
                 }
                 Err(e) => {
                     eprintln!("failed to read profile {}: {}", p, e);

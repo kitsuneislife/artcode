@@ -73,6 +73,22 @@ pub fn generate_aot_plan_from_profile_str(profile_str: &str, out_path: &Path) ->
     Ok(())
 }
 
+/// Write a minimal AOT artifact JSON next to the plan. This is a small helper
+/// used by the CLI to produce a consumable artifact file for downstream steps.
+pub fn write_minimal_aot_artifact(plan_path: &Path, out_artifact: &Path) -> Result<(), String> {
+    // Read plan and produce a tiny artifact that includes the plan plus a
+    // metadata header.
+    let plan_str = std::fs::read_to_string(plan_path).map_err(|e| format!("read plan: {}", e))?;
+    let plan_json: serde_json::Value = serde_json::from_str(&plan_str).map_err(|e| format!("parse plan: {}", e))?;
+    let artifact = serde_json::json!({
+        "format_version": 1,
+        "source": plan_path.file_name().and_then(|n| n.to_str()).unwrap_or("aot_plan.json"),
+        "plan": plan_json,
+    });
+    std::fs::write(out_artifact, serde_json::to_string_pretty(&artifact).map_err(|e| format!("serialize artifact: {}", e))?).map_err(|e| format!("write artifact: {}", e))?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

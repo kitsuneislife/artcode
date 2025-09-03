@@ -1,0 +1,28 @@
+{
+  "format_version": 1,
+  "plan": {
+    "inline_candidates": [
+      {
+        "caller_examples": [
+          {
+            "caller": "main",
+            "count": 40
+          }
+        ],
+        "name": "sum_work",
+        "score": 120
+      },
+      {
+        "caller_examples": [
+          {
+            "caller": "<root>",
+            "count": 1
+          }
+        ],
+        "name": "main",
+        "score": 3
+      }
+    ]
+  },
+  "source": "aot_plan.json"
+}
