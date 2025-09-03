@@ -7,9 +7,9 @@
 
 // Analyzer weight constants (can be tuned by calibrator)
 pub const DEFAULT_WEIGHT: usize = 1;
-pub const CALL_WEIGHT: usize = 5;
-pub const ALLOC_WEIGHT: usize = 10;
-pub const BLOCK_WEIGHT: usize = 2;
+pub const CALL_WEIGHT: usize = 1;
+pub const ALLOC_WEIGHT: usize = 1;
+pub const BLOCK_WEIGHT: usize = 1;
 
 pub struct IrAnalysis {
     pub instr_count: usize, // raw instruction-like lines
