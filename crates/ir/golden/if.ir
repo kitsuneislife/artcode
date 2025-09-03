@@ -1,12 +1,13 @@
 func @f() -> i64 {
-  br_cond %f_0, f_then, f_else
-f_then:
   %t0 = const i64 1
+  br_cond %t0, f_then, f_else
+f_then:
+  %t1 = const i64 1
   br f_merge
 f_else:
-  %t1 = const i64 2
+  %t2 = const i64 2
   br f_merge
 f_merge:
-  %t2 = phi i64 [ %t0, f_then ], [ %t1, f_else ]
-  ret %t2
+  %t3 = phi i64 [ %t1, f_then ], [ %t2, f_else ]
+  ret %t3
 }
