@@ -19,8 +19,7 @@ fn golden_lower_call_literals() {
     let caller_body = Stmt::Return { value: Some(call_expr) };
     let caller = Stmt::Function { name: caller_name, params: caller_params, return_type: Some("i64".to_string()), body: std::rc::Rc::new(Stmt::Block { statements: vec![caller_body] }), method_owner: None };
 
-    // Lower both functions; ensure call instruction or literal materialization appears
-    let _ = lower_stmt(&callee).expect("lowering callee failed");
+    // Lower caller function; ensure call instruction or literal materialization appears
     let irf = lower_stmt(&caller).expect("lowering caller failed");
     let text = irf.emit_text();
     assert!(text.contains("call") || text.contains("ConstI64"), "expected call or ConstI64 in caller lowering, got: {}", text);
