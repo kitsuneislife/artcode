@@ -67,6 +67,18 @@ pub fn compile_and_run_or_interpret<F>(name: &str, ir_text: &str, interpret: F) 
 where
     F: FnOnce() -> i64,
 {
+    // Basic sanity: ensure the IR signature matches the expected native ABI we will
+    // call (zero-arg -> i64). This prevents transmuting to an incompatible
+    // function pointer when JIT has a different prototype.
+    match parse_ir_signature(ir_text) {
+        Ok((param_count, ret_ty)) => {
+            if param_count != 0 || ret_ty != "i64" {
+                return Err(format!("IR signature mismatch: params={} ret={}", param_count, ret_ty));
+            }
+        }
+        Err(e) => return Err(format!("failed to parse IR signature: {}", e)),
+    }
+
     // If JIT is enabled, try to compile and execute.
     #[cfg(feature = "jit")]
     {
@@ -96,6 +108,31 @@ where
     {
         Ok(interpret())
     }
+}
+
+/// Parse a minimal signature from the textual IR. Returns (param_count, return_type)
+/// for lines like: `func @f() -> i64 { ... }` or `func @f(i64, i64) -> i64 {`.
+pub fn parse_ir_signature(ir_text: &str) -> Result<(usize, String), String> {
+    // Find 'func @'
+    let idx = ir_text.find("func @").ok_or("missing 'func @' prefix")?;
+    let after = &ir_text[idx + "func @".len()..];
+    // find first '(' after name
+    let open = after.find('(').ok_or("missing '(' in signature")?;
+    let name = &after[..open].trim();
+    if name.is_empty() {
+        return Err("empty function name".to_string());
+    }
+    let rest = &after[open + 1..];
+    let close = rest.find(')').ok_or("missing ')' in signature")?;
+    let params = &rest[..close].trim();
+    let param_count = if params.is_empty() { 0 } else { params.split(',').count() };
+    // look for '->' after close
+    let after_close = &rest[close + 1..];
+    let arrow_pos = after_close.find("->").ok_or("missing '->' return type")?;
+    let after_arrow = &after_close[arrow_pos + 2..];
+    // the return type may be followed by space and '{' or '{' directly
+    let ret_ty = after_arrow.split_whitespace().next().ok_or("missing return type")?;
+    Ok((param_count, ret_ty.to_string()))
 }
 
 pub mod llvm_builder;
@@ -176,6 +213,29 @@ mod tests {
         let ir = "func @f() -> i64 { entry: %c = const i64 7 br end\nend: ret %c }";
         let v = compile_and_run_or_interpret("f", ir, || 7).expect("should return 7");
         assert_eq!(v, 7);
+    }
+
+    #[test]
+    fn parse_signature_ok() {
+        let ir = "func @sum(i64, i64) -> i64 { entry: ret }";
+        let (pc, rt) = parse_ir_signature(ir).expect("parse");
+        assert_eq!(pc, 2);
+        assert_eq!(rt, "i64");
+    }
+
+    #[test]
+    fn parse_signature_errors() {
+        let ir = "func f() { entry: ret }"; // missing @
+        assert!(parse_ir_signature(ir).is_err());
+        let ir2 = "func @g(i64 -> i64 {"; // missing )
+        assert!(parse_ir_signature(ir2).is_err());
+    }
+
+    #[test]
+    fn reject_non_i64_signature() {
+        let ir = "func @f() -> i32 { entry: ret }";
+        let res = compile_and_run_or_interpret("f", ir, || 0);
+        assert!(res.is_err());
     }
 
 }
