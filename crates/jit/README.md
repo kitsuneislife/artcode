@@ -1,3 +1,34 @@
+README for crates/jit
+
+Habilitando e testando o JIT (resumo)
+
+- O crate `crates/jit` é opcional e feature-gated. Para compilar com suporte a LLVM:
+  - adicione `--features=jit` nos comandos `cargo build`/`cargo test`/`cargo run`.
+
+- Smoke test:
+  - Há um teste de smoke em `crates/jit/tests/jit_smoke.rs` que é compilado apenas quando a feature `jit` está ativa.
+  - O teste está marcado `#[ignore]` por padrão; execute manualmente com:
+    - `cargo test -p jit --features=jit -- --ignored`
+
+- Executando em um ambiente com LLVM (Docker):
+  - Um Dockerfile preparado está em `ci/docker/llvm/Dockerfile` e pode ser usado para produzir uma imagem com LLVM dev libs compatíveis.
+  - Dentro da imagem, rode:
+    - `cargo test -p jit --features=jit -- --ignored`
+
+- Observações:
+  - Mantemos o JIT por feature para não forçar dependências de LLVM em todos os contribuidores.
+  - O código do builder LLVM está em `crates/jit/src/llvm_builder.rs` (protótipo). Se você for estender, siga o padrão de fallback para builds sem `jit`.
+
+Referência CI (opt-in):
+
+- Há um workflow opt-in `ci-jit-smoke.yml` que constrói uma imagem Docker com LLVM (`ci/docker/llvm/Dockerfile`) e executa o smoke test.
+- No PR, adicione o label `jit-smoke` para disparar o job; também é possível acionar manualmente via "Run workflow".
+
+Bench local:
+
+- Script mínimo: `bench/run_jit_micro.sh` — prepara a build com `--features=jit` e tenta executar um micro exemplo.
+
+Se precisar de ajuda para ajustar a imagem Docker (versões do LLVM / inkwell), abra uma issue com detalhes do host OS e a saída dos comandos `rustc --version` e `ldd $(which clang)`.
 # JIT (scaffold)
 
 Esta crate é um scaffold mínimo para a futura implementação do JIT (baseada em LLVM).

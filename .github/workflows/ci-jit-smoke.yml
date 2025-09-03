@@ -1,3 +1,30 @@
+name: ci-jit-smoke
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    types: [labeled]
+
+jobs:
+  jit-smoke:
+    name: JIT smoke (opt-in)
+    runs-on: ubuntu-latest
+    if: github.event.action == 'labeled' && contains(github.event.pull_request.labels.*.name, 'jit-smoke') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build LLVM-enabled image
+        run: |
+          docker build -t artcode-llvm \
+            -f ci/docker/llvm/Dockerfile .
+
+      - name: Run JIT smoke inside container
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/src" -w /src artcode-llvm /bin/bash -lc "cargo test -p jit --features=jit -- --ignored"
 name: CI - JIT smoke (opt-in)
 
 on:
