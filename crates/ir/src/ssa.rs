@@ -79,3 +79,130 @@ pub fn rename_temps(func: &mut Function) {
         }
     }
 }
+
+/// Conservative phi-insertion pass.
+///
+/// Splits the function body into basic blocks by labels, computes predecessors,
+/// and where a block has multiple predecessors with differing last-defined
+/// temps, inserts a Phi instruction at the block entry and rewrites local
+/// uses to consume the phi result. This is intentionally simplistic.
+pub fn insert_phi_nodes(func: &mut Function) {
+    use crate::Instr;
+
+    // Split into blocks
+    let mut blocks: Vec<(String, Vec<Instr>)> = Vec::new();
+    let mut cur_label = "entry".to_string();
+    let mut cur_block: Vec<Instr> = Vec::new();
+    for instr in func.body.drain(..) {
+        match &instr {
+            Instr::Label(l) => {
+                // emit previous
+                blocks.push((cur_label.clone(), cur_block));
+                cur_label = l.clone();
+                cur_block = Vec::new();
+                cur_block.push(instr);
+            }
+            _ => cur_block.push(instr),
+        }
+    }
+    blocks.push((cur_label.clone(), cur_block));
+
+    // index map
+    let mut idx_of: std::collections::HashMap<String, usize> = HashMap::new();
+    for (i, (lbl, _)) in blocks.iter().enumerate() {
+        idx_of.insert(lbl.clone(), i);
+    }
+
+    // successors
+    let mut succs: Vec<Vec<String>> = vec![Vec::new(); blocks.len()];
+    for (i, (_lbl, b)) in blocks.iter().enumerate() {
+        if let Some(last) = b.iter().rev().find(|_| true) {
+            match last {
+                Instr::Br(t) => succs[i].push(t.clone()),
+                Instr::BrCond(_, t, f) => { succs[i].push(t.clone()); succs[i].push(f.clone()); }
+                _ => {}
+            }
+        }
+    }
+
+    // predecessors
+    let mut preds: Vec<Vec<String>> = vec![Vec::new(); blocks.len()];
+    for (i, s) in succs.iter().enumerate() {
+        for target in s.iter() {
+            if let Some(&j) = idx_of.get(target) { preds[j].push(blocks[i].0.clone()); }
+        }
+    }
+
+    // helper: last def in a block
+    let last_def = |b: &Vec<Instr>| -> Option<String> {
+        for instr in b.iter().rev() {
+            match instr {
+                Instr::ConstI64(name, _) => return Some(name.clone()),
+                Instr::Add(dest, _, _) | Instr::Sub(dest, _, _) | Instr::Mul(dest, _, _) | Instr::Div(dest, _, _) | Instr::Call(dest, _, _) | Instr::Phi(dest, _, _) => return Some(dest.clone()),
+                _ => {}
+            }
+        }
+        None
+    };
+
+    // process blocks with multiple preds
+    for i in 0..blocks.len() {
+        if preds[i].len() <= 1 { continue; }
+
+        let mut incoming: Vec<(String, String)> = Vec::new();
+        for p in preds[i].iter() {
+            if let Some(&pi) = idx_of.get(p) {
+                if let Some(v) = last_def(&blocks[pi].1) { incoming.push((v, blocks[pi].0.clone())); }
+            }
+        }
+        if incoming.is_empty() { continue; }
+        let all_same = incoming.windows(2).all(|w| w[0].0 == w[1].0);
+        if all_same { continue; }
+
+        let phi_dest = format!("%phi_{}_{}", func.name.replace("@", ""), i);
+        let pairs = incoming.clone();
+        let ty = crate::Type::I64;
+        let phi_instr = Instr::Phi(phi_dest.clone(), ty, pairs);
+
+        // insert phi at start (after label if present)
+        let mut new_block: Vec<Instr> = Vec::new();
+        if let Some(first) = blocks[i].1.first() {
+            match first {
+                Instr::Label(_) => {
+                    new_block.push(first.clone());
+                    new_block.push(phi_instr);
+                    for instr in blocks[i].1.iter().skip(1) { new_block.push(instr.clone()); }
+                }
+                _ => {
+                    new_block.push(crate::Instr::Label(blocks[i].0.clone()));
+                    new_block.push(phi_instr);
+                    for instr in blocks[i].1.iter() { new_block.push(instr.clone()); }
+                }
+            }
+        } else { continue; }
+
+        // rewrite uses inside block: replace incoming temps with phi_dest conservatively
+        for instr in new_block.iter_mut() {
+            match instr {
+                Instr::Add(_d, a, b) | Instr::Sub(_d, a, b) | Instr::Mul(_d, a, b) | Instr::Div(_d, a, b) => {
+                    if incoming.iter().any(|(v, _)| v == a) { *a = phi_dest.clone(); }
+                    if incoming.iter().any(|(v, _)| v == b) { *b = phi_dest.clone(); }
+                }
+                Instr::Call(_d, _f, args) => {
+                    for a in args.iter_mut() { if incoming.iter().any(|(v, _)| v == a) { *a = phi_dest.clone(); } }
+                }
+                Instr::BrCond(pred, _t, _f) => {
+                    if incoming.iter().any(|(v, _)| v == pred) { *pred = phi_dest.clone(); }
+                }
+                _ => {}
+            }
+        }
+
+        blocks[i].1 = new_block;
+    }
+
+    // flatten
+    let mut out: Vec<Instr> = Vec::new();
+    for (_lbl, b) in blocks.into_iter() { for instr in b.into_iter() { out.push(instr); } }
+    func.body = out;
+}

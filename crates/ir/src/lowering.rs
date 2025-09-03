@@ -268,10 +268,23 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
 
 // Update top-level dispatcher to try plain, then if lowering
 pub fn lower_stmt(stmt: &Stmt) -> Option<Function> {
-    if let Some(f) = lower_plain(stmt) { return Some(f); }
-    if let Some(f) = lower_if_function(stmt) { return Some(f); }
+    // try plain
+    if let Some(f) = lower_plain(stmt) {
+        return Some(f);
+    }
+    // try if lowering
+    if let Some(mut f) = lower_if_function(stmt) {
+        // run conservative phi insertion and rename temps for stable output
+        crate::ssa::insert_phi_nodes(&mut f);
+        crate::ssa::rename_temps(&mut f);
+        return Some(f);
+    }
     // try match lowering
-    if let Some(f) = lower_match_function(stmt) { return Some(f); }
+    if let Some(mut f) = lower_match_function(stmt) {
+        crate::ssa::insert_phi_nodes(&mut f);
+        crate::ssa::rename_temps(&mut f);
+        return Some(f);
+    }
     None
 }
 
