@@ -26,5 +26,10 @@ fn run_modules_example() {
     let mut cmd = Command::cargo_bin("art").expect("binary");
     cmd.arg("run").arg(main.to_str().unwrap());
     let out = cmd.output().expect("run art");
-    assert!(out.status.success(), "art failed: stdout={} stderr={}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "art failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
 }

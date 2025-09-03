@@ -29,7 +29,10 @@ fn stress_finalizer_mass_promotion() {
             }),
             method_owner: None,
         };
-    assert!(interp.interpret(vec![fin]).is_ok(), "interpret fin in decrement_paths_stress.rs failed");
+        assert!(
+            interp.interpret(vec![fin]).is_ok(),
+            "interpret fin in decrement_paths_stress.rs failed"
+        );
         // registrar finalizer chamando on_finalize
         let call = Stmt::Expression(Expr::Call {
             callee: Box::new(Expr::Variable {
@@ -42,7 +45,10 @@ fn stress_finalizer_mass_promotion() {
                 },
             ],
         });
-    assert!(interp.interpret(vec![call]).is_ok(), "interpret call in decrement_paths_stress.rs failed");
+        assert!(
+            interp.interpret(vec![call]).is_ok(),
+            "interpret call in decrement_paths_stress.rs failed"
+        );
         // remover strong para provocar finalizer
         interp.debug_heap_remove(id);
     }
@@ -140,30 +146,43 @@ fn stress_chained_finalizers_cross_arena() {
         }),
         method_owner: None,
     };
-    assert!(interp.interpret(vec![fin1, fin2]).is_ok(), "interpret fin1/fin2 in decrement_paths_stress.rs failed");
+    assert!(
+        interp.interpret(vec![fin1, fin2]).is_ok(),
+        "interpret fin1/fin2 in decrement_paths_stress.rs failed"
+    );
     // register finalizers
-    assert!(interp.interpret(vec![Stmt::Expression(Expr::Call {
-        callee: Box::new(Expr::Variable {
-            name: core::Token::dummy("on_finalize"),
-        }),
-        arguments: vec![
-            Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id1))),
-            Expr::Variable {
-                name: core::Token::dummy("fin1"),
-            },
-        ],
-    })]).is_ok(), "decrement_paths_stress setup failed");
-    assert!(interp.interpret(vec![Stmt::Expression(Expr::Call {
-        callee: Box::new(Expr::Variable {
-            name: core::Token::dummy("on_finalize"),
-        }),
-        arguments: vec![
-            Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id2))),
-            Expr::Variable {
-                name: core::Token::dummy("fin2"),
-            },
-        ],
-    })]).is_ok(), "decrement_paths_stress run failed");
+    assert!(
+        interp
+            .interpret(vec![Stmt::Expression(Expr::Call {
+                callee: Box::new(Expr::Variable {
+                    name: core::Token::dummy("on_finalize"),
+                }),
+                arguments: vec![
+                    Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id1))),
+                    Expr::Variable {
+                        name: core::Token::dummy("fin1"),
+                    },
+                ],
+            })])
+            .is_ok(),
+        "decrement_paths_stress setup failed"
+    );
+    assert!(
+        interp
+            .interpret(vec![Stmt::Expression(Expr::Call {
+                callee: Box::new(Expr::Variable {
+                    name: core::Token::dummy("on_finalize"),
+                }),
+                arguments: vec![
+                    Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id2))),
+                    Expr::Variable {
+                        name: core::Token::dummy("fin2"),
+                    },
+                ],
+            })])
+            .is_ok(),
+        "decrement_paths_stress run failed"
+    );
 
     // remove strongs and run finalizers in chain
     interp.debug_heap_remove(id1);

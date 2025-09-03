@@ -1,3 +1,4 @@
+use crate::heap_utils::dec_strong_obj;
 use crate::type_registry::TypeRegistry;
 use crate::values::{Result, RuntimeError};
 use core::Token;
@@ -8,7 +9,6 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::rc::Rc;
-use crate::heap_utils::dec_strong_obj;
 
 use std::collections::BTreeMap;
 
@@ -95,10 +95,28 @@ mod tests {
         let a = interp.heap_create_atomic(ArtValue::Int(1));
         let m = interp.heap_create_mutex(ArtValue::Int(2));
         if let ArtValue::Atomic(h) = a {
-            interp.finalizers.insert(h.0, Rc::new(Function { name: Some("f".to_string()), params: vec![], body: Rc::new(Stmt::Block { statements: vec![] }), closure: std::rc::Weak::new(), retained_env: None }));
+            interp.finalizers.insert(
+                h.0,
+                Rc::new(Function {
+                    name: Some("f".to_string()),
+                    params: vec![],
+                    body: Rc::new(Stmt::Block { statements: vec![] }),
+                    closure: std::rc::Weak::new(),
+                    retained_env: None,
+                }),
+            );
         }
         if let ArtValue::Mutex(h) = m {
-            interp.finalizers.insert(h.0, Rc::new(Function { name: Some("g".to_string()), params: vec![], body: Rc::new(Stmt::Block { statements: vec![] }), closure: std::rc::Weak::new(), retained_env: None }));
+            interp.finalizers.insert(
+                h.0,
+                Rc::new(Function {
+                    name: Some("g".to_string()),
+                    params: vec![],
+                    body: Rc::new(Stmt::Block { statements: vec![] }),
+                    closure: std::rc::Weak::new(),
+                    retained_env: None,
+                }),
+            );
         }
         for id in interp.heap_objects.keys().cloned().collect::<Vec<u64>>() {
             interp.force_heap_strong_to_one(id);
@@ -106,7 +124,11 @@ mod tests {
         }
         let diags = interp.take_diagnostics();
         // ensure we did not add a runtime diag complaining about finalizer execution (skip is allowed)
-        assert!(!diags.iter().any(|d| d.message.contains("Finalizer skipped")));
+        assert!(
+            !diags
+                .iter()
+                .any(|d| d.message.contains("Finalizer skipped"))
+        );
     }
 
     #[test]
@@ -123,8 +145,8 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&s).expect("parse profile json");
         assert!(v.get("functions").is_some());
         assert!(v.get("edges").is_some());
-    // New: also emit a compact edges_map object
-    assert!(v.get("edges_map").is_some());
+        // New: also emit a compact edges_map object
+        assert!(v.get("edges_map").is_some());
         // cleanup
         let _ = std::fs::remove_file(&tmp);
     }
@@ -148,10 +170,12 @@ pub struct Mailbox {
 
 impl Clone for Mailbox {
     fn clone(&self) -> Self {
-        Mailbox { inner: match &self.inner {
-            MailboxImpl::Linear(v) => MailboxImpl::Linear(v.clone()),
-            MailboxImpl::Map(m) => MailboxImpl::Map(m.clone()),
-        }}
+        Mailbox {
+            inner: match &self.inner {
+                MailboxImpl::Linear(v) => MailboxImpl::Linear(v.clone()),
+                MailboxImpl::Map(m) => MailboxImpl::Map(m.clone()),
+            },
+        }
     }
 }
 
@@ -164,7 +188,9 @@ impl Mailbox {
     const MIGRATE_THRESHOLD: usize = 64; // simple heuristic
 
     pub fn new() -> Self {
-        Mailbox { inner: MailboxImpl::Linear(VecDeque::new()) }
+        Mailbox {
+            inner: MailboxImpl::Linear(VecDeque::new()),
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -174,14 +200,20 @@ impl Mailbox {
         }
     }
 
-    pub fn is_empty(&self) -> bool { self.len() == 0 }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 
     pub fn front(&self) -> Option<&core::ast::ValueEnvelope> {
         match &self.inner {
             MailboxImpl::Linear(v) => v.front(),
             MailboxImpl::Map(m) => {
                 // highest priority -> last key in BTreeMap
-                m.keys().rev().next().and_then(|k| m.get(k)).and_then(|q| q.front())
+                m.keys()
+                    .rev()
+                    .next()
+                    .and_then(|k| m.get(k))
+                    .and_then(|q| q.front())
             }
         }
     }
@@ -191,7 +223,8 @@ impl Mailbox {
             MailboxImpl::Linear(v) => v.iter().cloned().collect(),
             MailboxImpl::Map(m) => {
                 let mut out = Vec::new();
-                for (&_pri, q) in m.iter().rev() { // descending priority
+                for (&_pri, q) in m.iter().rev() {
+                    // descending priority
                     for e in q {
                         out.push(e.clone());
                     }
@@ -236,7 +269,8 @@ impl Mailbox {
                 v.insert(insert_pos, env);
                 if v.len() > Mailbox::MIGRATE_THRESHOLD {
                     // migrate to map
-                    let mut map: BTreeMap<i32, VecDeque<core::ast::ValueEnvelope>> = BTreeMap::new();
+                    let mut map: BTreeMap<i32, VecDeque<core::ast::ValueEnvelope>> =
+                        BTreeMap::new();
                     for e in v.drain(..) {
                         map.entry(e.priority).or_default().push_back(e);
                     }
@@ -249,7 +283,9 @@ impl Mailbox {
         }
     }
 
-    pub fn iter(&self) -> Vec<core::ast::ValueEnvelope> { self.to_vec() }
+    pub fn iter(&self) -> Vec<core::ast::ValueEnvelope> {
+        self.to_vec()
+    }
 }
 
 impl Interpreter {
@@ -415,7 +451,7 @@ impl Interpreter {
     pub fn interpret(&mut self, program: Program) -> Result<()> {
         self.last_value = None;
         for statement in program {
-                if let Err(RuntimeError::Return(_)) = self.execute(statement) {
+            if let Err(RuntimeError::Return(_)) = self.execute(statement) {
                 break;
             }
         }
@@ -441,12 +477,14 @@ impl Interpreter {
     fn heap_register_in_arena(&mut self, val: ArtValue, arena_id: u32) -> u64 {
         let id = self.next_heap_id;
         self.next_heap_id += 1;
-        self.heap_objects
-            .insert(id, crate::heap::HeapObject::new_in_arena(id, val.clone(), arena_id));
+        self.heap_objects.insert(
+            id,
+            crate::heap::HeapObject::new_in_arena(id, val.clone(), arena_id),
+        );
         // Mirror heap_register behavior for arena-allocated objects as well.
         self.inc_children_strong(&val);
-    // record arena allocation
-    *self.arena_alloc_count.entry(arena_id).or_insert(0) += 1;
+        // record arena allocation
+        *self.arena_alloc_count.entry(arena_id).or_insert(0) += 1;
         id
     }
     pub fn debug_create_arena(&mut self) -> u32 {
@@ -505,12 +543,24 @@ impl Interpreter {
     fn heap_create_atomic(&mut self, initial: ArtValue) -> ArtValue {
         // store as a StructInstance-like value internally but expose as Atomic handle
         let mut fields = std::collections::HashMap::new();
-        fields.insert("kind".to_string(), ArtValue::String(std::sync::Arc::from("atomic")));
+        fields.insert(
+            "kind".to_string(),
+            ArtValue::String(std::sync::Arc::from("atomic")),
+        );
         fields.insert("value".to_string(), initial);
         let id = if let Some(aid) = self.current_arena {
-            self.heap_register_in_arena(ArtValue::StructInstance { struct_name: "Atomic".to_string(), fields }, aid)
+            self.heap_register_in_arena(
+                ArtValue::StructInstance {
+                    struct_name: "Atomic".to_string(),
+                    fields,
+                },
+                aid,
+            )
         } else {
-            self.heap_register(ArtValue::StructInstance { struct_name: "Atomic".to_string(), fields })
+            self.heap_register(ArtValue::StructInstance {
+                struct_name: "Atomic".to_string(),
+                fields,
+            })
         };
         // mark kind for downstream logic
         if let Some(obj) = self.heap_objects.get_mut(&id) {
@@ -551,7 +601,7 @@ impl Interpreter {
                             self.diagnostics.push(Diagnostic::new(
                                 DiagnosticKind::Runtime,
                                 format!("atomic_add: overflow when adding {} to {}", delta, curr),
-                                Span::new(0,0,0,0),
+                                Span::new(0, 0, 0, 0),
                             ));
                             return None;
                         }
@@ -559,8 +609,11 @@ impl Interpreter {
                     Some(other) => {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
-                            format!("atomic_add: underlying atomic value is not an Int: {:?}", other),
-                            Span::new(0,0,0,0),
+                            format!(
+                                "atomic_add: underlying atomic value is not an Int: {:?}",
+                                other
+                            ),
+                            Span::new(0, 0, 0, 0),
                         ));
                         return None;
                     }
@@ -568,7 +621,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "atomic_add: atomic has no 'value' field".to_string(),
-                            Span::new(0,0,0,0),
+                            Span::new(0, 0, 0, 0),
                         ));
                         return None;
                     }
@@ -580,13 +633,25 @@ impl Interpreter {
 
     fn heap_create_mutex(&mut self, initial: ArtValue) -> ArtValue {
         let mut fields = std::collections::HashMap::new();
-        fields.insert("kind".to_string(), ArtValue::String(std::sync::Arc::from("mutex")));
+        fields.insert(
+            "kind".to_string(),
+            ArtValue::String(std::sync::Arc::from("mutex")),
+        );
         fields.insert("locked".to_string(), ArtValue::Bool(false));
         fields.insert("value".to_string(), initial);
         let id = if let Some(aid) = self.current_arena {
-            self.heap_register_in_arena(ArtValue::StructInstance { struct_name: "Mutex".to_string(), fields }, aid)
+            self.heap_register_in_arena(
+                ArtValue::StructInstance {
+                    struct_name: "Mutex".to_string(),
+                    fields,
+                },
+                aid,
+            )
         } else {
-            self.heap_register(ArtValue::StructInstance { struct_name: "Mutex".to_string(), fields })
+            self.heap_register(ArtValue::StructInstance {
+                struct_name: "Mutex".to_string(),
+                fields,
+            })
         };
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             obj.kind = Some(crate::heap::HeapKind::Mutex);
@@ -602,7 +667,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "mutex_lock: mutex already locked".to_string(),
-                            Span::new(0,0,0,0),
+                            Span::new(0, 0, 0, 0),
                         ));
                         return false;
                     }
@@ -624,7 +689,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "mutex_unlock: mutex was not locked".to_string(),
-                            Span::new(0,0,0,0),
+                            Span::new(0, 0, 0, 0),
                         ));
                         return false;
                     }
@@ -652,10 +717,10 @@ impl Interpreter {
             })
             .collect();
         ids.sort_unstable();
-    // attribute promotions during finalization to this arena
-    let prev_promo_target = self.current_finalizer_promotion_target;
-    self.current_finalizer_promotion_target = Some(arena_id);
-    for id in ids {
+        // attribute promotions during finalization to this arena
+        let prev_promo_target = self.current_finalizer_promotion_target;
+        self.current_finalizer_promotion_target = Some(arena_id);
+        for id in ids {
             // Forçar queda de strong para 0 e disparar finalização recursiva
             // limitar o escopo do borrow mutável para evitar conflitos durante a recursão
             // garantir que pelo menos um dec fará com que alive=false
@@ -690,8 +755,8 @@ impl Interpreter {
                 break;
             }
         }
-    // restore previous promotion target
-    self.current_finalizer_promotion_target = prev_promo_target;
+        // restore previous promotion target
+        self.current_finalizer_promotion_target = prev_promo_target;
         // Hardening: normalizar invariantes após finalização da arena.
         // Se por alguma razão existirem objetos com strong==0 mas alive==true,
         // marcamos como mortos para que a varredura os remova corretamente.
@@ -721,9 +786,9 @@ impl Interpreter {
 
     fn drop_scope_heap_objects(&mut self, env: &Rc<RefCell<Environment>>) {
         let handles = env.borrow().strong_handles.clone();
-            for h in handles {
-                self.dec_object_strong_recursive(h.0);
-            }
+        for h in handles {
+            self.dec_object_strong_recursive(h.0);
+        }
     }
 
     fn dec_value_if_heap(&mut self, v: &ArtValue) {
@@ -737,7 +802,7 @@ impl Interpreter {
         match v {
             ArtValue::Array(a) => {
                 for child in a {
-                        if let ArtValue::HeapComposite(h) = child
+                    if let ArtValue::HeapComposite(h) = child
                         && let Some(_c) = self.heap_objects.get(&h.0)
                     {
                         self.inc_heap_strong(h.0);
@@ -826,7 +891,9 @@ impl Interpreter {
                 let finalizer = self.finalizers.remove(&id);
                 // Skip running finalizers for special heap-backed kinds (Atomic/Mutex).
                 let skip_finalizer_due_to_kind = match obj.kind {
-                    Some(crate::heap::HeapKind::Atomic) | Some(crate::heap::HeapKind::Mutex) => true,
+                    Some(crate::heap::HeapKind::Atomic) | Some(crate::heap::HeapKind::Mutex) => {
+                        true
+                    }
                     _ => false,
                 };
                 // liberar filhos fortes
@@ -867,75 +934,78 @@ impl Interpreter {
                         if self.invariant_checks {
                             self.diagnostics.push(Diagnostic::new(
                                 DiagnosticKind::Runtime,
-                                "Finalizer skipped for special heap-backed object (Atomic/Mutex)".to_string(),
-                                Span::new(0,0,0,0),
+                                "Finalizer skipped for special heap-backed object (Atomic/Mutex)"
+                                    .to_string(),
+                                Span::new(0, 0, 0, 0),
                             ));
                         }
                     } else {
-                    // chamar sem argumentos
-                    // Executar função finalizer no ambiente global raiz para permitir expor flags globais
-                    let previous_env = self.environment.clone();
-                    // Sobe cadeia até raiz
-                    let mut root = previous_env.clone();
-                    loop {
-                        let parent_opt = root.borrow().enclosing.clone();
-                        if let Some(p) = parent_opt {
-                            root = p
+                        // chamar sem argumentos
+                        // Executar função finalizer no ambiente global raiz para permitir expor flags globais
+                        let previous_env = self.environment.clone();
+                        // Sobe cadeia até raiz
+                        let mut root = previous_env.clone();
+                        loop {
+                            let parent_opt = root.borrow().enclosing.clone();
+                            if let Some(p) = parent_opt {
+                                root = p
+                            } else {
+                                break;
+                            }
+                        }
+                        // Criar um frame filho da raiz para evitar poluição direta caso finalizer crie variáveis temporárias
+                        self.environment =
+                            Rc::new(RefCell::new(Environment::new(Some(root.clone()))));
+                        // Executar corpo inline se for bloco para evitar criação de escopo interno que perderia variáveis
+                        let body_stmt = Rc::as_ref(&func.body).clone();
+                        if let Stmt::Block { statements } = body_stmt.clone() {
+                            for s in statements {
+                                let _ = self.execute(s);
+                            }
                         } else {
-                            break;
+                            let _ = self.execute(body_stmt);
                         }
-                    }
-                    // Criar um frame filho da raiz para evitar poluição direta caso finalizer crie variáveis temporárias
-                    self.environment = Rc::new(RefCell::new(Environment::new(Some(root.clone()))));
-                    // Executar corpo inline se for bloco para evitar criação de escopo interno que perderia variáveis
-                    let body_stmt = Rc::as_ref(&func.body).clone();
-                    if let Stmt::Block { statements } = body_stmt.clone() {
-                        for s in statements {
-                            let _ = self.execute(s);
-                        }
-                    } else {
-                        let _ = self.execute(body_stmt);
-                    }
-                    // Merge simples: mover variáveis definidas neste frame para raiz
-                    let local_vals: Vec<(String, ArtValue)> = self
-                        .environment
-                        .borrow()
-                        .values
-                        .iter()
-                        .map(|(k, v)| ((*k).to_string(), v.clone()))
-                        .collect();
-                    // Transferir handles fortes deste frame para o root para preservar referências
-                    let local_handles = self.environment.borrow().strong_handles.clone();
-                    let promoted = local_handles.len();
-                    if promoted > 0 {
-                        self.finalizer_promotions += promoted;
-                        if let Some(aid) = self.current_finalizer_promotion_target {
-                            *self.finalizer_promotions_per_arena.entry(aid).or_insert(0) += promoted;
-                        }
-                    }
-                    for h in local_handles.iter() {
-                        root.borrow_mut().strong_handles.push(*h);
-                    }
-                    // Mover valores para o root (mantendo mesma identidade)
-                    for (k, v) in local_vals {
-                        root.borrow_mut()
+                        // Merge simples: mover variáveis definidas neste frame para raiz
+                        let local_vals: Vec<(String, ArtValue)> = self
+                            .environment
+                            .borrow()
                             .values
-                            .insert(Box::leak(k.into_boxed_str()), v);
-                    }
-                    // Limpar handles do frame antes de dropar o escopo para evitar double-decrement
-                    self.environment.borrow_mut().strong_handles.clear();
-                    // Drop any remaining handles/objects in the finalizer frame
-                    let finalizer_env = self.environment.clone();
-                    self.drop_scope_heap_objects(&finalizer_env);
-                    self.environment = previous_env;
-                    // Se verificação de invariantes ativada, rodar here para capturar regressões cedo
-                    if self.invariant_checks && !self.debug_check_invariants() {
-                        self.diagnostics.push(Diagnostic::new(
-                            DiagnosticKind::Runtime,
-                            "Invariant check failed after finalizer promotion".to_string(),
-                            Span::new(0, 0, 0, 0),
-                        ));
-                    }
+                            .iter()
+                            .map(|(k, v)| ((*k).to_string(), v.clone()))
+                            .collect();
+                        // Transferir handles fortes deste frame para o root para preservar referências
+                        let local_handles = self.environment.borrow().strong_handles.clone();
+                        let promoted = local_handles.len();
+                        if promoted > 0 {
+                            self.finalizer_promotions += promoted;
+                            if let Some(aid) = self.current_finalizer_promotion_target {
+                                *self.finalizer_promotions_per_arena.entry(aid).or_insert(0) +=
+                                    promoted;
+                            }
+                        }
+                        for h in local_handles.iter() {
+                            root.borrow_mut().strong_handles.push(*h);
+                        }
+                        // Mover valores para o root (mantendo mesma identidade)
+                        for (k, v) in local_vals {
+                            root.borrow_mut()
+                                .values
+                                .insert(Box::leak(k.into_boxed_str()), v);
+                        }
+                        // Limpar handles do frame antes de dropar o escopo para evitar double-decrement
+                        self.environment.borrow_mut().strong_handles.clear();
+                        // Drop any remaining handles/objects in the finalizer frame
+                        let finalizer_env = self.environment.clone();
+                        self.drop_scope_heap_objects(&finalizer_env);
+                        self.environment = previous_env;
+                        // Se verificação de invariantes ativada, rodar here para capturar regressões cedo
+                        if self.invariant_checks && !self.debug_check_invariants() {
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                "Invariant check failed after finalizer promotion".to_string(),
+                                Span::new(0, 0, 0, 0),
+                            ));
+                        }
                     }
                 }
             }
@@ -952,10 +1022,12 @@ impl Interpreter {
                 match value {
                     ArtValue::HeapComposite(h) => h.0 == target,
                     ArtValue::Array(a) => a.iter().any(|e| referenced_in(e, target)),
-                    ArtValue::StructInstance { fields, .. } =>
-                        fields.values().any(|e| referenced_in(e, target)),
-                    ArtValue::EnumInstance { values, .. } =>
-                        values.iter().any(|e| referenced_in(e, target)),
+                    ArtValue::StructInstance { fields, .. } => {
+                        fields.values().any(|e| referenced_in(e, target))
+                    }
+                    ArtValue::EnumInstance { values, .. } => {
+                        values.iter().any(|e| referenced_in(e, target))
+                    }
                     _ => false,
                 }
             }
@@ -979,7 +1051,7 @@ impl Interpreter {
     }
     /// Debug/testing: remove id simulando queda de último strong ref
     pub fn debug_heap_remove(&mut self, id: u64) {
-    self.dec_heap_strong(id);
+        self.dec_heap_strong(id);
     }
     pub fn debug_heap_upgrade_weak(&self, id: u64) -> Option<ArtValue> {
         self.heap_upgrade_weak(id)
@@ -1056,12 +1128,12 @@ impl Interpreter {
         self.dec_heap_strong(id);
     }
     pub fn debug_heap_inc_weak(&mut self, id: u64) {
-    self.inc_heap_weak(id);
+        self.inc_heap_weak(id);
     }
 
     /// Test helper: decrementa contador weak (para simulação em testes)
     pub fn debug_heap_dec_weak(&mut self, id: u64) {
-    self.dec_heap_weak(id);
+        self.dec_heap_weak(id);
     }
 
     /// Test helper: coleta e remove do heap todos objetos finalizados (!alive) que
@@ -1084,10 +1156,12 @@ impl Interpreter {
             match value {
                 ArtValue::HeapComposite(h) => h.0 == target,
                 ArtValue::Array(a) => a.iter().any(|e| referenced_in(e, target)),
-                ArtValue::StructInstance { fields, .. } =>
-                    fields.values().any(|e| referenced_in(e, target)),
-                ArtValue::EnumInstance { values, .. } =>
-                    values.iter().any(|e| referenced_in(e, target)),
+                ArtValue::StructInstance { fields, .. } => {
+                    fields.values().any(|e| referenced_in(e, target))
+                }
+                ArtValue::EnumInstance { values, .. } => {
+                    values.iter().any(|e| referenced_in(e, target))
+                }
                 _ => false,
             }
         }
@@ -1108,9 +1182,9 @@ impl Interpreter {
     /// Test helper: forçar execução do fluxo de finalização para um id específico.
     /// Isto chama o decremento recursivo e em seguida faz sweep de mortos.
     pub fn debug_run_finalizer(&mut self, id: u64) {
-    // Restore original behavior: force a decrement/sweep for the helper
-    self.dec_object_strong_recursive(id);
-    self.debug_sweep_dead();
+        // Restore original behavior: force a decrement/sweep for the helper
+        self.dec_object_strong_recursive(id);
+        self.debug_sweep_dead();
     }
 
     /// Test helper: registra valor na arena especificada e retorna id
@@ -1183,24 +1257,41 @@ impl Interpreter {
                 msgs.push(format!("object {} is alive but has strong==0", id));
             }
             if obj.weak > 1_000_000 || obj.strong > 1_000_000 {
-                msgs.push(format!("object {} has absurd refcounts strong={} weak={}", id, obj.strong, obj.weak));
+                msgs.push(format!(
+                    "object {} has absurd refcounts strong={} weak={}",
+                    id, obj.strong, obj.weak
+                ));
             }
             // scan children for dangling handles
-            fn scan(v: &ArtValue, heap: &std::collections::HashMap<u64, crate::heap::HeapObject>, msgs: &mut Vec<String>, parent: u64) {
+            fn scan(
+                v: &ArtValue,
+                heap: &std::collections::HashMap<u64, crate::heap::HeapObject>,
+                msgs: &mut Vec<String>,
+                parent: u64,
+            ) {
                 match v {
                     ArtValue::HeapComposite(h) => {
                         if !heap.contains_key(&h.0) {
-                            msgs.push(format!("parent {} references missing child {}", parent, h.0));
+                            msgs.push(format!(
+                                "parent {} references missing child {}",
+                                parent, h.0
+                            ));
                         }
                     }
                     ArtValue::Array(a) => {
-                        for e in a { scan(e, heap, msgs, parent); }
+                        for e in a {
+                            scan(e, heap, msgs, parent);
+                        }
                     }
                     ArtValue::StructInstance { fields, .. } => {
-                        for val in fields.values() { scan(val, heap, msgs, parent); }
+                        for val in fields.values() {
+                            scan(val, heap, msgs, parent);
+                        }
                     }
                     ArtValue::EnumInstance { values, .. } => {
-                        for val in values { scan(val, heap, msgs, parent); }
+                        for val in values {
+                            scan(val, heap, msgs, parent);
+                        }
                     }
                     _ => {}
                 }
@@ -1603,8 +1694,18 @@ impl Interpreter {
                 // Create a new actor with its own lexical environment snapshot
                 let aid = self.next_actor_id;
                 self.next_actor_id += 1;
-                let actor_env = Rc::new(RefCell::new(Environment::new(Some(self.environment.clone()))));
-                let actor = ActorState { id: aid, mailbox: Mailbox::new(), body: VecDeque::from(body), env: actor_env, finished: false, parked: false, mailbox_limit: self.actor_mailbox_limit };
+                let actor_env = Rc::new(RefCell::new(Environment::new(Some(
+                    self.environment.clone(),
+                ))));
+                let actor = ActorState {
+                    id: aid,
+                    mailbox: Mailbox::new(),
+                    body: VecDeque::from(body),
+                    env: actor_env,
+                    finished: false,
+                    parked: false,
+                    mailbox_limit: self.actor_mailbox_limit,
+                };
                 self.actors.insert(aid, actor);
                 // Return actor handle as Actor variant (IDs still exposed as Int in tests where needed)
                 self.last_value = Some(ArtValue::Actor(aid));
@@ -2178,8 +2279,18 @@ impl Interpreter {
                 // Create a new actor from an expression context and return its handle
                 let aid = self.next_actor_id;
                 self.next_actor_id += 1;
-                let actor_env = Rc::new(RefCell::new(Environment::new(Some(self.environment.clone()))));
-                let actor = ActorState { id: aid, mailbox: Mailbox::new(), body: VecDeque::from(body), env: actor_env, finished: false, parked: false, mailbox_limit: self.actor_mailbox_limit };
+                let actor_env = Rc::new(RefCell::new(Environment::new(Some(
+                    self.environment.clone(),
+                ))));
+                let actor = ActorState {
+                    id: aid,
+                    mailbox: Mailbox::new(),
+                    body: VecDeque::from(body),
+                    env: actor_env,
+                    finished: false,
+                    parked: false,
+                    mailbox_limit: self.actor_mailbox_limit,
+                };
                 self.actors.insert(aid, actor);
                 Ok(ArtValue::Actor(aid))
             }
@@ -2262,8 +2373,8 @@ impl Interpreter {
         self.drop_scope_heap_objects(&func_env);
         // Restaurar ambiente anterior (usamos `previous_env` original)
         self.environment = previous_env;
-    // pop fn stack
-    let _ = self.fn_stack.pop();
+        // pop fn stack
+        let _ = self.fn_stack.pop();
         match result {
             Ok(()) => Ok(ArtValue::none()),
             Err(RuntimeError::Return(val)) => Ok(val),
@@ -2582,7 +2693,11 @@ impl Interpreter {
                             // mailbox full: signal backpressure (return false)
                             return Ok(ArtValue::Bool(false));
                         }
-                        let env = core::ast::ValueEnvelope { sender: self.current_actor, payload: msg_val, priority };
+                        let env = core::ast::ValueEnvelope {
+                            sender: self.current_actor,
+                            payload: msg_val,
+                            priority,
+                        };
                         actor.mailbox.insert(env);
                         // If actor was parked waiting for messages, unpark it
                         if actor.parked {
@@ -2595,7 +2710,11 @@ impl Interpreter {
                             if exec.mailbox.len() >= limit {
                                 return Ok(ArtValue::Bool(false));
                             }
-                            let env = core::ast::ValueEnvelope { sender: self.current_actor, payload: msg_val, priority };
+                            let env = core::ast::ValueEnvelope {
+                                sender: self.current_actor,
+                                payload: msg_val,
+                                priority,
+                            };
                             exec.mailbox.insert(env);
                             if exec.parked {
                                 exec.parked = false;
@@ -2664,8 +2783,12 @@ impl Interpreter {
                             };
                             fields.insert("sender".to_string(), sender_val);
                             fields.insert("payload".to_string(), env.payload);
-                            fields.insert("priority".to_string(), ArtValue::Int(env.priority as i64));
-                            let struct_val = ArtValue::StructInstance { struct_name: "Envelope".to_string(), fields };
+                            fields
+                                .insert("priority".to_string(), ArtValue::Int(env.priority as i64));
+                            let struct_val = ArtValue::StructInstance {
+                                struct_name: "Envelope".to_string(),
+                                fields,
+                            };
                             return Ok(self.heapify_composite(struct_val));
                         } else {
                             actor.parked = true;
@@ -2682,8 +2805,14 @@ impl Interpreter {
                                 };
                                 fields.insert("sender".to_string(), sender_val);
                                 fields.insert("payload".to_string(), env.payload);
-                                fields.insert("priority".to_string(), ArtValue::Int(env.priority as i64));
-                                let struct_val = ArtValue::StructInstance { struct_name: "Envelope".to_string(), fields };
+                                fields.insert(
+                                    "priority".to_string(),
+                                    ArtValue::Int(env.priority as i64),
+                                );
+                                let struct_val = ArtValue::StructInstance {
+                                    struct_name: "Envelope".to_string(),
+                                    fields,
+                                };
                                 return Ok(self.heapify_composite(struct_val));
                             } else {
                                 exec.parked = true;
@@ -2762,12 +2891,19 @@ impl Interpreter {
                     ArtValue::Int(n) => ArtValue::Int(n),
                     other => other,
                 };
-                let priority = if let ArtValue::Int(n) = priority_val { n as i32 } else { 0 };
+                let priority = if let ArtValue::Int(n) = priority_val {
+                    n as i32
+                } else {
+                    0
+                };
                 let mut fields = std::collections::HashMap::new();
                 fields.insert("sender".to_string(), sender_field);
                 fields.insert("payload".to_string(), payload_val);
                 fields.insert("priority".to_string(), ArtValue::Int(priority as i64));
-                let struct_val = ArtValue::StructInstance { struct_name: "Envelope".to_string(), fields };
+                let struct_val = ArtValue::StructInstance {
+                    struct_name: "Envelope".to_string(),
+                    fields,
+                };
                 Ok(self.heapify_composite(struct_val))
             }
             core::ast::BuiltinFn::MakeEnvelope => {
@@ -2798,7 +2934,10 @@ impl Interpreter {
                 fields.insert("sender".to_string(), sender_field);
                 fields.insert("payload".to_string(), payload_val);
                 fields.insert("priority".to_string(), ArtValue::Int(priority as i64));
-                let struct_val = ArtValue::StructInstance { struct_name: "Envelope".to_string(), fields };
+                let struct_val = ArtValue::StructInstance {
+                    struct_name: "Envelope".to_string(),
+                    fields,
+                };
                 Ok(self.heapify_composite(struct_val))
             }
             core::ast::BuiltinFn::RunActors => {
@@ -2951,12 +3090,10 @@ impl Interpreter {
             let aid = actor_ids[idx];
             // If actor was removed or finished, skip
             let should_remove = if let Some(actor) = self.actors.get(&aid) {
-                if actor.finished {
-                    true
-                } else {
-                    false
-                }
-            } else { true };
+                if actor.finished { true } else { false }
+            } else {
+                true
+            };
             if should_remove {
                 // remove from list
                 actor_ids.remove(idx);
@@ -2964,7 +3101,7 @@ impl Interpreter {
             }
 
             // Execute one statement of the actor if available
-                if let Some(actor_entry) = self.actors.remove(&aid) {
+            if let Some(actor_entry) = self.actors.remove(&aid) {
                 let mut actor = actor_entry;
                 // Store in executing_actor during execution to allow builtins to access
                 // the actor state even though it's temporarily removed from the map.

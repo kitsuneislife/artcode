@@ -1,4 +1,4 @@
-use core::{ArtValue, Expr, Program, Stmt, Type, InterpolatedPart};
+use core::{ArtValue, Expr, InterpolatedPart, Program, Stmt, Type};
 use diagnostics::{Diagnostic, DiagnosticKind, Span};
 use std::collections::{HashMap, HashSet};
 
@@ -59,7 +59,7 @@ impl<'a> TypeInfer<'a> {
 
     fn push_scope(&mut self) {
         self.scopes.push(HashSet::new());
-    self.var_bindings.push(Vec::new());
+        self.var_bindings.push(Vec::new());
     }
 
     fn pop_scope(&mut self) {
@@ -128,7 +128,9 @@ impl<'a> TypeInfer<'a> {
             Stmt::Expression(e) => {
                 self.infer_expr(e);
             }
-            Stmt::Let { name, initializer, .. } => {
+            Stmt::Let {
+                name, initializer, ..
+            } => {
                 // If initializer is a simple variable reference, propagate its known type
                 let t = match initializer {
                     Expr::Variable { name: src } => {
@@ -153,7 +155,11 @@ impl<'a> TypeInfer<'a> {
                 }
                 self.pop_scope();
             }
-            Stmt::If { condition, then_branch, else_branch } => {
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 self.infer_expr(condition);
                 self.visit_stmt(then_branch);
                 if let Some(e) = else_branch {
@@ -171,10 +177,18 @@ impl<'a> TypeInfer<'a> {
             | Stmt::Return { .. }
             | Stmt::Match { .. }
             | Stmt::Import { .. } => {}
-            Stmt::Function { name, params, return_type: _, body, method_owner: _ } => {
+            Stmt::Function {
+                name,
+                params,
+                return_type: _,
+                body,
+                method_owner: _,
+            } => {
                 // record simple top-level function for callsite simulation: store param names and body
-                let param_names: Vec<String> = params.iter().map(|p| p.name.lexeme.clone()).collect();
-                self.functions.insert(name.lexeme.clone(), (param_names, body.clone()));
+                let param_names: Vec<String> =
+                    params.iter().map(|p| p.name.lexeme.clone()).collect();
+                self.functions
+                    .insert(name.lexeme.clone(), (param_names, body.clone()));
             }
             Stmt::Performant { statements } => {
                 self.check_performant_block(statements);
@@ -186,7 +200,8 @@ impl<'a> TypeInfer<'a> {
                 let outer_vars = self.visible_vars();
                 for s in body {
                     if let Stmt::Expression(e) = s {
-                        let captures = self.expr_uses_outer_vars(e, &self.visible_vars(), &outer_vars);
+                        let captures =
+                            self.expr_uses_outer_vars(e, &self.visible_vars(), &outer_vars);
                         if !captures.is_empty() {
                             for cap in captures {
                                 self.diags.push(Diagnostic::new(
@@ -326,7 +341,7 @@ impl<'a> TypeInfer<'a> {
                 self.diags.push(Diagnostic::new(
                     DiagnosticKind::Type,
                     "spawn actor is not allowed inside performant blocks".to_string(),
-                    Span::new(0,0,0,0),
+                    Span::new(0, 0, 0, 0),
                 ));
             }
             StructDecl { .. } | EnumDecl { .. } | Expression(_) | Import { .. } => { /* allowed */ }
@@ -337,7 +352,12 @@ impl<'a> TypeInfer<'a> {
     // in `outer_vars`) but not declared in `local_decls`. This is conservative: any such usage
     // may capture an outer value into a local that lives beyond the arena.
     #[allow(clippy::only_used_in_recursion)]
-    fn expr_uses_outer_vars(&self, expr: &Expr, current_locals: &HashSet<String>, outer_vars: &HashSet<String>) -> Vec<String> {
+    fn expr_uses_outer_vars(
+        &self,
+        expr: &Expr,
+        current_locals: &HashSet<String>,
+        outer_vars: &HashSet<String>,
+    ) -> Vec<String> {
         use Expr::*;
         let mut found: Vec<String> = Vec::new();
         match expr {
@@ -380,10 +400,7 @@ impl<'a> TypeInfer<'a> {
             FieldAccess { object, .. } => {
                 found.extend(self.expr_uses_outer_vars(object, current_locals, outer_vars));
             }
-            Weak(inner)
-            | Unowned(inner)
-            | WeakUpgrade(inner)
-            | UnownedAccess(inner)
+            Weak(inner) | Unowned(inner) | WeakUpgrade(inner) | UnownedAccess(inner)
             | Try(inner) => {
                 found.extend(self.expr_uses_outer_vars(inner, current_locals, outer_vars));
             }
@@ -398,7 +415,11 @@ impl<'a> TypeInfer<'a> {
                     match p {
                         InterpolatedPart::Literal(_) => {}
                         InterpolatedPart::Expr { expr, .. } => {
-                            found.extend(self.expr_uses_outer_vars(expr, current_locals, outer_vars));
+                            found.extend(self.expr_uses_outer_vars(
+                                expr,
+                                current_locals,
+                                outer_vars,
+                            ));
                         }
                     }
                 }
@@ -442,8 +463,12 @@ impl<'a> TypeInfer<'a> {
             EnumInit { values, .. } => values.iter().all(|e| self.is_send_safe_expr(e)),
             Grouping { expression } => self.is_send_safe_expr(expression),
             Unary { right, .. } => self.is_send_safe_expr(right),
-            Binary { left, right, .. } => self.is_send_safe_expr(left) && self.is_send_safe_expr(right),
-            Logical { left, right, .. } => self.is_send_safe_expr(left) && self.is_send_safe_expr(right),
+            Binary { left, right, .. } => {
+                self.is_send_safe_expr(left) && self.is_send_safe_expr(right)
+            }
+            Logical { left, right, .. } => {
+                self.is_send_safe_expr(left) && self.is_send_safe_expr(right)
+            }
             Call { .. } => false,
             Variable { name } => {
                 // If the variable has a known type in the TypeEnv, use the type-based
@@ -460,7 +485,12 @@ impl<'a> TypeInfer<'a> {
                 InterpolatedPart::Expr { expr, .. } => self.is_send_safe_expr(expr),
             }),
             Cast { object, .. } => self.is_send_safe_expr(object),
-            Try(_) | Weak(_) | Unowned(_) | WeakUpgrade(_) | UnownedAccess(_) | SpawnActor { .. } => false,
+            Try(_)
+            | Weak(_)
+            | Unowned(_)
+            | WeakUpgrade(_)
+            | UnownedAccess(_)
+            | SpawnActor { .. } => false,
         }
     }
 
@@ -526,7 +556,7 @@ impl<'a> TypeInfer<'a> {
                                 self.diags.push(Diagnostic::new(
                                     DiagnosticKind::Type,
                                     "actor_send: payload expression is not send-safe".to_string(),
-                                    Span::new(0,0,0,0),
+                                    Span::new(0, 0, 0, 0),
                                 ));
                             }
                         }
@@ -537,8 +567,9 @@ impl<'a> TypeInfer<'a> {
                             if !self.is_send_safe_expr(payload_expr) {
                                 self.diags.push(Diagnostic::new(
                                     DiagnosticKind::Type,
-                                    "make_envelope: payload expression is not send-safe".to_string(),
-                                    Span::new(0,0,0,0),
+                                    "make_envelope: payload expression is not send-safe"
+                                        .to_string(),
+                                    Span::new(0, 0, 0, 0),
                                 ));
                             }
                         }
@@ -724,7 +755,7 @@ fn value_type(v: &ArtValue) -> Type {
         ArtValue::UnownedRef(_) => Type::Unknown,
         ArtValue::Atomic(_) => Type::Unknown,
         ArtValue::Mutex(_) => Type::Unknown,
-    ArtValue::Actor(_) => Type::Unknown,
+        ArtValue::Actor(_) => Type::Unknown,
         ArtValue::HeapComposite(_) => Type::Unknown, // resolução ocorre em nível de interpretador; para inferência simplificada tratamos como Unknown
     }
 }
@@ -732,17 +763,27 @@ fn value_type(v: &ArtValue) -> Type {
 #[cfg(test)]
 mod tests {
     use crate::type_infer::{TypeEnv, TypeInfer};
-    use core::ast::{Stmt, Expr};
+    use core::ast::{Expr, Stmt};
 
     #[test]
     fn typeinfer_restores_outer_bindings_on_shadow() {
         let mut tenv = TypeEnv::new();
         let mut ti = TypeInfer::new(&mut tenv);
         // simulate: let x = 1; { let x = 2; } ; x should still be Int
-    let name = core::Token::dummy("x");
-        let let_outer = Stmt::Let { name: name.clone(), ty: None, initializer: Expr::Literal(core::ast::ArtValue::Int(1)) };
+        let name = core::Token::dummy("x");
+        let let_outer = Stmt::Let {
+            name: name.clone(),
+            ty: None,
+            initializer: Expr::Literal(core::ast::ArtValue::Int(1)),
+        };
         let inner_name = name.clone();
-        let let_inner = Stmt::Block { statements: vec![Stmt::Let { name: inner_name.clone(), ty: None, initializer: Expr::Literal(core::ast::ArtValue::Int(2)) }] };
+        let let_inner = Stmt::Block {
+            statements: vec![Stmt::Let {
+                name: inner_name.clone(),
+                ty: None,
+                initializer: Expr::Literal(core::ast::ArtValue::Int(2)),
+            }],
+        };
         ti.visit_stmt(&let_outer);
         // outer binding is set
         assert_eq!(ti.tenv.get_var("x").cloned().unwrap(), core::Type::Int);

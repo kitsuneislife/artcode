@@ -1,12 +1,14 @@
+use core::ast::{ArtValue, Expr, Stmt};
 use interpreter::interpreter::Interpreter;
-use core::ast::{Expr, Stmt, ArtValue};
 
 #[test]
 fn envelope_builtin_constructs_and_heapifies() {
     let mut interp = Interpreter::with_prelude();
     // call envelope(None, 42, 5)
     let call = Stmt::Expression(Expr::Call {
-        callee: Box::new(Expr::Variable { name: core::Token::dummy("envelope") }),
+        callee: Box::new(Expr::Variable {
+            name: core::Token::dummy("envelope"),
+        }),
         arguments: vec![
             // sender: None
             Expr::Literal(ArtValue::Optional(Box::new(None))),
@@ -23,7 +25,11 @@ fn envelope_builtin_constructs_and_heapifies() {
         core::ast::ArtValue::HeapComposite(h) => {
             // retrieve underlying value from heap
             let resolved = interp.debug_heap_upgrade_weak(h.0).expect("heap entry");
-            if let core::ast::ArtValue::StructInstance { struct_name, fields } = resolved {
+            if let core::ast::ArtValue::StructInstance {
+                struct_name,
+                fields,
+            } = resolved
+            {
                 assert_eq!(struct_name, "Envelope");
                 // sender should be Optional(None)
                 match fields.get("sender").unwrap() {

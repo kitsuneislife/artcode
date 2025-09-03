@@ -38,7 +38,10 @@ fn candidate_owner_edges_detects_parent_field() {
             },
         },
     ];
-    assert!(interp.interpret(program).is_ok(), "interpret program in ownership_heuristic.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in ownership_heuristic.rs failed"
+    );
     let report = interp.cycle_report();
     assert!(
         !report.candidate_owner_edges.is_empty(),

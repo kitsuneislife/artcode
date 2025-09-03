@@ -1,5 +1,5 @@
-use std::collections::{HashMap, HashSet};
 use crate::{Function, Instr};
+use std::collections::{HashMap, HashSet};
 
 /// Two-pass SSA renamer for the IR.
 ///
@@ -25,7 +25,10 @@ pub fn rename_temps(func: &mut Function) {
                     defs.push(name.clone());
                 }
             }
-            Instr::Add(dest, _, _) | Instr::Sub(dest, _, _) | Instr::Mul(dest, _, _) | Instr::Div(dest, _, _) => {
+            Instr::Add(dest, _, _)
+            | Instr::Sub(dest, _, _)
+            | Instr::Mul(dest, _, _)
+            | Instr::Div(dest, _, _) => {
                 if is_candidate(dest) && seen.insert(dest.clone()) {
                     defs.push(dest.clone());
                 }
@@ -47,7 +50,11 @@ pub fn rename_temps(func: &mut Function) {
 
     // helper
     let replace = |s: &str, map: &HashMap<String, String>| -> String {
-        if let Some(n) = map.get(s) { n.clone() } else { s.to_string() }
+        if let Some(n) = map.get(s) {
+            n.clone()
+        } else {
+            s.to_string()
+        }
     };
 
     // Pass 2: rewrite operands
@@ -56,14 +63,19 @@ pub fn rename_temps(func: &mut Function) {
             Instr::ConstI64(name, _) => {
                 *name = replace(name, &map);
             }
-            Instr::Add(dest,a,b) | Instr::Sub(dest,a,b) | Instr::Mul(dest,a,b) | Instr::Div(dest,a,b) => {
+            Instr::Add(dest, a, b)
+            | Instr::Sub(dest, a, b)
+            | Instr::Mul(dest, a, b)
+            | Instr::Div(dest, a, b) => {
                 *dest = replace(dest, &map);
                 *a = replace(a, &map);
                 *b = replace(b, &map);
             }
             Instr::Call(dest, _fn, args) => {
                 *dest = replace(dest, &map);
-                for a in args.iter_mut() { *a = replace(a, &map); }
+                for a in args.iter_mut() {
+                    *a = replace(a, &map);
+                }
             }
             Instr::Label(_) | Instr::Br(_) => {}
             Instr::BrCond(pred, _t, _f) => {
@@ -71,10 +83,14 @@ pub fn rename_temps(func: &mut Function) {
             }
             Instr::Phi(dest, _ty, pairs) => {
                 *dest = replace(dest, &map);
-                for (v, _bb) in pairs.iter_mut() { *v = replace(v, &map); }
+                for (v, _bb) in pairs.iter_mut() {
+                    *v = replace(v, &map);
+                }
             }
             Instr::Ret(opt) => {
-                if let Some(v) = opt { *v = replace(v, &map); }
+                if let Some(v) = opt {
+                    *v = replace(v, &map);
+                }
             }
         }
     }

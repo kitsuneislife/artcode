@@ -1,6 +1,6 @@
-use interpreter::type_infer::{TypeEnv, TypeInfer};
 use core::Token;
-use core::ast::{ArtValue, Expr, Stmt, Program};
+use core::ast::{ArtValue, Expr, Program, Stmt};
+use interpreter::type_infer::{TypeEnv, TypeInfer};
 
 #[test]
 fn performant_return_is_type_error() {
@@ -14,7 +14,9 @@ fn performant_return_is_type_error() {
         ]),
     };
     let return_stmt = Stmt::Return {
-        value: Some(Expr::Variable { name: Token::dummy("x") }),
+        value: Some(Expr::Variable {
+            name: Token::dummy("x"),
+        }),
     };
     let program: Program = vec![Stmt::Performant {
         statements: vec![let_stmt, return_stmt],
@@ -23,5 +25,8 @@ fn performant_return_is_type_error() {
     let mut tenv = TypeEnv::new();
     let mut inf = TypeInfer::new(&mut tenv);
     let res = inf.run(&program);
-    assert!(res.is_err(), "TypeInfer should reject return inside performant");
+    assert!(
+        res.is_err(),
+        "TypeInfer should reject return inside performant"
+    );
 }

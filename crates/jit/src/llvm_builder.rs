@@ -47,7 +47,8 @@ mod enabled {
     pub struct InkwellLlvmBuilder;
 
     // Global registry used to hold Modules/Engines so their pointers remain valid
-    static GLOBAL_JIT_REGISTRY: Lazy<Mutex<Vec<(String, inkwell::module::Module<'static>)>>> = Lazy::new(|| Mutex::new(Vec::new()));
+    static GLOBAL_JIT_REGISTRY: Lazy<Mutex<Vec<(String, inkwell::module::Module<'static>)>>> =
+        Lazy::new(|| Mutex::new(Vec::new()));
 
     impl InkwellLlvmBuilder {
         // Minimal parser helpers: extract function name and parameter count
@@ -76,10 +77,10 @@ mod enabled {
         // or performs an add of the first two params. This is intentionally small
         // but enough to try the end-to-end flow.
         fn build_module(ir_text: &str) -> Result<inkwell::module::Module, String> {
-                // Create a new context and module. Keep all usage local so we don't need
-                // to extend lifetimes artificially.
-                let context = Context::create();
-                let module = context.create_module("jit_module");
+            // Create a new context and module. Keep all usage local so we don't need
+            // to extend lifetimes artificially.
+            let context = Context::create();
+            let module = context.create_module("jit_module");
             let i64_t = context.i64_type();
 
             // Try to parse header
@@ -111,7 +112,10 @@ mod enabled {
             // Try to find a `const i64 <N>` in the body (simple match)
             if let Some(idx) = ir_text.find("const i64") {
                 let after = &ir_text[idx + "const i64".len()..];
-                if let Some(num_str) = after.split(|c: char| !c.is_numeric() && c != '-' ).find(|s| !s.is_empty()) {
+                if let Some(num_str) = after
+                    .split(|c: char| !c.is_numeric() && c != '-')
+                    .find(|s| !s.is_empty())
+                {
                     if let Ok(v) = num_str.trim().parse::<i64>() {
                         let constv = i64_t.const_int(v as u64, true);
                         builder.build_return(Some(&constv));
@@ -264,20 +268,37 @@ mod enabled {
             // we will leak the module by boxing the context and returning a 'static
             // module. This is still a prototype trade-off.
             let s = module.print_to_string().to_string();
-            GLOBAL_JIT_REGISTRY.lock().unwrap().push((s.clone(), unsafe { std::mem::transmute::<inkwell::module::Module, inkwell::module::Module>(module) }));
+            GLOBAL_JIT_REGISTRY
+                .lock()
+                .unwrap()
+                .push((s.clone(), unsafe {
+                    std::mem::transmute::<inkwell::module::Module, inkwell::module::Module>(module)
+                }));
             Ok(s)
         }
 
         fn compile_module_get_symbol(module_text: &str, name: &str) -> Result<usize, String> {
             // Find a persisted module text or build a new one
-            let m_opt = GLOBAL_JIT_REGISTRY.lock().unwrap().iter().find(|(s, _m)| s == module_text).map(|(_s, m)| m.clone());
+            let m_opt = GLOBAL_JIT_REGISTRY
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|(s, _m)| s == module_text)
+                .map(|(_s, m)| m.clone());
             let module = if let Some(m) = m_opt {
                 // we have a cloned module to use
                 m
             } else {
                 // fallback: build and persist
                 let m = Self::build_module(module_text)?;
-                GLOBAL_JIT_REGISTRY.lock().unwrap().push((module_text.to_string(), unsafe { std::mem::transmute::<inkwell::module::Module, inkwell::module::Module>(m.clone()) }));
+                GLOBAL_JIT_REGISTRY
+                    .lock()
+                    .unwrap()
+                    .push((module_text.to_string(), unsafe {
+                        std::mem::transmute::<inkwell::module::Module, inkwell::module::Module>(
+                            m.clone(),
+                        )
+                    }));
                 m
             };
 
@@ -298,4 +319,3 @@ mod enabled {
 
 #[cfg(feature = "jit")]
 pub use enabled::ActiveLlvmBuilder as LlvmBuilderImpl;
-

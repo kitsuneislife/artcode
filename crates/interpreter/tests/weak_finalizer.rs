@@ -41,7 +41,10 @@ fn finalizer_runs_and_object_stays_while_weak() {
             ],
         }),
     ];
-    assert!(interp.interpret(program).is_ok(), "interpret program in weak_finalizer.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in weak_finalizer.rs failed"
+    );
 
     // simular remoção do strong
     interp.debug_heap_remove(id);
@@ -155,7 +158,10 @@ fn finalizer_creates_handle_preserved() {
             ],
         }),
     ];
-    assert!(interp.interpret(program).is_ok(), "interpret program in weak_finalizer.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in weak_finalizer.rs failed"
+    );
 
     // remover strong do alvo e forçar execução do finalizer
     interp.debug_heap_remove(target_id);
@@ -222,7 +228,10 @@ fn finalizer_promotes_handles_across_arenas() {
             ],
         }),
     ];
-    assert!(interp.interpret(program).is_ok(), "interpret program in weak_finalizer.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in weak_finalizer.rs failed"
+    );
 
     // finalizar explicitamente a arena
     interp.debug_finalize_arena(aid);

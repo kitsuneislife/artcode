@@ -28,7 +28,10 @@ fn weak_dies_after_scope() {
     let (program, pdiags) = p.parse();
     assert!(pdiags.is_empty());
     let mut interp = Interpreter::with_prelude();
-    assert!(interp.interpret(program).is_ok(), "interpret program in heap_drop.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in heap_drop.rs failed"
+    );
     // Procurar diagnostics de runtime (não deve haver) e verificar que res é None (Optional(None))
     let diags = interp.take_diagnostics();
     assert!(
@@ -44,6 +47,6 @@ fn weak_dies_after_scope() {
         core::ast::ArtValue::Optional(b) => {
             assert!(b.is_none(), "expected None from weak upgrade, got {:?}", b)
         }
-    other => assert!(false, "res has unexpected type: {:?}", other),
+        other => assert!(false, "res has unexpected type: {:?}", other),
     }
 }

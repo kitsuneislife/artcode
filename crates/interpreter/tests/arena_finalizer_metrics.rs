@@ -1,5 +1,5 @@
-use interpreter::interpreter::Interpreter;
 use core::ast::ArtValue;
+use interpreter::interpreter::Interpreter;
 
 #[test]
 fn arena_objects_finalized_counter() {
@@ -11,6 +11,14 @@ fn arena_objects_finalized_counter() {
     // run finalization for the arena
     interp.debug_finalize_arena(aid);
     // objects_finalized_per_arena should record 2 finalized objects for this arena
-    let cnt = interp.objects_finalized_per_arena.get(&aid).cloned().unwrap_or(0);
-    assert_eq!(cnt, 2, "expected 2 finalized objects for arena {} but got {}", aid, cnt);
+    let cnt = interp
+        .objects_finalized_per_arena
+        .get(&aid)
+        .cloned()
+        .unwrap_or(0);
+    assert_eq!(
+        cnt, 2,
+        "expected 2 finalized objects for arena {} but got {}",
+        aid, cnt
+    );
 }

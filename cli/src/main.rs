@@ -56,13 +56,17 @@ fn run_with_source(_name: &str, source: String, profile: Option<&str>, emit_ir: 
                     collect_functions(&*body, out);
                 }
                 core::ast::Stmt::Block { statements } => {
-                    for s in statements { collect_functions(s, out); }
+                    for s in statements {
+                        collect_functions(s, out);
+                    }
                 }
                 _ => {}
             }
         }
         let mut found: Vec<&core::ast::Stmt> = Vec::new();
-        for s in &program { collect_functions(s, &mut found); }
+        for s in &program {
+            collect_functions(s, &mut found);
+        }
         // diagnostic: print program summary when emit_ir requested
         eprintln!("[emit-ir] program statements: {}", program.len());
         let mut func_count = 0usize;
@@ -73,17 +77,27 @@ fn run_with_source(_name: &str, source: String, profile: Option<&str>, emit_ir: 
                     eprintln!("[emit-ir] top-level function: {}", name.lexeme);
                 }
                 core::ast::Stmt::Block { statements } => {
-                    eprintln!("[emit-ir] top-level block with {} statements", statements.len());
+                    eprintln!(
+                        "[emit-ir] top-level block with {} statements",
+                        statements.len()
+                    );
                 }
                 _ => {}
             }
         }
-        eprintln!("[emit-ir] found {} function nodes via recursive collect", found.len());
+        eprintln!(
+            "[emit-ir] found {} function nodes via recursive collect",
+            found.len()
+        );
         for fs in found {
             if let Some(irfn) = ir::lower_stmt(fs) {
                 let txt = irfn.emit_text();
                 functions.push((irfn.name.clone(), txt));
-                out.push_str(&format!("--- IR for {} ---\n{}\n", irfn.name, irfn.emit_text()));
+                out.push_str(&format!(
+                    "--- IR for {} ---\n{}\n",
+                    irfn.name,
+                    irfn.emit_text()
+                ));
             }
         }
         if path == "-" {
@@ -93,10 +107,14 @@ fn run_with_source(_name: &str, source: String, profile: Option<&str>, emit_ir: 
             // if path looks like a directory or already exists as dir, write per-function files
             let write_per_file = path.ends_with('/') || (p.exists() && p.is_dir());
             if write_per_file {
-                if let Err(e) = std::fs::create_dir_all(p) { eprintln!("failed to create dir {}: {}", path, e); }
+                if let Err(e) = std::fs::create_dir_all(p) {
+                    eprintln!("failed to create dir {}: {}", path, e);
+                }
                 for (name, txt) in &functions {
                     let fname = p.join(format!("{}.ir", name));
-                    if let Err(e) = std::fs::write(&fname, txt) { eprintln!("failed to write {}: {}", fname.display(), e); }
+                    if let Err(e) = std::fs::write(&fname, txt) {
+                        eprintln!("failed to write {}: {}", fname.display(), e);
+                    }
                 }
                 eprintln!("wrote {} function IR files to {}", functions.len(), path);
             } else {
@@ -154,25 +172,38 @@ fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>) {
                 let mut out = String::new();
                 let mut functions: Vec<(String, String)> = Vec::new();
                 // collect nested functions
-                fn collect_functions<'a>(stmt: &'a core::ast::Stmt, out: &mut Vec<&'a core::ast::Stmt>) {
+                fn collect_functions<'a>(
+                    stmt: &'a core::ast::Stmt,
+                    out: &mut Vec<&'a core::ast::Stmt>,
+                ) {
                     match stmt {
                         core::ast::Stmt::Function { body, .. } => {
                             out.push(stmt);
                             collect_functions(&*body, out);
                         }
                         core::ast::Stmt::Block { statements } => {
-                            for s in statements { collect_functions(s, out); }
+                            for s in statements {
+                                collect_functions(s, out);
+                            }
                         }
                         _ => {}
                     }
                 }
                 let mut found: Vec<&core::ast::Stmt> = Vec::new();
-                for s in &program { collect_functions(s, &mut found); }
-                eprintln!("[emit-ir] run_file: program statements={} nested_functions_found={}", program.len(), found.len());
+                for s in &program {
+                    collect_functions(s, &mut found);
+                }
+                eprintln!(
+                    "[emit-ir] run_file: program statements={} nested_functions_found={}",
+                    program.len(),
+                    found.len()
+                );
                 // Try proper lowering; if that fails create a conservative fallback IR
                 for fs in found {
                     let irfn_opt = ir::lower_stmt(fs);
-                    let irfn = if let Some(f) = irfn_opt { f } else {
+                    let irfn = if let Some(f) = irfn_opt {
+                        f
+                    } else {
                         // fallback: scan AST for call sites and produce a minimal IR body
                         fn collect_calls(stmt: &core::ast::Stmt, out: &mut Vec<(String, usize)>) {
                             match stmt {
@@ -180,22 +211,43 @@ fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>) {
                                     collect_calls_in_expr(expr, out);
                                 }
                                 core::ast::Stmt::Return { value } => {
-                                    if let Some(e) = value { collect_calls_in_expr(e, out); }
+                                    if let Some(e) = value {
+                                        collect_calls_in_expr(e, out);
+                                    }
                                 }
-                                core::ast::Stmt::If { condition, then_branch, else_branch } => {
+                                core::ast::Stmt::If {
+                                    condition,
+                                    then_branch,
+                                    else_branch,
+                                } => {
                                     collect_calls_in_expr(condition, out);
                                     collect_calls(then_branch, out);
-                                    if let Some(eb) = else_branch { collect_calls(eb, out); }
+                                    if let Some(eb) = else_branch {
+                                        collect_calls(eb, out);
+                                    }
                                 }
                                 core::ast::Stmt::Block { statements } => {
-                                    for s in statements { collect_calls(s, out); }
+                                    for s in statements {
+                                        collect_calls(s, out);
+                                    }
                                 }
-                                core::ast::Stmt::Performant { statements } => { for s in statements { collect_calls(s, out); } }
-                                core::ast::Stmt::SpawnActor { body } => { for s in body { collect_calls(s, out); } }
+                                core::ast::Stmt::Performant { statements } => {
+                                    for s in statements {
+                                        collect_calls(s, out);
+                                    }
+                                }
+                                core::ast::Stmt::SpawnActor { body } => {
+                                    for s in body {
+                                        collect_calls(s, out);
+                                    }
+                                }
                                 _ => {}
                             }
                         }
-                        fn collect_calls_in_expr(expr: &core::ast::Expr, out: &mut Vec<(String, usize)>) {
+                        fn collect_calls_in_expr(
+                            expr: &core::ast::Expr,
+                            out: &mut Vec<(String, usize)>,
+                        ) {
                             match expr {
                                 core::ast::Expr::Call { callee, arguments } => {
                                     if let core::ast::Expr::Variable { name } = &**callee {
@@ -203,17 +255,36 @@ fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>) {
                                     } else {
                                         out.push(("<anon>".to_string(), arguments.len()));
                                     }
-                                    for a in arguments { collect_calls_in_expr(a, out); }
+                                    for a in arguments {
+                                        collect_calls_in_expr(a, out);
+                                    }
                                 }
-                                core::ast::Expr::Binary { left, operator: _, right } => { collect_calls_in_expr(left, out); collect_calls_in_expr(right, out); }
-                                core::ast::Expr::Grouping { expression } => collect_calls_in_expr(expression, out),
-                                core::ast::Expr::Unary { operator: _, right } => collect_calls_in_expr(right, out),
+                                core::ast::Expr::Binary {
+                                    left,
+                                    operator: _,
+                                    right,
+                                } => {
+                                    collect_calls_in_expr(left, out);
+                                    collect_calls_in_expr(right, out);
+                                }
+                                core::ast::Expr::Grouping { expression } => {
+                                    collect_calls_in_expr(expression, out)
+                                }
+                                core::ast::Expr::Unary { operator: _, right } => {
+                                    collect_calls_in_expr(right, out)
+                                }
                                 _ => {}
                             }
                         }
                         // extract function name and params
                         let fname = match fs {
-                            core::ast::Stmt::Function { name, params: _, return_type: _, body: _, method_owner: _ } => name.lexeme.clone(),
+                            core::ast::Stmt::Function {
+                                name,
+                                params: _,
+                                return_type: _,
+                                body: _,
+                                method_owner: _,
+                            } => name.lexeme.clone(),
                             _ => "anon".to_string(),
                         };
                         let mut calls: Vec<(String, usize)> = Vec::new();
@@ -224,7 +295,9 @@ fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>) {
                         let mut next_temp: usize = 0;
                         // extract param names if this node is a function with params
                         let param_names: Vec<String> = match fs {
-                            core::ast::Stmt::Function { params, .. } => params.iter().map(|p| p.name.lexeme.clone()).collect(),
+                            core::ast::Stmt::Function { params, .. } => {
+                                params.iter().map(|p| p.name.lexeme.clone()).collect()
+                            }
                             _ => Vec::new(),
                         };
                         for (callee, argc) in calls {
@@ -233,7 +306,12 @@ fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>) {
                             // produce a call with args: prefer param names when available, otherwise use %argN
                             let args: Vec<String> = if !param_names.is_empty() {
                                 (0..argc)
-                                    .map(|i| param_names.get(i).cloned().unwrap_or_else(|| format!("%arg{}", i)))
+                                    .map(|i| {
+                                        param_names
+                                            .get(i)
+                                            .cloned()
+                                            .unwrap_or_else(|| format!("%arg{}", i))
+                                    })
                                     .collect()
                             } else {
                                 (0..argc).map(|i| format!("%arg{}", i)).collect()
@@ -241,7 +319,12 @@ fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>) {
                             body.push(ir::Instr::Call(dest.clone(), callee.to_string(), args));
                         }
                         body.push(ir::Instr::Ret(None));
-                        ir::Function { name: fname, params: Vec::new(), ret: None, body }
+                        ir::Function {
+                            name: fname,
+                            params: Vec::new(),
+                            ret: None,
+                            body,
+                        }
                     };
                     let txt = irfn.emit_text();
                     functions.push((irfn.name.clone(), txt.clone()));
@@ -253,10 +336,14 @@ fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>) {
                     let p = std::path::Path::new(path);
                     let write_per_file = path.ends_with('/') || (p.exists() && p.is_dir());
                     if write_per_file {
-                        if let Err(e) = std::fs::create_dir_all(p) { eprintln!("failed to create dir {}: {}", path, e); }
+                        if let Err(e) = std::fs::create_dir_all(p) {
+                            eprintln!("failed to create dir {}: {}", path, e);
+                        }
                         for (name, txt) in &functions {
                             let fname = p.join(format!("{}.ir", name));
-                            if let Err(e) = std::fs::write(&fname, txt) { eprintln!("failed to write {}: {}", fname.display(), e); }
+                            if let Err(e) = std::fs::write(&fname, txt) {
+                                eprintln!("failed to write {}: {}", fname.display(), e);
+                            }
                         }
                         eprintln!("wrote {} function IR files to {}", functions.len(), path);
                     } else {
@@ -299,7 +386,7 @@ fn run_prompt(emit_ir: Option<&str>) {
         if io::stdin().read_line(&mut line).is_err() || line.trim().is_empty() {
             break;
         }
-    run_with_source("<repl>", line, None, emit_ir);
+        run_with_source("<repl>", line, None, emit_ir);
     }
 }
 
@@ -347,11 +434,14 @@ fn main() {
             }
             i += 1;
         }
-    if let Some(p) = profile {
+        if let Some(p) = profile {
             match std::fs::read_to_string(&p) {
                 Ok(s) => {
                     let out_path = out.unwrap_or_else(|| "aot_plan.json".to_string());
-                    match aot::generate_aot_plan_from_profile_str(&s, std::path::Path::new(&out_path)) {
+                    match aot::generate_aot_plan_from_profile_str(
+                        &s,
+                        std::path::Path::new(&out_path),
+                    ) {
                         Ok(()) => println!("wrote AOT plan to {}", out_path),
                         Err(e) => {
                             eprintln!("failed to generate aot plan: {}", e);
@@ -374,7 +464,7 @@ fn main() {
         return run_file(&args[2], gen_profile.as_deref(), emit_ir.as_deref());
     }
     if args[1] == "metrics" {
-    if args.len() < 3 {
+        if args.len() < 3 {
             println!("Usage: art metrics [--json] <script>");
             process::exit(64);
         }
@@ -391,7 +481,7 @@ fn main() {
             process::exit(64);
         };
         match fs::read_to_string(f) {
-        Ok(_source) => {
+            Ok(_source) => {
                 // Use resolver to expand imports before collecting metrics
                 match crate::resolver::resolve(f) {
                     Ok((program, main_source)) => {
@@ -424,7 +514,8 @@ fn main() {
                                 finalizer_promotions: usize,
                                 objects_finalized_per_arena: std::collections::HashMap<u32, usize>,
                                 arena_alloc_count: std::collections::HashMap<u32, usize>,
-                                finalizer_promotions_per_arena: std::collections::HashMap<u32, usize>,
+                                finalizer_promotions_per_arena:
+                                    std::collections::HashMap<u32, usize>,
                                 weak_created: usize,
                                 weak_upgrades: usize,
                                 weak_dangling: usize,
@@ -434,7 +525,8 @@ fn main() {
                             }
 
                             // Ensure per-arena promotion map has entries for all arenas seen (default 0)
-                            let mut finalizer_promotions_per_arena = interpreter.finalizer_promotions_per_arena.clone();
+                            let mut finalizer_promotions_per_arena =
+                                interpreter.finalizer_promotions_per_arena.clone();
                             for aid in interpreter.arena_alloc_count.keys() {
                                 finalizer_promotions_per_arena.entry(*aid).or_insert(0usize);
                             }
@@ -447,7 +539,9 @@ fn main() {
                                         - (interpreter.handled_errors as f64
                                             / interpreter.executed_statements.max(1) as f64)),
                                 finalizer_promotions: interpreter.get_finalizer_promotions(),
-                                objects_finalized_per_arena: interpreter.objects_finalized_per_arena.clone(),
+                                objects_finalized_per_arena: interpreter
+                                    .objects_finalized_per_arena
+                                    .clone(),
                                 arena_alloc_count: interpreter.arena_alloc_count.clone(),
                                 finalizer_promotions_per_arena: finalizer_promotions_per_arena,
                                 weak_created: interpreter.weak_created,
@@ -474,11 +568,19 @@ fn main() {
                             );
                             // print a compact arena summary
                             if !interpreter.arena_alloc_count.is_empty() {
-                                let arenas: Vec<String> = interpreter.arena_alloc_count.iter().map(|(aid,c)| format!("arena{}:{}alloc", aid, c)).collect();
+                                let arenas: Vec<String> = interpreter
+                                    .arena_alloc_count
+                                    .iter()
+                                    .map(|(aid, c)| format!("arena{}:{}alloc", aid, c))
+                                    .collect();
                                 println!("[arena] {}", arenas.join(","));
                             }
                             if !interpreter.objects_finalized_per_arena.is_empty() {
-                                let fin: Vec<String> = interpreter.objects_finalized_per_arena.iter().map(|(aid,c)| format!("arena{}:{}finalized", aid, c)).collect();
+                                let fin: Vec<String> = interpreter
+                                    .objects_finalized_per_arena
+                                    .iter()
+                                    .map(|(aid, c)| format!("arena{}:{}finalized", aid, c))
+                                    .collect();
                                 println!("[arena_finalized] {}", fin.join(","));
                             }
                             println!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
@@ -514,7 +616,7 @@ fn main() {
         let _ = std::fs::create_dir_all(&cache_dir);
 
         // Determine source kind: local path, file://, or git URL
-    let working_src: std::path::PathBuf;
+        let working_src: std::path::PathBuf;
         let mut tmp_clone: Option<std::path::PathBuf> = None;
 
         let src_path = std::path::Path::new(src);
@@ -528,9 +630,16 @@ fn main() {
                 eprintln!("Source path does not exist: {}", src);
                 process::exit(64);
             }
-        } else if src.starts_with("git@") || src.starts_with("http://") || src.starts_with("https://") || src.ends_with(".git") {
+        } else if src.starts_with("git@")
+            || src.starts_with("http://")
+            || src.starts_with("https://")
+            || src.ends_with(".git")
+        {
             // clone into temp dir using system git
-            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
             let tmp = std::env::temp_dir().join(format!("art_add_{}", now));
             if let Err(e) = std::fs::create_dir_all(&tmp) {
                 eprintln!("Failed to create temp dir for git clone: {}", e);
@@ -563,9 +672,13 @@ fn main() {
         }
 
         // parse Art.toml if present and require name/version when available
-    let mut dest_name = working_src.file_name().and_then(|s| s.to_str()).unwrap_or("pkg").to_string();
-    let mut dest_version = "0.0.0".to_string();
-    let mut _main_field: Option<String> = None;
+        let mut dest_name = working_src
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("pkg")
+            .to_string();
+        let mut dest_version = "0.0.0".to_string();
+        let mut _main_field: Option<String> = None;
         let art_toml = working_src.join("Art.toml");
         if art_toml.exists() {
             if let Ok(s) = std::fs::read_to_string(&art_toml) {
@@ -576,9 +689,9 @@ fn main() {
                     if let Some(ver_v) = v.get("version").and_then(|n| n.as_str()) {
                         dest_version = ver_v.to_string();
                     }
-                        if let Some(main_v) = v.get("main").and_then(|m| m.as_str()) {
-                            _main_field = Some(main_v.to_string());
-                        }
+                    if let Some(main_v) = v.get("main").and_then(|m| m.as_str()) {
+                        _main_field = Some(main_v.to_string());
+                    }
                 }
             }
         }

@@ -25,7 +25,10 @@ fn bench_parse_exec(c: &mut Criterion) {
             let (program, diags) = p.parse();
             assert!(diags.is_empty());
             let mut interp = Interpreter::with_prelude();
-            assert!(interp.interpret(program).is_ok(), "interpret program in bench perf.rs failed");
+            assert!(
+                interp.interpret(program).is_ok(),
+                "interpret program in bench perf.rs failed"
+            );
         });
     });
 }

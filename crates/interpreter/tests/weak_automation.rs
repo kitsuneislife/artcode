@@ -1,5 +1,5 @@
-use interpreter::interpreter::Interpreter;
 use core::ast::ArtValue;
+use interpreter::interpreter::Interpreter;
 
 #[test]
 fn weak_upgrade_none_after_owner_drop_and_metrics() {

@@ -1,0 +1,44 @@
+name: CI - JIT smoke (opt-in matrix)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  jit-smoke:
+    if: contains(github.event.pull_request.labels.*.name, 'jit-smoke') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        use_docker: [ 'false', 'true' ]
+    name: JIT smoke (use_docker=${{ matrix.use_docker }})
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Prepare environment
+        run: |
+          if [ "${{ matrix.use_docker }}" = "true" ]; then
+            echo "Running inside official runner but will use Docker image approach (user provided).";
+          else
+            echo "Installing LLVM dev packages on runner";
+            sudo apt-get update && sudo apt-get install -y llvm-dev libclang-dev clang pkg-config cmake build-essential
+          fi
+      - name: Run JIT smoke tests
+        run: |
+          if [ "${{ matrix.use_docker }}" = "true" ]; then
+            echo "Please provide your Docker image with LLVM dev libs in the DOCKER_IMAGE secret or input when running the workflow.";
+            echo "This step will attempt to run the tests inside Docker if DOCKER_IMAGE is set.";
+            if [ -n "${{ secrets.DOCKER_IMAGE }}" ]; then
+              docker run --rm -v "${{ github.workspace }}":/work -w /work "${{ secrets.DOCKER_IMAGE }}" bash -lc "rustup default stable && cargo test -p jit --features=jit -- --nocapture"
+            else
+              echo "DOCKER_IMAGE not set; skipping Docker matrix entry.";
+            fi
+          else
+            cargo test -p jit --features=jit -- --nocapture
+          fi

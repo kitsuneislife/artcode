@@ -122,7 +122,9 @@ pub enum Expr {
     Unowned(Box<Expr>),       // açúcar: unowned expr -> builtin unowned()
     WeakUpgrade(Box<Expr>),   // açúcar: expr?  (onde expr avalia para WeakRef)
     UnownedAccess(Box<Expr>), // açúcar: expr! (onde expr avalia para UnownedRef)
-    SpawnActor { body: Vec<Stmt> },
+    SpawnActor {
+        body: Vec<Stmt>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -198,26 +200,26 @@ pub enum BuiltinFn {
     Println,
     Len,
     TypeOf,
-    WeakNew,    // __weak(x)
-    WeakGet,    // __weak_get(w)
-    UnownedNew, // __unowned(x)
-    UnownedGet, // __unowned_get(u)
-    OnFinalize, // __on_finalize(comp, fn)
-    EnvelopeNew, // envelope(sender, payload, priority)
-    MakeEnvelope, // make_envelope(payload [, priority]) sets sender=current_actor
-    ActorSend,   // actor_send(actor, value)
-    ActorReceive, // actor_receive()
+    WeakNew,              // __weak(x)
+    WeakGet,              // __weak_get(w)
+    UnownedNew,           // __unowned(x)
+    UnownedGet,           // __unowned_get(u)
+    OnFinalize,           // __on_finalize(comp, fn)
+    EnvelopeNew,          // envelope(sender, payload, priority)
+    MakeEnvelope,         // make_envelope(payload [, priority]) sets sender=current_actor
+    ActorSend,            // actor_send(actor, value)
+    ActorReceive,         // actor_receive()
     ActorReceiveEnvelope, // actor_receive_envelope()
-    ActorYield, // actor_yield()
+    ActorYield,           // actor_yield()
     ActorSetMailboxLimit, // actor_set_mailbox_limit(actor, limit)
-    RunActors, // run_actors([max_steps]) -> drive scheduler until idle or max_steps
+    RunActors,            // run_actors([max_steps]) -> drive scheduler until idle or max_steps
     // Concurrency primitives (prototype): Mutex and AtomicInt
-    AtomicNew, // atomic_new(initial:Int)
-    AtomicLoad, // atomic_load(atomic)
+    AtomicNew,   // atomic_new(initial:Int)
+    AtomicLoad,  // atomic_load(atomic)
     AtomicStore, // atomic_store(atomic, value:Int)
-    AtomicAdd, // atomic_add(atomic, delta:Int) -> returns new value
-    MutexNew, // mutex_new(value)
-    MutexLock, // mutex_lock(mutex) -> Bool
+    AtomicAdd,   // atomic_add(atomic, delta:Int) -> returns new value
+    MutexNew,    // mutex_new(value)
+    MutexLock,   // mutex_lock(mutex) -> Bool
     MutexUnlock, // mutex_unlock(mutex) -> Bool
 }
 
@@ -235,18 +237,18 @@ impl fmt::Debug for BuiltinFn {
             BuiltinFn::EnvelopeNew => write!(f, "<builtin envelope>"),
             BuiltinFn::MakeEnvelope => write!(f, "<builtin make_envelope>"),
             BuiltinFn::ActorSend => write!(f, "<builtin actor_send>"),
-                BuiltinFn::ActorReceive => write!(f, "<builtin actor_receive>"),
-                BuiltinFn::ActorReceiveEnvelope => write!(f, "<builtin actor_receive_envelope>"),
-                BuiltinFn::ActorYield => write!(f, "<builtin actor_yield>"),
-                BuiltinFn::ActorSetMailboxLimit => write!(f, "<builtin actor_set_mailbox_limit>"),
-                BuiltinFn::RunActors => write!(f, "<builtin run_actors>"),
-                BuiltinFn::AtomicNew => write!(f, "<builtin atomic_new>"),
-                BuiltinFn::AtomicLoad => write!(f, "<builtin atomic_load>"),
-                BuiltinFn::AtomicStore => write!(f, "<builtin atomic_store>"),
-                BuiltinFn::AtomicAdd => write!(f, "<builtin atomic_add>"),
-                BuiltinFn::MutexNew => write!(f, "<builtin mutex_new>"),
-                BuiltinFn::MutexLock => write!(f, "<builtin mutex_lock>"),
-                BuiltinFn::MutexUnlock => write!(f, "<builtin mutex_unlock>"),
+            BuiltinFn::ActorReceive => write!(f, "<builtin actor_receive>"),
+            BuiltinFn::ActorReceiveEnvelope => write!(f, "<builtin actor_receive_envelope>"),
+            BuiltinFn::ActorYield => write!(f, "<builtin actor_yield>"),
+            BuiltinFn::ActorSetMailboxLimit => write!(f, "<builtin actor_set_mailbox_limit>"),
+            BuiltinFn::RunActors => write!(f, "<builtin run_actors>"),
+            BuiltinFn::AtomicNew => write!(f, "<builtin atomic_new>"),
+            BuiltinFn::AtomicLoad => write!(f, "<builtin atomic_load>"),
+            BuiltinFn::AtomicStore => write!(f, "<builtin atomic_store>"),
+            BuiltinFn::AtomicAdd => write!(f, "<builtin atomic_add>"),
+            BuiltinFn::MutexNew => write!(f, "<builtin mutex_new>"),
+            BuiltinFn::MutexLock => write!(f, "<builtin mutex_lock>"),
+            BuiltinFn::MutexUnlock => write!(f, "<builtin mutex_unlock>"),
         }
     }
 }

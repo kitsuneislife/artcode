@@ -24,5 +24,10 @@ fn resolver_finds_package_in_cache() {
     cmd.arg("run").arg(main.to_str().unwrap());
     cmd.env("HOME", home.path());
     let out = cmd.output().expect("run art");
-    assert!(out.status.success(), "art failed: stdout={} stderr={}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "art failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
 }

@@ -70,7 +70,10 @@ fn field_mutation_runs_finalizer_and_decrements() {
             ],
         }),
     ];
-    assert!(interp.interpret(program).is_ok(), "interpret program in field_mutation_finalizer.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in field_mutation_finalizer.rs failed"
+    );
 
     // Agora mutar o campo left para new_obj: simular execução de stmt que faz p.left = new_obj
     // Em vez de criar AST de atribuição, re-criamos a struct com left=new_obj e rebind no global 'p'

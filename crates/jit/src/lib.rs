@@ -23,7 +23,9 @@ pub enum JitError {
 }
 
 impl From<String> for JitError {
-    fn from(s: String) -> Self { JitError::Other(s) }
+    fn from(s: String) -> Self {
+        JitError::Other(s)
+    }
 }
 
 impl fmt::Display for JitError {
@@ -44,18 +46,20 @@ impl std::error::Error for JitError {}
 mod enabled {
     // Aqui, futuramente, colocaremos a integração com `inkwell` e ORC
     pub fn compile_function(_name: &str, _ir: &str) -> Result<*const u8, crate::JitError> {
-    // placeholder: implementação real dependerá de inkwell/LLVM
-    Err(crate::JitError::Other("NotImplemented".to_string()))
+        // placeholder: implementação real dependerá de inkwell/LLVM
+        Err(crate::JitError::Other("NotImplemented".to_string()))
     }
 
     /// Minimal typed builder used by higher-level code to request JIT compilation.
     pub struct JitBuilder {}
 
     impl JitBuilder {
-        pub fn new() -> Self { JitBuilder {} }
-    pub fn compile(&self, name: &str, ir: &str) -> Result<*const u8, JitError> {
-        compile_function(name, ir)
-    }
+        pub fn new() -> Self {
+            JitBuilder {}
+        }
+        pub fn compile(&self, name: &str, ir: &str) -> Result<*const u8, JitError> {
+            compile_function(name, ir)
+        }
     }
 }
 
@@ -68,17 +72,19 @@ mod disabled {
     pub struct JitBuilder {}
 
     impl JitBuilder {
-        pub fn new() -> Self { JitBuilder {} }
+        pub fn new() -> Self {
+            JitBuilder {}
+        }
         pub fn compile(&self, _name: &str, _ir: &str) -> Result<*const u8, crate::JitError> {
             Err(crate::JitError::NotEnabled)
         }
     }
 }
 
-#[cfg(feature = "jit")]
-pub use enabled::{compile_function, JitBuilder};
 #[cfg(not(feature = "jit"))]
 pub use disabled::{compile_function, JitBuilder};
+#[cfg(feature = "jit")]
+pub use enabled::{compile_function, JitBuilder};
 
 /// Public API: convenience stub that returns None if JIT not enabled or compilation
 /// fails. Useful for higher-level integration tests.
@@ -90,10 +96,10 @@ pub fn compile_function_stub(name: &str, ir_text: &str) -> Option<usize> {
 }
 
 pub mod llvm_builder;
-#[cfg(feature = "jit")]
-pub use llvm_builder::LlvmBuilderImpl as LlvmBuilder;
 #[cfg(not(feature = "jit"))]
 pub use llvm_builder::DummyLlvmBuilder as LlvmBuilder;
+#[cfg(feature = "jit")]
+pub use llvm_builder::LlvmBuilderImpl as LlvmBuilder;
 
 // expose the analyzer/loader to callers and tests
 pub mod ir_analyzer;
@@ -104,8 +110,8 @@ pub mod ir_loader;
 pub fn jit_compile_text(_name: &str, _ir_text: &str) -> Result<usize, JitError> {
     #[cfg(feature = "jit")]
     {
-    let _ = <LlvmBuilder as llvm_builder::LlvmBuilder>::initialize().map_err(|e| e)?;
-    llvm_builder::LlvmBuilder::compile_module_get_symbol(_ir_text, _name)
+        let _ = <LlvmBuilder as llvm_builder::LlvmBuilder>::initialize().map_err(|e| e)?;
+        llvm_builder::LlvmBuilder::compile_module_get_symbol(_ir_text, _name)
     }
     #[cfg(not(feature = "jit"))]
     {
@@ -115,7 +121,8 @@ pub fn jit_compile_text(_name: &str, _ir_text: &str) -> Result<usize, JitError> 
 
 /// Load AOT plan JSON into a serde_json::Value (public helper for tests/tools)
 pub fn load_aot_plan(path: &std::path::Path) -> Result<serde_json::Value, JitError> {
-    let s = std::fs::read_to_string(path).map_err(|e| JitError::Other(format!("read plan: {}", e)))?;
+    let s =
+        std::fs::read_to_string(path).map_err(|e| JitError::Other(format!("read plan: {}", e)))?;
     serde_json::from_str(&s).map_err(|e| JitError::Other(format!("parse plan: {}", e)))
 }
 

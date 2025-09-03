@@ -8,17 +8,24 @@ fn cycle_report_counts_basic_refs() {
     // interpret manualmente (reutilizando pipeline simplificado)
     {
         let mut lexer = lexer::lexer::Lexer::new(src.to_string());
-    let tokens = match lexer.scan_tokens() {
-        Ok(t) => t,
-        Err(e) => {
-            assert!(false, "lexer scan_tokens in cycle_report.rs failed: {:?}", e);
-            Vec::new()
-        }
-    };
+        let tokens = match lexer.scan_tokens() {
+            Ok(t) => t,
+            Err(e) => {
+                assert!(
+                    false,
+                    "lexer scan_tokens in cycle_report.rs failed: {:?}",
+                    e
+                );
+                Vec::new()
+            }
+        };
         let mut parser = parser::parser::Parser::new(tokens);
         let (program, diags) = parser.parse();
         assert!(diags.is_empty(), "parse diags: {:?}", diags);
-    assert!(interp.interpret(program).is_ok(), "interpret program in cycle_report.rs failed");
+        assert!(
+            interp.interpret(program).is_ok(),
+            "interpret program in cycle_report.rs failed"
+        );
     }
     let rep = interp.cycle_report();
     assert_eq!(rep.weak_total, 2);
