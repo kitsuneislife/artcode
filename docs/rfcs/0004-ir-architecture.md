@@ -5,6 +5,11 @@ Status: Accepted
 Proponente: eng-runtime + eng-compiler
 Owner: eng-compiler (primary), eng-runtime (integration)
 
+Acceptance: 
+- Lowering hook (`crates/ir::lowering`) present and covered by golden tests
+- `xtask irgen --check` runs in CI and flags diffs
+- `crates/jit` scaffold present and feature-gated behind `--features=jit`
+
 Accepted: 2025-08-27 by eng-compiler / eng-runtime
 
 Note: This RFC reached an initial implementation milestone: `crates/ir` textual emitter, `crates/ir::lowering` hook, `xtask irgen`/`xtask gen-golden` tooling and a `crates/jit` scaffold are present in the repository. See implementation pointers below.
