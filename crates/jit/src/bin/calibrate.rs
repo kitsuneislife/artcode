@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::fs;
 use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 
 #[derive(Deserialize)]
@@ -11,14 +12,40 @@ struct AotPlan { inline_candidates: Vec<InlineCandidate> }
 #[derive(Deserialize)]
 struct InlineCandidate { name: String, _score: i64 }
 
+#[derive(Serialize)]
+struct CalibrationSuggestion {
+    instr_weight: usize,
+    call_weight: usize,
+    alloc_weight: usize,
+    block_weight: usize,
+    note: String,
+}
+
 fn analyze_ir(path: &Path) -> Option<(usize, usize, usize, usize)> {
-    // reuse parse_ir_file
-        if let Some(a) = jit::ir_loader::parse_ir_file(path) {
-        // parse_ir_file encodes instr_count weighted; we need raw counts but we'll approximate
-        // For now return (instr_count, block_count, call_count=0, alloc_count=0) since loader tracks weighted
-        return Some((a.instr_count, a.block_count, 0, 0));
+    if let Some(a) = jit::ir_loader::parse_ir_file(path) {
+        // parse_ir_file now returns raw counts
+        return Some((a.instr_count, a.block_count, a.call_count, a.alloc_count));
     }
     None
+}
+
+// simple projected gradient descent for non-negative least-squares with tiny L2 regularization
+fn nnls_projected_gradient(x: &Vec<Vec<f64>>, y: &Vec<f64>, reg: f64, iters: usize, lr: f64) -> Vec<f64> {
+    let n = x[0].len();
+    let m = x.len();
+    let mut w = vec![0.1f64; n];
+    for _ in 0..iters {
+        let mut grad = vec![0f64; n];
+        for i in 0..m {
+            let mut pred = 0f64;
+            for j in 0..n { pred += x[i][j] * w[j]; }
+            let err = pred - y[i];
+            for j in 0..n { grad[j] += 2.0 * x[i][j] * err; }
+        }
+        for j in 0..n { grad[j] += 2.0 * reg * w[j]; }
+        for j in 0..n { w[j] = (w[j] - lr * grad[j]).max(0.0); }
+    }
+    w
 }
 
 fn main() {
@@ -33,8 +60,8 @@ fn main() {
     let profile: Profile = serde_json::from_str(&prof_s).expect("parse profile");
     let plan: AotPlan = serde_json::from_str(&plan_s).expect("parse plan");
 
-    let mut x = Vec::new();
-    let mut y = Vec::new();
+    let mut x: Vec<Vec<f64>> = Vec::new();
+    let mut y: Vec<f64> = Vec::new();
     for c in plan.inline_candidates.iter() {
         let irp = ir_dir.join(format!("{}.ir", c.name));
         if irp.exists() {
@@ -50,47 +77,45 @@ fn main() {
         std::process::exit(1);
     }
 
-    // Simple linear fit using normal equations: solve W in XW = Y (least squares)
+    // normalize columns to avoid scale issues
+    let n = x[0].len();
     let m = x.len();
-    let n = 4;
-    // build XtX and XtY
-    let mut xtx = vec![vec![0f64; n]; n];
-    let mut xty = vec![0f64; n];
-    for i in 0..m {
-        for a in 0..n {
-            for b in 0..n {
-                xtx[a][b] += x[i][a] * x[i][b];
-            }
-            xty[a] += x[i][a] * y[i];
-        }
+    let mut scales = vec![1.0f64; n];
+    for j in 0..n {
+        let mut s = 0f64;
+        for i in 0..m { s += x[i][j].abs(); }
+        if s > 0.0 { scales[j] = s / (m as f64); }
     }
-    // solve via Gaussian elimination (n small)
-    // augment
-    for i in 0..n {
-        xtx[i].push(xty[i]);
-    }
-    // Gaussian elim
-    for i in 0..n {
-        // pivot
-        let mut pivot = i;
-        for r in i..n { if xtx[r][i].abs() > xtx[pivot][i].abs() { pivot = r; } }
-        if pivot != i { xtx.swap(i, pivot); }
-        let div = xtx[i][i];
-        if div.abs() < 1e-12 { continue; }
-        for j in i..=n { xtx[i][j] /= div; }
-        for r in 0..n { if r!=i { let factor = xtx[r][i]; for c in i..=n { xtx[r][c] -= factor * xtx[i][c]; } } }
-    }
-    let mut sol = vec![0f64; n];
-    for i in 0..n { sol[i] = xtx[i][n]; }
+    let mut xn = x.clone();
+    for i in 0..m { for j in 0..n { xn[i][j] = xn[i][j] / scales[j]; } }
 
-    eprintln!("calibrated weights: instr={:.4}, call={:.4}, alloc={:.4}, block={:.4}", sol[0], sol[1], sol[2], sol[3]);
+    // run NNLS-like optimizer
+    let reg = 1e-3;
+    let sol = nnls_projected_gradient(&xn, &y, reg, 5000, 1e-4);
+    // scale back
+    let mut sol_scaled = vec![0f64; n];
+    for j in 0..n { sol_scaled[j] = sol[j] / scales[j]; }
 
-    // heuristically map to analyzer constants: prefer call weight > instr weight, alloc higher
-    // We'll compute ratios and pick sensible ints
-    let call_w = (sol[1].max(0.0) / sol[0].max(1e-6) * 1.0).max(1.0);
-    let alloc_w = (sol[2].max(0.0) / sol[0].max(1e-6) * 1.0).max(1.0);
-    let block_w = (sol[3].max(0.0) / sol[0].max(1e-6) * 1.0).max(1.0);
+    eprintln!("calibrated (float) weights: instr={:.4}, call={:.4}, alloc={:.4}, block={:.4}", sol_scaled[0], sol_scaled[1], sol_scaled[2], sol_scaled[3]);
 
-    eprintln!("suggested integer weights: call ~ {:.0}, alloc ~ {:.0}, block ~ {:.0}", call_w, alloc_w, block_w);
-    eprintln!("NOTE: calibrator will only suggest weights; manual review required before updating analyzer.");
+    // map to integer suggestions respecting minimums
+    let instr_w = (sol_scaled[0].max(0.0)).max(1.0);
+    let call_w = (sol_scaled[1].max(0.0)).max(1.0);
+    let alloc_w = (sol_scaled[2].max(0.0)).max(1.0);
+    let block_w = (sol_scaled[3].max(0.0)).max(1.0);
+
+    let suggestion = CalibrationSuggestion {
+        instr_weight: instr_w.round() as usize,
+        call_weight: call_w.round() as usize,
+        alloc_weight: alloc_w.round() as usize,
+        block_weight: block_w.round() as usize,
+        note: "Suggested weights produced by constrained calibrator (non-negative, L2-regularized). Review before applying.".to_string(),
+    };
+
+    let out = serde_json::to_string_pretty(&suggestion).expect("serialize suggestion");
+    let out_path = Path::new("calibration_suggestion.json");
+    fs::write(out_path, out.as_bytes()).expect("write suggestion");
+
+    eprintln!("wrote calibration_suggestion.json ({} {})", suggestion.instr_weight, suggestion.call_weight);
+    eprintln!("note: do not auto-apply; open PR or manual review recommended");
 }
