@@ -83,13 +83,12 @@ where
     #[cfg(feature = "jit")]
     {
         // initialize builder/runtime
-        if let Err(e) = <LlvmBuilder as llvm_builder::LlvmBuilder>::initialize() {
+        if let Err(_e) = <LlvmBuilderImpl as llvm_builder::LlvmBuilder>::initialize() {
             // fallback to interpret
             return Ok(interpret());
         }
-
-        match llvm_builder::LlvmBuilder::lower_ir_to_module(ir_text) {
-            Ok(module_text) => match llvm_builder::LlvmBuilder::compile_module_get_symbol(&module_text, name) {
+        match llvm_builder::LlvmBuilderImpl::lower_ir_to_module(ir_text) {
+            Ok(module_text) => match llvm_builder::LlvmBuilderImpl::compile_module_get_symbol(&module_text, name) {
                 Ok(addr) => {
                     // SAFETY: assume compiled function has signature extern "C" fn() -> i64
                     let f: extern "C" fn() -> i64 = unsafe { std::mem::transmute(addr) };
