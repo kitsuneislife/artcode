@@ -144,6 +144,9 @@ pub use llvm_builder::DummyLlvmBuilder as LlvmBuilder;
 // expose the analyzer/loader to callers and tests
 pub mod ir_analyzer;
 pub mod ir_loader;
+pub mod trampolines;
+
+pub use trampolines::{call_jit_fn, Sig};
 
 /// Convenience: compile textual IR and return a raw function pointer (usize) when
 /// the JIT feature is enabled. Returns Err when not available or compilation fails.
