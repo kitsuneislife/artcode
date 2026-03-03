@@ -26,13 +26,13 @@
 	- `coverage`: se `cargo-llvm-cov` instalado, gera relatório de cobertura (use `--html` para saída HTML local).
 
 ### Exemplos Numerados
-Todos os exemplos de linguagem residem em `cli/examples` com prefixo numérico (`00_..`, `01_..`, ...).
+Todos os exemplos de linguagem residem em `examples` com prefixo numérico (`00_..`, `01_..`, ...).
 
 Rode manualmente:
 ```
 scripts/test_examples.sh
 ```
-O script gera saídas em `cli/examples/_outputs/{stdout,stderr}` e falha se houver `panic`/crash.
+O script gera saídas em `examples/_outputs/{stdout,stderr}` e falha se houver `panic`/crash.
 
 Eles também são validados via teste integrado (`tests/examples_runner.rs`) ao executar `cargo test`.
 

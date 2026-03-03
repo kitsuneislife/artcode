@@ -50,7 +50,7 @@ Concorrência baseada em atores simplifica isolamento de estado e evita data rac
 
 - Runtime: novos módulos `crates/interpreter/src/actors.rs` e extensão de `Interpreter`.
 - Tooling: testes novos em `crates/interpreter/tests/actors_*.rs`.
-- Docs: `docs/concurrency.md` e exemplos em `cli/examples/concurrency/`.
+- Docs: `docs/concurrency.md` e exemplos em `examples/concurrency/`.
 
 ## Plano incremental
 
@@ -70,6 +70,6 @@ Concorrência baseada em atores simplifica isolamento de estado e evita data rac
 - [x] Builtins: `actor_send`, `actor_receive` funcionando no modo cooperativo.
 - [x] Scheduler: round-robin simples que executa atores até esgotarem (ou até limite de passos).
 - [x] Tests: send/receive, backpressure, mailbox FIFO (tests added).
-- [ ] Docs e exemplo em `cli/examples/concurrency/` (docs present but examples directory pending).
+- [ ] Docs e exemplo em `examples/concurrency/` (docs present but examples directory pending).
 
 Observação: a opção de multi-threading (swapping para threads OS) foi deliberadamente adiada até que tenhamos uma análise robusta de Send-safe e primitivas sincronizadas para blocos `performant`.

@@ -58,4 +58,4 @@ pub extern "C" fn art_value_release(ptr: *mut c_void) { ... }
 
 ## Próximos Passos
 - Implementar o protótipo inicial como um módulo de features em `crates/core/src/ffi.rs`.
-- Prover um exemplo integrando uma chamada ou extração FFI em `ffi/examples`.
+- Prover um exemplo integrando uma chamada ou extração FFI em `examples/ffi`.

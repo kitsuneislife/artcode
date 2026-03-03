@@ -41,7 +41,7 @@ Próximos passos recomendados
 
 - Implementar análise lexically-scoped symbol table para distinguir entre atribuição local vs. captura real.
 - Ajustar mensagens de erro para serem mais instrutivas (sugerir alternativa segura).
-- Adicionar documentação de uso ao `cli/examples/` mostrando padrões seguros.
+- Adicionar documentação de uso ao `examples/` mostrando padrões seguros.
 
 Diagnósticos e correções rápidas
 

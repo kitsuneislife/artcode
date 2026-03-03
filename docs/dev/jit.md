@@ -5,7 +5,7 @@ This document explains the dev workflow for the JIT/AOT tooling in this repo.
 Prerequisites
 - Rust toolchain (stable)
 - Optional: LLVM dev libraries and `inkwell` if you plan to enable the `jit` feature.
-- There is a Docker image under `ci/docker/llvm/` that provides a compatible LLVM development environment.
+- There is a Docker image under `.github/docker/llvm/` that provides a compatible LLVM development environment.
 
 Common tasks
 
@@ -31,7 +31,7 @@ cargo run -p xtask -- aot-inspect --profile profile.json --plan aot_plan.json --
 
 Enabling the JIT (experimental)
 
-1. Install LLVM development packages on your system (or use the Docker image under `ci/docker/llvm`).
+1. Install LLVM development packages on your system (or use the Docker image under `.github/docker/llvm`).
 2. Build with the `jit` feature:
 
 ```bash

@@ -98,7 +98,7 @@ Dependências propostas:
 
 ## Testes e validação
 - Unit tests: lowering rules and IR invariants.
-- Golden tests: for small functions and examples in `cli/examples/`.
+- Golden tests: for small functions and examples in `examples/`.
 - Microbenchmarks: a small harness comparing interpreter vs JIT for selected kernels (array sum, factorial, fib).
 - Integration: `art run --gen-profile` exercise and end-to-end AOT build.
 

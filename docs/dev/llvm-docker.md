@@ -9,7 +9,7 @@ Resumo rápido
 
 Uso (local)
 
-1. Build: `docker build -t artcode-llvm -f ci/docker/llvm/Dockerfile .`
+1. Build: `docker build -t artcode-llvm -f .github/docker/llvm/Dockerfile .`
 2. Run (interactive): `docker run --rm -it artcode-llvm /bin/bash`
 
 CI

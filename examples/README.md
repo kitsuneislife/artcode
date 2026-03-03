@@ -27,18 +27,18 @@ Current examples (ordered):
 - `18_performant_bad.art` — Exemplos que violam restrições `performant`
 - `19_actors_simple.art` — Exemplo simples de atores: spawn, actor_send, actor_receive_envelope, envelope/make_envelope
 
-Module/package examples live in `cli/examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
+Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 
 To run an example:
 
 ```sh
-art run cli/examples/00_hello.art
+art run examples/00_hello.art
 ```
 
 To run a package example:
 
 ```sh
-cd cli/examples/modules/demo && art run main.art
+cd examples/modules/demo && art run main.art
 ```
 
 When adding or renaming examples, follow the two-digit prefix pattern so listings stay ordered.

@@ -6,9 +6,9 @@ cd "$ROOT"
 PROFILE=profile.json
 AOT_PLAN=aot_plan.json
 
-echo "Running microkernel example to generate profile: cli/examples/20_microkernel.art"
+echo "Running microkernel example to generate profile: examples/20_microkernel.art"
 # generate profile using CLI
-cargo run -p cli -- run cli/examples/20_microkernel.art --gen-profile "$PROFILE"
+cargo run -p cli -- run examples/20_microkernel.art --gen-profile "$PROFILE"
 
 if [ -f "$PROFILE" ]; then
   echo "Profile generated: $PROFILE"

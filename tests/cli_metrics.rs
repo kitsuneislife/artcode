@@ -7,7 +7,7 @@ fn cli_metrics_json_output() {
     let bin = "target/debug/art";
     assert!(std::path::Path::new(bin).exists(), "CLI binary not found at {}", bin);
 
-    let example = "cli/examples/99_weak_unowned_demo.art";
+    let example = "examples/99_weak_unowned_demo.art";
     assert!(std::path::Path::new(example).exists(), "Example script not found: {}", example);
 
     let out = match Command::new(bin).arg("metrics").arg("--json").arg(example).output() {

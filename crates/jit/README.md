@@ -11,7 +11,7 @@ Habilitando e testando o JIT (resumo)
     - `cargo test -p jit --features=jit -- --ignored`
 
 - Executando em um ambiente com LLVM (Docker):
-  - Um Dockerfile preparado está em `ci/docker/llvm/Dockerfile` e pode ser usado para produzir uma imagem com LLVM dev libs compatíveis.
+  - Um Dockerfile preparado está em `.github/docker/llvm/Dockerfile` e pode ser usado para produzir uma imagem com LLVM dev libs compatíveis.
   - Dentro da imagem, rode:
     - `cargo test -p jit --features=jit -- --ignored`
 
@@ -21,7 +21,7 @@ Habilitando e testando o JIT (resumo)
 
 Referência CI (opt-in):
 
-- Há um workflow opt-in `ci-jit-smoke.yml` que constrói uma imagem Docker com LLVM (`ci/docker/llvm/Dockerfile`) e executa o smoke test.
+- Há um workflow opt-in `ci-jit-smoke.yml` que constrói uma imagem Docker com LLVM (`.github/docker/llvm/Dockerfile`) e executa o smoke test.
 - No PR, adicione o label `jit-smoke` para disparar o job; também é possível acionar manualmente via "Run workflow".
 
 Bench local:

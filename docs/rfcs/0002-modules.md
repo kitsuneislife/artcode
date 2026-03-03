@@ -21,7 +21,7 @@ Objetivos (MVP)
 - Resolução local: mapear import -> arquivo relativo/absolute no workspace (ex.: `foo/bar.art`).
 - Manifesto `Art.toml`: metadados simples (name, version, dependencies).
 - CLI básico: `art add <path-or-git>` que instala num cache local (`~/.artcode/cache`) e atualiza um lockfile simples.
-- Documentação mínima `docs/modules.md` e exemplos em `cli/examples/modules/`.
+- Documentação mínima `docs/modules.md` e exemplos em `examples/modules/`.
 
 Não objetivos (por agora)
 ---

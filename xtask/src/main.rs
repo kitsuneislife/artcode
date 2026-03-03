@@ -116,7 +116,7 @@ fn run_examples() {
 
 fn type_check_examples() {
     // Run the CLI on each example to ensure TypeInfer does not emit type diagnostics.
-    let entries = match std::fs::read_dir("cli/examples") {
+    let entries = match std::fs::read_dir("examples") {
         Ok(e) => e,
         Err(_) => return,
     };

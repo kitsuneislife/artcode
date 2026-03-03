@@ -7,10 +7,10 @@ if [ ! -x "$BIN" ]; then
   cargo build -q --bin art
 fi
 FAILED=0
-OUT_BASE="$ROOT/cli/examples/_outputs"
+OUT_BASE="$ROOT/examples/_outputs"
 STDOUT_DIR="$OUT_BASE/stdout"; STDERR_DIR="$OUT_BASE/stderr"
 mkdir -p "$STDOUT_DIR" "$STDERR_DIR"
-for f in $(ls -1 "$ROOT/cli/examples"/[0-9][0-9]_*.art | sort); do
+for f in $(ls -1 "$ROOT/examples"/[0-9][0-9]_*.art | sort); do
   name=$(basename "$f")
   echo "[run] $name"
   if ! "$BIN" run "$f" >"$STDOUT_DIR/$name.out" 2>"$STDERR_DIR/$name.err"; then

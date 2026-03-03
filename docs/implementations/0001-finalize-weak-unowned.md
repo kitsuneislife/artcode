@@ -11,7 +11,7 @@ Contrato mínimo
   - Código runtime atual (heap_objects, Environment, closures), testes novos.
 - Outputs:
   - Implementação no runtime que passa testes unitários e de integração.
-  - Exemplo `cli/examples/99_weak_unowned_demo.art` demonstrando comportamento.
+  - Exemplo `examples/99_weak_unowned_demo.art` demonstrando comportamento.
   - Documentação em `docs/implementations/0001-finalize-weak-unowned.md`.
 
 Casos de teste obrigatórios
@@ -29,7 +29,7 @@ Plano de implementação (passos)
 
 Critério de aceitação
 - `cargo test -p interpreter` passa localmente.
-- Exemplos `cli/examples/99_weak_unowned_demo.art` executam mostrando o comportamento esperado.
+- Exemplos `examples/99_weak_unowned_demo.art` executam mostrando o comportamento esperado.
 
 Riscos conhecidos
 - Race conditions em multi-threaded envs (mitigar com atomics e testes).

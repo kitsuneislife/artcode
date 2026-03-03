@@ -7,8 +7,16 @@
 # Coverage
 lcov.info
 
-# Profiling
-profile.json
+# Profiling and JSON artifacts
+*.json
+!calibration_suggestion.json
+!profile.json
+
+# Tooling artifacts
+/artifacts/
 
 # AOT compilation plans
 aot_plan*.json
+
+# Dynamic Test Outputs
+test_output.txt

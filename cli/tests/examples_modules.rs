@@ -7,7 +7,7 @@ fn run_modules_example() {
     let work = TempDir::new().expect("workdir");
     // Use CARGO_MANIFEST_DIR so test finds the example independent of cwd when running tests
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let example_dir = manifest_dir.join("examples/modules/demo");
+    let example_dir = manifest_dir.join("../examples/modules/demo");
     let dst = work.path().join("demo");
     std::fs::create_dir_all(&dst).expect("create dst");
     // copy files

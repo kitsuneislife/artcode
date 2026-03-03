@@ -79,13 +79,13 @@ Notas rápidas:
 	- [x] `crates/ir`: tipos (Module/Function/Instr/Type) + emitter/parser textual
 	- aceitação: `cargo test -p ir` verde; `Function::emit_text` produz formato documentado
 	- [x] `crates/ir::lowering` public hook que recebe AST -> retorna `ir::Function`
-	- aceitação: lowering das funções de exemplo em `cli/examples/` produz golden files estáveis
+	- aceitação: lowering das funções de exemplo em `examples/` produz golden files estáveis
 	- [x] `crates/jit` (scaffold, optional, feature = "jit")
 		- aceitação: crate presente, compilável sem a feature `jit`; instruções para habilitar na doc
  - [x] `crates/ir`: tipos (Module/Function/Instr/Type) + emitter/parser textual
  - aceitação: `cargo test -p ir` verde; `Function::emit_text` produz formato documentado
  - [x] `crates/ir::lowering` public hook que recebe AST -> retorna `ir::Function`
- - aceitação: lowering das funções de exemplo em `cli/examples/` produz golden files estáveis
+ - aceitação: lowering das funções de exemplo em `examples/` produz golden files estáveis
  - [x] `crates/jit` (scaffold, optional, feature = "jit")
 	- aceitação: crate presente, compilável sem a feature `jit`; instruções para habilitar na doc
 
@@ -170,7 +170,7 @@ Note: the project contains `.github/workflows/xtask-irgen-check.yml` (runs on pu
  	 - [x] Manifesto de pacote `Art.toml` (nome, versão, deps, profile build) (parsing TOML MVP aplicado)
  	 - [x] Cache local: `~/.artcode/cache` e regra de resolução (lookup por nome/main)
  	 - [x] CLI: `art add <path-or-git>` instalar no cache + atualizar `.art-lock` (suporte file:// e git/local)
- 	 - [x] Docs: `docs/modules.md` + exemplos em `cli/examples/modules/` (docs e RFC atualizados)
+ 	 - [x] Docs: `docs/modules.md` + exemplos em `examples/modules/` (docs e RFC atualizados)
 
 ## Fase 14 – Governança & RFC Processual
 - [~] Criar `docs/rfcs/0000-template.md`

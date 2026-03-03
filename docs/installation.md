@@ -38,7 +38,7 @@ scripts/test_examples.sh
 ```
 - Rodar CLI em um exemplo:
 ```bash
-cargo run --bin art -- run cli/examples/00_hello.art
+cargo run --bin art -- run examples/00_hello.art
 ```
 
 Instalação: Ubuntu 24.04 (passos rápidos)
@@ -123,7 +123,7 @@ cargo test -p interpreter --test runtime -- test_name
 scripts/test_examples.sh
 
 # Executar um único exemplo via binário (válido se target/debug/art existir)
-cargo run --bin art -- run cli/examples/00_hello.art
+cargo run --bin art -- run examples/00_hello.art
 ```
 
 3) Smoke / Dev checks (format, clippy, testes)
@@ -175,14 +175,14 @@ cargo llvm-cov --workspace --output-path target/llvm-cov
 scripts/run_metrics.sh
 
 # Ou diretamente (exemplo):
-target/debug/art metrics --json cli/examples/99_weak_unowned_demo.art > artifacts/metrics.json
+target/debug/art metrics --json examples/99_weak_unowned_demo.art > artifacts/metrics.json
 ```
 
 8) Execução incremental / debug rápidos
 
 ```bash
 # Rodar o binário em modo debug
-cargo run --bin art -- run cli/examples/00_hello.art
+cargo run --bin art -- run examples/00_hello.art
 
 # Rodar testes com saída mais verbosa
 cargo test --all -- --nocapture

@@ -47,7 +47,7 @@ Principais recursos
 
 Status do projeto
 - Código modular em crates: `core`, `lexer`, `parser`, `interpreter`, `diagnostics`, `cli`.
-- Testes: suíte unitária e de integração com exemplos em `cli/examples`.
+- Testes: suíte unitária e de integração com exemplos em `examples`.
 - Ferramentas: `xtask` para cobertura e scripts para validar exemplos.
 
 Rápido começo (Quickstart)
@@ -66,7 +66,7 @@ scripts/test_examples.sh
 
 Executar o CLI (ex.: rodar um exemplo):
 ```bash
-cargo run --bin art -- run cli/examples/00_hello.art
+cargo run --bin art -- run examples/00_hello.art
 ```
 
 Design e diferenciais (curto)
@@ -112,18 +112,18 @@ Links rápidos para os principais documentos:
 - [Roadmap](docs/roadmap.md)
 - [Sumário / Índice](docs/SUMMARY.md)
 
-## Interoperabilidade / FFI (pasta `ffi/`)
+## Interoperabilidade / FFI (pasta `docs/`)
 
-A pasta `ffi/` contém esboços e diretrizes para integrar Artcode com C/Rust/WASM.
+A pasta `docs/` contém esboços e diretrizes para integrar Artcode com C/Rust/WASM.
 Resumo rápido:
 
-- `ffi/README.md` — visão geral e recomendações de ownership ao passar strings e buffers.
+- `docs/ffi.md` — visão geral e recomendações de ownership ao passar strings e buffers.
 - Convenções propostas:
 	- Strings: `Arc<str>` ↔︎ `*const c_char` com funções helper de conversão.
 	- Tipos primitivos: mapeamento direto (i64, f64, bool).
 	- Ownership: documentar claramente quando a posse é transferida (caller/callee).
-- PoC: exemplos simples devem viver em `ffi/examples/` (C wrapper e macro `art_extern!{}` no futuro).
+- PoC: exemplos simples devem viver em `examples/docs/` (C wrapper e macro `art_extern!{}` no futuro).
 
-Se você pretende usar Artcode em um projeto existente em Rust/C, veja `ffi/README.md`
+Se você pretende usar Artcode em um projeto existente em Rust/C, veja `docs/ffi.md`
 para padrões recomendados e exemplos mínimos.
 

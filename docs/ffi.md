@@ -1,45 +1,58 @@
-# Integração FFI (Foreign Function Interface)
+# FFI (Foreign Function Interface) - Draft
 
-Este guia destina-se a desenvolvedores que necessitam interoperar código C (ou linguagens parceiras) com as bibliotecas nativas e a máquina virtual do Artcode. A fundação de FFI faz parte de um conjunto exposto via `crate::core::ffi`.
+Objetivo: estabelecer diretrizes para integração de código Art com bibliotecas C, Rust e futuramente WASM, respeitando filosofia de controle explícito de memória e ownership.
 
-## Tipos Suportados na ABI C
+## Princípios
+- Zero abstrações mágicas: toda fronteira deve declarar conversões.
+- Ownership explícito: quem aloca, quem libera, e se a posse é transferida.
+- Tipos estáveis: layout previsível para structs simples.
+- Erros retornados via enum Result ou códigos explícitos.
+- Sem panics cruzando a fronteira.
 
-A linguagem Artcode faz uso de `Value`, um type opaco que pode instanciar Strings, Inteiros (`i64`), Ponto Flutuante (`f64`), ou Listas localizadas nos ambientes da Heap do Interpretador. Na fronteira com a ABI C, os ponteiros nativos operam diretamente no tipo `C` de destino:
+## Níveis de Integração
+1. C ABI mínimo: funções exportadas com `extern "C"` (futuro backend AOT/LLVM).
+2. Binding Rust direto: reuso interno sem cópia (zero-cost) expondo ponteiros ref contados.
+3. WASM: sandbox para ambiente web (planejado após estabilização do core).
 
-| Artcode | Tipo C Sugerido | Operação |
-| ------- | --------------- | -------- |
-| `i64`   | `int64_t`       | `art_extract_i64` / `art_create_i64` |
-| `String`| `char*` nulo    | `art_string_to_cstr` / `art_free_cstr` |
+## Tipos Suportados (Roadmap)
+| Categoria | Estado | Notas |
+|----------|--------|-------|
+| Inteiros / Float | Inicial | Mapear para `i64` / `f64` | 
+| Bool | Inicial | `u8` / `bool` conforme alvo |
+| String | Planejado | Passagem como fat pointer (ptr,len) | 
+| Array | Planejado | Cabeçalho com len + ptr | 
+| Struct Plain | Planejado | Layout repr(C) restrito |
+| Enum (tagged) | Planejado | Tag + union simplificado |
 
-### Exemplos na C-ABI
-A interface do `core::ffi` atual disponibiliza ponteiros baseados em `extern "C"`:
-
-```c
-#include <stdint.h>
-#include <stdio.h>
-
-// Forward declarations das funcoes exportadas do Artcode
-extern void* art_create_i64(int64_t val);
-extern int64_t art_extract_i64(void* ptr);
-extern void art_value_retain(void* ptr);
-extern void art_value_release(void* ptr);
-
-int main() {
-    // Exemplo chamativo de instanciacao:
-    void* meu_valor = art_create_i64(42);
-    
-    // Extrai devolta:
-    int64_t result = art_extract_i64(meu_valor);
-    printf("Resultado extraido da VM Artcode: %lld\\n", (long long)result);
-    
-    // Libera heap:
-    art_value_release(meu_valor);
-    return 0;
-}
+## Memory Model
+Usar ARC internamente; na fronteira FFI expor contadores explicitamente ou funções de retain/release:
 ```
+art_value_retain(ptr)
+art_value_release(ptr)
+```
+Ciclos não são coletados automaticamente; ferramentas de debug podem detectar.
 
-## Como C Strings funcionam?
+## Ownership Patterns
+| Padrão | Descrição | Exemplo |
+|--------|-----------|---------|
+| Borrow | Chamador mantém posse; callee não retém | `len` sobre slice |
+| Transfer | Callee assume e chamador não usa mais | criação de array | 
+| Clone RC | Incrementa contador para uso compartilhado | cache de string |
 
-Para integrar texto oriundo do ambiente C para Artcode, ou transformar uma `String (<Arc<str>>)` da VM em um C String literal que pode ser impresso no `printf`, utilizamos `art_string_to_cstr`.
+## Erros
+- Funções podem retornar struct `{ code: i32, payload: *mut ArtValue }` ou usar enum Result quando chamado internamente.
+- Sem unwind: camadas convertem para código retornado.
 
-**Cuidado com vazamentos de Memória**: O Artcode é construído através de um complexo contador de referências Cíclico (ARC). Como o modelo C abdica do ARC, a ponte FFI foi desenhada num pretexto de *Memory Empréstimo*. Uma `String` retornada de `art_string_to_cstr` está "viva" debaixo dos panos. Ela deve ser explicitamente morta através do invocador (C) usando a diretiva correspondente do Artcode `art_free_cstr(sua_string)`. Caso não o faça, a representação binária nativa C string não retornará e a VM ficará com leak.
+## Segurança
+- Validar ponteiros não nulos.
+- Tamanho máximo aceitável para buffers (limite configurável).
+- Marcar funções `unsafe` quando invariantes do runtime forem exigidas.
+
+## Próximos Passos
+- Definir módulo `ffi` no crate core com tipos de ponte.
+- Especificar representação binária de `ArtValue` mínima exportável.
+- Prototipar função `art_len(value)` exportada.
+- Documentar macro de ajuda para declarar builtins FFI.
+
+## Estado
+Draft inicial; sujeito a RFC antes de implementação completa.
