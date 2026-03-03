@@ -8,6 +8,10 @@ use serde::Serialize;
 use serde_json;
 use toml::Value as TomlValue;
 mod aot;
+mod docgen;
+mod formatter;
+mod linter;
+mod lsp;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
@@ -840,9 +844,6 @@ fn main() {
                 _ => file = Some(a),
             }
         }
-        if json_pretty {
-            json = true;
-        }
         let Some(f) = file else {
             println!("Usage: art detect-cycles [--json|--json-pretty] <script>");
             process::exit(64);
@@ -905,6 +906,75 @@ fn main() {
         }
         return;
     }
-    println!("Usage: art [run|detect-cycles] [--json] <script>");
+    if args[1] == "fmt" {
+        if args.len() < 3 {
+            println!("Usage: art fmt <script>");
+            process::exit(64);
+        }
+        let file = &args[2];
+        if let Err(e) = formatter::format_file(file) {
+            eprintln!("Failed to format {}: {}", file, e);
+            process::exit(74);
+        }
+        return;
+    }
+    if args[1] == "lint" {
+        if args.len() < 3 {
+            println!("Usage: art lint <script>");
+            process::exit(64);
+        }
+        let file = &args[2];
+        match fs::read_to_string(file) {
+            Ok(source) => {
+                let mut lexer = Lexer::new(source.clone());
+                let tokens = match lexer.scan_tokens() {
+                    Ok(t) => t,
+                    Err(d) => {
+                        eprintln!("{}", format_diagnostic(&source, &d));
+                        process::exit(65);
+                    }
+                };
+                let mut parser = Parser::new(tokens);
+                let (program, diags) = parser.parse();
+                if !diags.is_empty() {
+                    for d in &diags {
+                        eprintln!("{}", format_diagnostic(&source, d));
+                    }
+                    process::exit(65);
+                }
+
+                let lint_diags = linter::lint_ast(&program);
+                if lint_diags.is_empty() {
+                    println!("No lint warnings found.");
+                } else {
+                    for d in &lint_diags {
+                        eprintln!("{}", format_diagnostic(&source, d));
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("Error reading file: {}", e);
+                process::exit(74);
+            }
+        }
+        return;
+    }
+    if args[1] == "doc" {
+        if args.len() < 3 {
+            println!("Usage: art doc <script>");
+            process::exit(64);
+        }
+        let file = &args[2];
+        if let Err(e) = docgen::generate_html(file) {
+            eprintln!("Failed to generate docs for {}: {}", file, e);
+            process::exit(74);
+        }
+        return;
+    }
+    if args[1] == "lsp" {
+        lsp::start_server();
+        return;
+    }
+    println!("Usage: art [run|detect-cycles|fmt|lint|doc|lsp] [--json] <script>");
     process::exit(64);
 }

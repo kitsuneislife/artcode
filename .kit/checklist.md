@@ -188,11 +188,11 @@ Note: the project contains `.github/workflows/xtask-irgen-check.yml` (runs on pu
 - [ ] Docs geradas automaticamente de builtins (`art doc std`)
 
 ## Fase 16 – Tooling de Produtividade
-- [ ] Formatter idempotente (`art fmt`) – regras mínimas
-- [ ] Linter inicial (shadowing suspeito, unused variable, dead match arm)
-- [ ] Categorias de diagnósticos (lex/parse/type/runtime/concurrency/memory)
-- [ ] Geração de docs HTML: `art doc <path>`
-- [ ] Skeleton Language Server (hover + go-to-definition protótipo)
+- [x] Formatador embutido (`art fmt`) idempotente e determinístico (regras mínimas)
+- [x] Linter inicial: shadow suspeito, variáveis não lidas, branches mortas
+- [x] Categorias de diagnósticos (lex/parse/type/runtime/concurrency/memory/lint)
+- [x] Geração de docs HTML: `art doc <path>`
+- [x] Skeleton Language Server (hover + go-to-definition protótipo)
 
 ## Fase 17 – Performance & Benchmarks
 - [ ] Suites micro (arith, match, method dispatch)

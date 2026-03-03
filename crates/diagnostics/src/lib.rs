@@ -32,6 +32,9 @@ pub enum DiagnosticKind {
     Type,
     Runtime,
     Internal,
+    Lint,
+    Concurrency,
+    Memory,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -73,6 +76,9 @@ pub fn format_diagnostic(source: &str, d: &Diagnostic) -> String {
         DiagnosticKind::Type => "type",
         DiagnosticKind::Runtime => "runtime",
         DiagnosticKind::Internal => "internal",
+        DiagnosticKind::Lint => "lint",
+        DiagnosticKind::Concurrency => "concurrency",
+        DiagnosticKind::Memory => "memory",
     };
     let _ = writeln!(
         out,

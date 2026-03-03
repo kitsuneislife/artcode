@@ -1,0 +1,22 @@
+func test_shadowing() {
+    let x = 10;
+    println(x);
+    if x > 5 {
+        let x = 20; // Suspicious logical shadow tracking
+        println(x);
+    }
+}
+
+func test_dead_arms() {
+    let value = 5;
+    match value {
+    case _:
+        println("Caught all!");
+    case 10:
+        // Linter should detect this as dead code because `_` (Wildcard) was used above
+        println("This arm is unreachable.");
+    }
+}
+
+test_shadowing();
+test_dead_arms();

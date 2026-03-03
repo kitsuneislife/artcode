@@ -1,0 +1,20 @@
+// This file has terrible formatting!
+let x= 10;
+if x >5{
+    println("Bigger!");
+    // I want to keep this comment intact!
+    if x>20 {
+        println("Huge!");
+    } else {
+        println("Moderate");
+    }
+}
+
+fn calculate() {
+    let m = {
+        a: 1,
+        b: 2
+    };
+
+    // end
+}
