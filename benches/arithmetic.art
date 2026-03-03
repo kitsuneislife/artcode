@@ -1,0 +1,25 @@
+// Micro-benchmark: Arithmetic loop via recursion (Max Depth 50)
+func arith_loop(i: Int, sum: Int) -> Int {
+    if i >= 50 {
+        return sum;
+    }
+    // Deep duplication to keep runtime > 0ms
+    let x1 = sum + i; let s1 = x1 - (i / 2);
+    let x2 = s1 + i; let s2 = x2 - (i / 2);
+    let x3 = s2 + i; let s3 = x3 - (i / 2);
+    let x4 = s3 + i; let s4 = x4 - (i / 2);
+    let x5 = s4 + i; let s5 = x5 - (i / 2);
+    let x6 = s5 + i; let s6 = x6 - (i / 2);
+    let x7 = s6 + i; let s7 = x7 - (i / 2);
+    let x8 = s7 + i; let s8 = x8 - (i / 2);
+    let x9 = s8 + i; let s9 = x9 - (i / 2);
+    let x10 = s9 + i; let s10 = x10 - (i / 2);
+    
+    return arith_loop(i + 1, s10);
+}
+
+func run_arithmetic() {
+    arith_loop(0, 0);
+}
+
+run_arithmetic();

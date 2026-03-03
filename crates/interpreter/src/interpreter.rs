@@ -829,7 +829,7 @@ impl Interpreter {
     }
 
     #[inline]
-    fn resolve_composite<'a>(&'a self, v: &'a ArtValue) -> &'a ArtValue {
+    pub fn resolve_composite<'a>(&'a self, v: &'a ArtValue) -> &'a ArtValue {
         if let ArtValue::HeapComposite(h) = v {
             if let Some(obj) = self.heap_objects.get(&h.0) {
                 &obj.value
@@ -917,12 +917,6 @@ impl Interpreter {
     }
 
     fn dec_object_strong_recursive(&mut self, id: u64) {
-        // Prepare debug info before taking mutable borrow to avoid borrow conflicts
-        let debug_keys_opt: Option<Vec<u64>> = if self.finalizers.contains_key(&id) {
-            Some(self.heap_objects.keys().cloned().collect())
-        } else {
-            None
-        };
         // Limitar o escopo do borrow mutável para não conflitar com chamadas recursivas
         if let Some(obj) = self.heap_objects.get_mut(&id) {
             if obj.strong > 0 {
@@ -940,11 +934,6 @@ impl Interpreter {
                 }
             }
             if should_recurse {
-                // Executar finalizer se existir (snapshot para usar depois do borrow)
-                if let Some(keys) = debug_keys_opt.as_ref() {
-                    // debug info collected earlier (no-op in release)
-                    let _ = keys;
-                }
                 let finalizer = self.finalizers.remove(&id);
                 // Skip running finalizers for special heap-backed kinds (Atomic/Mutex).
                 let skip_finalizer_due_to_kind = match obj.kind {
@@ -1577,9 +1566,9 @@ impl Interpreter {
                     self.dec_value_if_heap(old);
                 }
                 let mut env = self.environment.borrow_mut();
-                if let ArtValue::HeapComposite(h) = value {
-                    env.strong_handles.push(h);
-                }
+                // NOTE: do NOT manually push to env.strong_handles here.
+                // Environment::define() already does this automatically when it sees
+                // a HeapComposite value. Double-pushing caused double-decrement GC bugs.
                 env.define(&name.lexeme, value);
                 Ok(())
             }
@@ -1871,6 +1860,11 @@ impl Interpreter {
         let scope_env = self.environment.clone();
         for statement in statements {
             if let Err(e) = self.execute(statement) {
+                // If this is a Return carrying a HeapComposite, pin it BEFORE dropping
+                // the block scope so the GC does not collect the returned object.
+                if let RuntimeError::Return(ArtValue::HeapComposite(ref h)) = e {
+                    self.inc_heap_strong(h.0);
+                }
                 self.drop_scope_heap_objects(&scope_env);
                 self.environment = previous;
                 return Err(e);
@@ -2423,19 +2417,36 @@ impl Interpreter {
                 .define(&param.name.lexeme, value);
         }
         let result = self.execute(Rc::as_ref(&func.body).clone());
+        // Extract the return value BEFORE dropping the scope.
+        // If the value is a HeapComposite, we must temporarily pin it (inc strong)
+        // so that drop_scope_heap_objects does not GC the object before the caller
+        // can capture the reference.
+        let return_val = match result {
+            Ok(()) => ArtValue::none(),
+            Err(RuntimeError::Return(val)) => val,
+        };
+        // Transfer ownership of returned HeapComposite to the CALLER's environment
+        // BEFORE we drop the function scope. This prevents the GC from collecting
+        // the returned object while it is temporarily unowned between method return
+        // and the caller binding the value to a variable.
+        //
+        // execute_block already did an inc_heap_strong when propagating the Return error
+        // through each nested block. We do NOT push into previous_env.strong_handles here
+        // because the CALLER's Stmt::Let will do that when it binds the return value.
+        // Pushing it here would create a double strong-ref that leaks.
+        //
+        // However, if execute_block didn't pin it (e.g. the function has no block scope),
+        // we still need one pin to survive our drop_scope_heap_objects call below.
+        // Since execute_block always runs for function bodies (they're always Block stmts),
+        // we rely on that pin and skip the extra one here.
         // Garantir que handles fortes dos parâmetros (env criado acima) sejam decrementados.
-        // Usamos `mem::replace` para extrair o ambiente da função sem provocar um borrow
-        // imutável de `self.environment` durante a chamada de método que requer `&mut self`.
         let func_env = std::mem::replace(&mut self.environment, previous_env.clone());
         self.drop_scope_heap_objects(&func_env);
         // Restaurar ambiente anterior (usamos `previous_env` original)
         self.environment = previous_env;
         // pop fn stack
         let _ = self.fn_stack.pop();
-        match result {
-            Ok(()) => Ok(ArtValue::none()),
-            Err(RuntimeError::Return(val)) => Ok(val),
-        }
+        Ok(return_val)
     }
 
     /// Write a simple profile JSON file to `path` containing function call counts.

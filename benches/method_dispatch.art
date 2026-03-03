@@ -1,0 +1,36 @@
+// Micro-benchmark: Method Dispatch via recursion (Depth 50)
+struct Counter {
+    value: Int
+}
+
+func Counter.inc(self: Counter) -> Counter {
+    let new_val = self.value + 1;
+    let out = Counter { value: new_val };
+    return out;
+}
+
+func dispatch_loop(i: Int, c: Counter) {
+    if i >= 50 {
+        return;
+    }
+    
+    let c1 = c.inc();
+    let c2 = c1.inc();
+    let c3 = c2.inc();
+    let c4 = c3.inc();
+    let c5 = c4.inc();
+    let c6 = c5.inc();
+    let c7 = c6.inc();
+    let c8 = c7.inc();
+    let c9 = c8.inc();
+    let c10 = c9.inc();
+    
+    dispatch_loop(i + 1, c10);
+}
+
+func run_dispatch() {
+    let c = Counter { value: 0 };
+    dispatch_loop(0, c);
+}
+
+run_dispatch();

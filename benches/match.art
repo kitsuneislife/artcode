@@ -1,0 +1,35 @@
+// Micro-benchmark: Match dispatching check via recursion (Depth 50)
+func match_loop_inner(toggle: Int, count: Int) -> Int {
+    match toggle {
+        case 0:
+            return count + 1;
+        case 1:
+            return count + 2;
+        case 2:
+            return count + 3;
+        case _:
+            return 0;
+    }
+    return count;
+}
+
+func match_loop(i: Int, count: Int) -> Int {
+    if i >= 50 {
+        return count;
+    }
+    let toggle = i - ((i / 4) * 4);
+    
+    let c1 = match_loop_inner(toggle, count);
+    let c2 = match_loop_inner(toggle, c1);
+    let c3 = match_loop_inner(toggle, c2);
+    let c4 = match_loop_inner(toggle, c3);
+    let c5 = match_loop_inner(toggle, c4);
+    
+    return match_loop(i + 1, c5);
+}
+
+func run_match() {
+    match_loop(0, 0);
+}
+
+run_match();

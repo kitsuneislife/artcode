@@ -43,6 +43,7 @@ pub struct TypeInfer<'a> {
     var_bindings: Vec<Vec<(String, Option<Type>)>>,
     // store top-level function declarations for simple callsite simulation
     functions: HashMap<String, (Vec<String>, std::rc::Rc<Stmt>)>,
+    visiting_functions: HashSet<String>,
 }
 
 impl<'a> TypeInfer<'a> {
@@ -54,6 +55,7 @@ impl<'a> TypeInfer<'a> {
             scopes: vec![HashSet::new()],
             var_bindings: vec![Vec::new()],
             functions: HashMap::new(),
+            visiting_functions: HashSet::new(),
         }
     }
 
@@ -580,20 +582,23 @@ impl<'a> TypeInfer<'a> {
                 if let Expr::Variable { name } = &**callee {
                     if let Some(entry) = self.functions.get(&name.lexeme).cloned() {
                         let (param_names, body) = entry;
-                        // create a temporary scope for params
-                        self.push_scope();
-                        for (i, p) in param_names.iter().enumerate() {
-                            if i < arguments.len() {
-                                let arg = &arguments[i];
-                                let ty = self.infer_expr(arg);
-                                self.record_var_binding(p);
-                                self.tenv.set_var(p, ty);
+                        if self.visiting_functions.insert(name.lexeme.clone()) {
+                            // create a temporary scope for params
+                            self.push_scope();
+                            for (i, p) in param_names.iter().enumerate() {
+                                if i < arguments.len() {
+                                    let arg = &arguments[i];
+                                    let ty = self.infer_expr(arg);
+                                    self.record_var_binding(p);
+                                    self.tenv.set_var(p, ty);
+                                }
                             }
+                            // Optionally infer the body to propagate types inside function (cheap simulation)
+                            // We don't attempt full signature/return inference here.
+                            self.visit_stmt(&*body);
+                            self.pop_scope();
+                            self.visiting_functions.remove(&name.lexeme);
                         }
-                        // Optionally infer the body to propagate types inside function (cheap simulation)
-                        // We don't attempt full signature/return inference here.
-                        self.visit_stmt(&*body);
-                        self.pop_scope();
                     }
                 }
                 for a in arguments {

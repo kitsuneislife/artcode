@@ -1,0 +1,30 @@
+// Macro-benchmark: Object Allocation (Depth 50)
+struct Node {
+    val: Int
+}
+
+enum Tree {
+    Leaf(Node),
+    Branch(Node)
+}
+
+func alloc_nodes(i: Int, depth: Int) -> Tree {
+    if i >= depth {
+        let leaf_val = Node { val: i };
+        let leaf = Tree.Leaf(leaf_val);
+        return leaf;
+    }
+    let n1 = Node { val: i + 1 };
+    let n2 = Node { val: i + 2 };
+    let n3 = Node { val: i + 3 };
+    let n4 = Node { val: i + 4 };
+    let n5 = Node { val: i + 5 };
+    
+    return alloc_nodes(i + 1, depth);
+}
+
+func run_alloc() {
+    let t = alloc_nodes(0, 50);
+}
+
+run_alloc();
