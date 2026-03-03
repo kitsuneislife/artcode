@@ -1,5 +1,6 @@
 pub mod ast;
 pub mod environment;
+pub mod ffi;
 pub mod interner;
 pub mod token;
 pub mod types;

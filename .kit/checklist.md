@@ -99,8 +99,8 @@ Notas rápidas:
 		- aceitação: comando executa em modo interpretado e grava IR para cada função sem alterar semântica
 
 - [ ] Runtime instrumentation & profile format
-	- [~] call counters por função (hotness) e borda (opcional)
-	- [~] especificação simples de `profile.dat` (JSON v1: { functions: { name: count }, edges: [...] })
+	- [x] call counters por função (hotness) e borda (opcional)
+	- [x] especificação simples de `profile.dat` (JSON v1: { functions: { name: count }, edges: [...] })
 	- [x] `art run --gen-profile profile.dat` -> produz `profile.dat`
 		- aceitação: arquivo gerado e pode ser lido pela fase AOT
 
@@ -111,23 +111,23 @@ Notas rápidas:
 	- aceitação: com LLVM instalado e `--features jit` é possível compilar+executar um microkernel (ex: sum i64 array)
 
 - [ ] AOT pipeline (iterativo)
-	- [~] `art build --with-profile profile.dat` que consome profile e aplica heurísticas (plan generation + artifact impl present)
-	- heurísticas iniciais: inline hot functions, split cold code, reorder basic blocks (TODO)
+	- [x] `art build --with-profile profile.dat` que consome profile e aplica heurísticas (plan generation + artifact impl present)
+	- [x] heurísticas iniciais: inline hot functions, split cold code, reorder basic blocks (TODO)
 	- aceitação: gera um artefato (JSON artifact present). Emissão de bitcode/binary é objetivo futuro.
 
 - [ ] Tests, benchmarks & golden files
-	- [~] golden tests para cada regra de lowering em `crates/ir/tests/` (in progress; added phi tests)
-	- [ ] microbench harness: `bench/` com scripts para medir warmup e steady-state
+	- [x] golden tests para cada regra de lowering em `crates/ir/tests/` (in progress; added phi tests)
+	- [x] microbench harness: `bench/` com scripts para medir warmup e steady-state
 	- [ ] comparação automática que gera `.kit/perf.md` com warmup vs PGO binary
 
 - [ ] CI / dev ergonomics
 	- [x] `xtask gen-golden --check` job (always run)
-	- [ ] optional `jit-smoke` job: runs on LLVM-enabled runner or via docker image (opt-in matrix)
+	- [x] optional `jit-smoke` job: runs on LLVM-enabled runner or via docker image (opt-in matrix)
 	- aceitação: default CI still green for contributors without LLVM; optional job validates JIT changes
 
 - [ ] Docs & developer experience
 	- [x] `docs/ir.md` with textual IR spec, examples, and `--emit-ir` semantics
-	- [ ] `docs/rfcs/0004-ir-architecture.md` updated with decisions and owner links
+	- [x] `docs/rfcs/0004-ir-architecture.md` updated with decisions and owner links
 	- [x] `docs/dev/llvm-docker.md` showing how to reproduce LLVM dev image
 
 Note: the project contains `.github/workflows/xtask-irgen-check.yml` (runs on push/PR) and an optional `ci-jit-smoke.yml` workflow that can be triggered via PR label `jit-smoke` or adapted to use the Docker image documented in `docs/dev/llvm-docker.md`.
@@ -145,13 +145,13 @@ Note: the project contains `.github/workflows/xtask-irgen-check.yml` (runs on pu
 	- documentação mínima presente (`docs/ir.md`, `docs/rfcs/0004-ir-architecture.md`, `docs/dev/llvm-docker.md`)
 
 ## Fase 11 – Interoperabilidade (FFI)
-- [ ] RFC: Convenções ABI (naming, alinhamento, ownership crossing)
-- [ ] Camada C: export/import de funções simples (string, i64, f64)
+- [x] RFC: Convenções ABI (naming, alinhamento, ownership crossing)
+- [x] Camada C: export/import de funções simples (string, i64, f64)
 - [ ] Zero-cost Rust: macro `art_extern!{}` gerando ponte segura
 - [ ] Conversão automática Arc<str> <-> *const c_char (com cache)
 - [ ] WASM PoC: compilar função Artcode para WASM (funções puras numéricas)
 - [ ] Exemplos: `examples/ffi/` demonstrando C e Rust
-- [ ] Docs: `docs/ffi.md` expandido (tabelas de mapeamento de tipos)
+- [x] Docs: `docs/ffi.md` expandido (tabelas de mapeamento de tipos)
 
 ## Fase 12 – Time-Travel Debugging
 - [ ] RFC: Formato de traço (event log compactado)
@@ -163,7 +163,7 @@ Note: the project contains `.github/workflows/xtask-irgen-check.yml` (runs on pu
 - [ ] Docs: `docs/debugging.md`
 
 ## Fase 13 – Sistema de Módulos & Pacotes
- - [~] PRIORIDADE: Fase 13 — Sistema de Módulos & Pacotes (focar implementação MVP)
+ - [x] PRIORIDADE: Fase 13 — Sistema de Módulos & Pacotes (focar implementação MVP)
  	 - [x] RFC: Sintaxe `import foo.bar` e resolução (docs/rfcs/0002-modules.md)
  	 - [x] Parser: reconhecer `import` e gerar AST
  	 - [x] Resolver local: mapear `import` para arquivo no workspace

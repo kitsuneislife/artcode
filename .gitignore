@@ -3,3 +3,12 @@
 /.kit
 / .github/*
 !.github/banner.png
+
+# Coverage
+lcov.info
+
+# Profiling
+profile.json
+
+# AOT compilation plans
+aot_plan*.json
