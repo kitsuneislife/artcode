@@ -147,10 +147,10 @@ Note: the project contains `.github/workflows/xtask-irgen-check.yml` (runs on pu
 ## Fase 11 – Interoperabilidade (FFI)
 - [x] RFC: Convenções ABI (naming, alinhamento, ownership crossing)
 - [x] Camada C: export/import de funções simples (string, i64, f64)
-- [ ] Zero-cost Rust: macro `art_extern!{}` gerando ponte segura
-- [ ] Conversão automática Arc<str> <-> *const c_char (com cache)
-- [ ] WASM PoC: compilar função Artcode para WASM (funções puras numéricas)
-- [ ] Exemplos: `examples/ffi/` demonstrando C e Rust
+- [x] Zero-cost Rust: macro `art_extern!{}` gerando ponte segura
+- [x] Conversão automática Arc<str> <-> *const c_char (com cache)
+- [x] WASM PoC: compilar função Artcode para WASM (funções puras numéricas)
+- [x] Exemplos: `examples/ffi/` demonstrando C e Rust
 - [x] Docs: `docs/ffi.md` expandido (tabelas de mapeamento de tipos)
 
 ## Fase 12 – Time-Travel Debugging
