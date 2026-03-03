@@ -12,7 +12,7 @@ pub enum Type {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Instr {
-    ConstI64(String, i64), // name, value
+    ConstI64(String, i64),       // name, value
     Add(String, String, String), // dest, a, b
     Sub(String, String, String),
     Mul(String, String, String),
@@ -53,7 +53,11 @@ impl fmt::Display for Type {
 impl Function {
     pub fn emit_text(&self) -> String {
         let mut out = String::new();
-    let params: Vec<String> = self.params.iter().map(|(n,t)| format!("{} {}", t, n)).collect();
+        let params: Vec<String> = self
+            .params
+            .iter()
+            .map(|(n, t)| format!("{} {}", t, n))
+            .collect();
         // Build body text first
         let mut body = String::new();
         let mut printed_label = false;
@@ -63,16 +67,36 @@ impl Function {
                     body.push_str(&format!("{}:\n", l));
                     printed_label = true;
                 }
-                Instr::ConstI64(name, v) => body.push_str(&format!("  {} = const i64 {}\n", name, v)),
-                Instr::Add(dest,a,b) => body.push_str(&format!("  {} = add i64 {}, {}\n", dest, a, b)),
-                Instr::Sub(dest,a,b) => body.push_str(&format!("  {} = sub i64 {}, {}\n", dest, a, b)),
-                Instr::Mul(dest,a,b) => body.push_str(&format!("  {} = mul i64 {}, {}\n", dest, a, b)),
-                Instr::Div(dest,a,b) => body.push_str(&format!("  {} = div i64 {}, {}\n", dest, a, b)),
-                Instr::Call(dest,fnname,args) => body.push_str(&format!("  {} = call {}({})\n", dest, fnname, args.join(", "))),
+                Instr::ConstI64(name, v) => {
+                    body.push_str(&format!("  {} = const i64 {}\n", name, v))
+                }
+                Instr::Add(dest, a, b) => {
+                    body.push_str(&format!("  {} = add i64 {}, {}\n", dest, a, b))
+                }
+                Instr::Sub(dest, a, b) => {
+                    body.push_str(&format!("  {} = sub i64 {}, {}\n", dest, a, b))
+                }
+                Instr::Mul(dest, a, b) => {
+                    body.push_str(&format!("  {} = mul i64 {}, {}\n", dest, a, b))
+                }
+                Instr::Div(dest, a, b) => {
+                    body.push_str(&format!("  {} = div i64 {}, {}\n", dest, a, b))
+                }
+                Instr::Call(dest, fnname, args) => body.push_str(&format!(
+                    "  {} = call {}({})\n",
+                    dest,
+                    fnname,
+                    args.join(", ")
+                )),
                 Instr::Br(label) => body.push_str(&format!("  br {}\n", label)),
-                Instr::BrCond(pred,t,f) => body.push_str(&format!("  br_cond {}, {}, {}\n", pred, t, f)),
+                Instr::BrCond(pred, t, f) => {
+                    body.push_str(&format!("  br_cond {}, {}, {}\n", pred, t, f))
+                }
                 Instr::Phi(dest, ty, pairs) => {
-                    let parts: Vec<String> = pairs.iter().map(|(v,bb)| format!("[ {}, {} ]", v, bb)).collect();
+                    let parts: Vec<String> = pairs
+                        .iter()
+                        .map(|(v, bb)| format!("[ {}, {} ]", v, bb))
+                        .collect();
                     body.push_str(&format!("  {} = phi {} {}\n", dest, ty, parts.join(", ")))
                 }
                 Instr::Ret(Some(v)) => body.push_str(&format!("  ret {}\n", v)),
@@ -80,8 +104,16 @@ impl Function {
             }
         }
 
-    // header string used for function emission
-    let header = format!("func @{}({}) -> {} {{\n", self.name, params.join(", "), self.ret.as_ref().map(|t| t.to_string()).unwrap_or_else(|| "void".to_string()));
+        // header string used for function emission
+        let header = format!(
+            "func @{}({}) -> {} {{\n",
+            self.name,
+            params.join(", "),
+            self.ret
+                .as_ref()
+                .map(|t| t.to_string())
+                .unwrap_or_else(|| "void".to_string())
+        );
         if printed_label {
             out.push_str(&header);
             out.push_str(&body);

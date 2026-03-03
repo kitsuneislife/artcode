@@ -1,6 +1,6 @@
-use ir::lower_stmt;
-use core::ast::{Stmt, Expr, FunctionParam};
+use core::ast::{Expr, FunctionParam, Stmt};
 use core::Token;
+use ir::lower_stmt;
 
 #[test]
 fn golden_lower_call() {
@@ -10,12 +10,31 @@ fn golden_lower_call() {
     let b = Token::dummy("b");
 
     let params = vec![
-        FunctionParam { name: a.clone(), ty: None },
-        FunctionParam { name: b.clone(), ty: None },
+        FunctionParam {
+            name: a.clone(),
+            ty: None,
+        },
+        FunctionParam {
+            name: b.clone(),
+            ty: None,
+        },
     ];
 
-    let call_expr = Expr::Call { callee: Box::new(Expr::Variable { name: Token::dummy("add") }), arguments: vec![Expr::Variable { name: a }, Expr::Variable { name: b }] };
-    let func = Stmt::Function { name, params, return_type: Some("i64".to_string()), body: std::rc::Rc::new(Stmt::Return { value: Some(call_expr) }), method_owner: None };
+    let call_expr = Expr::Call {
+        callee: Box::new(Expr::Variable {
+            name: Token::dummy("add"),
+        }),
+        arguments: vec![Expr::Variable { name: a }, Expr::Variable { name: b }],
+    };
+    let func = Stmt::Function {
+        name,
+        params,
+        return_type: Some("i64".to_string()),
+        body: std::rc::Rc::new(Stmt::Return {
+            value: Some(call_expr),
+        }),
+        method_owner: None,
+    };
 
     let irf = lower_stmt(&func).expect("lowering failed");
     let text = irf.emit_text();

@@ -8,7 +8,9 @@ use parser::parser::Parser;
 /// Resolve imports starting from `entry` file. Returns Ok((program, main_source)) on success.
 /// On error returns a vector of (source_string, Diagnostic) for diagnostics produced while
 /// lexing/parsing any file.
-pub fn resolve(entry: &str) -> Result<(core::Program, String), Vec<(String, diagnostics::Diagnostic)>> {
+pub fn resolve(
+    entry: &str,
+) -> Result<(core::Program, String), Vec<(String, diagnostics::Diagnostic)>> {
     let mut visited: HashSet<PathBuf> = HashSet::new();
     let entry_path = PathBuf::from(entry);
 
@@ -16,7 +18,11 @@ pub fn resolve(entry: &str) -> Result<(core::Program, String), Vec<(String, diag
     let main_source = match fs::read_to_string(&entry_path) {
         Ok(s) => s,
         Err(e) => {
-            let diag = diagnostics::Diagnostic::new(diagnostics::DiagnosticKind::Parse, format!("Failed to read {}: {}", entry, e), diagnostics::Span::new(0,0,0,0));
+            let diag = diagnostics::Diagnostic::new(
+                diagnostics::DiagnosticKind::Parse,
+                format!("Failed to read {}: {}", entry, e),
+                diagnostics::Span::new(0, 0, 0, 0),
+            );
             return Err(vec![(String::new(), diag)]);
         }
     };
@@ -70,10 +76,10 @@ pub fn resolve(entry: &str) -> Result<(core::Program, String), Vec<(String, diag
         if cand_mod.exists() {
             return Some(cand_mod);
         }
-    // Not found locally — but first check if project lock_map provides a pinned path
-    // (lock_map is captured from outer scope via move closure semantics in Rust; since this is a nested fn we will re-check in caller)
+        // Not found locally — but first check if project lock_map provides a pinned path
+        // (lock_map is captured from outer scope via move closure semantics in Rust; since this is a nested fn we will re-check in caller)
 
-    // Not found locally — try user cache (~/.artcode/cache)
+        // Not found locally — try user cache (~/.artcode/cache)
         if let Some(home) = dirs::home_dir() {
             let cache_dir = home.join(".artcode").join("cache");
             // Try cached package by rel (name or name-version)
@@ -119,14 +125,22 @@ pub fn resolve(entry: &str) -> Result<(core::Program, String), Vec<(String, diag
                                     if let Some(name_v) = v.get("name").and_then(|n| n.as_str()) {
                                         if name_v == rel {
                                             // prefer main field
-                                            if let Some(mainf) = v.get("main").and_then(|m| m.as_str()) {
+                                            if let Some(mainf) =
+                                                v.get("main").and_then(|m| m.as_str())
+                                            {
                                                 let candidate_main = p.join(mainf);
-                                                if candidate_main.exists() { return Some(candidate_main); }
+                                                if candidate_main.exists() {
+                                                    return Some(candidate_main);
+                                                }
                                             }
                                             let m1 = p.join("main.art");
-                                            if m1.exists() { return Some(m1); }
+                                            if m1.exists() {
+                                                return Some(m1);
+                                            }
                                             let m2 = p.join("mod.art");
-                                            if m2.exists() { return Some(m2); }
+                                            if m2.exists() {
+                                                return Some(m2);
+                                            }
                                         }
                                     }
                                 }
@@ -137,9 +151,13 @@ pub fn resolve(entry: &str) -> Result<(core::Program, String), Vec<(String, diag
                     if let Some(fname) = p.file_name().and_then(|s| s.to_str()) {
                         if fname.starts_with(rel) {
                             let m1 = p.join("main.art");
-                            if m1.exists() { return Some(m1); }
+                            if m1.exists() {
+                                return Some(m1);
+                            }
                             let m2 = p.join("mod.art");
-                            if m2.exists() { return Some(m2); }
+                            if m2.exists() {
+                                return Some(m2);
+                            }
                         }
                     }
                 }
@@ -148,7 +166,13 @@ pub fn resolve(entry: &str) -> Result<(core::Program, String), Vec<(String, diag
         None
     }
 
-    fn process_file(path: &Path, visited: &mut HashSet<PathBuf>, out: &mut core::Program, errors: &mut Vec<(String, diagnostics::Diagnostic)>, lock_map: &std::collections::HashMap<String, PathBuf>) {
+    fn process_file(
+        path: &Path,
+        visited: &mut HashSet<PathBuf>,
+        out: &mut core::Program,
+        errors: &mut Vec<(String, diagnostics::Diagnostic)>,
+        lock_map: &std::collections::HashMap<String, PathBuf>,
+    ) {
         // canonicalize if possible
         let key = match fs::canonicalize(path) {
             Ok(p) => p,
@@ -165,7 +189,17 @@ pub fn resolve(entry: &str) -> Result<(core::Program, String), Vec<(String, diag
                 if m2.exists() {
                     m2
                 } else {
-                    errors.push((String::new(), diagnostics::Diagnostic::new(diagnostics::DiagnosticKind::Parse, format!("Locked path {} is a directory but contains no main.art or mod.art", key.display()), diagnostics::Span::new(0,0,0,0))));
+                    errors.push((
+                        String::new(),
+                        diagnostics::Diagnostic::new(
+                            diagnostics::DiagnosticKind::Parse,
+                            format!(
+                                "Locked path {} is a directory but contains no main.art or mod.art",
+                                key.display()
+                            ),
+                            diagnostics::Span::new(0, 0, 0, 0),
+                        ),
+                    ));
                     return;
                 }
             }
@@ -186,7 +220,14 @@ pub fn resolve(entry: &str) -> Result<(core::Program, String), Vec<(String, diag
         let source = match fs::read_to_string(&actual_path) {
             Ok(s) => s,
             Err(e) => {
-                errors.push((String::new(), diagnostics::Diagnostic::new(diagnostics::DiagnosticKind::Parse, format!("Failed to read {}: {}", actual_path.display(), e), diagnostics::Span::new(0,0,0,0))));
+                errors.push((
+                    String::new(),
+                    diagnostics::Diagnostic::new(
+                        diagnostics::DiagnosticKind::Parse,
+                        format!("Failed to read {}: {}", actual_path.display(), e),
+                        diagnostics::Span::new(0, 0, 0, 0),
+                    ),
+                ));
                 return;
             }
         };
@@ -226,7 +267,18 @@ pub fn resolve(entry: &str) -> Result<(core::Program, String), Vec<(String, diag
                 if let Some(cand) = resolve_candidate(base_dir, &rel) {
                     process_file(&cand, visited, out, errors, lock_map);
                 } else {
-                    errors.push((source.clone(), diagnostics::Diagnostic::new(diagnostics::DiagnosticKind::Parse, format!("Cannot resolve import '{}' from {}", rel, base_dir.display()), diagnostics::Span::new(0,0,0,0))));
+                    errors.push((
+                        source.clone(),
+                        diagnostics::Diagnostic::new(
+                            diagnostics::DiagnosticKind::Parse,
+                            format!(
+                                "Cannot resolve import '{}' from {}",
+                                rel,
+                                base_dir.display()
+                            ),
+                            diagnostics::Span::new(0, 0, 0, 0),
+                        ),
+                    ));
                 }
             }
         }
@@ -243,7 +295,13 @@ pub fn resolve(entry: &str) -> Result<(core::Program, String), Vec<(String, diag
     // pathbuf_join is now not needed; resolution uses resolve_candidate
 
     // Start processing from entry file path
-    process_file(&entry_path, &mut visited, &mut out_program, &mut errors, &lock_map);
+    process_file(
+        &entry_path,
+        &mut visited,
+        &mut out_program,
+        &mut errors,
+        &lock_map,
+    );
 
     if !errors.is_empty() {
         return Err(errors);

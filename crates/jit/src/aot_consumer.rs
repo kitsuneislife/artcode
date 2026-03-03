@@ -15,7 +15,10 @@ fn main() {
     let plan_path = Path::new(&args[1]);
     let plan = match load_plan(plan_path) {
         Ok(p) => p,
-        Err(e) => { eprintln!("error: {}", e); std::process::exit(1); }
+        Err(e) => {
+            eprintln!("error: {}", e);
+            std::process::exit(1);
+        }
     };
     // Minimal action: list inline candidates and pretend to schedule compile order by score
     if let Some(arr) = plan.get("inline_candidates").and_then(|v| v.as_array()) {
@@ -27,7 +30,10 @@ fn main() {
         });
         eprintln!("Scheduled JIT compile order:");
         for item in vec {
-            let name = item.get("name").and_then(|v| v.as_str()).unwrap_or("<unknown>");
+            let name = item
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("<unknown>");
             let score = item.get("score").and_then(|v| v.as_i64()).unwrap_or(0);
             eprintln!("- {} (score={})", name, score);
         }

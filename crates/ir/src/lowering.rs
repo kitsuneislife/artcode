@@ -1,5 +1,5 @@
-use core::ast::{Expr, Stmt};
 use crate::{Function, Instr, Type};
+use core::ast::{Expr, Stmt};
 use std::collections::HashMap;
 
 /// Attempt to lower a `Stmt` to an IR `Function`.
@@ -8,7 +8,13 @@ use std::collections::HashMap;
 /// the initial golden tests.
 pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
     match stmt {
-        Stmt::Function { name, params, return_type: _, body, method_owner: _ } => {
+        Stmt::Function {
+            name,
+            params,
+            return_type: _,
+            body,
+            method_owner: _,
+        } => {
             // Only support function bodies that are a block with a single Return
             // or a direct Return statement.
             let func_name = name.lexeme.clone();
@@ -19,14 +25,14 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
                 ir_params.push((pname, Type::I64));
             }
 
-                // helper to create unique temps (prefixed with function name)
-                let mut next_temp: usize = 0;
-                let fname_prefix = func_name.replace("@", "");
-                let mut mktemp = || {
-                    let t = format!("%{}_{}", fname_prefix, next_temp);
-                    next_temp += 1;
-                    t
-                };
+            // helper to create unique temps (prefixed with function name)
+            let mut next_temp: usize = 0;
+            let fname_prefix = func_name.replace("@", "");
+            let mut mktemp = || {
+                let t = format!("%{}_{}", fname_prefix, next_temp);
+                next_temp += 1;
+                t
+            };
 
             // inspect body
             let ret_expr = match &**body {
@@ -34,7 +40,9 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
                 Stmt::Block { statements } if statements.len() == 1 => {
                     if let Stmt::Return { value } = &statements[0] {
                         value.clone()
-                    } else { return None; }
+                    } else {
+                        return None;
+                    }
                 }
                 _ => return None,
             };
@@ -47,7 +55,11 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
 
             // Handle Binary ops (add/sub/mul/div) and produce appropriate Instrs.
             match expr {
-                Expr::Binary { left, operator, right } => {
+                Expr::Binary {
+                    left,
+                    operator,
+                    right,
+                } => {
                     // operator lexeme decides the opcode
                     let op = operator.lexeme.as_str();
 
@@ -74,11 +86,21 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
                         _ => return None,
                     };
                     let body = vec![bin, Instr::Ret(Some(dest))];
-                    Some(Function { name: func_name, params: ir_params, ret: Some(Type::I64), body })
+                    Some(Function {
+                        name: func_name,
+                        params: ir_params,
+                        ret: Some(Type::I64),
+                        body,
+                    })
                 }
                 Expr::Grouping { expression } => {
                     // unwrap grouping and try again (simple wrapper)
-                    if let Expr::Binary { left, operator, right } = *expression {
+                    if let Expr::Binary {
+                        left,
+                        operator,
+                        right,
+                    } = *expression
+                    {
                         // reuse above by reconstructing
                         let op = operator.lexeme.as_str();
                         let extract = |e: Expr| -> Option<String> {
@@ -101,8 +123,15 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
                             "/" => vec![Instr::Div(dest.clone(), l, r), Instr::Ret(Some(dest))],
                             _ => return None,
                         };
-                        Some(Function { name: func_name, params: ir_params, ret: Some(Type::I64), body })
-                    } else { None }
+                        Some(Function {
+                            name: func_name,
+                            params: ir_params,
+                            ret: Some(Type::I64),
+                            body,
+                        })
+                    } else {
+                        None
+                    }
                 }
                 Expr::Call { callee, arguments } => {
                     // Lower a direct call returning a value: produce Call instr
@@ -112,14 +141,21 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
                         for a in arguments {
                             match a {
                                 Expr::Variable { name } => arg_names.push(name.lexeme.clone()),
-                                Expr::Literal(core::ast::ArtValue::Int(n)) => arg_names.push(n.to_string()),
+                                Expr::Literal(core::ast::ArtValue::Int(n)) => {
+                                    arg_names.push(n.to_string())
+                                }
                                 _ => return None,
                             }
                         }
                         let dest = mktemp();
                         let call = Instr::Call(dest.clone(), callee_name.lexeme.clone(), arg_names);
                         let body = vec![call, Instr::Ret(Some(dest))];
-                        return Some(Function { name: func_name, params: ir_params, ret: Some(Type::I64), body });
+                        return Some(Function {
+                            name: func_name,
+                            params: ir_params,
+                            ret: Some(Type::I64),
+                            body,
+                        });
                     }
                     None
                 }
@@ -143,7 +179,14 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
 // merge_bb:
 //   %res = phi [ %t, then_bb ], [ %e, else_bb ]
 pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
-    if let Stmt::Function { name, params, return_type: _, body, method_owner: _ } = stmt {
+    if let Stmt::Function {
+        name,
+        params,
+        return_type: _,
+        body,
+        method_owner: _,
+    } = stmt
+    {
         let func_name = name.lexeme.clone();
         let mut ir_params = Vec::new();
         for p in params.iter() {
@@ -152,34 +195,45 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
         }
         // expects single If in body
         if let Stmt::Block { statements } = &**body {
-            if statements.len() != 1 { return None }
-            if let Stmt::If { condition, then_branch, else_branch } = &statements[0] {
+            if statements.len() != 1 {
+                return None;
+            }
+            if let Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } = &statements[0]
+            {
                 // build temps and labels
                 let mut next_temp: usize = 0;
                 let fname_prefix = func_name.replace("@", "");
-                let mut mktemp = || { let t = format!("%{}_{}", fname_prefix, next_temp); next_temp += 1; t };
+                let mut mktemp = || {
+                    let t = format!("%{}_{}", fname_prefix, next_temp);
+                    next_temp += 1;
+                    t
+                };
                 let then_bb = format!("{}_then", fname_prefix);
                 let else_bb = format!("{}_else", fname_prefix);
                 let merge_bb = format!("{}_merge", fname_prefix);
 
                 // lower condition: only var or literal supported for now
                 let cond_name = match condition {
-                            Expr::Variable { name } => name.lexeme.clone(),
-                            Expr::Literal(core::ast::ArtValue::Bool(b)) => {
-                                // materialize a const bool as i64 (0/1) in temp; record into pre_body
-                                let t = mktemp();
-                                let v = if *b { 1 } else { 0 };
-                                let mut pb: Vec<Instr> = Vec::new();
-                                pb.push(Instr::ConstI64(t.clone(), v));
-                                // store pre_body in an option to be emitted later
-                                // We'll set cond_name to the temp we created.
-                                // Note: return cond_name as t and attach pre_body later.
-                                // Use a side-channel via a mutable variable below.
-                                // We'll shadow cond_name after the match to access pb via outer scope.
-                                // To implement this cleanly, we'll use a trick: store pb in a local
-                                // variable `pre_body_opt` declared below. For now, just return t.
-                                t
-                            }
+                    Expr::Variable { name } => name.lexeme.clone(),
+                    Expr::Literal(core::ast::ArtValue::Bool(b)) => {
+                        // materialize a const bool as i64 (0/1) in temp; record into pre_body
+                        let t = mktemp();
+                        let v = if *b { 1 } else { 0 };
+                        let mut pb: Vec<Instr> = Vec::new();
+                        pb.push(Instr::ConstI64(t.clone(), v));
+                        // store pre_body in an option to be emitted later
+                        // We'll set cond_name to the temp we created.
+                        // Note: return cond_name as t and attach pre_body later.
+                        // Use a side-channel via a mutable variable below.
+                        // We'll shadow cond_name after the match to access pb via outer scope.
+                        // To implement this cleanly, we'll use a trick: store pb in a local
+                        // variable `pre_body_opt` declared below. For now, just return t.
+                        t
+                    }
                     _ => return None,
                 };
 
@@ -188,14 +242,31 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
 
                 // lower then_branch: expect Return { value: Some(Literal Int) } or Binary
                 let then_res = match &**then_branch {
-                    Stmt::Return { value: Some(Expr::Literal(core::ast::ArtValue::Int(n))) } => {
+                    Stmt::Return {
+                        value: Some(Expr::Literal(core::ast::ArtValue::Int(n))),
+                    } => {
                         let tname = mktemp();
                         let instrs = vec![Instr::ConstI64(tname.clone(), *n)];
                         (tname, instrs)
                     }
-                    Stmt::Return { value: Some(Expr::Binary { left, operator, right }) } => {
-                        let l = if let Expr::Variable { name } = &**left { name.lexeme.clone() } else { return None };
-                        let r = if let Expr::Variable { name } = &**right { name.lexeme.clone() } else { return None };
+                    Stmt::Return {
+                        value:
+                            Some(Expr::Binary {
+                                left,
+                                operator,
+                                right,
+                            }),
+                    } => {
+                        let l = if let Expr::Variable { name } = &**left {
+                            name.lexeme.clone()
+                        } else {
+                            return None;
+                        };
+                        let r = if let Expr::Variable { name } = &**right {
+                            name.lexeme.clone()
+                        } else {
+                            return None;
+                        };
                         let dest = mktemp();
                         let op = operator.lexeme.as_str();
                         let bin = match op {
@@ -213,14 +284,31 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
                 // lower else_branch similarly
                 let else_branch = else_branch.as_ref()?;
                 let else_res = match &**else_branch {
-                    Stmt::Return { value: Some(Expr::Literal(core::ast::ArtValue::Int(n))) } => {
+                    Stmt::Return {
+                        value: Some(Expr::Literal(core::ast::ArtValue::Int(n))),
+                    } => {
                         let tname = mktemp();
                         let instrs = vec![Instr::ConstI64(tname.clone(), *n)];
                         (tname, instrs)
                     }
-                    Stmt::Return { value: Some(Expr::Binary { left, operator, right }) } => {
-                        let l = if let Expr::Variable { name } = &**left { name.lexeme.clone() } else { return None };
-                        let r = if let Expr::Variable { name } = &**right { name.lexeme.clone() } else { return None };
+                    Stmt::Return {
+                        value:
+                            Some(Expr::Binary {
+                                left,
+                                operator,
+                                right,
+                            }),
+                    } => {
+                        let l = if let Expr::Variable { name } = &**left {
+                            name.lexeme.clone()
+                        } else {
+                            return None;
+                        };
+                        let r = if let Expr::Variable { name } = &**right {
+                            name.lexeme.clone()
+                        } else {
+                            return None;
+                        };
                         let dest = mktemp();
                         let op = operator.lexeme.as_str();
                         let bin = match op {
@@ -239,27 +327,45 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
                 let mut body: Vec<Instr> = Vec::new();
                 // emit pre_body if present
                 if let Some(pb) = pre_body_opt.take() {
-                    for i in pb.into_iter() { body.push(i); }
+                    for i in pb.into_iter() {
+                        body.push(i);
+                    }
                 }
                 // entry: br_cond cond, then_bb, else_bb
-                body.push(Instr::BrCond(cond_name.clone(), then_bb.clone(), else_bb.clone()));
+                body.push(Instr::BrCond(
+                    cond_name.clone(),
+                    then_bb.clone(),
+                    else_bb.clone(),
+                ));
                 // then block
                 body.push(Instr::Label(then_bb.clone()));
-                for i in then_res.1.iter() { body.push(i.clone()); }
+                for i in then_res.1.iter() {
+                    body.push(i.clone());
+                }
                 body.push(Instr::Br(merge_bb.clone()));
                 // else block
                 body.push(Instr::Label(else_bb.clone()));
-                for i in else_res.1.iter() { body.push(i.clone()); }
+                for i in else_res.1.iter() {
+                    body.push(i.clone());
+                }
                 body.push(Instr::Br(merge_bb.clone()));
                 // merge block
                 body.push(Instr::Label(merge_bb.clone()));
                 // phi
-                let phi_pairs = vec![(then_res.0.clone(), then_bb.clone()), (else_res.0.clone(), else_bb.clone())];
+                let phi_pairs = vec![
+                    (then_res.0.clone(), then_bb.clone()),
+                    (else_res.0.clone(), else_bb.clone()),
+                ];
                 let res_temp = mktemp();
                 body.push(Instr::Phi(res_temp.clone(), Type::I64, phi_pairs));
                 body.push(Instr::Ret(Some(res_temp.clone())));
 
-                return Some(Function { name: func_name, params: ir_params, ret: Some(Type::I64), body });
+                return Some(Function {
+                    name: func_name,
+                    params: ir_params,
+                    ret: Some(Type::I64),
+                    body,
+                });
             }
         }
     }
@@ -295,7 +401,14 @@ pub fn lower_stmt(stmt: &Stmt) -> Option<Function> {
 // produces then/else labels, materializes constants in each arm, and
 // merges with a phi.
 pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
-    if let Stmt::Function { name, params, return_type: _, body, method_owner: _ } = stmt {
+    if let Stmt::Function {
+        name,
+        params,
+        return_type: _,
+        body,
+        method_owner: _,
+    } = stmt
+    {
         let func_name = name.lexeme.clone();
         let mut ir_params = Vec::new();
         for p in params.iter() {
@@ -304,10 +417,14 @@ pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
         }
 
         if let Stmt::Block { statements } = &**body {
-            if statements.len() != 1 { return None }
+            if statements.len() != 1 {
+                return None;
+            }
             if let Stmt::Match { expr, cases } = &statements[0] {
                 // only support simple variable match and exactly two cases
-                if cases.len() != 2 { return None }
+                if cases.len() != 2 {
+                    return None;
+                }
                 // get the match operand name
                 let match_var = match expr {
                     Expr::Variable { name } => name.lexeme.clone(),
@@ -341,13 +458,20 @@ pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
                 // the placeholder temps.
                 let mut binding_map: HashMap<String, String> = HashMap::new();
                 let mut binding_instrs: Vec<Instr> = Vec::new();
-                if let core::ast::MatchPattern::EnumVariant { params: Some(pats), .. } = &cases[0].0 {
+                if let core::ast::MatchPattern::EnumVariant {
+                    params: Some(pats), ..
+                } = &cases[0].0
+                {
                     for pat in pats.iter() {
                         if let core::ast::MatchPattern::Binding(tok) = pat {
                             let tmp = mktemp();
                             let bname = tok.lexeme.clone();
                             let prefix = format!("%{}_", fname_prefix);
-                            let suffix = if let Some(s) = tmp.strip_prefix(&prefix) { s.to_string() } else { tmp.clone() };
+                            let suffix = if let Some(s) = tmp.strip_prefix(&prefix) {
+                                s.to_string()
+                            } else {
+                                tmp.clone()
+                            };
                             let btemp = format!("%{}_{}", bname, suffix);
                             // materialize 0 as placeholder for bound values
                             binding_instrs.push(Instr::ConstI64(btemp.clone(), 0));
@@ -357,14 +481,21 @@ pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
                 }
 
                 // updated lower_arm: recognizes variable returns and maps bound names
-                let lower_arm = |s: &Stmt, mktemp: &mut dyn FnMut() -> String, binding_map: &HashMap<String, String>| -> Option<(String, Vec<crate::Instr>)> {
+                let lower_arm = |s: &Stmt,
+                                 mktemp: &mut dyn FnMut() -> String,
+                                 binding_map: &HashMap<String, String>|
+                 -> Option<(String, Vec<crate::Instr>)> {
                     match s {
-                        Stmt::Return { value: Some(Expr::Literal(core::ast::ArtValue::Int(n))) } => {
+                        Stmt::Return {
+                            value: Some(Expr::Literal(core::ast::ArtValue::Int(n))),
+                        } => {
                             let tname = mktemp();
                             let instrs = vec![Instr::ConstI64(tname.clone(), *n)];
                             Some((tname, instrs))
                         }
-                        Stmt::Return { value: Some(Expr::Variable { name }) } => {
+                        Stmt::Return {
+                            value: Some(Expr::Variable { name }),
+                        } => {
                             let v = name.lexeme.clone();
                             // if this variable is a bound name, use the mapped temp
                             if let Some(mapped) = binding_map.get(&v) {
@@ -374,9 +505,24 @@ pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
                                 Some((v, vec![]))
                             }
                         }
-                        Stmt::Return { value: Some(Expr::Binary { left, operator, right }) } => {
-                            let l = if let Expr::Variable { name } = &**left { name.lexeme.clone() } else { return None };
-                            let r = if let Expr::Variable { name } = &**right { name.lexeme.clone() } else { return None };
+                        Stmt::Return {
+                            value:
+                                Some(Expr::Binary {
+                                    left,
+                                    operator,
+                                    right,
+                                }),
+                        } => {
+                            let l = if let Expr::Variable { name } = &**left {
+                                name.lexeme.clone()
+                            } else {
+                                return None;
+                            };
+                            let r = if let Expr::Variable { name } = &**right {
+                                name.lexeme.clone()
+                            } else {
+                                return None;
+                            };
                             let dest = mktemp();
                             let op = operator.lexeme.as_str();
                             let bin = match op {
@@ -399,7 +545,9 @@ pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
                 let mut body: Vec<Instr> = Vec::new();
                 // emit pre_body if match expr was a literal and we materialized it
                 if let Some(pb) = pre_body_opt.take() {
-                    for i in pb.into_iter() { body.push(i); }
+                    for i in pb.into_iter() {
+                        body.push(i);
+                    }
                 }
 
                 // If the first pattern is a literal, lower equality check.
@@ -411,16 +559,28 @@ pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
                         match expr {
                             Expr::Variable { name } => {
                                 let cmp = mktemp();
-                                body.push(Instr::Sub(cmp.clone(), name.lexeme.clone(), format!("{}", lit)));
+                                body.push(Instr::Sub(
+                                    cmp.clone(),
+                                    name.lexeme.clone(),
+                                    format!("{}", lit),
+                                ));
                                 // cmp != 0 -> not equal -> go to else; cmp == 0 -> equal -> then
-                                body.push(Instr::BrCond(cmp.clone(), else_bb.clone(), then_bb.clone()));
+                                body.push(Instr::BrCond(
+                                    cmp.clone(),
+                                    else_bb.clone(),
+                                    then_bb.clone(),
+                                ));
                             }
                             Expr::Literal(core::ast::ArtValue::Int(v)) => {
                                 // constant expression: evaluate equality at compile/lower time
                                 let val = if *v == *lit { 1 } else { 0 };
                                 let t = mktemp();
                                 body.push(Instr::ConstI64(t.clone(), val));
-                                body.push(Instr::BrCond(t.clone(), then_bb.clone(), else_bb.clone()));
+                                body.push(Instr::BrCond(
+                                    t.clone(),
+                                    then_bb.clone(),
+                                    else_bb.clone(),
+                                ));
                             }
                             _ => {
                                 // unsupported match expr form
@@ -428,44 +588,77 @@ pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
                             }
                         }
                     }
-                    core::ast::MatchPattern::EnumVariant { enum_name: _ename, variant, params: _ } => {
+                    core::ast::MatchPattern::EnumVariant {
+                        enum_name: _ename,
+                        variant,
+                        params: _,
+                    } => {
                         // If the match expression is an EnumInstance literal, compare variant names at lowering time
                         match expr {
-                            Expr::Literal(core::ast::ArtValue::EnumInstance { enum_name: _, variant: vname, values: _ }) => {
+                            Expr::Literal(core::ast::ArtValue::EnumInstance {
+                                enum_name: _,
+                                variant: vname,
+                                values: _,
+                            }) => {
                                 let equal = if vname == &variant.lexeme { 1 } else { 0 };
                                 let t = mktemp();
                                 body.push(Instr::ConstI64(t.clone(), equal));
-                                body.push(Instr::BrCond(t.clone(), then_bb.clone(), else_bb.clone()));
+                                body.push(Instr::BrCond(
+                                    t.clone(),
+                                    then_bb.clone(),
+                                    else_bb.clone(),
+                                ));
                             }
                             _ => {
                                 // fallback: branch on truthiness of match_var
-                                body.push(Instr::BrCond(match_var.clone(), then_bb.clone(), else_bb.clone()));
+                                body.push(Instr::BrCond(
+                                    match_var.clone(),
+                                    then_bb.clone(),
+                                    else_bb.clone(),
+                                ));
                             }
                         }
                     }
                     _ => {
                         // default: branch on truthiness of match_var (non-zero true)
-                        body.push(Instr::BrCond(match_var.clone(), then_bb.clone(), else_bb.clone()));
+                        body.push(Instr::BrCond(
+                            match_var.clone(),
+                            then_bb.clone(),
+                            else_bb.clone(),
+                        ));
                     }
                 }
                 body.push(Instr::Label(then_bb.clone()));
                 // emit binding placeholders (if any)
-                for i in binding_instrs.iter() { body.push(i.clone()); }
-                for i in then_res.1.iter() { body.push(i.clone()); }
+                for i in binding_instrs.iter() {
+                    body.push(i.clone());
+                }
+                for i in then_res.1.iter() {
+                    body.push(i.clone());
+                }
                 body.push(Instr::Br(merge_bb.clone()));
                 body.push(Instr::Label(else_bb.clone()));
-                for i in else_res.1.iter() { body.push(i.clone()); }
+                for i in else_res.1.iter() {
+                    body.push(i.clone());
+                }
                 body.push(Instr::Br(merge_bb.clone()));
                 body.push(Instr::Label(merge_bb.clone()));
-                let phi_pairs = vec![(then_res.0.clone(), then_bb.clone()), (else_res.0.clone(), else_bb.clone())];
+                let phi_pairs = vec![
+                    (then_res.0.clone(), then_bb.clone()),
+                    (else_res.0.clone(), else_bb.clone()),
+                ];
                 let res_temp = mktemp();
                 body.push(Instr::Phi(res_temp.clone(), Type::I64, phi_pairs));
                 body.push(Instr::Ret(Some(res_temp.clone())));
 
-                return Some(Function { name: func_name, params: ir_params, ret: Some(Type::I64), body });
+                return Some(Function {
+                    name: func_name,
+                    params: ir_params,
+                    ret: Some(Type::I64),
+                    body,
+                });
             }
         }
     }
     None
 }
-

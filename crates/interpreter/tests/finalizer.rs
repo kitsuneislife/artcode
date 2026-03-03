@@ -47,7 +47,10 @@ fn finalizer_runs_on_drop() {
             ],
         },
     ];
-    assert!(interp.interpret(program).is_ok(), "interpret program in finalizer.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in finalizer.rs failed"
+    );
     // Após execução, finalizer deve ter rodado criando variável global 'flag'
     let report = interp.cycle_report();
     eprintln!(

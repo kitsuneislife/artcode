@@ -161,7 +161,10 @@ impl Parser {
             let first = self.consume(TokenType::Identifier, "Expect module name after 'import'.");
             path.push(first);
             while self.match_token(TokenType::Dot) {
-                let part = self.consume(TokenType::Identifier, "Expect identifier after '.' in import path.");
+                let part = self.consume(
+                    TokenType::Identifier,
+                    "Expect identifier after '.' in import path.",
+                );
                 path.push(part);
             }
             self.consume(TokenType::Semicolon, "Expect ';' after import path.");

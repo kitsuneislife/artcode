@@ -22,7 +22,9 @@ mod enabled {
     pub struct JitBuilder {}
 
     impl JitBuilder {
-        pub fn new() -> Self { JitBuilder {} }
+        pub fn new() -> Self {
+            JitBuilder {}
+        }
         pub fn compile(&self, name: &str, ir: &str) -> Result<*const u8, String> {
             compile_function(name, ir)
         }
@@ -38,17 +40,19 @@ mod disabled {
     pub struct JitBuilder {}
 
     impl JitBuilder {
-        pub fn new() -> Self { JitBuilder {} }
+        pub fn new() -> Self {
+            JitBuilder {}
+        }
         pub fn compile(&self, _name: &str, _ir: &str) -> Result<*const u8, String> {
             Err("JIT feature not enabled".to_string())
         }
     }
 }
 
-#[cfg(feature = "jit")]
-pub use enabled::{compile_function, JitBuilder};
 #[cfg(not(feature = "jit"))]
 pub use disabled::{compile_function, JitBuilder};
+#[cfg(feature = "jit")]
+pub use enabled::{compile_function, JitBuilder};
 
 /// Public API: convenience stub that returns None if JIT not enabled or compilation
 /// fails. Useful for higher-level integration tests.
@@ -63,7 +67,11 @@ pub fn compile_function_stub(name: &str, ir_text: &str) -> Option<usize> {
 /// provided interpreter fallback closure. This helper centralizes the safe
 /// fallback behavior so higher-level code can prefer native code when
 /// available but remain correct without LLVM.
-pub fn compile_and_run_or_interpret<F>(name: &str, ir_text: &str, interpret: F) -> Result<i64, String>
+pub fn compile_and_run_or_interpret<F>(
+    name: &str,
+    ir_text: &str,
+    interpret: F,
+) -> Result<i64, String>
 where
     F: FnOnce() -> i64,
 {
@@ -73,7 +81,10 @@ where
     match parse_ir_signature(ir_text) {
         Ok((param_count, ret_ty)) => {
             if param_count != 0 || ret_ty != "i64" {
-                return Err(format!("IR signature mismatch: params={} ret={}", param_count, ret_ty));
+                return Err(format!(
+                    "IR signature mismatch: params={} ret={}",
+                    param_count, ret_ty
+                ));
             }
         }
         Err(e) => return Err(format!("failed to parse IR signature: {}", e)),
@@ -88,16 +99,18 @@ where
             return Ok(interpret());
         }
         match llvm_builder::LlvmBuilderImpl::lower_ir_to_module(ir_text) {
-            Ok(module_text) => match llvm_builder::LlvmBuilderImpl::compile_module_get_symbol(&module_text, name) {
-                Ok(addr) => {
-                    // SAFETY: assume compiled function has signature extern "C" fn() -> i64
-                    let f: extern "C" fn() -> i64 = unsafe { std::mem::transmute(addr) };
-                    // Call the compiled code and return result. If it faults, so be it.
-                    let res = unsafe { f() };
-                    return Ok(res);
+            Ok(module_text) => {
+                match llvm_builder::LlvmBuilderImpl::compile_module_get_symbol(&module_text, name) {
+                    Ok(addr) => {
+                        // SAFETY: assume compiled function has signature extern "C" fn() -> i64
+                        let f: extern "C" fn() -> i64 = unsafe { std::mem::transmute(addr) };
+                        // Call the compiled code and return result. If it faults, so be it.
+                        let res = unsafe { f() };
+                        return Ok(res);
+                    }
+                    Err(_) => return Ok(interpret()),
                 }
-                Err(_) => return Ok(interpret()),
-            },
+            }
             Err(_) => return Ok(interpret()),
         }
     }
@@ -124,21 +137,28 @@ pub fn parse_ir_signature(ir_text: &str) -> Result<(usize, String), String> {
     let rest = &after[open + 1..];
     let close = rest.find(')').ok_or("missing ')' in signature")?;
     let params = &rest[..close].trim();
-    let param_count = if params.is_empty() { 0 } else { params.split(',').count() };
+    let param_count = if params.is_empty() {
+        0
+    } else {
+        params.split(',').count()
+    };
     // look for '->' after close
     let after_close = &rest[close + 1..];
     let arrow_pos = after_close.find("->").ok_or("missing '->' return type")?;
     let after_arrow = &after_close[arrow_pos + 2..];
     // the return type may be followed by space and '{' or '{' directly
-    let ret_ty = after_arrow.split_whitespace().next().ok_or("missing return type")?;
+    let ret_ty = after_arrow
+        .split_whitespace()
+        .next()
+        .ok_or("missing return type")?;
     Ok((param_count, ret_ty.to_string()))
 }
 
 pub mod llvm_builder;
-#[cfg(feature = "jit")]
-pub use llvm_builder::LlvmBuilderImpl as LlvmBuilder;
 #[cfg(not(feature = "jit"))]
 pub use llvm_builder::DummyLlvmBuilder as LlvmBuilder;
+#[cfg(feature = "jit")]
+pub use llvm_builder::LlvmBuilderImpl as LlvmBuilder;
 
 // expose the analyzer/loader to callers and tests
 pub mod ir_analyzer;
@@ -152,8 +172,8 @@ pub use trampolines::{call_jit_fn, Sig};
 pub fn jit_compile_text(_name: &str, _ir_text: &str) -> Result<usize, String> {
     #[cfg(feature = "jit")]
     {
-    let _ = <LlvmBuilder as llvm_builder::LlvmBuilder>::initialize();
-    llvm_builder::LlvmBuilder::compile_module_get_symbol(_ir_text, _name)
+        let _ = <LlvmBuilder as llvm_builder::LlvmBuilder>::initialize();
+        llvm_builder::LlvmBuilder::compile_module_get_symbol(_ir_text, _name)
     }
     #[cfg(not(feature = "jit"))]
     {
@@ -239,5 +259,4 @@ mod tests {
         let res = compile_and_run_or_interpret("f", ir, || 0);
         assert!(res.is_err());
     }
-
 }

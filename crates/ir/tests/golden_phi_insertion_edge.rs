@@ -41,7 +41,11 @@ fn phi_inserted_and_operands_rewritten() {
             Instr::ConstI64("%test_phi_1".to_string(), 2),
             Instr::Br("merge".to_string()),
             Instr::Label("merge".to_string()),
-            Instr::Add("%test_phi_2".to_string(), "%test_phi_0".to_string(), "%test_phi_1".to_string()),
+            Instr::Add(
+                "%test_phi_2".to_string(),
+                "%test_phi_0".to_string(),
+                "%test_phi_1".to_string(),
+            ),
             Instr::Ret(Some("%test_phi_2".to_string())),
         ],
     };

@@ -66,7 +66,10 @@ fn finalizer_creates_multiple_handles() {
             ],
         }),
     ];
-    assert!(interp.interpret(program).is_ok(), "interpret program in weak_finalizer_extra.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in weak_finalizer_extra.rs failed"
+    );
 
     // Remove strong do target e executa finalizer
     interp.debug_heap_remove(target);
@@ -150,7 +153,10 @@ fn finalizer_promotes_multiple_to_root_from_arena() {
             ],
         }),
     ];
-    assert!(interp.interpret(program).is_ok(), "interpret program in weak_finalizer_extra.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in weak_finalizer_extra.rs failed"
+    );
 
     // finalizar arena explicitamente
     interp.debug_finalize_arena(aid);

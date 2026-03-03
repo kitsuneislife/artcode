@@ -73,7 +73,10 @@ fn rebind_decrements_and_updates_weak_unowned() {
             initializer: Expr::Array(vec![]),
         },
     ];
-    assert!(interp.interpret(program).is_ok(), "interpret program in decrement_paths_exhaustive.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in decrement_paths_exhaustive.rs failed"
+    );
     // finalizer deve ter criado rebound_flag
     assert!(interp.debug_get_global("rebound_flag").is_some());
     // weak deve voltar None
@@ -83,7 +86,10 @@ fn rebind_decrements_and_updates_weak_unowned() {
     };
     match w {
         ArtValue::WeakRef(h) => {
-            assert!(interp.debug_heap_upgrade_weak(h.0).is_none(), "weak upgrade should return None after owner drop");
+            assert!(
+                interp.debug_heap_upgrade_weak(h.0).is_none(),
+                "weak upgrade should return None after owner drop"
+            );
         }
         other => {
             assert!(false, "weak global 'w' has unexpected type: {:?}", other);
@@ -96,7 +102,10 @@ fn rebind_decrements_and_updates_weak_unowned() {
     };
     match u {
         ArtValue::UnownedRef(h) => {
-            assert!(interp.debug_heap_get_unowned(h.0).is_none(), "unowned_get should return None for dangling reference");
+            assert!(
+                interp.debug_heap_get_unowned(h.0).is_none(),
+                "unowned_get should return None for dangling reference"
+            );
         }
         other => {
             assert!(false, "unowned global 'u' has unexpected type: {:?}", other);
@@ -139,7 +148,10 @@ fn returns_do_not_allow_arena_escape() {
             },
         },
     ];
-    assert!(interp.interpret(program).is_ok(), "interpret program in decrement_paths_exhaustive.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in decrement_paths_exhaustive.rs failed"
+    );
     let diags = interp.take_diagnostics();
     assert!(
         diags
@@ -209,7 +221,10 @@ fn field_assignment_triggers_decrement_and_finalizer() {
             arguments: vec![],
         }),
     ];
-    assert!(interp.interpret(program).is_ok(), "interpret program in decrement_paths_exhaustive.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in decrement_paths_exhaustive.rs failed"
+    );
     // Instead of using an assignment AST node which may not exist, mutate via debug helpers
     // Simulate assignment: set field to x and then drop the old
     // Simular atribuição de campo criando nova struct com child = x e substituindo global 's'
@@ -217,7 +232,11 @@ fn field_assignment_triggers_decrement_and_finalizer() {
     if let Some(ArtValue::HeapComposite(hx)) = interp.debug_get_global("x") {
         new_fields.insert("child".to_string(), ArtValue::HeapComposite(hx));
     } else {
-        assert!(false, "x not found as heap composite; debug_get_global('x') returned: {:?}", interp.debug_get_global("x"));
+        assert!(
+            false,
+            "x not found as heap composite; debug_get_global('x') returned: {:?}",
+            interp.debug_get_global("x")
+        );
     }
     let new_s = ArtValue::StructInstance {
         struct_name: "S".to_string(),

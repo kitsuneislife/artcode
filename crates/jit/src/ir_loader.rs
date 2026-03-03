@@ -1,7 +1,7 @@
-use std::path::Path;
-use std::fs;
 use crate::ir_analyzer::IrAnalysis;
 use ir::{Function, Instr, Type};
+use std::fs;
+use std::path::Path;
 
 /// Parse a textual IR file into an `IrAnalysis` using `ir::Function` representations.
 /// This parser is permissive but attempts to map the real textual IR emitted by
@@ -33,7 +33,12 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
             if let Some(start) = line.find('@') {
                 if let Some(rest) = line[start + 1..].split_whitespace().next() {
                     // rest might be like "name(params)"
-                    let name = rest.split('(').next().unwrap_or(rest).trim_end_matches('{').to_string();
+                    let name = rest
+                        .split('(')
+                        .next()
+                        .unwrap_or(rest)
+                        .trim_end_matches('{')
+                        .to_string();
                     fname = name;
                 }
             }
@@ -41,7 +46,11 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
             if let Some(lp) = line.find('(') {
                 if let Some(rp_rel) = line[lp..].find(')') {
                     let inside = &line[lp + 1..lp + rp_rel];
-                    for part in inside.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+                    for part in inside
+                        .split(',')
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                    {
                         let mut toks = part.split_whitespace();
                         if let Some(ty) = toks.next() {
                             if let Some(name) = toks.next() {
@@ -69,10 +78,13 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
             continue;
         }
 
-    if line == "}" { seen_closing = true; break; }
+        if line == "}" {
+            seen_closing = true;
+            break;
+        }
 
         // label
-    if line.ends_with(':') {
+        if line.ends_with(':') {
             let lbl = line.trim_end_matches(':').to_string();
             body.push(Instr::Label(lbl));
             continue;
@@ -88,7 +100,11 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
             let rest = line.trim_start_matches("br_cond").trim();
             let parts: Vec<&str> = rest.split(',').map(|s| s.trim()).collect();
             if parts.len() >= 3 {
-                body.push(Instr::BrCond(parts[0].to_string(), parts[1].to_string(), parts[2].to_string()));
+                body.push(Instr::BrCond(
+                    parts[0].to_string(),
+                    parts[1].to_string(),
+                    parts[2].to_string(),
+                ));
                 continue;
             }
         }
@@ -174,7 +190,9 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
                                 pairs.push((kv[0].to_string(), kv[1].to_string()));
                             }
                             rest = rest[lbr + rbr + 1..].to_string();
-                        } else { break; }
+                        } else {
+                            break;
+                        }
                     }
                     body.push(Instr::Phi(dest, ty, pairs));
                     continue;
@@ -189,9 +207,17 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
                     let args = if let Some(start) = after.find('(') {
                         let inner = &after[start + 1..];
                         if let Some(end) = inner.find(')') {
-                            inner[..end].split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
-                        } else { vec![] }
-                    } else { vec![] };
+                            inner[..end]
+                                .split(',')
+                                .map(|s| s.trim().to_string())
+                                .filter(|s| !s.is_empty())
+                                .collect()
+                        } else {
+                            vec![]
+                        }
+                    } else {
+                        vec![]
+                    };
                     body.push(Instr::Call(dest, fnname, args));
                     continue;
                 }
@@ -199,7 +225,11 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
 
             // fallback: detect allocation intrinsics
             if rhs.contains("gc_alloc") || rhs.contains("arena_alloc") {
-                let fnname = if rhs.contains("gc_alloc") { "gc_alloc" } else { "arena_alloc" };
+                let fnname = if rhs.contains("gc_alloc") {
+                    "gc_alloc"
+                } else {
+                    "arena_alloc"
+                };
                 body.push(Instr::Call(dest, fnname.to_string(), vec![]));
                 continue;
             }
@@ -212,12 +242,23 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
     }
 
     // Require a valid header and closing brace
-    if !seen_header { return None; }
-    if !seen_closing { return None; }
-    if fname.is_empty() { return None; }
+    if !seen_header {
+        return None;
+    }
+    if !seen_closing {
+        return None;
+    }
+    if fname.is_empty() {
+        return None;
+    }
 
     // Build Function and compute metrics
-    let func = Function { name: fname, params, ret: ret_ty, body };
+    let func = Function {
+        name: fname,
+        params,
+        ret: ret_ty,
+        body,
+    };
 
     // Count blocks and instruction kinds
     let mut instr_count = 0usize;
@@ -230,17 +271,33 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
             Instr::Call(_, name, _) => {
                 instr_count += 1;
                 call_count += 1;
-                if name.contains("gc_alloc") || name.contains("arena_alloc") { alloc_count += 1; }
+                if name.contains("gc_alloc") || name.contains("arena_alloc") {
+                    alloc_count += 1;
+                }
             }
-            Instr::ConstI64(_, _) | Instr::Add(_,_,_) | Instr::Sub(_,_,_) | Instr::Mul(_,_,_) | Instr::Div(_,_,_) | Instr::Br(_) | Instr::BrCond(_,_,_) | Instr::Phi(_,_,_) | Instr::Ret(_) => {
+            Instr::ConstI64(_, _)
+            | Instr::Add(_, _, _)
+            | Instr::Sub(_, _, _)
+            | Instr::Mul(_, _, _)
+            | Instr::Div(_, _, _)
+            | Instr::Br(_)
+            | Instr::BrCond(_, _, _)
+            | Instr::Phi(_, _, _)
+            | Instr::Ret(_) => {
                 instr_count += 1;
             }
         }
     }
 
-    if block_count == 0 && !func.body.is_empty() { block_count = 1; }
+    if block_count == 0 && !func.body.is_empty() {
+        block_count = 1;
+    }
 
     // Return raw feature counts; weighting is applied by the analyzer using tunable constants.
-    Some(IrAnalysis { instr_count, block_count, call_count, alloc_count })
+    Some(IrAnalysis {
+        instr_count,
+        block_count,
+        call_count,
+        alloc_count,
+    })
 }
-

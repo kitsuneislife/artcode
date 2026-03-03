@@ -7,7 +7,11 @@ fn infer_prog(src: &str) -> (TypeEnv, Vec<diagnostics::Diagnostic>) {
     let tokens = match lx.scan_tokens() {
         Ok(t) => t,
         Err(e) => {
-            assert!(false, "lexer scan_tokens in enum_type_arity.rs failed: {:?}", e);
+            assert!(
+                false,
+                "lexer scan_tokens in enum_type_arity.rs failed: {:?}",
+                e
+            );
             Vec::new()
         }
     };

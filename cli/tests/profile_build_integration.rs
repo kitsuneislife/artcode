@@ -1,6 +1,6 @@
 use assert_cmd::Command;
-use tempfile::NamedTempFile;
 use std::fs;
+use tempfile::NamedTempFile;
 
 #[test]
 fn cli_build_with_profile_end_to_end() {

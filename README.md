@@ -18,6 +18,7 @@ Implementação experimental de uma linguagem interpretada em Rust com suporte a
 - f-Strings com format specs (`upper`, `lower`, `trim`, `hex`, `padN`, `debug` placeholder)
 - Result-like enums e operador `?` (propagação inicial)
 - Arrays com builtins (`sum`, `count`)
+- Standard Library embutida: Collections (Map, Set), Math (abs, pow, clamp), Time & Rand, File IO (sandboxed).
 - Métricas de execução (handled_errors, executed_statements, crash_free%)
 
 # Complexidade Progressiva
@@ -40,6 +41,7 @@ Principais recursos
 - Pattern matching com guards
 - Funções, closures e métodos com auto-binding de `self`
 - f-Strings com format specs e re-lex/parsing das expressões internas
+- Standard Library Expansiva (Coleções Padrão de Map/Set, Manipulação de Matemática e IO Simples)
 - Result-like enums e operador `?` para propagação de erros
 - Blocos `performant {}` com arenas experimentais e análise conservadora de escape
 

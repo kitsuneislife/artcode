@@ -15,7 +15,10 @@ fn return_arena_escape_diagnostic() {
         initializer: Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id))),
     }];
 
-    assert!(interp.interpret(program).is_ok(), "interpret program in finalizer_decrement_paths.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in finalizer_decrement_paths.rs failed"
+    );
     let diags = interp.take_diagnostics();
     let found = diags
         .iter()
@@ -82,7 +85,10 @@ fn finalizer_allocs_temporary_promoted() {
         }),
     ];
 
-    assert!(interp.interpret(program).is_ok(), "interpret program in finalizer_decrement_paths.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in finalizer_decrement_paths.rs failed"
+    );
 
     // remover strong do target e executar finalizer
     interp.debug_heap_remove(target);

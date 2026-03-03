@@ -29,4 +29,3 @@ pub fn force_strong_to_one_obj(obj: &mut HeapObject) {
         obj.strong = 1;
     }
 }
-

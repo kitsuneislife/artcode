@@ -17,37 +17,41 @@ fn integration_example_14_finalizer_examples() {
         ArtValue::HeapComposite(core::ast::ObjHandle(target)),
     );
     // registrar finalizer via programa minimal
-    assert!(interp.interpret(vec![
-            core::ast::Stmt::Function {
-                name: core::Token::dummy("fin_save_owner"),
-                params: vec![],
-                return_type: None,
-                body: std::rc::Rc::new(core::ast::Stmt::Block {
-                    statements: vec![core::ast::Stmt::Let {
-                        name: core::Token::dummy("saved"),
-                        ty: None,
-                        initializer: core::ast::Expr::Variable {
-                            name: core::Token::dummy("owner"),
+    assert!(
+        interp
+            .interpret(vec![
+                core::ast::Stmt::Function {
+                    name: core::Token::dummy("fin_save_owner"),
+                    params: vec![],
+                    return_type: None,
+                    body: std::rc::Rc::new(core::ast::Stmt::Block {
+                        statements: vec![core::ast::Stmt::Let {
+                            name: core::Token::dummy("saved"),
+                            ty: None,
+                            initializer: core::ast::Expr::Variable {
+                                name: core::Token::dummy("owner"),
+                            },
+                        }],
+                    }),
+                    method_owner: None,
+                },
+                core::ast::Stmt::Expression(core::ast::Expr::Call {
+                    callee: Box::new(core::ast::Expr::Variable {
+                        name: core::Token::dummy("on_finalize"),
+                    }),
+                    arguments: vec![
+                        core::ast::Expr::Variable {
+                            name: core::Token::dummy("target"),
                         },
-                    }],
+                        core::ast::Expr::Variable {
+                            name: core::Token::dummy("fin_save_owner"),
+                        },
+                    ],
                 }),
-                method_owner: None,
-            },
-            core::ast::Stmt::Expression(core::ast::Expr::Call {
-                callee: Box::new(core::ast::Expr::Variable {
-                    name: core::Token::dummy("on_finalize"),
-                }),
-                arguments: vec![
-                    core::ast::Expr::Variable {
-                        name: core::Token::dummy("target"),
-                    },
-                    core::ast::Expr::Variable {
-                        name: core::Token::dummy("fin_save_owner"),
-                    },
-                ],
-            }),
-        ]).is_ok(),
-        "integration_example_14 setup failed");
+            ])
+            .is_ok(),
+        "integration_example_14 setup failed"
+    );
 
     // remover strong do target e forçar execução
     interp.debug_heap_remove(target);
@@ -70,37 +74,41 @@ fn integration_example_14_finalizer_examples() {
         ArtValue::HeapComposite(core::ast::ObjHandle(a)),
     );
     // registrar finalizer que define promoted = outside
-    assert!(interp.interpret(vec![
-            core::ast::Stmt::Function {
-                name: core::Token::dummy("fin_promote"),
-                params: vec![],
-                return_type: None,
-                body: std::rc::Rc::new(core::ast::Stmt::Block {
-                    statements: vec![core::ast::Stmt::Let {
-                        name: core::Token::dummy("promoted"),
-                        ty: None,
-                        initializer: core::ast::Expr::Variable {
-                            name: core::Token::dummy("outside"),
+    assert!(
+        interp
+            .interpret(vec![
+                core::ast::Stmt::Function {
+                    name: core::Token::dummy("fin_promote"),
+                    params: vec![],
+                    return_type: None,
+                    body: std::rc::Rc::new(core::ast::Stmt::Block {
+                        statements: vec![core::ast::Stmt::Let {
+                            name: core::Token::dummy("promoted"),
+                            ty: None,
+                            initializer: core::ast::Expr::Variable {
+                                name: core::Token::dummy("outside"),
+                            },
+                        }],
+                    }),
+                    method_owner: None,
+                },
+                core::ast::Stmt::Expression(core::ast::Expr::Call {
+                    callee: Box::new(core::ast::Expr::Variable {
+                        name: core::Token::dummy("on_finalize"),
+                    }),
+                    arguments: vec![
+                        core::ast::Expr::Variable {
+                            name: core::Token::dummy("arena_obj"),
                         },
-                    }],
+                        core::ast::Expr::Variable {
+                            name: core::Token::dummy("fin_promote"),
+                        },
+                    ],
                 }),
-                method_owner: None,
-            },
-            core::ast::Stmt::Expression(core::ast::Expr::Call {
-                callee: Box::new(core::ast::Expr::Variable {
-                    name: core::Token::dummy("on_finalize"),
-                }),
-                arguments: vec![
-                    core::ast::Expr::Variable {
-                        name: core::Token::dummy("arena_obj"),
-                    },
-                    core::ast::Expr::Variable {
-                        name: core::Token::dummy("fin_promote"),
-                    },
-                ],
-            }),
-        ]).is_ok(),
-        "integration_example_14 run failed");
+            ])
+            .is_ok(),
+        "integration_example_14 run failed"
+    );
     // finalizar arena explicitamente
     interp.debug_finalize_arena(aid);
     // promoted deve existir e outside preservado

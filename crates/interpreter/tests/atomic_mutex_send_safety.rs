@@ -1,6 +1,6 @@
+use core::Token;
 use core::ast::{ArtValue, Expr, Stmt};
 use interpreter::type_infer::{TypeEnv, TypeInfer};
-use core::Token;
 
 // Test that actor_send with a non-send-safe payload emits a type diagnostic
 #[test]
@@ -12,8 +12,15 @@ fn actor_send_non_send_payload_emits_diag() {
         initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(1))]),
     };
     let send_call = Stmt::Expression(Expr::Call {
-        callee: Box::new(Expr::Variable { name: Token::dummy("actor_send") }),
-        arguments: vec![Expr::Literal(ArtValue::Int(1)), Expr::Variable { name: Token::dummy("arr") }],
+        callee: Box::new(Expr::Variable {
+            name: Token::dummy("actor_send"),
+        }),
+        arguments: vec![
+            Expr::Literal(ArtValue::Int(1)),
+            Expr::Variable {
+                name: Token::dummy("arr"),
+            },
+        ],
     });
     let prog = vec![call_arr, send_call];
 
@@ -22,6 +29,14 @@ fn actor_send_non_send_payload_emits_diag() {
     let _res = inf.run(&prog);
     // With TypeEnv propagation, the array binding is inferred as Array<Int> and
     // should be considered send-safe; there should be no type diagnostics.
-    let type_diags: Vec<_> = inf.diags.iter().filter(|d| matches!(d.kind, diagnostics::DiagnosticKind::Type)).collect();
-    assert!(type_diags.is_empty(), "did not expect type diagnostic for a known-send-safe payload: found {:?}", type_diags);
+    let type_diags: Vec<_> = inf
+        .diags
+        .iter()
+        .filter(|d| matches!(d.kind, diagnostics::DiagnosticKind::Type))
+        .collect();
+    assert!(
+        type_diags.is_empty(),
+        "did not expect type diagnostic for a known-send-safe payload: found {:?}",
+        type_diags
+    );
 }

@@ -18,9 +18,9 @@ fn parse_ir_file_detects_heavy_ops() {
     }
     "#;
     f.write_all(contents.as_bytes()).expect("write");
-  // call into library
-  // this test runs inside the `jit` crate; reference the exported module
-  let analysis = jit::ir_loader::parse_ir_file(&path).expect("analyzed");
+    // call into library
+    // this test runs inside the `jit` crate; reference the exported module
+    let analysis = jit::ir_loader::parse_ir_file(&path).expect("analyzed");
     assert!(analysis.instr_count > 0, "instr_count should be positive");
     assert!(analysis.block_count >= 1, "at least one block");
 }

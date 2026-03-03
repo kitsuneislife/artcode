@@ -110,9 +110,11 @@ fn normalize_plan(mut plan: AotPlan, ir_dir: Option<&std::path::Path>) -> AotPla
 
     plan.inline_candidates = processed;
     // sort candidates by priority desc to make compile order deterministic
-    plan
-        .inline_candidates
-        .sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap_or(std::cmp::Ordering::Equal));
+    plan.inline_candidates.sort_by(|a, b| {
+        b.priority
+            .partial_cmp(&a.priority)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     plan
 }
 
@@ -121,11 +123,17 @@ fn validate_consistency(profile: &Profile, plan: &AotPlan) -> Vec<String> {
     // All inline candidate names should exist in profile.functions
     for c in &plan.inline_candidates {
         if !profile.functions.contains_key(&c.name) {
-            errs.push(format!("candidate '{}' missing in profile.functions", c.name));
+            errs.push(format!(
+                "candidate '{}' missing in profile.functions",
+                c.name
+            ));
         }
         for ex in &c.caller_examples {
             if !profile.functions.contains_key(&ex.caller) && ex.caller != "<root>" {
-                errs.push(format!("caller '{}' (for {}) missing in profile.functions", ex.caller, c.name));
+                errs.push(format!(
+                    "caller '{}' (for {}) missing in profile.functions",
+                    ex.caller, c.name
+                ));
             }
         }
     }
@@ -147,7 +155,12 @@ fn print_summary(profile: &Profile, plan: &AotPlan) {
     eprintln!("Total calls (sum of counters): {}", total_calls);
     eprintln!("AOT inline candidates: {}", plan.inline_candidates.len());
     for c in &plan.inline_candidates {
-        eprintln!("- {} (score {}) - {} callers", c.name, c.score, c.caller_examples.len());
+        eprintln!(
+            "- {} (score {}) - {} callers",
+            c.name,
+            c.score,
+            c.caller_examples.len()
+        );
     }
 }
 
@@ -159,7 +172,11 @@ fn main() {
     }
     let profile_path = Path::new(&args[1]);
     let plan_path = Path::new(&args[2]);
-    let ir_dir = if args.len() > 3 { Some(std::path::Path::new(&args[3])) } else { None };
+    let ir_dir = if args.len() > 3 {
+        Some(std::path::Path::new(&args[3]))
+    } else {
+        None
+    };
 
     let profile = match load_profile(profile_path) {
         Ok(p) => p,

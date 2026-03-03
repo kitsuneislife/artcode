@@ -2,9 +2,15 @@ use jit::{call_jit_fn, Sig};
 
 // helper: get function pointer as usize for a known function type
 
-extern "C" fn zero() -> i64 { 42 }
-extern "C" fn one(x: i64) -> i64 { x + 1 }
-extern "C" fn two(a: i64, b: i64) -> i64 { a + b }
+extern "C" fn zero() -> i64 {
+    42
+}
+extern "C" fn one(x: i64) -> i64 {
+    x + 1
+}
+extern "C" fn two(a: i64, b: i64) -> i64 {
+    a + b
+}
 
 #[test]
 fn call_zero() {
@@ -23,7 +29,7 @@ fn call_one() {
 #[test]
 fn call_two() {
     let p = unsafe { std::mem::transmute::<extern "C" fn(i64, i64) -> i64, usize>(two) };
-    let r = call_jit_fn(p, Sig::I64_2, &[2,3]).expect("call");
+    let r = call_jit_fn(p, Sig::I64_2, &[2, 3]).expect("call");
     assert_eq!(r, 5);
 }
 

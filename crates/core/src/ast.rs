@@ -122,7 +122,9 @@ pub enum Expr {
     Unowned(Box<Expr>),       // açúcar: unowned expr -> builtin unowned()
     WeakUpgrade(Box<Expr>),   // açúcar: expr?  (onde expr avalia para WeakRef)
     UnownedAccess(Box<Expr>), // açúcar: expr! (onde expr avalia para UnownedRef)
-    SpawnActor { body: Vec<Stmt> },
+    SpawnActor {
+        body: Vec<Stmt>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -158,6 +160,22 @@ impl PartialEq for Function {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct MapRef(pub Arc<std::sync::Mutex<std::collections::HashMap<String, ArtValue>>>);
+impl PartialEq for MapRef {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SetRef(pub Arc<std::sync::Mutex<Vec<ArtValue>>>);
+impl PartialEq for SetRef {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArtValue {
     Int(i64),
@@ -188,6 +206,9 @@ pub enum ArtValue {
     // Fase 8 (protótipo): referências não-fortes
     WeakRef(ObjHandle),    // id para registro global
     UnownedRef(ObjHandle), // id para registro global (não mantém vivo)
+    // Fase 15 (Stdlib expansions)
+    Map(MapRef),
+    Set(SetRef),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -198,27 +219,43 @@ pub enum BuiltinFn {
     Println,
     Len,
     TypeOf,
-    WeakNew,    // __weak(x)
-    WeakGet,    // __weak_get(w)
-    UnownedNew, // __unowned(x)
-    UnownedGet, // __unowned_get(u)
-    OnFinalize, // __on_finalize(comp, fn)
-    EnvelopeNew, // envelope(sender, payload, priority)
-    MakeEnvelope, // make_envelope(payload [, priority]) sets sender=current_actor
-    ActorSend,   // actor_send(actor, value)
-    ActorReceive, // actor_receive()
+    WeakNew,              // __weak(x)
+    WeakGet,              // __weak_get(w)
+    UnownedNew,           // __unowned(x)
+    UnownedGet,           // __unowned_get(u)
+    OnFinalize,           // __on_finalize(comp, fn)
+    EnvelopeNew,          // envelope(sender, payload, priority)
+    MakeEnvelope,         // make_envelope(payload [, priority]) sets sender=current_actor
+    ActorSend,            // actor_send(actor, value)
+    ActorReceive,         // actor_receive()
     ActorReceiveEnvelope, // actor_receive_envelope()
-    ActorYield, // actor_yield()
+    ActorYield,           // actor_yield()
     ActorSetMailboxLimit, // actor_set_mailbox_limit(actor, limit)
-    RunActors, // run_actors([max_steps]) -> drive scheduler until idle or max_steps
+    RunActors,            // run_actors([max_steps]) -> drive scheduler until idle or max_steps
     // Concurrency primitives (prototype): Mutex and AtomicInt
-    AtomicNew, // atomic_new(initial:Int)
-    AtomicLoad, // atomic_load(atomic)
+    AtomicNew,   // atomic_new(initial:Int)
+    AtomicLoad,  // atomic_load(atomic)
     AtomicStore, // atomic_store(atomic, value:Int)
-    AtomicAdd, // atomic_add(atomic, delta:Int) -> returns new value
-    MutexNew, // mutex_new(value)
-    MutexLock, // mutex_lock(mutex) -> Bool
+    AtomicAdd,   // atomic_add(atomic, delta:Int) -> returns new value
+    MutexNew,    // mutex_new(value)
+    MutexLock,   // mutex_lock(mutex) -> Bool
     MutexUnlock, // mutex_unlock(mutex) -> Bool
+    // Fase 15 Stdlib
+    MapNew,
+    MapSet,
+    MapGet,
+    MapHas,
+    SetNew,
+    SetAdd,
+    SetHas,
+    MathAbs,
+    MathPow,
+    MathClamp,
+    TimeNow,
+    IOReadText,
+    IOWriteText,
+    RandomSeed,
+    RandomNext,
 }
 
 impl fmt::Debug for BuiltinFn {
@@ -235,18 +272,33 @@ impl fmt::Debug for BuiltinFn {
             BuiltinFn::EnvelopeNew => write!(f, "<builtin envelope>"),
             BuiltinFn::MakeEnvelope => write!(f, "<builtin make_envelope>"),
             BuiltinFn::ActorSend => write!(f, "<builtin actor_send>"),
-                BuiltinFn::ActorReceive => write!(f, "<builtin actor_receive>"),
-                BuiltinFn::ActorReceiveEnvelope => write!(f, "<builtin actor_receive_envelope>"),
-                BuiltinFn::ActorYield => write!(f, "<builtin actor_yield>"),
-                BuiltinFn::ActorSetMailboxLimit => write!(f, "<builtin actor_set_mailbox_limit>"),
-                BuiltinFn::RunActors => write!(f, "<builtin run_actors>"),
-                BuiltinFn::AtomicNew => write!(f, "<builtin atomic_new>"),
-                BuiltinFn::AtomicLoad => write!(f, "<builtin atomic_load>"),
-                BuiltinFn::AtomicStore => write!(f, "<builtin atomic_store>"),
-                BuiltinFn::AtomicAdd => write!(f, "<builtin atomic_add>"),
-                BuiltinFn::MutexNew => write!(f, "<builtin mutex_new>"),
-                BuiltinFn::MutexLock => write!(f, "<builtin mutex_lock>"),
-                BuiltinFn::MutexUnlock => write!(f, "<builtin mutex_unlock>"),
+            BuiltinFn::ActorReceive => write!(f, "<builtin actor_receive>"),
+            BuiltinFn::ActorReceiveEnvelope => write!(f, "<builtin actor_receive_envelope>"),
+            BuiltinFn::ActorYield => write!(f, "<builtin actor_yield>"),
+            BuiltinFn::ActorSetMailboxLimit => write!(f, "<builtin actor_set_mailbox_limit>"),
+            BuiltinFn::RunActors => write!(f, "<builtin run_actors>"),
+            BuiltinFn::AtomicNew => write!(f, "<builtin atomic_new>"),
+            BuiltinFn::AtomicLoad => write!(f, "<builtin atomic_load>"),
+            BuiltinFn::AtomicStore => write!(f, "<builtin atomic_store>"),
+            BuiltinFn::AtomicAdd => write!(f, "<builtin atomic_add>"),
+            BuiltinFn::MutexNew => write!(f, "<builtin mutex_new>"),
+            BuiltinFn::MutexLock => write!(f, "<builtin mutex_lock>"),
+            BuiltinFn::MutexUnlock => write!(f, "<builtin mutex_unlock>"),
+            BuiltinFn::MapNew => write!(f, "<builtin map_new>"),
+            BuiltinFn::MapSet => write!(f, "<builtin map_set>"),
+            BuiltinFn::MapGet => write!(f, "<builtin map_get>"),
+            BuiltinFn::MapHas => write!(f, "<builtin map_has>"),
+            BuiltinFn::SetNew => write!(f, "<builtin set_new>"),
+            BuiltinFn::SetAdd => write!(f, "<builtin set_add>"),
+            BuiltinFn::SetHas => write!(f, "<builtin set_has>"),
+            BuiltinFn::MathAbs => write!(f, "<builtin math_abs>"),
+            BuiltinFn::MathPow => write!(f, "<builtin math_pow>"),
+            BuiltinFn::MathClamp => write!(f, "<builtin math_clamp>"),
+            BuiltinFn::TimeNow => write!(f, "<builtin time_now>"),
+            BuiltinFn::IOReadText => write!(f, "<builtin io_read_text>"),
+            BuiltinFn::IOWriteText => write!(f, "<builtin io_write_text>"),
+            BuiltinFn::RandomSeed => write!(f, "<builtin random_seed>"),
+            BuiltinFn::RandomNext => write!(f, "<builtin random_next>"),
         }
     }
 }
@@ -322,6 +374,21 @@ impl fmt::Display for ArtValue {
                 BuiltinFn::MutexNew => write!(f, "<builtin mutex_new>"),
                 BuiltinFn::MutexLock => write!(f, "<builtin mutex_lock>"),
                 BuiltinFn::MutexUnlock => write!(f, "<builtin mutex_unlock>"),
+                BuiltinFn::MapNew => write!(f, "<builtin map_new>"),
+                BuiltinFn::MapSet => write!(f, "<builtin map_set>"),
+                BuiltinFn::MapGet => write!(f, "<builtin map_get>"),
+                BuiltinFn::MapHas => write!(f, "<builtin map_has>"),
+                BuiltinFn::SetNew => write!(f, "<builtin set_new>"),
+                BuiltinFn::SetAdd => write!(f, "<builtin set_add>"),
+                BuiltinFn::SetHas => write!(f, "<builtin set_has>"),
+                BuiltinFn::MathAbs => write!(f, "<builtin math_abs>"),
+                BuiltinFn::MathPow => write!(f, "<builtin math_pow>"),
+                BuiltinFn::MathClamp => write!(f, "<builtin math_clamp>"),
+                BuiltinFn::TimeNow => write!(f, "<builtin time_now>"),
+                BuiltinFn::IOReadText => write!(f, "<builtin io_read_text>"),
+                BuiltinFn::IOWriteText => write!(f, "<builtin io_write_text>"),
+                BuiltinFn::RandomSeed => write!(f, "<builtin random_seed>"),
+                BuiltinFn::RandomNext => write!(f, "<builtin random_next>"),
             },
             ArtValue::WeakRef(_) => write!(f, "<weak ref>"),
             ArtValue::UnownedRef(_) => write!(f, "<unowned ref>"),
@@ -329,6 +396,17 @@ impl fmt::Display for ArtValue {
             ArtValue::Atomic(h) => write!(f, "<atomic {}>", h.0),
             ArtValue::Mutex(h) => write!(f, "<mutex {}>", h.0),
             ArtValue::Actor(id) => write!(f, "<actor {}>", id),
+            ArtValue::Map(m) => {
+                let map = m.0.lock().unwrap();
+                let field_strs: Vec<String> =
+                    map.iter().map(|(k, v)| format!("{}: {}", k, v)).collect();
+                write!(f, "Map {{ {} }}", field_strs.join(", "))
+            }
+            ArtValue::Set(s) => {
+                let set = s.0.lock().unwrap();
+                let elems: Vec<String> = set.iter().map(|item| item.to_string()).collect();
+                write!(f, "Set {{ {} }}", elems.join(", "))
+            }
         }
     }
 }

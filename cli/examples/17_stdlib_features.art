@@ -1,0 +1,46 @@
+// Phase 15 Stdlib Demo
+
+println("=== MAP DEMO ===");
+let m = map_new();
+map_set(m, "hello", 42);
+map_set(m, "world", 100);
+println(map_get(m, "hello"));
+println(map_has(m, "world"));
+println(map_has(m, "not_exist"));
+println(len(m));
+println(type_of(m));
+
+println("\n=== SET DEMO ===");
+let s = set_new();
+set_add(s, 10);
+set_add(s, 20);
+set_add(s, 10); // duplicate ignored
+println(set_has(s, 20));
+println(set_has(s, 30));
+println(len(s));
+println(type_of(s));
+
+println("\n=== MATH DEMO ===");
+println(math_abs(-10));
+println(math_abs(-3.14));
+println(math_pow(2, 3));
+println(math_pow(2.0, 0.5));
+println(math_clamp(5, 1, 10));
+println(math_clamp(15, 1, 10));
+
+println("\n=== TIME & RAND DEMO ===");
+let t1 = time_now();
+let t2 = time_now();
+println("t1 =");
+println(t1);
+println("t2 =");
+println(t2);
+
+rand_seed(12345);
+println(rand_next());
+println(rand_next());
+
+println("\n=== IO DEMO ===");
+io_write_text("test_output.txt", "Hello from Artcode IO!");
+let content = io_read_text("test_output.txt");
+println(content);

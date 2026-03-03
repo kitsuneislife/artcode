@@ -8,7 +8,11 @@ fn run(code: &str) -> (Interpreter, String) {
     let tokens = match lexer.scan_tokens() {
         Ok(t) => t,
         Err(e) => {
-            assert!(false, "lexer scan_tokens in weak_unowned.rs failed: {:?}", e);
+            assert!(
+                false,
+                "lexer scan_tokens in weak_unowned.rs failed: {:?}",
+                e
+            );
             Vec::new()
         }
     };
@@ -16,7 +20,10 @@ fn run(code: &str) -> (Interpreter, String) {
     let (program, diags) = parser.parse();
     assert!(diags.is_empty(), "parse diags: {:?}", diags);
     let mut interp = Interpreter::with_prelude();
-    assert!(interp.interpret(program).is_ok(), "interpret program in weak_unowned.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in weak_unowned.rs failed"
+    );
     (interp, code.to_string())
 }
 

@@ -14,11 +14,11 @@ struct Cli {
 enum Commands {
     /// Run full developer quality gate (fmt, clippy, test, panic scan)
     Ci {
-    #[arg(long)]
-    no_fmt: bool,
-    /// When set, fail CI if aot_inspect finds issues
-    #[arg(long, default_value_t = false)]
-    aot_inspect_fatal: bool,
+        #[arg(long)]
+        no_fmt: bool,
+        /// When set, fail CI if aot_inspect finds issues
+        #[arg(long, default_value_t = false)]
+        aot_inspect_fatal: bool,
     },
     /// Strict developer check: fmt, clippy -D warnings, tests, examples; optional coverage
     Devcheck {
@@ -33,36 +33,36 @@ enum Commands {
         #[arg(long, default_value_t = false)]
         html: bool,
     },
-        /// Generate or verify IR golden files
-        Irgen {
-                /// write golden files instead of printing
-                #[arg(long)]
-                write: bool,
-                /// check existing golden files against generated output
-                #[arg(long)]
-                check: bool,
-                /// output directory for golden files (default: crates/ir/golden)
-                #[arg(long)]
-                outdir: Option<PathBuf>,
-            },
-            /// Alias for Irgen (gen-golden)
-            GenGolden {
-                /// write golden files instead of printing
-                #[arg(long)]
-                write: bool,
-                /// check existing golden files against generated output
-                #[arg(long)]
-                check: bool,
-                /// output directory for golden files (default: crates/ir/golden)
-                #[arg(long)]
-                outdir: Option<PathBuf>,
-            },
-        /// Emit IR for examples or fixtures (prints textual IR or writes to outdir)
-        EmitIr {
-            /// optional output directory for IR files
-            #[arg(long)]
-            path: Option<PathBuf>,
-        },
+    /// Generate or verify IR golden files
+    Irgen {
+        /// write golden files instead of printing
+        #[arg(long)]
+        write: bool,
+        /// check existing golden files against generated output
+        #[arg(long)]
+        check: bool,
+        /// output directory for golden files (default: crates/ir/golden)
+        #[arg(long)]
+        outdir: Option<PathBuf>,
+    },
+    /// Alias for Irgen (gen-golden)
+    GenGolden {
+        /// write golden files instead of printing
+        #[arg(long)]
+        write: bool,
+        /// check existing golden files against generated output
+        #[arg(long)]
+        check: bool,
+        /// output directory for golden files (default: crates/ir/golden)
+        #[arg(long)]
+        outdir: Option<PathBuf>,
+    },
+    /// Emit IR for examples or fixtures (prints textual IR or writes to outdir)
+    EmitIr {
+        /// optional output directory for IR files
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
     /// Inspect AOT plan against profile and optional IR dir
     AotInspect {
         /// profile json path
@@ -125,12 +125,16 @@ fn type_check_examples() {
         if path.extension().map(|e| e == "art").unwrap_or(false) {
             // Run the CLI binary explicitly to avoid cargo ambiguity
             let mut cmd = Command::new("cargo");
-            cmd.args(["run", "-p", "cli", "--quiet", "--", "run"]).arg(path.as_os_str());
+            cmd.args(["run", "-p", "cli", "--quiet", "--", "run"])
+                .arg(path.as_os_str());
             let status = run(&mut cmd);
             if !status.success() {
                 // If example fails to parse or run, log and continue. We want examples to be helpful
                 // but not to block the CI while some didactic examples are being updated.
-                eprintln!("Type check skipped (failed) for example: {}", path.display());
+                eprintln!(
+                    "Type check skipped (failed) for example: {}",
+                    path.display()
+                );
                 continue;
             }
         }
@@ -186,7 +190,10 @@ fn visit(path: &PathBuf, re: &Regex, found: &mut usize) {
 fn main() {
     let cli = Cli::parse();
     match cli.command {
-    Commands::Ci { no_fmt, aot_inspect_fatal } => {
+        Commands::Ci {
+            no_fmt,
+            aot_inspect_fatal,
+        } => {
             fmt(no_fmt);
             clippy();
             test_all();
@@ -232,7 +239,11 @@ fn main() {
                 }
             }
         }
-    Commands::Irgen { write, check, outdir } => {
+        Commands::Irgen {
+            write,
+            check,
+            outdir,
+        } => {
             // Run the irgen binary to print, write, or check golden files
             let mut cmd = Command::new("cargo");
             cmd.args(["run", "-p", "ir", "--bin", "irgen", "--quiet"]);
@@ -253,7 +264,11 @@ fn main() {
                 std::process::exit(status.code().unwrap_or(1));
             }
         }
-        Commands::GenGolden { write, check, outdir } => {
+        Commands::GenGolden {
+            write,
+            check,
+            outdir,
+        } => {
             // alias for Irgen
             let mut cmd = Command::new("cargo");
             cmd.args(["run", "-p", "ir", "--bin", "irgen", "--quiet"]);
@@ -285,15 +300,31 @@ fn main() {
                 std::process::exit(status.code().unwrap_or(1));
             }
         }
-        Commands::AotInspect { profile, plan, ir_dir } => {
+        Commands::AotInspect {
+            profile,
+            plan,
+            ir_dir,
+        } => {
             let mut cmd = Command::new("cargo");
             cmd.args(["run", "-p", "jit", "--bin", "aot_inspect", "--quiet"]);
             cmd.arg("--");
-            if let Some(p) = profile { cmd.arg(p.as_os_str()); } else { cmd.arg("profile.json"); }
-            if let Some(p) = plan { cmd.arg(p.as_os_str()); } else { cmd.arg("aot_plan.json"); }
-            if let Some(d) = ir_dir { cmd.arg(d.as_os_str()); }
+            if let Some(p) = profile {
+                cmd.arg(p.as_os_str());
+            } else {
+                cmd.arg("profile.json");
+            }
+            if let Some(p) = plan {
+                cmd.arg(p.as_os_str());
+            } else {
+                cmd.arg("aot_plan.json");
+            }
+            if let Some(d) = ir_dir {
+                cmd.arg(d.as_os_str());
+            }
             let status = run(&mut cmd);
-            if !status.success() { std::process::exit(status.code().unwrap_or(1)); }
+            if !status.success() {
+                std::process::exit(status.code().unwrap_or(1));
+            }
         }
         Commands::Scan => scan_panics(),
         Commands::Coverage { html } => {

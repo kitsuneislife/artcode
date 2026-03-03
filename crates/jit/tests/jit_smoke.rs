@@ -14,7 +14,8 @@ fn smoke_compile_const_function() {
     // Initialize and lower/compile
     let _ = jit::LlvmBuilder::initialize().expect("initialize");
     let module_text = jit::LlvmBuilder::lower_ir_to_module(ir).expect("lower to module");
-    let addr = jit::LlvmBuilder::compile_module_get_symbol(&module_text, "f").expect("compile symbol");
+    let addr =
+        jit::LlvmBuilder::compile_module_get_symbol(&module_text, "f").expect("compile symbol");
 
     // Call the function pointer (unsafe). This expects the JIT to produce a
     // callable function returning i64.

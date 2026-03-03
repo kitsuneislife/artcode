@@ -75,11 +75,11 @@ mod enabled {
         // Create a module with a single function that either returns a const i64
         // or performs an add of the first two params. This is intentionally small
         // but enough to try the end-to-end flow.
-    fn build_module(ir_text: &str) -> Result<inkwell::module::Module, String> {
-                // Create a new context and module. Keep all usage local so we don't need
-                // to extend lifetimes artificially.
-                let context = Context::create();
-                let module = context.create_module("jit_module");
+        fn build_module(ir_text: &str) -> Result<inkwell::module::Module, String> {
+            // Create a new context and module. Keep all usage local so we don't need
+            // to extend lifetimes artificially.
+            let context = Context::create();
+            let module = context.create_module("jit_module");
             let i64_t = context.i64_type();
 
             // Try to parse header
@@ -111,7 +111,10 @@ mod enabled {
             // Try to find a `const i64 <N>` in the body (simple match)
             if let Some(idx) = ir_text.find("const i64") {
                 let after = &ir_text[idx + "const i64".len()..];
-                if let Some(num_str) = after.split(|c: char| !c.is_numeric() && c != '-' ).find(|s| !s.is_empty()) {
+                if let Some(num_str) = after
+                    .split(|c: char| !c.is_numeric() && c != '-')
+                    .find(|s| !s.is_empty())
+                {
                     if let Ok(v) = num_str.trim().parse::<i64>() {
                         let constv = i64_t.const_int(v as u64, true);
                         builder.build_return(Some(&constv));
@@ -234,10 +237,10 @@ mod enabled {
                         }
 
                         // Create the phi with incoming values from then_bb and else_bb
-                                    let phi = builder.build_phi(i64_t, "phi_tmp");
-                                    phi.add_incoming(&[(&then_val, then_bb), (&else_val, else_bb)]);
-                                    builder.build_return(Some(&phi.as_basic_value().into_int_value()));
-                                    return Ok(module);
+                        let phi = builder.build_phi(i64_t, "phi_tmp");
+                        phi.add_incoming(&[(&then_val, then_bb), (&else_val, else_bb)]);
+                        builder.build_return(Some(&phi.as_basic_value().into_int_value()));
+                        return Ok(module);
                     }
                 }
             }
@@ -282,4 +285,3 @@ mod enabled {
 
 #[cfg(feature = "jit")]
 pub use enabled::ActiveLlvmBuilder as LlvmBuilderImpl;
-

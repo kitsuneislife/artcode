@@ -47,14 +47,21 @@ fn unowned_diag_after_drop() {
     let tokens = match lexer.scan_tokens() {
         Ok(t) => t,
         Err(e) => {
-            assert!(false, "lexer scan_tokens in weak_retention.rs failed: {:?}", e);
+            assert!(
+                false,
+                "lexer scan_tokens in weak_retention.rs failed: {:?}",
+                e
+            );
             Vec::new()
         }
     };
     let mut parser = Parser::new(tokens);
     let (program, diags) = parser.parse();
     assert!(diags.is_empty(), "parse falhou: {:?}", diags);
-    assert!(interp.interpret(program).is_ok(), "interpret program in weak_retention.rs failed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret program in weak_retention.rs failed"
+    );
     let diags = interp.take_diagnostics();
     assert!(
         !diags.is_empty(),

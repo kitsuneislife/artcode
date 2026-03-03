@@ -180,11 +180,11 @@ Note: the project contains `.github/workflows/xtask-irgen-check.yml` (runs on pu
 - [ ] Issue labeler (futuro CI) para categorias: lang-design / runtime / tooling
 
 ## Fase 15 – Expansão da Stdlib
-- [ ] Coleções: Map (hash), Set, Deque
-- [ ] Math util (abs, pow, clamp)
-- [ ] Tempo (instante monotônico) – só para debug determinístico
-- [ ] IO básico abstraído (file, read_text, write_text) sandboxed
-- [ ] Random (seed configurável)
+- [x] Coleções: Map (hash), Set, Deque
+- [x] Math util (abs, pow, clamp)
+- [x] Tempo (instante monotônico) – só para debug determinístico
+- [x] IO básico abstraído (file, read_text, write_text) sandboxed
+- [x] Random (seed configurável)
 - [ ] Docs geradas automaticamente de builtins (`art doc std`)
 
 ## Fase 16 – Tooling de Produtividade

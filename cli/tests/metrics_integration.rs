@@ -1,7 +1,7 @@
 use assert_cmd::Command;
 // predicates not required for this test
-use std::io::Write;
 use serde_json::Value;
+use std::io::Write;
 
 // Integration test: run `art metrics --json` on a small script and validate JSON
 #[test]
@@ -22,19 +22,31 @@ fn metrics_json_includes_arena_and_finalized_maps() {
     let json_part = &s[start..];
     let v: Value = serde_json::from_str(json_part).expect("valid json");
     // basic presence
-    let a_alloc = v.get("arena_alloc_count").expect("missing arena_alloc_count");
-    let a_final = v.get("objects_finalized_per_arena").expect("missing objects_finalized_per_arena");
-    let a_prom = v.get("finalizer_promotions_per_arena").expect("missing finalizer_promotions_per_arena");
+    let a_alloc = v
+        .get("arena_alloc_count")
+        .expect("missing arena_alloc_count");
+    let a_final = v
+        .get("objects_finalized_per_arena")
+        .expect("missing objects_finalized_per_arena");
+    let a_prom = v
+        .get("finalizer_promotions_per_arena")
+        .expect("missing finalizer_promotions_per_arena");
 
     // ensure top-level numeric fields exist and are non-negative
     if let Some(n) = v.get("handled_errors") {
         assert!(n.as_u64().is_some(), "handled_errors must be an integer");
     }
     if let Some(n) = v.get("executed_statements") {
-        assert!(n.as_u64().is_some(), "executed_statements must be an integer");
+        assert!(
+            n.as_u64().is_some(),
+            "executed_statements must be an integer"
+        );
     }
     if let Some(c) = v.get("crash_free") {
-        assert!(c.as_f64().is_some() || c.as_u64().is_some(), "crash_free must be numeric");
+        assert!(
+            c.as_f64().is_some() || c.as_u64().is_some(),
+            "crash_free must be numeric"
+        );
     }
 
     // arena maps should be objects mapping numeric string keys to numeric values
@@ -42,8 +54,14 @@ fn metrics_json_includes_arena_and_finalized_maps() {
         assert!(m.is_object(), "{} should be a JSON object", name);
         for (k, v) in m.as_object().unwrap() {
             // keys should parse as u32
-            k.parse::<u32>().expect(&format!("{} key '{}' not a u32", name, k));
-            assert!(v.as_u64().is_some(), "{} value for key {} must be integer", name, k);
+            k.parse::<u32>()
+                .expect(&format!("{} key '{}' not a u32", name, k));
+            assert!(
+                v.as_u64().is_some(),
+                "{} value for key {} must be integer",
+                name,
+                k
+            );
             // value non-negative by definition of unsigned
         }
     };
