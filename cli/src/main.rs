@@ -12,6 +12,7 @@ mod docgen;
 mod formatter;
 mod linter;
 mod lsp;
+mod std_doc;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
@@ -73,11 +74,11 @@ fn run_with_source(_name: &str, source: String, profile: Option<&str>, emit_ir: 
         }
         // diagnostic: print program summary when emit_ir requested
         eprintln!("[emit-ir] program statements: {}", program.len());
-        let mut func_count = 0usize;
+        let mut _func_count = 0usize;
         for s in &program {
             match s {
                 core::ast::Stmt::Function { name, .. } => {
-                    func_count += 1;
+                    _func_count += 1;
                     eprintln!("[emit-ir] top-level function: {}", name.lexeme);
                 }
                 core::ast::Stmt::Block { statements } => {
@@ -426,6 +427,11 @@ fn main() {
         return run_prompt(emit_ir.as_deref());
     }
     // simple build command: art build --with-profile <profile> [--out <path>]
+    if args[1] == "doc" && args.get(2).map(|s| s.as_str()) == Some("std") {
+        std_doc::print_std_docs();
+        return;
+    }
+
     if args[1] == "build" {
         // parse simple flags
         let mut profile: Option<String> = None;

@@ -1,4 +1,3 @@
-use crate::heap_utils::dec_strong_obj;
 use crate::type_registry::TypeRegistry;
 use crate::values::{Result, RuntimeError};
 use core::Token;
@@ -1746,6 +1745,16 @@ impl Interpreter {
                         return result;
                     }
                 }
+
+                // Se chegou aqui, nenhum pattern casou (Non-exhaustive pattern match no Runtime)
+                self.diagnostics.push(Diagnostic::new(
+                    DiagnosticKind::Runtime,
+                    format!(
+                        "Non-exhaustive match: no pattern matched the value '{:?}'",
+                        match_value
+                    ),
+                    Span::new(0, 0, 0, 0), // Idealmente teríamos o span do Stmt::Match
+                ));
                 Ok(())
             }
             Stmt::Function {
@@ -1894,7 +1903,7 @@ impl Interpreter {
             (MatchPattern::Literal(lit), _) if lit == value => Some(vec![]),
             (MatchPattern::Wildcard, _) => Some(vec![]),
             // Se o binding está dentro de EnumVariant, associe ao valor correto
-            (MatchPattern::Binding(name), val) => {
+            (MatchPattern::Binding(name) | MatchPattern::Variable(name), val) => {
                 // Se val for EnumInstance com um valor, associe ao primeiro valor
                 if let ArtValue::EnumInstance { values, .. } = val {
                     if values.len() == 1 {
@@ -2549,7 +2558,7 @@ impl Interpreter {
     fn call_function(
         &mut self,
         func: Rc<Function>,
-        type_args: Option<Vec<String>>,
+        _type_args: Option<Vec<String>>,
         arguments: Vec<Expr>,
     ) -> Result<ArtValue> {
         // record call counter by function name (if present)

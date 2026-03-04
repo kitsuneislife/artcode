@@ -1,6 +1,5 @@
 use interpreter::interpreter::Interpreter;
-use core::ast::{ArtValue, Expr, Stmt};
-use std::thread;
+use core::ast::{Expr, Stmt};
 
 /// Teste de estresse: verifica se o Agendador de Atores suporta o envio e o processamento de
 /// um grande volume de mensagens roteadas concorrentemente entre múltiplas threads

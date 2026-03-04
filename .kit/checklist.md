@@ -153,14 +153,7 @@ Note: the project contains `.github/workflows/xtask-irgen-check.yml` (runs on pu
 - [x] Exemplos: `examples/ffi/` demonstrando C e Rust
 - [x] Docs: `docs/ffi.md` expandido (tabelas de mapeamento de tipos)
 
-## Fase 12 – Time-Travel Debugging
-- [ ] RFC: Formato de traço (event log compactado)
-- [ ] Modo record: `art run --record trace.artlog`
-- [ ] Modo replay determinístico: `art debug --replay trace.artlog`
-- [ ] Comandos interativos: step-back, state-at <tick>, inspect mailbox
-- [ ] Captura de seeds de RNG e relógio lógico
-- [ ] Compactação incremental de estados grandes (delta snapshots)
-- [ ] Docs: `docs/debugging.md`
+
 
 ## Fase 13 – Sistema de Módulos & Pacotes
  - [x] PRIORIDADE: Fase 13 — Sistema de Módulos & Pacotes (focar implementação MVP)
@@ -222,14 +215,7 @@ Note: the project contains `.github/workflows/xtask-irgen-check.yml` (runs on pu
 - [ ] Site simples / landing README reforçado (features > getting started)
 - [ ] Guia de migração (pré 0.1 -> 0.1 se houver breaking)
 
-## Backlog Cross-Cutting (Triagem Contínua)
-- [ ] Melhorar mensagens de erro de pattern matching (highlight do subpattern)
-- [ ] Otimização de alocação de strings (interning ampliado)
-- [ ] Parallel compilation (dependências de módulos, futuro)
-- [ ] Cache incremental para IR/JIT
-- [ ] Métricas de GC de ciclos (ferramenta) integradas no relatório geral
 
-LSP? :3
 
 ## Riscos & Mitigações
 - Weak/unowned sem análise -> vazios/segfault: mitigar com runtime checks opcionais em debug.
@@ -248,4 +234,28 @@ LSP? :3
 - cycle_leaks_detected (modo teste)
 
 ---
+## Roadmap v0.2.0+ (Pós-Release Público)
+Abaixo estão os épicos selecionados para as próximas versões por sua complexidade:
+
+### 1. Evolução JIT / AOT Engine (Fase 10 - Expansões)
+- [ ] JIT fallback stubs: código nativo valida com checks e cai para interpretador em caso de mismatch.
+- [ ] Integração total AOT.
+- [ ] Cache incremental para IR/JIT.
+
+### 2. Time-Travel Debugging (Antiga Fase 12)
+- [ ] RFC: Formato de traço (event log compactado)
+- [ ] Modo record: `art run --record trace.artlog`
+- [ ] Modo replay determinístico: `art debug --replay trace.artlog`
+- [ ] Comandos interativos: step-back, state-at <tick>, inspect mailbox
+- [ ] Captura de seeds de RNG e relógio lógico
+- [ ] Compactação incremental de estados grandes (delta snapshots)
+- [ ] Docs: `docs/debugging.md`
+
+### 3. Escalabilidade de Compilação
+- [x] Melhorar mensagens de erro de pattern matching (highlight do subpattern)
+- [ ] Otimização de alocação de strings (interning ampliado)
+- [ ] Parallel compilation (dependências de módulos, futuro)
+- [ ] Métricas de GC de ciclos (ferramenta) integradas no relatório geral
+- [ ] LSP Integrado Completo
+
 Atualize continuamente; abra RFC antes de mudanças estruturais profundas.

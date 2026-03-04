@@ -151,7 +151,7 @@ pub fn write_minimal_aot_artifact(plan_path: &Path, out_artifact: &Path) -> Resu
                 match status {
                     Ok(s) if s.success() => {
                         // compute sha256
-                        if let Ok(mut f) = std::fs::read(&tar_name) {
+                        if let Ok(f) = std::fs::read(&tar_name) {
                             use sha2::{Digest, Sha256};
                             let mut hasher = Sha256::new();
                             hasher.update(&f);
@@ -187,7 +187,6 @@ mod tests {
     use super::*;
     use std::env;
     use std::fs;
-    use std::path::PathBuf;
 
     #[test]
     fn generate_aot_plan_from_sample_profile() {

@@ -1,6 +1,5 @@
 /src
 /target
-/.kit
 / .github/*
 !.github/banner.png
 
@@ -20,3 +19,7 @@ aot_plan*.json
 
 # Dynamic Test Outputs
 test_output.txt
+
+#kit
+/.kit
+*.pdf

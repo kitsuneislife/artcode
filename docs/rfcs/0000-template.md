@@ -1,45 +1,27 @@
-<!-- RFC template: preencha e crie uma issue/PR usando este arquivo como base -->
-# RFC 0000 - Título curto aqui
+# RFC Template: [Nome Curto da Proposta]
 
-Status: Draft
+- **Feature Name:** `feature_name` (snake_case abreviado)
+- **Start Date:** YYYY-MM-DD
+- **RFC PR:** [artcode/rfcs#0000](https://github.com/artcode/rfcs/pull/0000)
+- **Status:** Proposto / Em Andamento / Aceito / Rejeitado
 
-Authors: nome <email>
+## Resumo (Summary)
+Um parágrafo explicando a feature/mudança para um usuário médio da linguagem. O que é e por que é útil?
 
-Date: YYYY-MM-DD
+## Motivação (Motivation)
+Qual problema isso resolve? Por que a Artcode precisa disso? Quais são os casos de uso esperados? Este é o principal gancho para convencer sobre a adoção da funcionalidade.
 
-## Sumário
+## Design Detalhado (Detailed design)
+A maior seção do RFC. Explique o design de forma detalhada o suficiente para:
+- Revisores entenderem as implicações semânticas e o modelo de memória.
+- Qualquer desenvolvedor médio da LLVM/Interpretador/Compiler possa iniciar a implementação.
+- Listar exemplos de código da sintaxe proposta, AST gerado e possíveis corner cases avaliados.
 
-Uma breve descrição (1-3 parágrafos) do problema e da proposta.
+## Cenários de Interoperação (Interaction and Corner Cases)
+O que acontece quando essa feature interage com Atores (`run_actors_round_robin`) ou Arenas de memória? Como se comporta em grafos cíclicos? Considere a compatibilidade híbrida da linguagem.
 
-## Motivação
+## Alternativas (Alternatives)
+Quais outras soluções de design arquitetural foram consideradas? Por que não foram escolhidas em vez dessa proposta? Qual a implicação de simplesmente *não fazer isso*?
 
-Por que precisamos desta mudança? Exemplos de uso e problemas atuais.
-
-## Proposta
-
-Descrição detalhada da API/sintaxe/design. Inclua trechos de código quando apropriado.
-
-## Alternativas consideradas
-
-Liste alternativas e por que foram rejeitadas.
-
-## Impacto
-
-- Runtime: mudanças esperadas
-- Tooling/CI: passos/novos jobs
-- Docs/exemplos a adicionar
-
-## Plano de migração
-
-Passos incrementais para adotar a mudança sem quebrar projetos existentes.
-
-## Riscos
-
-Principais riscos e estratégias de mitigação.
-
-## Checklist de aceitação
-
-- [ ] RFC discutida em issue
-- [ ] Implementação minimal viável (PR) ligada a esta RFC
-- [ ] Testes de integração adicionados
-- [ ] Docs atualizados
+## Questões não resolvidas (Unresolved questions)
+Existem partes do design que você está deixando definidamente em aberto no momento para a contribuição da comunidade ou que precisam de benchmark pós-implantação?
