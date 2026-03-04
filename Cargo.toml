@@ -13,6 +13,7 @@ members = [
     "cli",
     "xtask",
     "crates/jit",
+    "fuzz",
 ]
 
 [profile.release]

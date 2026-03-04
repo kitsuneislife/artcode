@@ -113,6 +113,8 @@ pub struct Interpreter {
     pub executing_actor: Option<ActorState>,
     // Random State (LCG)
     pub rng_state: u64,
+    // Recursion depth guard for evaluate() — prevents stack overflow on pathological AST inputs
+    eval_depth: usize,
 }
 
 #[cfg(test)]
@@ -520,6 +522,7 @@ impl Interpreter {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs(),
+            eval_depth: 0,
         }
     }
 
@@ -1953,6 +1956,23 @@ impl Interpreter {
     }
 
     fn evaluate(&mut self, expr: Expr) -> Result<ArtValue> {
+        const MAX_EVAL_DEPTH: usize = 128;
+        self.eval_depth += 1;
+        if self.eval_depth > MAX_EVAL_DEPTH {
+            self.eval_depth -= 1;
+            self.diagnostics.push(Diagnostic::new(
+                DiagnosticKind::Runtime,
+                format!("Expression evaluation nesting too deep (limit {MAX_EVAL_DEPTH}). Possible infinite recursion."),
+                Span::new(0, 0, 0, 0),
+            ));
+            return Ok(ArtValue::none());
+        }
+        let result = self.evaluate_inner(expr);
+        self.eval_depth -= 1;
+        result
+    }
+
+    fn evaluate_inner(&mut self, expr: Expr) -> Result<ArtValue> {
         match expr {
             Expr::InterpolatedString(parts) => {
                 use crate::fstring::eval_fstring;

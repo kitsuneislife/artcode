@@ -8,12 +8,18 @@ pub fn expression(parser: &mut Parser) -> Expr {
 }
 
 pub fn parse_precedence(parser: &mut Parser, precedence: u8) -> Expr {
+    // Universal recursion depth guard — prevents stack overflow from deeply nested
+    // fuzz inputs like `((((...` or `a.b.b.b.b....` chained operators.
+    if !parser.push_depth(None) {
+        return Expr::Literal(core::ast::ArtValue::none());
+    }
     let mut left = parse_prefix(parser);
 
     while precedence < parser.peek_precedence() {
         let operator = parser.advance();
         left = parse_infix(parser, left, operator);
     }
+    parser.pop_depth();
     left
 }
 
@@ -36,7 +42,7 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
         TokenType::LeftBracket => {
             let mut elements = Vec::new();
             if !parser.check(&TokenType::RightBracket) {
-                loop {
+                while !parser.is_at_end() && !parser.check(&TokenType::RightBracket) {
                     elements.push(expression(parser));
                     if !parser.match_token(TokenType::Comma) {
                         break;
@@ -47,7 +53,17 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
             Expr::Array(elements)
         }
         TokenType::LeftParen => {
+            // Guard against excessively deep nesting (e.g., from fuzz inputs like `((((`).
+            if parser.is_at_end() || !parser.push_depth(Some(&token)) {
+                parser.diagnostics.push(diagnostics::Diagnostic::new(
+                    diagnostics::DiagnosticKind::Parse,
+                    "Unclosed '(' — reached end of input or nesting limit.".to_string(),
+                    diagnostics::Span::new(token.start, token.end, token.line, token.col),
+                ));
+                return Expr::Literal(core::ast::ArtValue::none());
+            }
             let expr = expression(parser);
+            parser.pop_depth();
             parser.consume(TokenType::RightParen, "Expect ')' after expression.");
             Expr::Grouping {
                 expression: Box::new(expr),
@@ -95,7 +111,7 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
             if parser.match_token(TokenType::LeftParen) {
                 let mut values = Vec::new();
                 if !parser.check(&TokenType::RightParen) {
-                    loop {
+                    while !parser.is_at_end() && !parser.check(&TokenType::RightParen) {
                         values.push(expression(parser));
                         if !parser.match_token(TokenType::Comma) {
                             break;
@@ -140,7 +156,7 @@ pub fn parse_infix(parser: &mut Parser, left: Expr, operator: Token) -> Expr {
             );
             let mut type_args = Vec::new();
             if !parser.check(&TokenType::Greater) {
-                loop {
+                while !parser.is_at_end() && !parser.check(&TokenType::Greater) {
                     type_args.push(parser.parse_type());
                     if !parser.match_token(TokenType::Comma) {
                         break;
@@ -188,7 +204,7 @@ pub fn parse_infix(parser: &mut Parser, left: Expr, operator: Token) -> Expr {
                         parser.advance(); // consume '('
                         let mut values = Vec::new();
                         if !parser.check(&TokenType::RightParen) {
-                            loop {
+                            while !parser.is_at_end() && !parser.check(&TokenType::RightParen) {
                                 values.push(expression(parser));
                                 if !parser.match_token(TokenType::Comma) {
                                     break;
@@ -261,7 +277,7 @@ pub fn parse_infix(parser: &mut Parser, left: Expr, operator: Token) -> Expr {
 pub fn finish_call(parser: &mut Parser, callee: Expr) -> Expr {
     let mut arguments = Vec::new();
     if !parser.check(&TokenType::RightParen) {
-        loop {
+        while !parser.is_at_end() && !parser.check(&TokenType::RightParen) {
             arguments.push(expression(parser));
             if !parser.match_token(TokenType::Comma) {
                 break;

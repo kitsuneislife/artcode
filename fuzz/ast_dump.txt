@@ -1,0 +1,41 @@
+   Compiling parser v0.1.0 (/home/lukas/Documentos/Projects/artcode/crates/parser)
+   Compiling interpreter v0.1.0 (/home/lukas/Documentos/Projects/artcode/crates/interpreter)
+warning: unused variable: `type_args`
+    --> crates/interpreter/src/interpreter.rs:2499:9
+     |
+2499 |         type_args: Opti...
+     |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_type_args`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling artcode-fuzz v0.0.0 (/home/lukas/Documentos/Projects/artcode/fuzz)
+warning: function `main` is never used
+ --> fuzz/src/lib.rs:1:4
+  |
+1 | fn main() {}
+  |    ^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `artcode-fuzz` (lib) generated 1 warning
+warning: `interpreter` (lib) generated 1 warning (run `cargo fix --lib -p interpreter` to apply 1 suggestion)
+error: linking with `cc` failed: exit status: 1
+  |
+  = note:  "cc" "-m64" "/tmp/rustcJnYAee/symbols.o" "<23 object files omitted>" "-Wl,--as-needed" "-Wl,-Bstatic" "/home/lukas/Documentos/Projects/artcode/target/debug/deps/{libparser-dad33a6c757e0dee,liblexer-fa8f24123c4f37a3,libinterpreter-cf35e94c0c55825f,libdiagnostics-f46a80d3945c51c8,libcore-baf9628a5dbd1313}.rlib" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-Wl,-Bdynamic" "-lgcc_s" "-lutil" "-lrt" "-lpthread" "-lm" "-ldl" "-lc" "-L" "/tmp/rustcJnYAee/raw-dylibs" "-B<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/bin/gcc-ld" "-fuse-ld=lld" "-Wl,--eh-frame-hdr" "-Wl,-z,noexecstack" "-L" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib" "-o" "/home/lukas/Documentos/Projects/artcode/target/debug/deps/repro-3dd5e2747f0093cf" "-Wl,--gc-sections" "-pie" "-Wl,-z,relro,-z,now" "-nodefaultlibs"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: rust-lld: error: undefined symbol: __sanitizer_cov_trace_pc_guard
+          >>> referenced by ub_checks.rs:68 (/home/lukas/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ub_checks.rs:68)
+          >>>               /home/lukas/Documentos/Projects/artcode/target/debug/deps/repro-3dd5e2747f0093cf.0mre7z1lswlc7dc2qa3qxguqc.0tqepr6.rcgu.o:(core::slice::raw::from_raw_parts::precondition_check::h783d87174623b23f)
+          >>> referenced by mod.rs:2865 (/home/lukas/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:2865)
+          >>>               /home/lukas/Documentos/Projects/artcode/target/debug/deps/repro-3dd5e2747f0093cf.1nrpain50gnd5n1unnxgdu78o.0tqepr6.rcgu.o:(_$LT$$RF$T$u20$as$u20$core..fmt..Debug$GT$::fmt::h1a3637f633ff7637)
+          >>> referenced by rt.rs:93 (/home/lukas/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/fmt/rt.rs:93)
+          >>>               /home/lukas/Documentos/Projects/artcode/target/debug/deps/repro-3dd5e2747f0093cf.2qynrrmozgttwuc8yzj2sl3s4.0tqepr6.rcgu.o:(core::fmt::rt::Argument::new_debug::haeca40a2f4c63fae)
+          >>> referenced 15893 more times
+          
+          rust-lld: error: undefined symbol: __sanitizer_cov_trace_pc_guard_init
+          >>> referenced by 0mre7z1lswlc7dc2qa3qxguqc
+          >>>               /home/lukas/Documentos/Projects/artcode/target/debug/deps/repro-3dd5e2747f0093cf.0mre7z1lswlc7dc2qa3qxguqc.0tqepr6.rcgu.o:(sancov.module_ctor_trace_pc_guard)
+          collect2: error: ld returned 1 exit status
+          
+
+error: could not compile `artcode-fuzz` (bin "repro") due to 1 previous error

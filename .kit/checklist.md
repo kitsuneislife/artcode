@@ -202,11 +202,11 @@ Note: the project contains `.github/workflows/xtask-irgen-check.yml` (runs on pu
 - [x] Regressão detector: threshold % falha CI (futuro)
 
 ## Fase 18 – Evolução do Sistema de Tipos
-- [ ] RFC: Generics em funções (T param) com monomorfização
-- [ ] Constraints simples (ex: T: Numeric)
-- [ ] Açúcar para Result/Option (`if let`, `unwrap_or`, pipeline?)
-- [ ] Erros de tipo com sugestões (did-you-mean)
-- [ ] Preparar terreno para traits/interfaces (adiar implementação completa)
+- [x] RFC: Generics em funções (T param) com monomorfização
+- [x] Constraints simples (ex: T: Numeric)
+- [x] Açúcar para Result/Option (`if let`, `unwrap_or`, pipeline?)
+- [x] Erros de tipo com sugestões (did-you-mean)
+- [x] Preparar terreno para traits/interfaces (adiar implementação completa)
 
 ## Fase 19 – Segurança & Robustez
 - [ ] Fuzzing (cargo-fuzz harness para parser & evaluator)

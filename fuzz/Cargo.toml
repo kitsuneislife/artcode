@@ -1,0 +1,15 @@
+[package]
+name = "artcode-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[dependencies]
+artcode_core = { path = "../crates/core", package = "core" }
+lexer = { path = "../crates/lexer" }
+parser = { path = "../crates/parser" }
+ir = { path = "../crates/ir" }
+interpreter = { path = "../crates/interpreter" }
+
+[dev-dependencies]
+proptest = "1.10.0"

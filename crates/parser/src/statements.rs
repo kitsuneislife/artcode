@@ -32,7 +32,7 @@ pub fn statement(parser: &mut Parser) -> Stmt {
     if parser.match_token(TokenType::LeftBrace) {
         if let Expr::Variable { name } = expr {
             let mut fields = Vec::new();
-            while !parser.check(&TokenType::RightBrace) {
+            while !parser.is_at_end() && !parser.check(&TokenType::RightBrace) {
                 if parser.check(&TokenType::Identifier) {
                     let field_name = parser.advance();
                     parser.consume(TokenType::Colon, "Expect ':' after field name.");
@@ -86,7 +86,7 @@ pub fn let_declaration(parser: &mut Parser) -> Stmt {
         && parser.match_token(TokenType::LeftBrace)
     {
         let mut fields = Vec::new();
-        while !parser.check(&TokenType::RightBrace) {
+        while !parser.is_at_end() && !parser.check(&TokenType::RightBrace) {
             if parser.check(&TokenType::Identifier) {
                 let field_name = parser.advance();
                 parser.consume(TokenType::Colon, "Expect ':' after field name.");

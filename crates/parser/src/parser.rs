@@ -122,10 +122,13 @@ use core::{Token, TokenType};
 use diagnostics::{Diagnostic, DiagnosticKind, Span};
 use std::rc::Rc;
 
+const MAX_PARSE_DEPTH: usize = 200;
+
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
     pub diagnostics: Vec<Diagnostic>,
+    depth: usize,
 }
 
 impl Parser {
@@ -134,6 +137,31 @@ impl Parser {
             tokens,
             current: 0,
             diagnostics: Vec::new(),
+            depth: 0,
+        }
+    }
+
+    /// Enter one level of recursive descent. Returns `false` when depth limit is exceeded.
+    pub fn push_depth(&mut self, span_token: Option<&Token>) -> bool {
+        self.depth += 1;
+        if self.depth > MAX_PARSE_DEPTH {
+            let (start, end, line, col) = span_token
+                .map(|t| (t.start, t.end, t.line, t.col))
+                .unwrap_or((0, 0, 0, 0));
+            self.diagnostics.push(Diagnostic::new(
+                DiagnosticKind::Parse,
+                format!("Expression nested too deeply (limit {MAX_PARSE_DEPTH}). Possible unclosed delimiter."),
+                Span::new(start, end, line, col),
+            ));
+            self.depth -= 1;
+            return false;
+        }
+        true
+    }
+
+    pub fn pop_depth(&mut self) {
+        if self.depth > 0 {
+            self.depth -= 1;
         }
     }
 

@@ -16,9 +16,16 @@ pub struct EnumDef {
 }
 
 #[derive(Debug, Clone)]
+pub struct TraitDef {
+    pub name: String,
+    pub methods: std::collections::HashMap<String, Vec<String>>,
+}
+
+#[derive(Debug, Clone)]
 pub struct TypeRegistry {
     pub structs: HashMap<String, StructDef>,
     pub enums: HashMap<String, EnumDef>,
+    pub traits: HashMap<String, TraitDef>,
 }
 
 impl TypeRegistry {
@@ -26,6 +33,7 @@ impl TypeRegistry {
         TypeRegistry {
             structs: HashMap::new(),
             enums: HashMap::new(),
+            traits: HashMap::new(),
         }
     }
 
@@ -59,6 +67,22 @@ impl TypeRegistry {
 
     pub fn get_enum(&self, name: &str) -> Option<&EnumDef> {
         self.enums.get(name)
+    }
+
+    pub fn register_trait(
+        &mut self,
+        name: Token,
+        methods: std::collections::HashMap<String, Vec<String>>,
+    ) {
+        let trait_def = TraitDef {
+            name: name.lexeme.clone(),
+            methods,
+        };
+        self.traits.insert(name.lexeme, trait_def);
+    }
+
+    pub fn get_trait(&self, name: &str) -> Option<&TraitDef> {
+        self.traits.get(name)
     }
 
     pub fn has_enum(&self, name: &str) -> bool {
