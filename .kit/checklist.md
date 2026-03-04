@@ -256,6 +256,6 @@ Abaixo estão os épicos selecionados para as próximas versões por sua complex
 - [ ] Otimização de alocação de strings (interning ampliado)
 - [ ] Parallel compilation (dependências de módulos, futuro)
 - [ ] Métricas de GC de ciclos (ferramenta) integradas no relatório geral
-- [ ] LSP Integrado Completo
+- [ ] LSP Completo (Autocomplete, Goto-Definition, Rename, Refactor, Semantic Tokens)
 
 Atualize continuamente; abra RFC antes de mudanças estruturais profundas.
