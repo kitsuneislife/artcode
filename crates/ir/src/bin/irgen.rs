@@ -27,12 +27,14 @@ fn build_add() -> (String, String) {
     };
     let func = Stmt::Function {
         name,
+        type_params: None,
         params,
         return_type: Some("i64".to_string()),
         body: std::rc::Rc::new(Stmt::Return {
             value: Some(ret_expr),
         }),
         method_owner: None,
+        is_async: false,
     };
     let mut irf = lower_stmt(&func).expect("lower failed");
     ssa::rename_temps(&mut irf);
@@ -60,12 +62,14 @@ fn build_sub() -> (String, String) {
     };
     let func = Stmt::Function {
         name,
+        type_params: None,
         params,
         return_type: Some("i64".to_string()),
         body: std::rc::Rc::new(Stmt::Return {
             value: Some(ret_expr),
         }),
         method_owner: None,
+        is_async: false,
     };
     let mut irf = lower_stmt(&func).expect("lower failed");
     ssa::rename_temps(&mut irf);
@@ -89,12 +93,14 @@ fn build_if() -> (String, String) {
     };
     let func = Stmt::Function {
         name,
+        type_params: None,
         params,
         return_type: Some("i64".to_string()),
         body: std::rc::Rc::new(Stmt::Block {
             statements: vec![if_stmt],
         }),
         method_owner: None,
+        is_async: false,
     };
     let mut irf = lower_stmt(&func).expect("lower failed");
     ssa::rename_temps(&mut irf);

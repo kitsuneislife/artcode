@@ -24,6 +24,8 @@ fn golden_lower_sub() {
         right: Box::new(Expr::Variable { name: b }),
     };
     let func = Stmt::Function {
+        type_params: None,
+        is_async: false,
         name,
         params,
         return_type: Some("i64".to_string()),

@@ -6,6 +6,7 @@ fn atomic_and_mutex_basics() {
     let mut interp = Interpreter::with_prelude();
     // atomic_new(10)
     let call_atomic_new = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("atomic_new"),
         }),
@@ -15,6 +16,7 @@ fn atomic_and_mutex_basics() {
     let atomic_handle = interp.last_value.clone().expect("expected last value");
     // atomic_load(handle) -> 10
     let call_load = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("atomic_load"),
         }),
@@ -27,6 +29,7 @@ fn atomic_and_mutex_basics() {
     }
     // atomic_add(handle, 5) -> returns new value 15
     let call_add = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("atomic_add"),
         }),
@@ -43,6 +46,7 @@ fn atomic_and_mutex_basics() {
 
     // mutex_new(42)
     let call_mutex_new = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("mutex_new"),
         }),
@@ -53,6 +57,7 @@ fn atomic_and_mutex_basics() {
 
     // mutex_lock(handle) -> true
     let call_lock = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("mutex_lock"),
         }),
@@ -65,6 +70,7 @@ fn atomic_and_mutex_basics() {
     }
     // mutex_unlock(handle) -> true
     let call_unlock = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("mutex_unlock"),
         }),

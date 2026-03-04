@@ -95,6 +95,18 @@ fn lint_stmt(stmt: &Stmt, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
                 lint_stmt(els, scopes, diagnostics);
             }
         }
+        Stmt::IfLet {
+            pattern: _,
+            value,
+            then_branch,
+            else_branch,
+        } => {
+            lint_expr(value, scopes, diagnostics);
+            lint_stmt(then_branch, scopes, diagnostics);
+            if let Some(els) = else_branch {
+                lint_stmt(els, scopes, diagnostics);
+            }
+        }
         Stmt::Expression(expr) | Stmt::Return { value: Some(expr) } => {
             lint_expr(expr, scopes, diagnostics);
         }

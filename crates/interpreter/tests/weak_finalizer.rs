@@ -15,6 +15,8 @@ fn finalizer_runs_and_object_stays_while_weak() {
     // Criar função finalizer 'fin' que define 'created' global e registrar on_finalize(a, fin)
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("fin"),
             params: vec![],
             return_type: None,
@@ -28,6 +30,7 @@ fn finalizer_runs_and_object_stays_while_weak() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -130,6 +133,8 @@ fn finalizer_creates_handle_preserved() {
     // Criar finalizer que faz: let saved = owner
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("fin"),
             params: vec![],
             return_type: None,
@@ -145,6 +150,7 @@ fn finalizer_creates_handle_preserved() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -200,6 +206,8 @@ fn finalizer_promotes_handles_across_arenas() {
     // criar e registrar finalizer que salva a referência a `outside` em 'promoted'
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("fin"),
             params: vec![],
             return_type: None,
@@ -215,6 +223,7 @@ fn finalizer_promotes_handles_across_arenas() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),

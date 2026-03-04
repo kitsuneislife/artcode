@@ -10,10 +10,12 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
     match stmt {
         Stmt::Function {
             name,
+            type_params: _,
             params,
             return_type: _,
             body,
             method_owner: _,
+            is_async: _,
         } => {
             // Only support function bodies that are a block with a single Return
             // or a direct Return statement.
@@ -133,7 +135,11 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
                         None
                     }
                 }
-                Expr::Call { callee, arguments } => {
+                Expr::Call {
+                    callee,
+                    type_args: _,
+                    arguments,
+                } => {
                     // Lower a direct call returning a value: produce Call instr
                     // Only support simple variable callee for now
                     if let Expr::Variable { name: callee_name } = &*callee {
@@ -181,10 +187,12 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
 pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
     if let Stmt::Function {
         name,
+        type_params: _,
         params,
         return_type: _,
         body,
         method_owner: _,
+        is_async: _,
     } = stmt
     {
         let func_name = name.lexeme.clone();
@@ -403,10 +411,12 @@ pub fn lower_stmt(stmt: &Stmt) -> Option<Function> {
 pub fn lower_match_function(stmt: &Stmt) -> Option<Function> {
     if let Stmt::Function {
         name,
+        type_params: _,
         params,
         return_type: _,
         body,
         method_owner: _,
+        is_async: _,
     } = stmt
     {
         let func_name = name.lexeme.clone();

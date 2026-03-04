@@ -279,7 +279,7 @@ impl Parser {
             | TokenType::LessEqual => Precedence::Comparison as u8,
             TokenType::Plus | TokenType::Minus => Precedence::Term as u8,
             TokenType::Star | TokenType::Slash => Precedence::Factor as u8,
-            TokenType::LeftParen | TokenType::Dot => Precedence::Call as u8,
+            TokenType::LeftParen | TokenType::Dot | TokenType::ColonColon => Precedence::Call as u8,
             TokenType::As => Precedence::Call as u8,
             TokenType::Question => Precedence::Try as u8,
             TokenType::Bang => Precedence::Call as u8, // tratar 'expr!' como postfix acesso unowned
@@ -404,6 +404,31 @@ impl Parser {
         } else {
             (first_ident, None)
         };
+
+        let mut type_params = None;
+        if self.match_token(TokenType::Less) {
+            let mut tps = Vec::new();
+            if !self.check(&TokenType::Greater) {
+                loop {
+                    let tp = self.consume(TokenType::Identifier, "Expect type parameter name.");
+                    let bound = if self.match_token(TokenType::Colon) {
+                        Some(
+                            self.consume(TokenType::Identifier, "Expect trait bound name.")
+                                .lexeme,
+                        )
+                    } else {
+                        None
+                    };
+                    tps.push((tp.lexeme, bound));
+                    if !self.match_token(TokenType::Comma) {
+                        break;
+                    }
+                }
+            }
+            self.consume(TokenType::Greater, "Expect '>' after type parameters.");
+            type_params = Some(tps);
+        }
+
         self.consume(TokenType::LeftParen, "Expect '(' after function name.");
         let mut params = Vec::new();
         if !self.check(&TokenType::RightParen) {
@@ -435,10 +460,12 @@ impl Parser {
         });
         Stmt::Function {
             name,
+            type_params,
             params,
             return_type,
             body,
             method_owner,
+            is_async: false,
         }
     }
 }

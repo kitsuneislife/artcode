@@ -19,6 +19,7 @@ fn actor_send_propagation_allows_forwarded_array() {
         },
     };
     let send_call = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: Token::dummy("actor_send"),
         }),

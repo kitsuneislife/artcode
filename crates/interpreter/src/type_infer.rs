@@ -42,7 +42,14 @@ pub struct TypeInfer<'a> {
     // types when a scope is popped (shadowing must not permanently clobber outer vars)
     var_bindings: Vec<Vec<(String, Option<Type>)>>,
     // store top-level function declarations for simple callsite simulation
-    functions: HashMap<String, (Vec<String>, std::rc::Rc<Stmt>)>,
+    functions: HashMap<
+        String,
+        (
+            Vec<String>,
+            std::rc::Rc<Stmt>,
+            Option<Vec<(String, Option<String>)>>,
+        ),
+    >,
     visiting_functions: HashSet<String>,
 }
 
@@ -168,6 +175,20 @@ impl<'a> TypeInfer<'a> {
                     self.visit_stmt(e);
                 }
             }
+            Stmt::IfLet {
+                pattern: _,
+                value,
+                then_branch,
+                else_branch,
+            } => {
+                self.infer_expr(value);
+                self.push_scope();
+                self.visit_stmt(then_branch);
+                self.pop_scope();
+                if let Some(e) = else_branch {
+                    self.visit_stmt(e);
+                }
+            }
             Stmt::EnumDecl { name, variants } => {
                 let mut map = HashMap::new();
                 for (v, params) in variants {
@@ -181,16 +202,20 @@ impl<'a> TypeInfer<'a> {
             | Stmt::Import { .. } => {}
             Stmt::Function {
                 name,
+                type_params,
                 params,
                 return_type: _,
                 body,
                 method_owner: _,
+                is_async: _,
             } => {
                 // record simple top-level function for callsite simulation: store param names and body
                 let param_names: Vec<String> =
                     params.iter().map(|p| p.name.lexeme.clone()).collect();
-                self.functions
-                    .insert(name.lexeme.clone(), (param_names, body.clone()));
+                self.functions.insert(
+                    name.lexeme.clone(),
+                    (param_names, body.clone(), type_params.clone()),
+                );
             }
             Stmt::Performant { statements } => {
                 self.check_performant_block(statements);
@@ -250,6 +275,16 @@ impl<'a> TypeInfer<'a> {
                     format!("Function declaration '{}' is not allowed inside `performant` blocks: closures may capture arena values and escape", name.lexeme),
                     Span::new(name.start, name.end, name.line, name.col),
                 ));
+            }
+            IfLet {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                self.check_performant_stmt(then_branch, outer_vars);
+                if let Some(e) = else_branch {
+                    self.check_performant_stmt(e, outer_vars);
+                }
             }
             Let {
                 name, initializer, ..
@@ -383,7 +418,11 @@ impl<'a> TypeInfer<'a> {
                 found.extend(self.expr_uses_outer_vars(left, current_locals, outer_vars));
                 found.extend(self.expr_uses_outer_vars(right, current_locals, outer_vars));
             }
-            Call { callee, arguments } => {
+            Call {
+                callee,
+                type_args: _,
+                arguments,
+            } => {
                 found.extend(self.expr_uses_outer_vars(callee, current_locals, outer_vars));
                 for a in arguments {
                     found.extend(self.expr_uses_outer_vars(a, current_locals, outer_vars));
@@ -471,7 +510,14 @@ impl<'a> TypeInfer<'a> {
             Logical { left, right, .. } => {
                 self.is_send_safe_expr(left) && self.is_send_safe_expr(right)
             }
-            Call { .. } => false,
+            Call {
+                callee,
+                type_args: _,
+                arguments,
+            } => {
+                self.is_send_safe_expr(callee)
+                    && arguments.iter().all(|a| self.is_send_safe_expr(a))
+            }
             Variable { name } => {
                 // If the variable has a known type in the TypeEnv, use the type-based
                 // send-safety check. Otherwise conservatively assume not send-safe.
@@ -544,7 +590,11 @@ impl<'a> TypeInfer<'a> {
                 .get_var(&name.lexeme)
                 .cloned()
                 .unwrap_or(Type::Unknown),
-            Call { callee, arguments } => {
+            Call {
+                callee,
+                type_args,
+                arguments,
+            } => {
                 // Infer callee first
                 self.infer_expr(callee);
                 // If callee is a plain variable named `actor_send` or `make_envelope`,
@@ -581,7 +631,36 @@ impl<'a> TypeInfer<'a> {
                 // bind parameter names to argument types (for literal or known-variable args)
                 if let Expr::Variable { name } = &**callee {
                     if let Some(entry) = self.functions.get(&name.lexeme).cloned() {
-                        let (param_names, body) = entry;
+                        let (param_names, body, type_params) = entry;
+
+                        // Check simple generic constraints
+                        if let (Some(t_args), Some(t_params)) = (type_args, &type_params) {
+                            if t_args.len() == t_params.len() {
+                                for (i, t_arg) in t_args.iter().enumerate() {
+                                    if let Some(bound) = &t_params[i].1 {
+                                        let ok = match bound.as_str() {
+                                            "Numeric" => t_arg == "Int" || t_arg == "Float",
+                                            "Eq" | "Hash" => {
+                                                t_arg == "Int"
+                                                    || t_arg == "Float"
+                                                    || t_arg == "String"
+                                                    || t_arg == "Bool"
+                                            }
+                                            _ => true,
+                                        };
+                                        if !ok {
+                                            self.diags.push(Diagnostic::new(
+                                                DiagnosticKind::Type,
+                                                format!("Type argument '{}' does not satisfy constraint '{}' for type parameter '{}'", t_arg, bound, t_params[i].0),
+                                                Span::new(name.start, name.end, name.line, name.col),
+                                            ));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Avoid infinite recursion for recursive calls
                         if self.visiting_functions.insert(name.lexeme.clone()) {
                             // create a temporary scope for params
                             self.push_scope();

@@ -30,6 +30,12 @@ pub enum Stmt {
         then_branch: Box<Stmt>,
         else_branch: Option<Box<Stmt>>,
     },
+    IfLet {
+        pattern: MatchPattern,
+        value: Expr,
+        then_branch: Box<Stmt>,
+        else_branch: Option<Box<Stmt>>,
+    },
     StructDecl {
         name: Token,
         fields: Vec<(Token, String)>,
@@ -44,10 +50,12 @@ pub enum Stmt {
     },
     Function {
         name: Token,
+        type_params: Option<Vec<(String, Option<String>)>>,
         params: Vec<FunctionParam>,
         return_type: Option<String>,
         body: Rc<Stmt>,
-        method_owner: Option<String>, // novo: tipo ao qual o método pertence
+        method_owner: Option<String>,
+        is_async: bool,
     },
     Performant {
         statements: Vec<Stmt>,
@@ -93,6 +101,7 @@ pub enum Expr {
     Literal(ArtValue),
     Call {
         callee: Box<Expr>,
+        type_args: Option<Vec<String>>,
         arguments: Vec<Expr>,
     },
     Variable {
@@ -139,6 +148,7 @@ pub enum InterpolatedPart {
 #[derive(Clone)]
 pub struct Function {
     pub name: Option<String>,
+    pub type_params: Option<Vec<(String, Option<String>)>>,
     pub params: Vec<FunctionParam>,
     pub body: Rc<Stmt>,
     // Ambiente léxico capturado (Weak para evitar ciclo Environment -> Function -> Environment)
@@ -256,6 +266,12 @@ pub enum BuiltinFn {
     IOWriteText,
     RandomSeed,
     RandomNext,
+
+    // Built-in methods internally bound to Enum structs
+    EnumIsOk(Box<ArtValue>),
+    EnumIsErr(Box<ArtValue>),
+    EnumUnwrap(Box<ArtValue>),
+    EnumUnwrapOr(Box<ArtValue>),
 }
 
 impl fmt::Debug for BuiltinFn {
@@ -299,6 +315,12 @@ impl fmt::Debug for BuiltinFn {
             BuiltinFn::IOWriteText => write!(f, "<builtin io_write_text>"),
             BuiltinFn::RandomSeed => write!(f, "<builtin random_seed>"),
             BuiltinFn::RandomNext => write!(f, "<builtin random_next>"),
+            BuiltinFn::EnumIsOk(_)
+            | BuiltinFn::EnumIsErr(_)
+            | BuiltinFn::EnumUnwrap(_)
+            | BuiltinFn::EnumUnwrapOr(_) => {
+                write!(f, "<builtin enum_method>")
+            }
         }
     }
 }
@@ -389,6 +411,12 @@ impl fmt::Display for ArtValue {
                 BuiltinFn::IOWriteText => write!(f, "<builtin io_write_text>"),
                 BuiltinFn::RandomSeed => write!(f, "<builtin random_seed>"),
                 BuiltinFn::RandomNext => write!(f, "<builtin random_next>"),
+                BuiltinFn::EnumIsOk(_)
+                | BuiltinFn::EnumIsErr(_)
+                | BuiltinFn::EnumUnwrap(_)
+                | BuiltinFn::EnumUnwrapOr(_) => {
+                    write!(f, "<builtin enum_method>")
+                }
             },
             ArtValue::WeakRef(_) => write!(f, "<weak ref>"),
             ArtValue::UnownedRef(_) => write!(f, "<unowned ref>"),

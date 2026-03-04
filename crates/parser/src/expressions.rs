@@ -133,6 +133,42 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
 pub fn parse_infix(parser: &mut Parser, left: Expr, operator: Token) -> Expr {
     let precedence = parser.token_precedence(&operator.token_type);
     match operator.token_type {
+        TokenType::ColonColon => {
+            parser.consume(
+                TokenType::Less,
+                "Expect '<' after '::' for generic arguments.",
+            );
+            let mut type_args = Vec::new();
+            if !parser.check(&TokenType::Greater) {
+                loop {
+                    type_args.push(parser.parse_type());
+                    if !parser.match_token(TokenType::Comma) {
+                        break;
+                    }
+                }
+            }
+            parser.consume(
+                TokenType::Greater,
+                "Expect '>' after generic type arguments.",
+            );
+            parser.consume(
+                TokenType::LeftParen,
+                "Expect '(' after generic arguments to call the function.",
+            );
+            let call_expr = finish_call(parser, left);
+            match call_expr {
+                Expr::Call {
+                    callee,
+                    type_args: _,
+                    arguments,
+                } => Expr::Call {
+                    callee,
+                    type_args: Some(type_args),
+                    arguments,
+                },
+                other => other,
+            }
+        }
         TokenType::LeftParen => finish_call(parser, left),
         TokenType::Dot => {
             let ident = parser.consume(TokenType::Identifier, "Expect identifier after '.'");
@@ -235,6 +271,7 @@ pub fn finish_call(parser: &mut Parser, callee: Expr) -> Expr {
     parser.consume(TokenType::RightParen, "Expect ')' after arguments.");
     Expr::Call {
         callee: Box::new(callee),
+        type_args: None,
         arguments,
     }
 }

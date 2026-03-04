@@ -253,7 +253,11 @@ fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>) {
                             out: &mut Vec<(String, usize)>,
                         ) {
                             match expr {
-                                core::ast::Expr::Call { callee, arguments } => {
+                                core::ast::Expr::Call {
+                                    callee,
+                                    type_args: _,
+                                    arguments,
+                                } => {
                                     if let core::ast::Expr::Variable { name } = &**callee {
                                         out.push((name.lexeme.clone(), arguments.len()));
                                     } else {
@@ -284,10 +288,12 @@ fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>) {
                         let fname = match fs {
                             core::ast::Stmt::Function {
                                 name,
+                                type_params: _,
                                 params: _,
                                 return_type: _,
                                 body: _,
                                 method_owner: _,
+                                is_async: _,
                             } => name.lexeme.clone(),
                             _ => "anon".to_string(),
                         };

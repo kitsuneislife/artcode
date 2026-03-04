@@ -13,6 +13,8 @@ fn finalizer_promote_other_survives() {
     let program = vec![
         // function promote_b() { let survivor = <heapified b>; }
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("promote_b"),
             params: vec![],
             return_type: None,
@@ -27,6 +29,7 @@ fn finalizer_promote_other_survives() {
         },
         // attach finalize to a
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -72,6 +75,8 @@ fn mutual_finalizers_promote_each_other_safe() {
     // func promote_a() { let x = <heap a>; }
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("prom_a"),
             params: vec![],
             return_type: None,
@@ -85,6 +90,8 @@ fn mutual_finalizers_promote_each_other_safe() {
             method_owner: None,
         },
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("prom_b"),
             params: vec![],
             return_type: None,
@@ -99,6 +106,7 @@ fn mutual_finalizers_promote_each_other_safe() {
         },
         // attach promote_b to a and promote_a to b
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -110,6 +118,7 @@ fn mutual_finalizers_promote_each_other_safe() {
             ],
         }),
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),

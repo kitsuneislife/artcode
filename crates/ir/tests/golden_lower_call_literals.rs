@@ -13,6 +13,7 @@ fn golden_lower_call_literals() {
     }];
 
     let call_expr = Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: Token::dummy("add"),
         }),
@@ -22,6 +23,8 @@ fn golden_lower_call_literals() {
         ],
     };
     let func = Stmt::Function {
+        type_params: None,
+        is_async: false,
         name,
         params,
         return_type: Some("i64".to_string()),

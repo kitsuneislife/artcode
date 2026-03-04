@@ -9,12 +9,15 @@ fn golden_lower_intrinsic_call() {
     let params = vec![];
 
     let call_expr = Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: Token::dummy("gc_alloc"),
         }),
         arguments: vec![Expr::Literal(core::ast::ArtValue::Int(16))],
     };
     let func = Stmt::Function {
+        type_params: None,
+        is_async: false,
         name,
         params,
         return_type: Some("i64".to_string()),

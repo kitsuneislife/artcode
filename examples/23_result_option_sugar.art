@@ -1,0 +1,44 @@
+// Teste de syntactic sugar para Result e Option (if let, unwrap, unwrap_or, etc)
+
+func test_result_sugar() {
+    let success = Result.Ok(42)
+    let failure = Result.Err("Something went wrong")
+
+    // Testando novos métodos Builtin
+    println(success.is_ok()) // true
+    println(failure.is_err()) // true
+    println(success.unwrap()) // 42
+    println(failure.unwrap_or(-1)) // -1
+
+    // Testando `if let` com Result
+    if let Ok(value) = success {
+        println("Success contains: ", value)
+    } else {
+        println("Failed to match Ok")
+    }
+
+    if let Err(msg) = failure {
+        println("Failure contains: ", msg)
+    }
+}
+
+func test_option_sugar() {
+    let some_val = Option.Some("Hello Option")
+    let none_val = Option.None
+
+    println(some_val.is_some()) // true
+    println(none_val.is_none()) // true
+    println(some_val.unwrap()) // "Hello Option"
+    println(none_val.unwrap_or("Default Option")) // "Default Option"
+
+    if let Some(text) = some_val {
+        println("We got: ", text)
+    }
+
+    if let None = none_val {
+        println("It's empty")
+    }
+}
+
+test_result_sugar()
+test_option_sugar()

@@ -6,6 +6,7 @@ fn atomic_add_type_error_emits_diag() {
     let mut interp = Interpreter::with_prelude();
     // Create an atomic holding a non-int (e.g., a string) via heap_create path
     let call_atomic_new = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("atomic_new"),
         }),
@@ -15,6 +16,7 @@ fn atomic_add_type_error_emits_diag() {
     let atomic_handle = interp.last_value.clone().expect("expected last value");
     // atomic_add(handle, 5) -> should emit runtime diagnostic and return none
     let call_add = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("atomic_add"),
         }),
@@ -34,6 +36,7 @@ fn mutex_double_unlock_emits_diag_and_returns_false() {
     let mut interp = Interpreter::with_prelude();
     // mutex_new(1)
     let call_mutex_new = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("mutex_new"),
         }),
@@ -44,6 +47,7 @@ fn mutex_double_unlock_emits_diag_and_returns_false() {
 
     // First unlock (without lock) should emit diagnostic and return false
     let call_unlock = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("mutex_unlock"),
         }),
@@ -63,6 +67,7 @@ fn atomic_and_mutex_heap_kind_set() {
     let mut interp = Interpreter::with_prelude();
     // create atomic
     let call_atomic_new = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("atomic_new"),
         }),
@@ -72,6 +77,7 @@ fn atomic_and_mutex_heap_kind_set() {
     let atomic_handle = interp.last_value.clone().unwrap();
     // create mutex
     let call_mutex_new = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("mutex_new"),
         }),

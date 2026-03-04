@@ -20,6 +20,7 @@ fn actor_priority_and_backpressure_stress() {
         let pri = (i % 5) as i64; // priorities 0..4
         interp
             .interpret(vec![Stmt::Expression(Expr::Call {
+        type_args: None,
                 callee: Box::new(Expr::Variable {
                     name: core::Token::dummy("actor_send"),
                 }),
@@ -52,6 +53,7 @@ fn actor_priority_and_backpressure_stress() {
     };
     interp
         .interpret(vec![Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("actor_set_mailbox_limit"),
             }),
@@ -65,6 +67,7 @@ fn actor_priority_and_backpressure_stress() {
     for i in 0..3 {
         interp
             .interpret(vec![Stmt::Expression(Expr::Call {
+        type_args: None,
                 callee: Box::new(Expr::Variable {
                     name: core::Token::dummy("actor_send"),
                 }),
@@ -78,6 +81,7 @@ fn actor_priority_and_backpressure_stress() {
     // fourth should fail (backpressure)
     interp
         .interpret(vec![Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("actor_send"),
             }),

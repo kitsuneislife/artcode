@@ -195,11 +195,11 @@ Note: the project contains `.github/workflows/xtask-irgen-check.yml` (runs on pu
 - [x] Skeleton Language Server (hover + go-to-definition protótipo)
 
 ## Fase 17 – Performance & Benchmarks
-- [ ] Suites micro (arith, match, method dispatch)
-- [ ] Suites macro (interpretação exemplos grandes)
-- [ ] Script PGO automatizado (gera perfil + build + report)
-- [ ] Capture baseline contínuo em `.kit/perf_history.csv`
-- [ ] Regressão detector: threshold % falha CI (futuro)
+- [x] Suites micro (arith, match, method dispatch)
+- [x] Suites macro (interpretação exemplos grandes)
+- [x] Script PGO automatizado (gera perfil + build + report)
+- [x] Capture baseline contínuo em `.kit/perf_history.csv`
+- [x] Regressão detector: threshold % falha CI (futuro)
 
 ## Fase 18 – Evolução do Sistema de Tipos
 - [ ] RFC: Generics em funções (T param) com monomorfização

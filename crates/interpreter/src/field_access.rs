@@ -39,6 +39,7 @@ pub fn struct_field_or_method(
         );
         let bound_fn = Function {
             name: m.name.clone(),
+            type_params: m.type_params.clone(),
             params: new_params,
             body: m.body.clone(),
             closure: Rc::downgrade(&bound_env),
@@ -56,6 +57,38 @@ pub fn enum_method(
     field: &core::Token,
     type_registry: &TypeRegistry,
 ) -> Option<ArtValue> {
+    // Built-in methods for Option and Result
+    if enum_name == "Result" || enum_name == "Option" {
+        let enum_val = ArtValue::EnumInstance {
+            enum_name: enum_name.to_string(),
+            variant: variant.to_string(),
+            values: values.to_vec(),
+        };
+        match field.lexeme.as_str() {
+            "is_ok" | "is_some" => {
+                return Some(ArtValue::Builtin(core::ast::BuiltinFn::EnumIsOk(Box::new(
+                    enum_val,
+                ))));
+            }
+            "is_err" | "is_none" => {
+                return Some(ArtValue::Builtin(core::ast::BuiltinFn::EnumIsErr(
+                    Box::new(enum_val),
+                )));
+            }
+            "unwrap" => {
+                return Some(ArtValue::Builtin(core::ast::BuiltinFn::EnumUnwrap(
+                    Box::new(enum_val),
+                )));
+            }
+            "unwrap_or" => {
+                return Some(ArtValue::Builtin(core::ast::BuiltinFn::EnumUnwrapOr(
+                    Box::new(enum_val),
+                )));
+            }
+            _ => {}
+        }
+    }
+
     if let Some(edef) = type_registry.enums.get(enum_name)
         && let Some(m) = edef.methods.get(&field.lexeme)
     {
@@ -82,6 +115,7 @@ pub fn enum_method(
         );
         let bound_fn = Function {
             name: m.name.clone(),
+            type_params: m.type_params.clone(),
             params: new_params,
             body: m.body.clone(),
             closure: Rc::downgrade(&bound_env),

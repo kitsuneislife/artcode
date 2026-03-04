@@ -17,6 +17,8 @@ fn golden_ssa_unique() {
         right: Box::new(Expr::Variable { name: a.clone() }),
     };
     let func = Stmt::Function {
+        type_params: None,
+        is_async: false,
         name,
         params,
         return_type: Some("i64".to_string()),

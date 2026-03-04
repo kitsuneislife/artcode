@@ -15,6 +15,7 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
     };
     // send 1 and 2
     let call1 = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("actor_send"),
         }),
@@ -27,6 +28,7 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
     // because call_builtin returns ArtValue, ensure Bool(true) or none; use ActorSend wrapper by calling via evaluate above
     // second send
     let call2 = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("actor_send"),
         }),
@@ -76,6 +78,7 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
     interp.current_actor = Some(aid_sender);
     interp
         .interpret(vec![Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("actor_send"),
             }),
@@ -101,6 +104,7 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
     // send priority 0 then priority 10
     interp
         .interpret(vec![Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("actor_send"),
             }),
@@ -113,6 +117,7 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
         .unwrap();
     interp
         .interpret(vec![Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("actor_send"),
             }),
@@ -153,6 +158,7 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
     };
     interp2
         .interpret(vec![Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("actor_send"),
             }),
@@ -170,6 +176,7 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
     ));
     interp2
         .interpret(vec![Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("actor_send"),
             }),
@@ -187,12 +194,14 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
     let mut interp3 = Interpreter::with_prelude();
     let body = vec![
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("println"),
             }),
             arguments: vec![Expr::Literal(core::ast::ArtValue::Int(1))],
         }),
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("println"),
             }),
@@ -221,6 +230,7 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
     // send a message from no actor context
     interp4
         .interpret(vec![Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("actor_send"),
             }),
@@ -235,6 +245,7 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
         name: core::Token::dummy("m"),
         ty: None,
         initializer: Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("actor_receive_envelope"),
             }),

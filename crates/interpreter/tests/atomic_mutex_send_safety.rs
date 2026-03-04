@@ -12,6 +12,7 @@ fn actor_send_non_send_payload_emits_diag() {
         initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(1))]),
     };
     let send_call = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: Token::dummy("actor_send"),
         }),

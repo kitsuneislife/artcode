@@ -9,6 +9,8 @@ fn finalizer_promotes_handles_to_root_during_execution() {
     let program = vec![
         // finalizer function
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("fin_promote"),
             params: vec![],
             return_type: None,
@@ -44,6 +46,7 @@ fn finalizer_promotes_handles_to_root_during_execution() {
                 },
                 // register finalizer
                 Stmt::Expression(Expr::Call {
+        type_args: None,
                     callee: Box::new(Expr::Variable {
                         name: core::Token::dummy("on_finalize"),
                     }),

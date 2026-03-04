@@ -12,6 +12,8 @@ fn finalizer_promotes_multiple_temporaries_to_root() {
     // Função finalizer que cria dois objetos e os define como globals (kept1 e kept2)
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("fin_multi"),
             params: vec![],
             return_type: None,
@@ -33,6 +35,7 @@ fn finalizer_promotes_multiple_temporaries_to_root() {
         },
         // Registrar finalizer
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -77,6 +80,8 @@ fn nested_performant_return_emits_diagnostic() {
     // Função que contém um bloco performant que tenta retornar o objeto de arena
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("outer"),
             params: vec![],
             return_type: None,
@@ -105,6 +110,7 @@ fn nested_performant_return_emits_diagnostic() {
             name: core::Token::dummy("r"),
             ty: None,
             initializer: Expr::Call {
+        type_args: None,
                 callee: Box::new(Expr::Variable {
                     name: core::Token::dummy("outer"),
                 }),
@@ -166,6 +172,8 @@ fn field_assign_prev_arena_triggers_finalizer() {
     // Registrar finalizer que cria flag
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("fin_prev"),
             params: vec![],
             return_type: None,
@@ -180,6 +188,7 @@ fn field_assign_prev_arena_triggers_finalizer() {
         },
         // on_finalize(child_arena, fin_prev)
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),

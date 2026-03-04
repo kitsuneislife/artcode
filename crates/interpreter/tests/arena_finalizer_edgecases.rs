@@ -14,6 +14,8 @@ fn finalizer_promotes_handles_from_arena() {
     // finalizer that creates a local var (promoted to root by finalizer semantics)
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("fp"),
             params: vec![],
             return_type: None,
@@ -27,6 +29,7 @@ fn finalizer_promotes_handles_from_arena() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -63,6 +66,8 @@ fn finalizer_allocation_inside_arena_does_not_break_finalize() {
     // finalizer that allocates a new array (which will be promoted to root by finalizer semantics)
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("allocf"),
             params: vec![],
             return_type: None,
@@ -76,6 +81,7 @@ fn finalizer_allocation_inside_arena_does_not_break_finalize() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),

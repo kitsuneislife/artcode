@@ -36,6 +36,8 @@ fn golden_lower_match_literals() {
     ];
 
     let func = Stmt::Function {
+        type_params: None,
+        is_async: false,
         name,
         params,
         return_type: Some("i64".to_string()),

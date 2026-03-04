@@ -12,6 +12,50 @@ use std::rc::Rc;
 
 use std::collections::BTreeMap;
 
+/// Computes the Levenshtein distance between two strings
+fn levenshtein(a: &str, b: &str) -> usize {
+    let a_chars: Vec<char> = a.chars().collect();
+    let b_chars: Vec<char> = b.chars().collect();
+    let mut d = vec![vec![0; b_chars.len() + 1]; a_chars.len() + 1];
+
+    for i in 0..=a_chars.len() {
+        d[i][0] = i;
+    }
+    for j in 0..=b_chars.len() {
+        d[0][j] = j;
+    }
+
+    for i in 1..=a_chars.len() {
+        for j in 1..=b_chars.len() {
+            let cost = if a_chars[i - 1] == b_chars[j - 1] {
+                0
+            } else {
+                1
+            };
+            d[i][j] = (d[i - 1][j] + 1)
+                .min(d[i][j - 1] + 1)
+                .min(d[i - 1][j - 1] + cost);
+        }
+    }
+    d[a_chars.len()][b_chars.len()]
+}
+
+/// Helper to find the closest match from an iterator of strings
+fn did_you_mean<'a>(target: &str, candidates: impl Iterator<Item = &'a str>) -> Option<&'a str> {
+    let mut best_match = None;
+    let mut best_dist = usize::MAX;
+
+    for cand in candidates {
+        let dist = levenshtein(target, cand);
+        // Only consider it a typo if distance is less than a certain threshold
+        // e.g., max distance of 3 allows up to 3 insertions/deletions/substitutions
+        if dist < best_dist && dist <= 3 {
+            best_dist = dist;
+            best_match = Some(cand);
+        }
+    }
+    best_match
+}
 #[cfg(test)]
 pub mod test_helpers;
 
@@ -101,6 +145,7 @@ mod tests {
                 h.0,
                 Rc::new(Function {
                     name: Some("f".to_string()),
+                    type_params: None,
                     params: vec![],
                     body: Rc::new(Stmt::Block { statements: vec![] }),
                     closure: std::rc::Weak::new(),
@@ -113,6 +158,7 @@ mod tests {
                 h.0,
                 Rc::new(Function {
                     name: Some("g".to_string()),
+                    type_params: None,
                     params: vec![],
                     body: Rc::new(Stmt::Block { statements: vec![] }),
                     closure: std::rc::Weak::new(),
@@ -487,6 +533,12 @@ impl Interpreter {
             (Token::dummy("Err"), Some(vec!["E".to_string()])),
         ];
         interp.type_registry.register_enum(name, variants);
+        let opt_name = Token::dummy("Option");
+        let opt_variants = vec![
+            (Token::dummy("Some"), Some(vec!["T".to_string()])),
+            (Token::dummy("None"), None),
+        ];
+        interp.type_registry.register_enum(opt_name, opt_variants);
         // Register Envelope struct type for actor messages (sender: Optional<Int>, payload: Any, priority: Int)
         interp.type_registry.register_struct(
             Token::dummy("Envelope"),
@@ -1085,7 +1137,6 @@ impl Interpreter {
                 }
             }
             if !referenced {
-                // safe to remove
                 self.heap_objects.remove(&id);
             }
         }
@@ -1589,6 +1640,29 @@ impl Interpreter {
                     Ok(())
                 }
             }
+            Stmt::IfLet {
+                pattern,
+                value,
+                then_branch,
+                else_branch,
+            } => {
+                let eval_value = self.evaluate(value)?;
+                if let Some(bindings) = self.pattern_matches(&pattern, &eval_value) {
+                    let mut new_env = Environment::new(Some(self.environment.clone()));
+                    for (k, v) in bindings {
+                        new_env.define(&k, v);
+                    }
+                    let previous = self.environment.clone();
+                    self.environment = Rc::new(RefCell::new(new_env));
+                    let res = self.execute(*then_branch);
+                    self.environment = previous;
+                    res
+                } else if let Some(else_stmt) = else_branch {
+                    self.execute(*else_stmt)
+                } else {
+                    Ok(())
+                }
+            }
             Stmt::StructDecl { name, fields } => {
                 self.type_registry.register_struct(name, fields);
                 Ok(())
@@ -1640,13 +1714,16 @@ impl Interpreter {
             }
             Stmt::Function {
                 name,
+                type_params,
                 params,
+                return_type: _,
                 body,
                 method_owner,
-                ..
+                is_async: _,
             } => {
                 let fn_rc = Rc::new(Function {
                     name: Some(name.lexeme.clone()),
+                    type_params: type_params.clone(),
                     params: params.clone(),
                     body: body.clone(),
                     closure: Rc::downgrade(&self.environment),
@@ -1919,9 +1996,17 @@ impl Interpreter {
                 match self.environment.borrow().get(&name_str) {
                     Some(v) => Ok(v.clone()),
                     None => {
+                        let env_borrow = self.environment.borrow();
+                        let candidates = env_borrow.values.keys().copied();
+                        let suggestion = if let Some(best) = did_you_mean(&name_str, candidates) {
+                            format!(" Did you mean '{}'?", best)
+                        } else {
+                            String::new()
+                        };
+
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
-                            format!("Undefined variable '{}'.", name_str),
+                            format!("Undefined variable '{}'.{}", name_str, suggestion),
                             Span::new(name.start, name.end, name.line, name.col),
                         ));
                         Ok(ArtValue::none())
@@ -2055,7 +2140,11 @@ impl Interpreter {
                     }
                 }
             }
-            Expr::Call { callee, arguments } => self.handle_call(*callee, arguments),
+            Expr::Call {
+                callee,
+                type_args,
+                arguments,
+            } => self.handle_call(*callee, type_args, arguments),
             Expr::StructInit { name, fields } => {
                 let struct_def = match self.type_registry.get_struct(&name.lexeme) {
                     Some(def) => def.clone(),
@@ -2241,9 +2330,20 @@ impl Interpreter {
                         ) {
                             Ok(v)
                         } else {
+                            let available = fields.keys().map(String::as_str);
+                            let suggestion =
+                                if let Some(best) = did_you_mean(&field.lexeme, available) {
+                                    format!(" Did you mean '{}'?", best)
+                                } else {
+                                    String::new()
+                                };
+
                             self.diagnostics.push(Diagnostic::new(
                                 DiagnosticKind::Runtime,
-                                format!("Missing field '{}'.", field.lexeme),
+                                format!(
+                                    "Missing field '{}' on struct '{}'.{}",
+                                    field.lexeme, struct_name, suggestion
+                                ),
                                 Span::new(field.start, field.end, field.line, field.col),
                             ));
                             Ok(ArtValue::none())
@@ -2259,9 +2359,30 @@ impl Interpreter {
                         {
                             Ok(v)
                         } else {
+                            // Suggest methods on the enum variant (since enum instances only have methods/values)
+                            // We can check the type registry for methods on this enum type
+                            let available = self
+                                .type_registry
+                                .get_enum(&enum_name)
+                                .map(|def| {
+                                    def.methods.keys().map(String::as_str).collect::<Vec<_>>()
+                                })
+                                .unwrap_or_default();
+
+                            let suggestion = if let Some(best) =
+                                did_you_mean(&field.lexeme, available.into_iter())
+                            {
+                                format!(" Did you mean '{}'?", best)
+                            } else {
+                                String::new()
+                            };
+
                             self.diagnostics.push(Diagnostic::new(
                                 DiagnosticKind::Runtime,
-                                format!("Missing field '{}'.", field.lexeme),
+                                format!(
+                                    "Missing field or method '{}' on enum '{}'.{}",
+                                    field.lexeme, enum_name, suggestion
+                                ),
                                 Span::new(field.start, field.end, field.line, field.col),
                             ));
                             Ok(ArtValue::none())
@@ -2283,6 +2404,7 @@ impl Interpreter {
                     callee: Box::new(Expr::Variable {
                         name: Token::dummy("weak"),
                     }),
+                    type_args: None,
                     arguments: vec![*inner],
                 };
                 self.evaluate(expr)
@@ -2292,6 +2414,7 @@ impl Interpreter {
                     callee: Box::new(Expr::Variable {
                         name: Token::dummy("unowned"),
                     }),
+                    type_args: None,
                     arguments: vec![*inner],
                 };
                 self.evaluate(expr)
@@ -2302,6 +2425,7 @@ impl Interpreter {
                     callee: Box::new(Expr::Variable {
                         name: Token::dummy("weak_get"),
                     }),
+                    type_args: None,
                     arguments: vec![*inner],
                 };
                 self.evaluate(expr)
@@ -2312,6 +2436,7 @@ impl Interpreter {
                     callee: Box::new(Expr::Variable {
                         name: Token::dummy("unowned_get"),
                     }),
+                    type_args: None,
                     arguments: vec![*inner],
                 };
                 self.evaluate(expr)
@@ -2348,11 +2473,16 @@ impl Interpreter {
         }
     }
 
-    fn handle_call(&mut self, callee: Expr, arguments: Vec<Expr>) -> Result<ArtValue> {
+    fn handle_call(
+        &mut self,
+        callee: Expr,
+        type_args: Option<Vec<String>>,
+        arguments: Vec<Expr>,
+    ) -> Result<ArtValue> {
         let original_expr = callee.clone();
         let value = self.evaluate(callee)?;
         match value {
-            ArtValue::Function(func) => self.call_function(func, arguments),
+            ArtValue::Function(func) => self.call_function(func, type_args, arguments),
             ArtValue::Builtin(b) => self.call_builtin(b, arguments),
             ArtValue::EnumInstance {
                 enum_name,
@@ -2363,7 +2493,12 @@ impl Interpreter {
         }
     }
 
-    fn call_function(&mut self, func: Rc<Function>, arguments: Vec<Expr>) -> Result<ArtValue> {
+    fn call_function(
+        &mut self,
+        func: Rc<Function>,
+        type_args: Option<Vec<String>>,
+        arguments: Vec<Expr>,
+    ) -> Result<ArtValue> {
         // record call counter by function name (if present)
         let callee_name_opt = func.name.clone();
         if let Some(name) = &callee_name_opt {
@@ -2517,6 +2652,60 @@ impl Interpreter {
                     println!();
                 }
                 Ok(ArtValue::none())
+            }
+            core::ast::BuiltinFn::EnumIsOk(val) => {
+                let is_ok = if let ArtValue::EnumInstance { variant, .. } = &*val {
+                    variant == "Ok" || variant == "Some"
+                } else {
+                    false
+                };
+                Ok(ArtValue::Bool(is_ok))
+            }
+            core::ast::BuiltinFn::EnumIsErr(val) => {
+                let is_err = if let ArtValue::EnumInstance { variant, .. } = &*val {
+                    variant == "Err" || variant == "None"
+                } else {
+                    false
+                };
+                Ok(ArtValue::Bool(is_err))
+            }
+            core::ast::BuiltinFn::EnumUnwrap(val) => {
+                if let ArtValue::EnumInstance {
+                    variant, values, ..
+                } = &*val
+                {
+                    if variant == "Ok" || variant == "Some" {
+                        Ok(values.get(0).cloned().unwrap_or_else(|| ArtValue::none()))
+                    } else {
+                        // Produce diagnostic and return error
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "Called `unwrap()` on an `Err` or `None` value.".to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        Ok(ArtValue::none())
+                    }
+                } else {
+                    Ok(ArtValue::none())
+                }
+            }
+            core::ast::BuiltinFn::EnumUnwrapOr(val) => {
+                if let ArtValue::EnumInstance {
+                    variant, values, ..
+                } = &*val
+                {
+                    if variant == "Ok" || variant == "Some" {
+                        Ok(values.get(0).cloned().unwrap_or_else(|| ArtValue::none()))
+                    } else {
+                        if arguments.len() == 1 {
+                            self.evaluate(arguments[0].clone())
+                        } else {
+                            Ok(ArtValue::none())
+                        }
+                    }
+                } else {
+                    Ok(ArtValue::none())
+                }
             }
             core::ast::BuiltinFn::MapNew => Ok(ArtValue::Map(core::ast::MapRef(
                 std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),

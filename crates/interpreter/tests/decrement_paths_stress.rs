@@ -17,6 +17,8 @@ fn stress_finalizer_mass_promotion() {
         // criar finalizer function dinamicamente
         let fname = format!("fin_{}", i);
         let fin = Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy(&fname),
             params: vec![],
             return_type: None,
@@ -35,6 +37,7 @@ fn stress_finalizer_mass_promotion() {
         );
         // registrar finalizer chamando on_finalize
         let call = Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -120,6 +123,8 @@ fn stress_chained_finalizers_cross_arena() {
 
     // finalizer for id1 creates a global object in arena2
     let fin1 = Stmt::Function {
+        type_params: None,
+        is_async: false,
         name: core::Token::dummy("fin1"),
         params: vec![],
         return_type: None,
@@ -134,6 +139,8 @@ fn stress_chained_finalizers_cross_arena() {
     };
     // finalizer for id2 creates a global object
     let fin2 = Stmt::Function {
+        type_params: None,
+        is_async: false,
         name: core::Token::dummy("fin2"),
         params: vec![],
         return_type: None,
@@ -154,6 +161,7 @@ fn stress_chained_finalizers_cross_arena() {
     assert!(
         interp
             .interpret(vec![Stmt::Expression(Expr::Call {
+        type_args: None,
                 callee: Box::new(Expr::Variable {
                     name: core::Token::dummy("on_finalize"),
                 }),
@@ -170,6 +178,7 @@ fn stress_chained_finalizers_cross_arena() {
     assert!(
         interp
             .interpret(vec![Stmt::Expression(Expr::Call {
+        type_args: None,
                 callee: Box::new(Expr::Variable {
                     name: core::Token::dummy("on_finalize"),
                 }),

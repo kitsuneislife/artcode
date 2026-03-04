@@ -49,6 +49,8 @@ fn finalizer_allocs_temporary_promoted() {
     // Criar finalizer que faz: let temp = [42]; let kept = temp
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("fin_alloc"),
             params: vec![],
             return_type: None,
@@ -71,6 +73,7 @@ fn finalizer_allocs_temporary_promoted() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),

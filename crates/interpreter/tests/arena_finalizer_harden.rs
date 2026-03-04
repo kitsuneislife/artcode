@@ -11,6 +11,8 @@ fn finalizer_promotions_counted_per_arena() {
     // finalizer that creates a heap allocation (Array) so there is a strong handle to promote
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("fp2"),
             params: vec![],
             return_type: None,
@@ -24,6 +26,7 @@ fn finalizer_promotions_counted_per_arena() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -67,6 +70,8 @@ fn finalize_arena_idempotent_and_safe() {
     let oid = interp.debug_heap_register_in_arena(ArtValue::Array(vec![ArtValue::Int(7)]), aid);
     // register a trivial finalizer that allocates a temporary (heapified Array)
     let program = vec![Stmt::Function {
+        type_params: None,
+        is_async: false,
         name: core::Token::dummy("alloc_once"),
         params: vec![],
         return_type: None,
@@ -87,6 +92,7 @@ fn finalize_arena_idempotent_and_safe() {
     // For simplicity, find the first object in the arena using debug helpers exposed in tests
     // attach finalizer to the created object
     let attach = vec![Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("on_finalize"),
         }),

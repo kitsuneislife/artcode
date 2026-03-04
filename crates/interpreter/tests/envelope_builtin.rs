@@ -6,6 +6,7 @@ fn envelope_builtin_constructs_and_heapifies() {
     let mut interp = Interpreter::with_prelude();
     // call envelope(None, 42, 5)
     let call = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("envelope"),
         }),

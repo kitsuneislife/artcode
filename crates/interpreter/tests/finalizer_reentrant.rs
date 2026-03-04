@@ -9,6 +9,8 @@ fn finalizer_reentrant_alloc_and_release_is_stable() {
     let program = vec![
         // finalizer function: creates a local temp and drops it
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("fin_reentrant"),
             params: vec![],
             return_type: None,
@@ -37,6 +39,7 @@ fn finalizer_reentrant_alloc_and_release_is_stable() {
                     ]),
                 },
                 Stmt::Expression(Expr::Call {
+        type_args: None,
                     callee: Box::new(Expr::Variable {
                         name: core::Token::dummy("on_finalize"),
                     }),

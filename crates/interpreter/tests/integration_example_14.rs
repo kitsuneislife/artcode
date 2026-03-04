@@ -21,6 +21,8 @@ fn integration_example_14_finalizer_examples() {
         interp
             .interpret(vec![
                 core::ast::Stmt::Function {
+        type_params: None,
+        is_async: false,
                     name: core::Token::dummy("fin_save_owner"),
                     params: vec![],
                     return_type: None,
@@ -36,6 +38,7 @@ fn integration_example_14_finalizer_examples() {
                     method_owner: None,
                 },
                 core::ast::Stmt::Expression(core::ast::Expr::Call {
+        type_args: None,
                     callee: Box::new(core::ast::Expr::Variable {
                         name: core::Token::dummy("on_finalize"),
                     }),
@@ -78,6 +81,8 @@ fn integration_example_14_finalizer_examples() {
         interp
             .interpret(vec![
                 core::ast::Stmt::Function {
+        type_params: None,
+        is_async: false,
                     name: core::Token::dummy("fin_promote"),
                     params: vec![],
                     return_type: None,
@@ -93,6 +98,7 @@ fn integration_example_14_finalizer_examples() {
                     method_owner: None,
                 },
                 core::ast::Stmt::Expression(core::ast::Expr::Call {
+        type_args: None,
                     callee: Box::new(core::ast::Expr::Variable {
                         name: core::Token::dummy("on_finalize"),
                     }),

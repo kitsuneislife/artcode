@@ -17,6 +17,7 @@ fn make_envelope_auto_fills_sender_and_heapifies() {
     interp.current_actor = Some(aid);
     // call make_envelope(7, 2)
     let call = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: core::Token::dummy("make_envelope"),
         }),

@@ -8,6 +8,8 @@ fn rebind_triggers_finalizer_and_clears_handles() {
     // define a finalizer function that sets a global flag
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("fin"),
             params: vec![],
             return_type: None,
@@ -28,6 +30,7 @@ fn rebind_triggers_finalizer_and_clears_handles() {
         },
         // on_finalize(a, fin)
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -71,6 +74,8 @@ fn return_of_arena_object_is_reported() {
     let id = interp.debug_heap_register_in_arena(ArtValue::Array(vec![ArtValue::Int(9)]), aid);
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("ret_a"),
             params: vec![],
             return_type: None,
@@ -87,6 +92,7 @@ fn return_of_arena_object_is_reported() {
             name: core::Token::dummy("g"),
             ty: None,
             initializer: Expr::Call {
+        type_args: None,
                 callee: Box::new(Expr::Variable {
                     name: core::Token::dummy("ret_a"),
                 }),
@@ -129,6 +135,8 @@ fn field_mutation_runs_finalizer_on_previous_value() {
     // finalizer
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("finf"),
             params: vec![],
             return_type: None,
@@ -142,6 +150,7 @@ fn field_mutation_runs_finalizer_on_previous_value() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -199,6 +208,8 @@ fn performant_arena_finalization_promotes_and_cleans() {
     // register a finalizer that creates a global handle (promotion)
     let program = vec![
         Stmt::Function {
+        type_params: None,
+        is_async: false,
             name: core::Token::dummy("fp"),
             params: vec![],
             return_type: None,
@@ -212,6 +223,7 @@ fn performant_arena_finalization_promotes_and_cleans() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),

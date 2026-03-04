@@ -20,6 +20,8 @@ fn golden_phi_insertion() {
         else_branch: Some(Box::new(else_stmt)),
     };
     let func = Stmt::Function {
+        type_params: None,
+        is_async: false,
         name,
         params,
         return_type: Some("i64".to_string()),

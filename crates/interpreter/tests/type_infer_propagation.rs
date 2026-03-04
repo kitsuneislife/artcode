@@ -18,6 +18,7 @@ fn propagation_rebind_allows_send() {
         },
     };
     let send_call = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: Token::dummy("actor_send"),
         }),
@@ -62,6 +63,7 @@ fn shadowing_restores_outer_type() {
     };
     // after block, actor_send should accept original array in outer 'a'
     let send_call = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: Token::dummy("actor_send"),
         }),
@@ -95,6 +97,7 @@ fn function_param_propagation() {
     use std::rc::Rc;
     let fn_body = Stmt::Block {
         statements: vec![Stmt::Expression(Expr::Call {
+        type_args: None,
             callee: Box::new(Expr::Variable {
                 name: Token::dummy("actor_send"),
             }),
@@ -107,6 +110,8 @@ fn function_param_propagation() {
         })],
     };
     let func = Stmt::Function {
+        type_params: None,
+        is_async: false,
         name: Token::dummy("f"),
         params: vec![core::ast::FunctionParam {
             name: Token::dummy("x"),
@@ -117,6 +122,7 @@ fn function_param_propagation() {
         method_owner: None,
     };
     let call = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: Token::dummy("f"),
         }),
@@ -143,6 +149,7 @@ fn function_param_propagation() {
 #[test]
 fn unknown_var_still_warns() {
     let send_call = Stmt::Expression(Expr::Call {
+        type_args: None,
         callee: Box::new(Expr::Variable {
             name: Token::dummy("actor_send"),
         }),

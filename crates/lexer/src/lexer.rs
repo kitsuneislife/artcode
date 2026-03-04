@@ -50,7 +50,14 @@ impl Lexer {
             }
             '+' => self.add_token(TokenType::Plus),
             ';' => self.add_token(TokenType::Semicolon),
-            ':' => self.add_token(TokenType::Colon),
+            ':' => {
+                let token = if self.match_char(':') {
+                    TokenType::ColonColon
+                } else {
+                    TokenType::Colon
+                };
+                self.add_token(token);
+            }
             '*' => self.add_token(TokenType::Star),
             '?' => self.add_token(TokenType::Question),
             '_' => {

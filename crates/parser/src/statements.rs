@@ -121,6 +121,26 @@ pub fn let_declaration(parser: &mut Parser) -> Stmt {
 
 pub fn if_statement(parser: &mut Parser) -> Stmt {
     parser.consume(TokenType::If, "Expect 'if'.");
+
+    // Support for `if let Pattern = Expr { ... }`
+    if parser.match_token(TokenType::Let) {
+        let pattern = parse_pattern(parser);
+        parser.consume(TokenType::Equal, "Expect '=' after pattern in 'if let'.");
+        let value = parser.expression();
+        let then_branch = Box::new(statement(parser));
+        let else_branch = if parser.match_token(TokenType::Else) {
+            Some(Box::new(statement(parser)))
+        } else {
+            None
+        };
+        return Stmt::IfLet {
+            pattern,
+            value,
+            then_branch,
+            else_branch,
+        };
+    }
+
     let condition = parser.expression();
 
     let then_branch = Box::new(statement(parser));
@@ -247,6 +267,22 @@ pub fn parse_pattern(parser: &mut Parser) -> MatchPattern {
                 enum_name: Some(name),
                 variant,
                 params,
+            }
+        } else if parser.match_token(TokenType::LeftParen) {
+            let mut param_list = Vec::new();
+            if !parser.check(&TokenType::RightParen) {
+                loop {
+                    param_list.push(parse_pattern(parser));
+                    if !parser.match_token(TokenType::Comma) {
+                        break;
+                    }
+                }
+            }
+            parser.consume(TokenType::RightParen, "Expect ')' after parameters.");
+            MatchPattern::EnumVariant {
+                enum_name: None,
+                variant: name,
+                params: Some(param_list),
             }
         } else {
             MatchPattern::Variable(name)
