@@ -111,7 +111,7 @@ art_extern! {
         match val {
             ArtValue::String(s) => {
                 let key = Arc::as_ptr(s) as *const u8 as usize;
-                let mut cache = get_cstr_cache().lock().unwrap();
+                let mut cache = get_cstr_cache().lock().unwrap_or_else(|e| e.into_inner());
 
                 // Retorna iterador do cache se jpa possuir.
                 if let Some(c_str) = cache.get(&key) {
@@ -136,7 +136,7 @@ art_extern! {
     /// Libera todo o cache atrelado a strings. Essa função deverá ser utilizada num loop global
     /// do ambiente do usuário final para não vazar memórias em usos pesados de text-processing.
     pub fn art_free_cstr_cache() {
-        let mut cache = get_cstr_cache().lock().unwrap();
+        let mut cache = get_cstr_cache().lock().unwrap_or_else(|e| e.into_inner());
         cache.clear();
     }
 }

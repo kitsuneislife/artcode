@@ -209,11 +209,11 @@ Note: the project contains `.github/workflows/xtask-irgen-check.yml` (runs on pu
 - [x] Preparar terreno para traits/interfaces (adiar implementação completa)
 
 ## Fase 19 – Segurança & Robustez
-- [ ] Fuzzing (cargo-fuzz harness para parser & evaluator)
-- [ ] Property tests (ex: parse->print->parse igual)
-- [ ] Auditoria de panics internos (zerar novos panics não test)
-- [ ] Stress test de memória (ciclos massivos + arenas)
-- [ ] Teste determinístico de concorrência (sequência de entregas gerada)
+- [x] Fuzzing (cargo-fuzz harness para parser & evaluator)
+- [x] Property tests (ex: parse->print->parse igual)
+- [x] Auditoria de panics internos (zerar novos panics não test)
+- [x] Stress test de memória (ciclos massivos + arenas)
+- [x] Teste determinístico de concorrência (sequência de entregas gerada)
 
 ## Fase 20 – Preparação de Release Público (0.1.0)
 - [ ] Definir política de versionamento (semver adaptado)
@@ -228,6 +228,8 @@ Note: the project contains `.github/workflows/xtask-irgen-check.yml` (runs on pu
 - [ ] Parallel compilation (dependências de módulos, futuro)
 - [ ] Cache incremental para IR/JIT
 - [ ] Métricas de GC de ciclos (ferramenta) integradas no relatório geral
+
+LSP? :3
 
 ## Riscos & Mitigações
 - Weak/unowned sem análise -> vazios/segfault: mitigar com runtime checks opcionais em debug.

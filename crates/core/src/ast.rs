@@ -425,13 +425,13 @@ impl fmt::Display for ArtValue {
             ArtValue::Mutex(h) => write!(f, "<mutex {}>", h.0),
             ArtValue::Actor(id) => write!(f, "<actor {}>", id),
             ArtValue::Map(m) => {
-                let map = m.0.lock().unwrap();
+                let map = m.0.lock().unwrap_or_else(|e| e.into_inner());
                 let field_strs: Vec<String> =
                     map.iter().map(|(k, v)| format!("{}: {}", k, v)).collect();
                 write!(f, "Map {{ {} }}", field_strs.join(", "))
             }
             ArtValue::Set(s) => {
-                let set = s.0.lock().unwrap();
+                let set = s.0.lock().unwrap_or_else(|e| e.into_inner());
                 let elems: Vec<String> = set.iter().map(|item| item.to_string()).collect();
                 write!(f, "Set {{ {} }}", elems.join(", "))
             }

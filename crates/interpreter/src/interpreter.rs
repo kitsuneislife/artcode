@@ -608,6 +608,13 @@ impl Interpreter {
             .get(&id)
             .and_then(|o| if o.alive { Some(o.value.clone()) } else { None })
     }
+
+    pub fn debug_heap_set(&mut self, id: u64, value: ArtValue) {
+        if let Some(obj) = self.heap_objects.get_mut(&id) {
+            obj.value = value;
+        }
+    }
+
     fn heap_get_unowned(&self, id: u64) -> Option<ArtValue> {
         self.heap_objects
             .get(&id)
@@ -853,6 +860,11 @@ impl Interpreter {
                 }
             })
             .collect();
+        for id in &dead_ids {
+            if let Some(obj_to_die) = self.heap_objects.get_mut(id) {
+                obj_to_die.value = ArtValue::none();
+            }
+        }
         for id in dead_ids {
             self.heap_objects.remove(&id);
         }
@@ -943,27 +955,28 @@ impl Interpreter {
         }
     }
 
+    /// Extrai os filhos de um valor que contenham referências para objetos Heap e adiciona à fila de Drop.
     #[inline]
-    fn dec_children_strong(&mut self, v: &ArtValue) {
+    fn enqueue_children_strong(&self, v: &ArtValue, queue: &mut Vec<u64>) {
         match v {
             ArtValue::Array(a) => {
                 for child in a {
                     if let ArtValue::HeapComposite(h) = child {
-                        self.dec_object_strong_recursive(h.0);
+                        queue.push(h.0);
                     }
                 }
             }
             ArtValue::StructInstance { fields, .. } => {
                 for child in fields.values() {
                     if let ArtValue::HeapComposite(h) = child {
-                        self.dec_object_strong_recursive(h.0);
+                        queue.push(h.0);
                     }
                 }
             }
             ArtValue::EnumInstance { values, .. } => {
                 for child in values {
                     if let ArtValue::HeapComposite(h) = child {
-                        self.dec_object_strong_recursive(h.0);
+                        queue.push(h.0);
                     }
                 }
             }
@@ -971,56 +984,66 @@ impl Interpreter {
         }
     }
 
-    fn dec_object_strong_recursive(&mut self, id: u64) {
-        // Limitar o escopo do borrow mutável para não conflitar com chamadas recursivas
-        if let Some(obj) = self.heap_objects.get_mut(&id) {
-            if obj.strong > 0 {
-                // centralize the mutation so further changes live in one place
-                if dec_strong_obj(obj) {
-                    self.strong_decrements += 1;
-                }
-            }
-            let should_recurse = !obj.alive; // caiu a zero agora
-            if should_recurse {
-                self.objects_finalized += 1;
-                // attribute finalized object to its arena if present
-                if let Some(aid) = obj.arena_id {
-                    *self.objects_finalized_per_arena.entry(aid).or_insert(0) += 1;
-                }
-            }
-            if should_recurse {
-                let finalizer = self.finalizers.remove(&id);
-                // Skip running finalizers for special heap-backed kinds (Atomic/Mutex).
-                let skip_finalizer_due_to_kind = match obj.kind {
-                    Some(crate::heap::HeapKind::Atomic) | Some(crate::heap::HeapKind::Mutex) => {
-                        true
+    fn dec_object_strong_recursive(&mut self, start_id: u64) {
+        let mut work_queue: Vec<u64> = vec![start_id];
+        let mut visited: std::collections::HashSet<u64> = std::collections::HashSet::new();
+        visited.insert(start_id);
+
+        while let Some(id) = work_queue.pop() {
+            let mut snapshot_to_enqueue: Option<ArtValue> = None;
+            let mut finalizer_opt = None;
+            let mut skip_finalizer_due_to_kind = false;
+
+            if let Some(obj) = self.heap_objects.get_mut(&id) {
+                if obj.strong > 0 {
+                    if crate::heap_utils::dec_strong_obj(obj) {
+                        self.strong_decrements += 1;
                     }
-                    _ => false,
-                };
-                // liberar filhos fortes
-                let snapshot = obj.value.clone(); // clone para evitar emprestimo duplo
-                // debug info omitted in release
-                let _ = snapshot; // snapshot used later in logic
-                // encerra o borrow mutável aqui
-                let _ = obj;
-                // agora podemos recursivamente decrementar filhos sem conflito de borrow
-                self.dec_children_strong(&snapshot);
+                }
+
+                let should_recurse = !obj.alive; // caiu a zero agora
+                if should_recurse {
+                    self.objects_finalized += 1;
+                    if let Some(aid) = obj.arena_id {
+                        *self.objects_finalized_per_arena.entry(aid).or_insert(0) += 1;
+                    }
+
+                    snapshot_to_enqueue = Some(obj.value.clone());
+
+                    skip_finalizer_due_to_kind = match obj.kind {
+                        Some(crate::heap::HeapKind::Atomic)
+                        | Some(crate::heap::HeapKind::Mutex) => true,
+                        _ => false,
+                    };
+                }
+            } // fecha if let Some(obj) = heap_objects.get_mut(&id)
+
+            if snapshot_to_enqueue.is_some() {
+                finalizer_opt = self.finalizers.remove(&id);
+            }
+
+            if let Some(snapshot) = snapshot_to_enqueue {
+                // Extraímos nós filhos de objetos complexos e rastreamos para não repetir
+                let mut local_queue = Vec::new();
+                self.enqueue_children_strong(&snapshot, &mut local_queue);
+                for child_id in local_queue {
+                    if visited.insert(child_id) {
+                        work_queue.push(child_id);
+                    }
+                }
+
                 // Invalidate weak/unowned wrappers that reference this object: mark as dangling
-                // We record dead weak ids for metrics and later removal.
-                // Note: heap_objects may have changed during finalizer execution; operate on snapshot of keys.
                 let mut to_mark_dead: Vec<u64> = Vec::new();
                 for (other_id, other_obj) in self.heap_objects.iter_mut() {
                     match &mut other_obj.value {
                         ArtValue::WeakRef(h) => {
                             if h.0 == id {
-                                // Mark weak wrapper as dangling for metrics; upgrade will return None thereafter
                                 self.weak_dangling += 1;
                                 to_mark_dead.push(*other_id);
                             }
                         }
                         ArtValue::UnownedRef(h) => {
                             if h.0 == id {
-                                // mark the unowned wrapper as dangling by recording metric
                                 self.unowned_dangling += 1;
                                 to_mark_dead.push(*other_id);
                             }
@@ -1028,9 +1051,8 @@ impl Interpreter {
                         _ => {}
                     }
                 }
-                // For wrappers that we decided to mark, we don't remove heap entries; we record ids
-                // no-op: metrics already updated above for unowned dangling wrappers
-                if let Some(func) = finalizer {
+
+                if let Some(func) = finalizer_opt {
                     if skip_finalizer_due_to_kind {
                         if self.invariant_checks {
                             self.diagnostics.push(Diagnostic::new(
@@ -1109,15 +1131,18 @@ impl Interpreter {
                         }
                     }
                 }
-            }
-        }
+            } // fecha if let Some(snapshot)
+        } // while let drop_item = work_queue.pop()
 
-        // Segunda fase: se o objeto foi finalizado e não tem weaks, remover do heap somente se
-        // nenhum outro objeto vivo referencia este id (evita dangling handles).
-        if let Some(obj2) = self.heap_objects.get(&id)
-            && !obj2.alive
-            && obj2.weak == 0
-        {
+        // Segunda fase (após desempilhar completamente a work queue e rodar destruidores):
+        // Agora verificamos e removemos a própria raiz se aplicável (evita dangling handles globais)
+        let can_remove_root = if let Some(obj2) = self.heap_objects.get(&start_id) {
+            !obj2.alive && obj2.weak == 0
+        } else {
+            false
+        };
+
+        if can_remove_root {
             // verificar se algum objeto vivo referencia este id
             fn referenced_in(value: &ArtValue, target: u64) -> bool {
                 match value {
@@ -1134,13 +1159,16 @@ impl Interpreter {
             }
             let mut referenced = false;
             for (_other_id, other_obj) in self.heap_objects.iter() {
-                if other_obj.alive && referenced_in(&other_obj.value, id) {
+                if other_obj.alive && referenced_in(&other_obj.value, start_id) {
                     referenced = true;
                     break;
                 }
             }
             if !referenced {
-                self.heap_objects.remove(&id);
+                if let Some(obj_to_die) = self.heap_objects.get_mut(&start_id) {
+                    obj_to_die.value = ArtValue::none();
+                }
+                self.heap_objects.remove(&start_id);
             }
         }
     }
@@ -1274,6 +1302,11 @@ impl Interpreter {
                 }
             }
             if !referenced {
+                // Break deep reference cycles manually to avoid recursive implicit Drop()
+                // stack overflow in deeply nested data structures at Arena GC.
+                if let Some(obj_to_die) = self.heap_objects.get_mut(&id) {
+                    obj_to_die.value = ArtValue::none();
+                }
                 self.heap_objects.remove(&id);
             }
         }
@@ -2739,7 +2772,9 @@ impl Interpreter {
                     let key_val = self.evaluate(key_expr)?;
                     let v = self.evaluate(val_expr)?;
                     if let (ArtValue::Map(m), ArtValue::String(k)) = (map_val, key_val) {
-                        m.0.lock().unwrap().insert(k.to_string(), v);
+                        m.0.lock()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .insert(k.to_string(), v);
                         Ok(ArtValue::none())
                     } else {
                         self.diagnostics.push(Diagnostic::new(
@@ -2759,7 +2794,7 @@ impl Interpreter {
                     let map_val = self.evaluate(map_expr)?;
                     let key_val = self.evaluate(key_expr)?;
                     if let (ArtValue::Map(m), ArtValue::String(k)) = (map_val, key_val) {
-                        let map = m.0.lock().unwrap();
+                        let map = m.0.lock().unwrap_or_else(|e| e.into_inner());
                         if let Some(v) = map.get(k.as_ref()) {
                             Ok(ArtValue::Optional(Box::new(Some(v.clone()))))
                         } else {
@@ -2778,7 +2813,11 @@ impl Interpreter {
                     let map_val = self.evaluate(map_expr)?;
                     let key_val = self.evaluate(key_expr)?;
                     if let (ArtValue::Map(m), ArtValue::String(k)) = (map_val, key_val) {
-                        Ok(ArtValue::Bool(m.0.lock().unwrap().contains_key(k.as_ref())))
+                        Ok(ArtValue::Bool(
+                            m.0.lock()
+                                .unwrap_or_else(|e| e.into_inner())
+                                .contains_key(k.as_ref()),
+                        ))
                     } else {
                         Ok(ArtValue::Bool(false))
                     }
@@ -2795,7 +2834,7 @@ impl Interpreter {
                     let set_val = self.evaluate(set_expr)?;
                     let v = self.evaluate(val_expr)?;
                     if let ArtValue::Set(s) = set_val {
-                        let mut set = s.0.lock().unwrap();
+                        let mut set = s.0.lock().unwrap_or_else(|e| e.into_inner());
                         if !set.contains(&v) {
                             set.push(v);
                         }
@@ -2813,7 +2852,9 @@ impl Interpreter {
                     let set_val = self.evaluate(set_expr)?;
                     let v = self.evaluate(val_expr)?;
                     if let ArtValue::Set(s) = set_val {
-                        Ok(ArtValue::Bool(s.0.lock().unwrap().contains(&v)))
+                        Ok(ArtValue::Bool(
+                            s.0.lock().unwrap_or_else(|e| e.into_inner()).contains(&v),
+                        ))
                     } else {
                         Ok(ArtValue::Bool(false))
                     }
@@ -2952,8 +2993,12 @@ impl Interpreter {
                     let n = match val {
                         ArtValue::String(ref s) => s.len() as i64,
                         ArtValue::Array(ref a) => a.len() as i64,
-                        ArtValue::Map(ref m) => m.0.lock().unwrap().len() as i64,
-                        ArtValue::Set(ref s) => s.0.lock().unwrap().len() as i64,
+                        ArtValue::Map(ref m) => {
+                            m.0.lock().unwrap_or_else(|e| e.into_inner()).len() as i64
+                        }
+                        ArtValue::Set(ref s) => {
+                            s.0.lock().unwrap_or_else(|e| e.into_inner()).len() as i64
+                        }
                         _ => {
                             self.diagnostics.push(Diagnostic::new(
                                 DiagnosticKind::Runtime,
@@ -3602,30 +3647,45 @@ impl Interpreter {
 
             // Execute one statement of the actor if available
             if let Some(actor_entry) = self.actors.remove(&aid) {
-                let mut actor = actor_entry;
                 // Store in executing_actor during execution to allow builtins to access
                 // the actor state even though it's temporarily removed from the map.
-                self.executing_actor = Some(actor.clone());
+                self.executing_actor = Some(actor_entry);
+
                 // If parked (waiting for message) skip until unparked (actor_send will unpark)
-                if actor.parked {
-                    self.executing_actor = None;
+                if self.executing_actor.as_ref().unwrap().parked {
+                    let actor = self.executing_actor.take().unwrap();
                     self.actors.insert(aid, actor);
                     idx += 1;
                     continue;
                 }
+
                 // Determine if actor is runnable: has body statements or mailbox with content
-                if actor.body.is_empty() && actor.mailbox.is_empty() {
+                let is_runnable = {
+                    let act = self.executing_actor.as_ref().unwrap();
+                    !act.body.is_empty() || !act.mailbox.is_empty()
+                };
+
+                if !is_runnable {
                     // nothing to do for this actor; reinsert and skip
+                    let actor = self.executing_actor.take().unwrap();
                     self.actors.insert(aid, actor);
                     idx += 1;
                     continue;
                 }
+
                 // set current actor context
                 self.current_actor = Some(aid);
-                if let Some(stmt) = actor.body.pop_front() {
+
+                // Pop statement if available
+                let stmt_opt = {
+                    let act = self.executing_actor.as_mut().unwrap();
+                    act.body.pop_front()
+                };
+
+                if let Some(stmt) = stmt_opt {
                     // Swap environment
                     let previous_env = self.environment.clone();
-                    self.environment = actor.env.clone();
+                    self.environment = self.executing_actor.as_ref().unwrap().env.clone();
                     // Execute statement; ignore return errors for now
                     let _ = self.execute(stmt);
                     // Mark that we made progress this rotation (executed a statement)
@@ -3634,21 +3694,26 @@ impl Interpreter {
                     let env_for_drop = self.environment.clone();
                     self.drop_scope_heap_objects(&env_for_drop);
                     // restore env
-                    actor.env = self.environment.clone();
+                    if let Some(act) = &mut self.executing_actor {
+                        act.env = self.environment.clone();
+                    }
                     self.environment = previous_env;
                 } else {
                     // No statements; actor may be waiting for mailbox messages handled by actor_receive
                     // nothing to step here
                 }
-                // Clear current actor and executing_actor
+                // Clear current actor context
                 self.current_actor = None;
-                self.executing_actor = None;
-                // If actor has no body and mailbox empty, mark finished
-                if actor.body.is_empty() && actor.mailbox.is_empty() {
-                    actor.finished = true;
+
+                // Take actor back
+                if let Some(mut actor) = self.executing_actor.take() {
+                    // If actor has no body and mailbox empty, mark finished
+                    if actor.body.is_empty() && actor.mailbox.is_empty() {
+                        actor.finished = true;
+                    }
+                    // reinsert actor state
+                    self.actors.insert(aid, actor);
                 }
-                // reinsert actor state
-                self.actors.insert(aid, actor);
             }
 
             steps += 1;
@@ -4211,7 +4276,7 @@ impl Interpreter {
         }
         out
     }
-}
+} // fecha impl Interpreter
 
 impl Default for Interpreter {
     fn default() -> Self {
