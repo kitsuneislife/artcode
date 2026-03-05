@@ -1,0 +1,113 @@
+name: Release
+
+# Triggered MANUALLY — go to Actions → Release → Run workflow → choose tag
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag (e.g. v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+      prerelease:
+        description: 'Mark as pre-release?'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+jobs:
+  build:
+    name: Build — ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: art-linux-x86_64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: art-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: art-macos-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: art-windows-x86_64.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build -p cli --release --target ${{ matrix.target }}
+
+      - name: Rename binary (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cp target/${{ matrix.target }}/release/art ${{ matrix.artifact }}
+
+      - name: Rename binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          copy target\${{ matrix.target }}\release\art.exe ${{ matrix.artifact }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag }}
+          name: Artcode ${{ github.event.inputs.tag }}
+          prerelease: ${{ github.event.inputs.prerelease }}
+          generate_release_notes: true
+          files: |
+            dist/art-linux-x86_64/art-linux-x86_64
+            dist/art-macos-x86_64/art-macos-x86_64
+            dist/art-macos-arm64/art-macos-arm64
+            dist/art-windows-x86_64.exe/art-windows-x86_64.exe
+          body: |
+            ## Instalação rápida
+
+            **Linux / macOS:**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/kitsuneislife/artcode/main/install.sh | bash
+            ```
+
+            **Windows (PowerShell):**
+            Baixe `art-windows-x86_64.exe` abaixo e coloque em algum diretório no seu PATH.
+
+            ## Uso
+            ```bash
+            art run meu_script.art
+            art lsp           # Language Server para o editor
+            art metrics --json meu_script.art
+            ```
