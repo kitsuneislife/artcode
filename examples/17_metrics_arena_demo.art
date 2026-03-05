@@ -3,12 +3,12 @@ let outside = [99];
 let promoted = none;
 
 func fin_promote() {
-  let promoted = outside;
+    let promoted = outside;
 }
 
 performant {
-  let _a = [1,2,3];
-  on_finalize(_a, fin_promote);
+    let _a = [1,2,3];
+    on_finalize(_a, fin_promote);
 
 }
 

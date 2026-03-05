@@ -17,7 +17,7 @@
 ## Estilo de Código
 - Preferir nomes explícitos (sem abreviações crípticas)
 - Evitar unwrap/expect em código de produção (exceto protótipo sinalizado)
-- Panics temporários devem ter TODO de conversão em erro estruturado
+- Panics e unwraps não tratados não são permitidos na camada de execução (Interpreter). Utilize o sistema de `Diagnostic` emitindo erros acumulativos.
 
 ### Ferramentas Auxiliares
 - `xtask` oferece:

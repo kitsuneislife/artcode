@@ -33,15 +33,8 @@ cli  --> parser ----> core (AST + tokens + env)
 5. Funções criam closures capturando ambiente pai
 6. Pattern matching resolve variantes de enum e bindings
 
-## Feature Flags / Roadmap
-- [ ] JIT/AOT híbrido com coleta de perfil
-- [ ] Analisador de ciclos de referência (ferramenta externa de teste)
-- [ ] Sistema de tipos gradual / generics reais
-- [ ] Time-travel debugging (record & replay)
-- [ ] Blocos `impl Tipo {}` para agrupamento de métodos
-- [ ] Blocos `performant {}` e análise de concorrência
-- [ ] Aumento progressivo do threshold de cobertura (>=80%)
-- [ ] Inline caching para chamadas de método
+## Roadmap Completo
+As metas de longo prazo, como compilação JIT/AOT nativa, _Time-Travel Debugging_, blocos `impl` e a maturidade contínua do Language Server Protocol (LSP) estão mapeadas no documento oficial de Roadmap na raiz do projeto (`.kit/checklist.md`).
 
 ## Decisões de Design
 | Tema | Decisão | Racional |

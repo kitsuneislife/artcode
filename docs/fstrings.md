@@ -41,7 +41,7 @@ println(f"a={a} b={b} soma={a + b} quadrado={ (a + b) * (a + b) }")
 
 Specs desconhecidas são ignoradas silenciosamente.
 
-## Limitações / TODO
+## Limitações Atuais
 - Erros de sintaxe interna ainda não produzem spans precisos nas f-strings.
 - Specs avançadas (alinhamento, preenchimento customizado, precisão numérica) não suportadas.
 - `debug` usa fallback genérico; poderá divergir no futuro.

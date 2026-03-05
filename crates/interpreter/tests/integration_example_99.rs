@@ -19,7 +19,7 @@ fn run_example_99() {
         };
         assert!(st.success(), "cargo build falhou");
     }
-    let example = root.join("examples/99_weak_unowned_demo.art");
+    let example = root.join("examples/16_weak_unowned_demo.art");
     let status = match Command::new(bin).arg("run").arg(example).status() {
         Ok(s) => s,
         Err(e) => panic!("falha ao executar o binario art: {:?}", e),

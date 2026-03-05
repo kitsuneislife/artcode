@@ -3,14 +3,14 @@
 func divide(a: Int, b: Int) -> Result { if b == 0 { return Result.Err("/0") } return Result.Ok(a / b) }
 func half(n: Int) -> Result { divide(n, 2) }
 func quarter(n: Int) -> Result {
-	let r = half(n);
-	match r {
-		case .Ok(h): {
-			let r2 = half(h);
-			match r2 { case .Ok(q): return Result.Ok(q) case .Err(e): return Result.Err(e) }
-		}
-		case .Err(e): return Result.Err(e)
-	}
+    let r = half(n);
+    match r {
+    case .Ok(h): {
+            let r2 = half(h);
+            match r2 { case .Ok(q): return Result.Ok(q) case .Err(e): return Result.Err(e) }
+        }
+    case .Err(e): return Result.Err(e)
+    }
 }
 
 let r = quarter(40); match r { case .Ok(v): println(f"q={v}") case .Err(e): println(e) }
