@@ -205,19 +205,53 @@
 <span class="fn">bash</span> scripts/check_ast_docs.sh     <span class="cm"># garante sync de docs quando AST mudar</span></pre>
                     </div>
                 </article>
-
                 <!-- Installation -->
                 <article id="installation" class="doc-article">
                     <h1>Instalação</h1>
-                    <h2>Requisitos</h2>
+                    <p>A forma mais rápida de instalar o Artcode é com o script de instalação oficial, que baixa o binário
+                        pré-compilado direto da última release e instala em <code>/usr/local/bin</code>.</p>
+
+                    <h2>Instalação rápida (Linux / macOS)</h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">terminal</span></div>
+                        <pre><span class="fn">curl</span> -fsSL https://raw.githubusercontent.com/kitsuneislife/artcode/main/install.sh | bash</pre>
+                    </div>
+                    <p>O script detecta automaticamente seu sistema operacional e arquitetura e baixa o binário correto.</p>
+
+                    <table class="comparison-table">
+                        <thead><tr><th>Plataforma</th><th>Binário</th></tr></thead>
+                        <tbody>
+                            <tr><td>Linux x86_64</td><td><code>art-linux-x86_64</code></td></tr>
+                            <tr><td>macOS Intel</td><td><code>art-macos-x86_64</code></td></tr>
+                            <tr><td>macOS Apple Silicon</td><td><code>art-macos-arm64</code></td></tr>
+                            <tr><td>Windows</td><td>Baixe o <code>.exe</code> na <a href="https://github.com/kitsuneislife/artcode/releases" target="_blank">página de releases</a></td></tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Verificar instalação</h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">terminal</span></div>
+                        <pre><span class="fn">art</span> run examples/00_hello.art
+<span class="cm"># Olá, Artcode! 🚀</span></pre>
+                    </div>
+
+                    <h2>Compilar a partir do fonte</h2>
+                    <p>Se preferir compilar você mesmo (ou contribuir com o projeto), siga os passos abaixo.</p>
+
+                    <h3>Requisitos</h3>
                     <ul>
-                        <li>Rust stable (toolchain padrão via <a href="https://rustup.rs" target="_blank">rustup</a>)
-                        </li>
+                        <li>Rust stable toolchain via <a href="https://rustup.rs" target="_blank">rustup</a></li>
                         <li>Componentes recomendados: <code>rustfmt</code>, <code>clippy</code></li>
                         <li>Sistema: <code>build-essential</code>, <code>pkg-config</code>, <code>git</code></li>
                     </ul>
 
-                    <h2>Ubuntu / Debian</h2>
+                    <h3>Ubuntu / Debian</h3>
                     <div class="code-block" style="max-width:100%">
                         <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
                                 class="code-block__dot code-block__dot--yellow"></span><span
@@ -230,7 +264,7 @@
 <span class="fn">rustup</span> component add rustfmt clippy</pre>
                     </div>
 
-                    <h2>Arch Linux</h2>
+                    <h3>Arch Linux</h3>
                     <div class="code-block" style="max-width:100%">
                         <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
                                 class="code-block__dot code-block__dot--yellow"></span><span
@@ -242,12 +276,12 @@
 <span class="fn">rustup</span> component add rustfmt clippy</pre>
                     </div>
 
-                    <h2>Windows</h2>
+                    <h3>Windows</h3>
                     <p>Recomendamos usar <strong>WSL2 (Ubuntu)</strong> e seguir os passos de Ubuntu. Para instalação
                         nativa, use <a href="https://rustup.rs" target="_blank">rustup</a> e instale o Build Tools for
                         Visual Studio.</p>
 
-                    <h2>Build & Testes</h2>
+                    <h3>Build &amp; Testes</h3>
                     <div class="code-block" style="max-width:100%">
                         <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
                                 class="code-block__dot code-block__dot--yellow"></span><span
@@ -255,8 +289,9 @@
                                 class="code-block__title">terminal</span></div>
                         <pre><span class="fn">git</span> clone https://github.com/kitsuneislife/artcode
 <span class="fn">cd</span> artcode
-<span class="fn">cargo</span> test --all
-<span class="fn">cargo</span> run --bin art -- run examples/00_hello.art</pre>
+<span class="fn">cargo</span> build -p cli --release
+<span class="fn">sudo</span> cp target/release/art /usr/local/bin/
+<span class="fn">cargo</span> test --all   <span class="cm"># rodar todos os testes</span></pre>
                     </div>
                 </article>
 
