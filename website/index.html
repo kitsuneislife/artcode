@@ -123,7 +123,8 @@
                 <span class="dot"></span> v0.1.0 — Release Oficial
             </div-->
             <h1>Comece simples.<br><span class="gradient-text">Escale sem limites.</span></h1>
-            <p class="subtitle" style="color: #ddd">Artcode é a linguagem que não te força a escolher entre produtividade e performance.
+            <p class="subtitle" style="color: #ddd">Artcode é a linguagem que não te força a escolher entre
+                produtividade e performance.
                 Complexidade Progressiva: você sobe a escada quando precisar.</p>
             <div class="hero__actions">
                 <a href="https://github.com/kitsuneislife/artcode" class="btn btn--primary" target="_blank">⚡ Começar
@@ -288,24 +289,27 @@
                 <h2>Rodando em <span class="gradient-text">30 segundos</span></h2>
             </div>
 
-            <div class="code-block fade-in" style="max-width: 560px;">
+            <div class="code-block fade-in" style="max-width: 580px;">
                 <div class="code-block__header">
                     <span class="code-block__dot code-block__dot--red"></span>
                     <span class="code-block__dot code-block__dot--yellow"></span>
                     <span class="code-block__dot code-block__dot--green"></span>
-                    <span class="code-block__title">terminal</span>
+                    <span class="code-block__title">terminal — Linux / macOS</span>
                 </div>
-                <pre><span class="cm"># Clone e compile</span>
-<span class="fn">git</span> clone https://github.com/kitsuneislife/artcode
-<span class="fn">cd</span> artcode
-<span class="fn">cargo</span> build --release
+                <pre><span class="cm"># Instala em 1 comando</span>
+<span class="fn">curl</span> -fsSL https://raw.githubusercontent.com/kitsuneislife/artcode/main/install.sh | bash
 
 <span class="cm"># Rode seu primeiro programa</span>
-<span class="fn">cargo</span> run --bin art -- run examples/00_hello.art
+<span class="fn">art</span> run examples/00_hello.art
 
 <span class="cm"># Inicie o Language Server para sua IDE</span>
-<span class="fn">cargo</span> run --bin art -- lsp</pre>
+<span class="fn">art</span> lsp</pre>
             </div>
+            <p class="fade-in" style="margin-top: 16px; color: var(--text-3); font-size: 0.85rem;">
+                Prefere compilar do fonte?
+                <a href="docs.html#installation" style="color: var(--text-2);">Veja o guia completo →</a>
+            </p>
+
 
             <div style="margin-top: 40px;" class="fade-in">
                 <a href="docs.html" class="btn btn--primary">📖 Ler a Documentação</a>
