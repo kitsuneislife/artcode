@@ -7,6 +7,7 @@ f_else:
   %t1 = const i64 2
   br f_merge
 f_merge:
+  %phi_f_3 = phi i64 [ %t0, f_then ], [ %t1, f_else ]
   %t2 = phi i64 [ %t0, f_then ], [ %t1, f_else ]
   ret %t2
 }
