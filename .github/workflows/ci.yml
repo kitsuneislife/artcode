@@ -12,16 +12,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
       - name: Run xtask gen-golden --check
-        run: |
-          cargo run -p xtask -- gen-golden --check
-      - name: Build
+        run: cargo run -p xtask -- gen-golden --check
+
+      - name: Build (all)
         run: cargo build --all
+
       - name: Run tests
         run: cargo test --all --quiet
 
@@ -30,59 +33,69 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-      - name: Build CLI release
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build CLI (debug)
         run: cargo build -p cli --bin art
+
       - name: Run metrics script
         run: |
           chmod +x scripts/run_metrics.sh || true
           mkdir -p artifacts
           bash scripts/run_metrics.sh examples/17_metrics_arena_demo.art artifacts/metrics.json || true
+
       - name: Upload metrics artifact
         uses: actions/upload-artifact@v4
         with:
           name: metrics
           path: artifacts/metrics.json
+
   coverage:
     needs: build-and-test
-    # Run coverage only when manually triggered via workflow_dispatch to avoid long runs on every push.
+    # Run coverage only on manual dispatch to avoid long runs on every push
     if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
+
+      - name: Install Rust (stable)
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov --locked
+
       - name: Run coverage
         run: cargo llvm-cov --workspace --ignore-filename-regex ".*/target/.*" --lcov --output-path lcov.info
-      - name: Coverage threshold
+
+      - name: Coverage threshold (≥60%)
         run: |
-          # lcov DA lines are 'DA:<line>,<count>' - sum counts and number of lines
           lines=$(grep -h '^DA:' lcov.info | awk -F',' '{covered+=$2; total+=1} END { if (total==0) { print "0 0" } else { print covered" "total }}')
           covered=$(echo $lines | awk '{print $1}')
           total=$(echo $lines | awk '{print $2}')
           pct=0
           if [ "$total" -gt 0 ]; then pct=$(awk -v c=$covered -v t=$total 'BEGIN { printf("%.2f", (c/t)*100) }'); fi
-          echo "Coverage: $pct%";
+          echo "Coverage: $pct%"
           awk -v p=$pct 'BEGIN { exit (p < 60.0) ? 1 : 0 }'
+
       - name: Generate badge
         run: scripts/gen_coverage_badge.sh lcov.info target/coverage_badge.svg
-      - name: Upload coverage artifact
+
+      - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: lcov
           path: lcov.info
+
       - name: Upload coverage badge
         uses: actions/upload-artifact@v4
         with:
           name: coverage-badge
           path: target/coverage_badge.svg
-
-
-
-
