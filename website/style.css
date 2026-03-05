@@ -344,6 +344,66 @@ h3 {
   flex-wrap: wrap;
 }
 
+/* ─── Install one-liner bar ────────────────────────────────────── */
+.hero__install {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 10px 16px 10px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+  font-size: 0.82rem;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.hero__install-label {
+  color: var(--text-3);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  padding-right: 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.hero__install-code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  color: #c4a0f0;
+  font-size: 0.80rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+
+.hero__install-copy {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+
+.hero__install-copy:hover {
+  color: #7dd3be;
+  background: rgba(125, 211, 190, 0.1);
+}
+
+.hero__install-copy.copied {
+  color: #7dd3be;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

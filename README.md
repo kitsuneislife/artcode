@@ -51,29 +51,45 @@ Status do projeto
 - Testes: suíte unitária e de integração com exemplos em `examples`.
 - Ferramentas: `xtask` para cobertura e scripts para validar exemplos.
 
-Rápido começo (Quickstart)
+## Instalação
 
-Prerequisitos: Rust stable (toolchain padrão).
+### Forma rápida (Linux / macOS)
 
-Build e testes:
 ```bash
+curl -fsSL https://raw.githubusercontent.com/kitsuneislife/artcode/main/install.sh | bash
+```
+
+Isso baixa o binário da [última release](https://github.com/kitsuneislife/artcode/releases) e instala em `/usr/local/bin/art`.
+
+**Windows:** baixe o `.exe` direto na [página de releases](https://github.com/kitsuneislife/artcode/releases).
+
+### Compilar a partir do fonte
+
+Prerequisitos: Rust stable toolchain (`curl https://sh.rustup.rs -sSf | sh`).
+
+```bash
+git clone https://github.com/kitsuneislife/artcode.git
+cd artcode
+cargo build -p cli --release
+sudo cp target/release/art /usr/local/bin/
+```
+
+### Uso básico
+
+```bash
+# Executar um script
+art run examples/00_hello.art
+
+# Métricas de execução
+art metrics --json meu_script.art
+
+# Language Server (LSP) para editores
+art lsp
+
+# Build e testes (desenvolvimento)
 cargo test --all
 ```
 
-Executar exemplos validados:
-```bash
-scripts/test_examples.sh
-```
-
-Executar o CLI (ex.: rodar um exemplo):
-```bash
-cargo run --bin art -- run examples/00_hello.art
-```
-
-Iniciar o Servidor de Linguagem (LSP) para editores (ex: VSCode):
-```bash
-cargo run --bin art -- lsp
-```
 
 Design e diferenciais (curto)
 - Complexidade Progressiva: níveis de abstração claros (ARC default → weak/unowned → arenas/performant).
