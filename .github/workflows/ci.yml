@@ -41,8 +41,7 @@ jobs:
         run: |
           chmod +x scripts/run_metrics.sh || true
           mkdir -p artifacts
-          # run the script which will write artifacts/metrics.json
-          bash scripts/run_metrics.sh cli/examples/99_weak_unowned_demo.art artifacts/metrics.json || true
+          bash scripts/run_metrics.sh examples/17_metrics_arena_demo.art artifacts/metrics.json || true
       - name: Upload metrics artifact
         uses: actions/upload-artifact@v4
         with:

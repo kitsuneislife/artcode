@@ -40,7 +40,7 @@ jobs:
           set -euo pipefail
           cargo build -p cli --locked --release
           mkdir -p artifacts
-          ./target/release/art metrics --json cli/examples/metrics_arena_demo.art > artifacts/metrics.json
+          ./target/release/art metrics --json examples/17_metrics_arena_demo.art > artifacts/metrics.json
           # Basic presence checks
           jq -e 'has("arena_alloc_count") and has("objects_finalized_per_arena") and has("finalizer_promotions_per_arena")' artifacts/metrics.json
           # Ensure top-level numeric fields have expected types

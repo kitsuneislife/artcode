@@ -2,11 +2,11 @@
 set -euo pipefail
 
 # Usage: scripts/run_metrics.sh <script> <out.json>
-SCRIPT=${1:-examples/99_weak_unowned_demo.art}
+SCRIPT=${1:-examples/17_metrics_arena_demo.art}
 OUT=${2:-artifacts/metrics.json}
 if [ ! -f "$SCRIPT" ]; then
   echo "Error: script file not found: $SCRIPT"
-  echo "Usage: $0 [script] [out.json]  (defaults to examples/99_weak_unowned_demo.art)"
+  echo "Usage: $0 [script] [out.json]  (defaults to examples/17_metrics_arena_demo.art)"
   exit 2
 fi
 mkdir -p $(dirname "$OUT")
