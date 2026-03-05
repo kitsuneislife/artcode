@@ -20,6 +20,7 @@ Implementação experimental de uma linguagem interpretada em Rust com suporte a
 - Arrays com builtins (`sum`, `count`)
 - Standard Library embutida: Collections (Map, Set), Math (abs, pow, clamp), Time & Rand, File IO (sandboxed).
 - Métricas de execução (handled_errors, executed_statements, crash_free%)
+- Language Server Protocol (LSP) básico com diagnósticos instantâneos na IDE (`art lsp`)
 
 # Complexidade Progressiva
 
@@ -67,6 +68,11 @@ scripts/test_examples.sh
 Executar o CLI (ex.: rodar um exemplo):
 ```bash
 cargo run --bin art -- run examples/00_hello.art
+```
+
+Iniciar o Servidor de Linguagem (LSP) para editores (ex: VSCode):
+```bash
+cargo run --bin art -- lsp
 ```
 
 Design e diferenciais (curto)

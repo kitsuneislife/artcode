@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artcode — A Linguagem de Complexidade Progressiva</title>
+    <meta name="description"
+        content="Artcode é uma linguagem de programação experimental que cresce com você. Comece simples como Python, escale como Rust. Sem compromissos.">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Nav -->
+    <nav class="nav" id="nav">
+        <div class="nav__inner">
+            <a href="index.html" class="nav__logo"><img src="assets/logo_stripped.png" alt="Artcode"
+                    style="height: 28px; width: auto;"></a>
+            <div class="nav__links" id="navLinks">
+                <a href="index.html" class="active">Início</a>
+                <a href="why.html">Por que Artcode?</a>
+                <a href="docs.html">Docs</a>
+                <a href="examples.html">Exemplos</a>
+                <a href="https://github.com/kitsuneislife/artcode" class="nav__cta" target="_blank">GitHub →</a>
+            </div>
+            <button class="nav__mobile-toggle" id="navToggle" aria-label="Menu">☰</button>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div id="bg-wrap">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+                <defs>
+                    <!-- Noise Grain Filter -->
+                    <filter id="noiseFilter">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch" />
+                        <feColorMatrix type="matrix" values="1 0 0 0 0, 1 0 0 0 0, 1 0 0 0 0, 0 0 0 0.15 0" />
+                    </filter>
+
+                    <!-- Gradient 1: Deep Purple -->
+                    <radialGradient id="G1" cx="50%" cy="50%" fx="0.44%" fy="50%" r=".5">
+                        <animate attributeName="fx" dur="180s" values="0%;3%;0%" repeatCount="indefinite" />
+                        <stop offset="0%" stop-color="rgba(160, 60, 255, 1)" />
+                        <stop offset="100%" stop-color="rgba(160, 60, 255, 0)" />
+                    </radialGradient>
+                    <!-- Gradient 2: Teal -->
+                    <radialGradient id="G2" cx="50%" cy="50%" fx="2.68%" fy="50%" r=".5">
+                        <animate attributeName="fx" dur="160s" values="0%;3%;0%" repeatCount="indefinite" />
+                        <stop offset="0%" stop-color="rgba(40, 210, 200, 1)" />
+                        <stop offset="100%" stop-color="rgba(40, 210, 200, 0)" />
+                    </radialGradient>
+                    <!-- Gradient 3: Violet -->
+                    <radialGradient id="G3" cx="50%" cy="50%" fx="0.84%" fy="50%" r=".5">
+                        <animate attributeName="fx" dur="120s" values="0%;3%;0%" repeatCount="indefinite" />
+                        <stop offset="0%" stop-color="rgba(120, 80, 255, 1)" />
+                        <stop offset="100%" stop-color="rgba(120, 80, 255, 0)" />
+                    </radialGradient>
+                    <!-- Gradient 4: Soft Yellow -->
+                    <radialGradient id="G4" cx="50%" cy="50%" fx="4.56%" fy="50%" r=".5">
+                        <animate attributeName="fx" dur="150s" values="0%;5%;0%" repeatCount="indefinite" />
+                        <stop offset="0%" stop-color="rgba(255, 230, 100, 0.9)" />
+                        <stop offset="100%" stop-color="rgba(255, 230, 100, 0)" />
+                    </radialGradient>
+                    <!-- Gradient 5: Soft Orange -->
+                    <radialGradient id="G5" cx="50%" cy="50%" fx="2.65%" fy="50%" r=".5">
+                        <animate attributeName="fx" dur="130s" values="0%;5%;0%" repeatCount="indefinite" />
+                        <stop offset="0%" stop-color="rgba(255, 150, 80, 0.9)" />
+                        <stop offset="100%" stop-color="rgba(255, 150, 80, 0)" />
+                    </radialGradient>
+                    <!-- Gradient 6: Magenta-Purple -->
+                    <radialGradient id="G6" cx="50%" cy="50%" fx="0.98%" fy="50%" r=".5">
+                        <animate attributeName="fx" dur="200s" values="0%;5%;0%" repeatCount="indefinite" />
+                        <stop offset="0%" stop-color="rgba(200, 60, 220, 1)" />
+                        <stop offset="100%" stop-color="rgba(200, 60, 220, 0)" />
+                    </radialGradient>
+                </defs>
+                <rect x="13.744%" y="1.18%" width="40%" height="40%" fill="url(#G1)" transform="rotate(334.41 50 50)">
+                    <animate attributeName="x" dur="60s" values="25%;0%;25%" repeatCount="indefinite" />
+                    <animate attributeName="y" dur="62s" values="0%;25%;0%" repeatCount="indefinite" />
+                    <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="25s"
+                        repeatCount="indefinite" />
+                </rect>
+                <rect x="-2.18%" y="35.43%" width="40%" height="40%" fill="url(#G2)" transform="rotate(255.07 50 50)">
+                    <animate attributeName="x" dur="70s" values="-25%;0%;-25%" repeatCount="indefinite" />
+                    <animate attributeName="y" dur="72s" values="0%;50%;0%" repeatCount="indefinite" />
+                    <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="35s"
+                        repeatCount="indefinite" />
+                </rect>
+                <rect x="9.00%" y="14.57%" width="40%" height="40%" fill="url(#G3)" transform="rotate(139.9 50 50)">
+                    <animate attributeName="x" dur="75s" values="0%;25%;0%" repeatCount="indefinite" />
+                    <animate attributeName="y" dur="36s" values="0%;25%;0%" repeatCount="indefinite" />
+                    <animateTransform attributeName="transform" type="rotate" from="360 50 50" to="0 50 50" dur="30s"
+                        repeatCount="indefinite" />
+                </rect>
+                <rect x="30%" y="60%" width="40%" height="40%" fill="url(#G4)">
+                    <animate attributeName="x" dur="55s" values="10%;40%;10%" repeatCount="indefinite" />
+                    <animate attributeName="y" dur="66s" values="60%;20%;60%" repeatCount="indefinite" />
+                    <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="45s"
+                        repeatCount="indefinite" />
+                </rect>
+                <rect x="60%" y="10%" width="40%" height="40%" fill="url(#G5)">
+                    <animate attributeName="x" dur="80s" values="60%;30%;60%" repeatCount="indefinite" />
+                    <animate attributeName="y" dur="57s" values="10%;40%;10%" repeatCount="indefinite" />
+                    <animateTransform attributeName="transform" type="rotate" from="360 50 50" to="0 50 50" dur="33s"
+                        repeatCount="indefinite" />
+                </rect>
+                <rect x="-10%" y="70%" width="40%" height="40%" fill="url(#G6)">
+                    <animate attributeName="x" dur="65s" values="-10%;20%;-10%" repeatCount="indefinite" />
+                    <animate attributeName="y" dur="84s" values="70%;30%;70%" repeatCount="indefinite" />
+                    <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="48s"
+                        repeatCount="indefinite" />
+                </rect>
+
+                <!-- Grain Overlay -->
+                <rect x="-10%" y="-10%" width="120%" height="120%" filter="url(#noiseFilter)" opacity="0.4"
+                    style="mix-blend-mode: overlay;" />
+            </svg>
+        </div>
+        <div class="hero__content container">
+            <!--div class="hero__badge">
+                <span class="dot"></span> v0.1.0 — Release Oficial
+            </div-->
+            <h1>Comece simples.<br><span class="gradient-text">Escale sem limites.</span></h1>
+            <p class="subtitle">Artcode é a linguagem que não te força a escolher entre produtividade e performance.
+                Complexidade Progressiva: você sobe a escada quando precisar.</p>
+            <div class="hero__actions">
+                <a href="https://github.com/kitsuneislife/artcode" class="btn btn--primary" target="_blank">⚡ Começar
+                    Agora</a>
+                <a href="why.html" class="btn btn--ghost">Entenda o porquê →</a>
+            </div>
+
+            <div class="code-block" style="margin-top: 56px;" id="hero-editor-wrapper">
+                <div class="code-block__header">
+                    <span class="code-block__dot code-block__dot--red"></span>
+                    <span class="code-block__dot code-block__dot--yellow"></span>
+                    <span class="code-block__dot code-block__dot--green"></span>
+                    <span class="code-block__title" id="hero-editor-title">progressivo.art</span>
+                </div>
+                <pre><code id="hero-editor-code"></code><span class="cursor"></span></pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="section features" id="features">
+        <div class="container">
+            <div class="features__header fade-in">
+                <p class="label">Diferenciais</p>
+                <h2>Por que engenheiros escolhem <span class="gradient-text">Artcode</span></h2>
+                <p class="subtitle" style="margin: 12px auto 0;">Cada feature foi desenhada para resolver frustrações
+                    reais do dia a dia.</p>
+            </div>
+
+            <div class="features__grid">
+                <div class="feature-card fade-in">
+                    <div class="feature-card__icon">⚙️</div>
+                    <h3>Compilador "Jano" — JIT + AOT</h3>
+                    <p>Em desenvolvimento, execução JIT instantânea. Em produção, binário AOT otimizado com PGO
+                        (Profile-Guided Optimization) via LLVM. Você desenvolve rápido e deploya com performance nativa.
+                    </p>
+                </div>
+
+                <div class="feature-card fade-in">
+                    <div class="feature-card__icon">🧠</div>
+                    <h3>Memória Adaptativa</h3>
+                    <p>ARC determinístico por padrão (sem GC). Referências <code>weak</code>/<code>unowned</code> para
+                        grafos complexos. Arenas em blocos <code>performant {}</code> para latência zero. Você escolhe o
+                        degrau.</p>
+                </div>
+
+                <div class="feature-card fade-in">
+                    <div class="feature-card__icon">🧩</div>
+                    <h3>Concorrência Híbrida</h3>
+                    <p>Modelo de Atores nativo para segurança por construção. Primitivas <code>Atomic&lt;T&gt;</code> e
+                        <code>Mutex&lt;T&gt;</code> em blocos <code>performant</code> quando precisar de controle fino.
+                        Duas marchas, zero data races.
+                    </p>
+                </div>
+
+                <div class="feature-card fade-in">
+                    <div class="feature-card__icon">🛡️</div>
+                    <h3>Null Safety Total</h3>
+                    <p><code>null</code> não existe. Toda ausência de valor é um <code>Optional&lt;T&gt;</code> que o
+                        compilador obriga tratar. Pattern matching exaustivo garante que nenhum case seja esquecido.</p>
+                </div>
+
+                <div class="feature-card fade-in">
+                    <div class="feature-card__icon">✨</div>
+                    <h3>Sintaxe Expressiva</h3>
+                    <p>f-strings com format specs, shorthand enum inference (<code>.None</code>), operador
+                        <code>?</code> para propagação de erros, métodos associados em tipos nativos. O código não entra
+                        no caminho.
+                    </p>
+                </div>
+
+                <div class="feature-card fade-in">
+                    <div class="feature-card__icon">🔧</div>
+                    <h3>Ferramentas Integradas</h3>
+                    <p>CLI unificada: <code>art run</code>, <code>art fmt</code>, <code>art lint</code>,
+                        <code>art lsp</code>. Language Server Protocol para diagnósticos em tempo real na sua IDE. Tudo
+                        pronto desde o dia 1.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Code showcase -->
+    <section class="section" id="showcase" style="background: var(--bg-1);">
+        <div class="container">
+            <div style="text-align:center; margin-bottom: 56px;" class="fade-in">
+                <p class="label">Na Prática</p>
+                <h2>Código que fala por si</h2>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px,1fr)); gap: 24px;">
+                <div class="code-block fade-in" style="margin:0; max-width:100%;">
+                    <div class="code-block__header">
+                        <span class="code-block__dot code-block__dot--red"></span>
+                        <span class="code-block__dot code-block__dot--yellow"></span>
+                        <span class="code-block__dot code-block__dot--green"></span>
+                        <span class="code-block__title">result_propagation.art</span>
+                    </div>
+                    <pre><span class="cm">// Propagação tipo-safe de erros</span>
+<span class="kw">func</span> <span class="fn">pipeline</span>(<span class="var">input</span>: <span class="type">String</span>) <span class="op">-></span> <span class="type">Result</span><span class="op">&lt;</span><span class="type">Data</span>, <span class="type">Err</span><span class="op">&gt;</span> {
+    <span class="kw">let</span> <span class="var">ok</span> <span class="op">=</span> <span class="fn">validate</span>(<span class="var">input</span>)<span class="op">?</span>
+    <span class="kw">let</span> <span class="var">parsed</span> <span class="op">=</span> <span class="fn">parse</span>(<span class="var">ok</span>)<span class="op">?</span>
+    <span class="kw">return</span> <span class="op">.</span><span class="type">Ok</span>(<span class="fn">transform</span>(<span class="var">parsed</span>))
+}</pre>
+                </div>
+
+                <div class="code-block fade-in" style="margin:0; max-width:100%;">
+                    <div class="code-block__header">
+                        <span class="code-block__dot code-block__dot--red"></span>
+                        <span class="code-block__dot code-block__dot--yellow"></span>
+                        <span class="code-block__dot code-block__dot--green"></span>
+                        <span class="code-block__title">actors.art</span>
+                    </div>
+                    <pre><span class="cm">// Concorrência segura com Atores</span>
+<span class="kw">let</span> <span class="var">counter</span> <span class="op">=</span> <span class="fn">spawn</span>(<span class="fn">actor_fn</span>)
+<span class="fn">actor_send</span>(<span class="var">counter</span>, <span class="str">"increment"</span>)
+<span class="fn">actor_send</span>(<span class="var">counter</span>, <span class="str">"increment"</span>)
+
+<span class="cm">// Sem data races. Sem mutexes.</span>
+<span class="cm">// Estado isolado por construção.</span></pre>
+                </div>
+
+                <div class="code-block fade-in" style="margin:0; max-width:100%;">
+                    <div class="code-block__header">
+                        <span class="code-block__dot code-block__dot--red"></span>
+                        <span class="code-block__dot code-block__dot--yellow"></span>
+                        <span class="code-block__dot code-block__dot--green"></span>
+                        <span class="code-block__title">arena.art</span>
+                    </div>
+                    <pre><span class="cm">// Memória manual quando precisar</span>
+<span class="kw">performant</span> {
+    <span class="kw">arena</span> (<span class="num">4</span> <span class="op">*</span> <span class="num">1024</span> <span class="op">*</span> <span class="num">1024</span>) <span class="kw">as</span> <span class="var">frame</span> {
+        <span class="kw">let</span> <span class="var">p</span> <span class="op">=</span> <span class="var">frame</span>.<span class="fn">alloc</span>(<span class="type">Particula</span> {
+            <span class="var">x</span>: <span class="num">0.0</span>, <span class="var">y</span>: <span class="num">0.0</span>
+        })
+    } <span class="cm">// Liberada atomicamente</span>
+}</pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Start -->
+    <section class="section" id="quickstart">
+        <div class="container" style="text-align: center;">
+            <div class="fade-in">
+                <p class="label">Quickstart</p>
+                <h2>Rodando em <span class="gradient-text">30 segundos</span></h2>
+            </div>
+
+            <div class="code-block fade-in" style="max-width: 560px;">
+                <div class="code-block__header">
+                    <span class="code-block__dot code-block__dot--red"></span>
+                    <span class="code-block__dot code-block__dot--yellow"></span>
+                    <span class="code-block__dot code-block__dot--green"></span>
+                    <span class="code-block__title">terminal</span>
+                </div>
+                <pre><span class="cm"># Clone e compile</span>
+<span class="fn">git</span> clone https://github.com/kitsuneislife/artcode
+<span class="fn">cd</span> artcode
+<span class="fn">cargo</span> build --release
+
+<span class="cm"># Rode seu primeiro programa</span>
+<span class="fn">cargo</span> run --bin art -- run examples/00_hello.art
+
+<span class="cm"># Inicie o Language Server para sua IDE</span>
+<span class="fn">cargo</span> run --bin art -- lsp</pre>
+            </div>
+
+            <div style="margin-top: 40px;" class="fade-in">
+                <a href="docs.html" class="btn btn--primary">📖 Ler a Documentação</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer__links">
+                <a href="https://github.com/kitsuneislife/artcode" target="_blank">GitHub</a>
+                <a href="docs.html">Documentação</a>
+                <a href="examples.html">Exemplos</a>
+                <a href="why.html">Por que Artcode?</a>
+            </div>
+            <p>Artcode v0.1.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
+                    target="_blank">kitsuneislife</a></p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

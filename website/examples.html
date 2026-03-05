@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exemplos — Artcode</title>
+    <meta name="description"
+        content="25 exemplos progressivos da linguagem Artcode: do Hello World a Microkernels, passando por Pattern Matching, Atores e Arenas.">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Nav -->
+    <nav class="nav">
+        <div class="nav__inner">
+            <a href="index.html" class="nav__logo"><img src="assets/logo_stripped.png" alt="Artcode"
+                    style="height: 28px; width: auto;"></a>
+            <div class="nav__links" id="navLinks">
+                <a href="index.html">Início</a>
+                <a href="why.html">Por que Artcode?</a>
+                <a href="docs.html">Docs</a>
+                <a href="examples.html" class="active">Exemplos</a>
+                <a href="https://github.com/kitsuneislife/artcode" class="nav__cta" target="_blank">GitHub →</a>
+            </div>
+            <button class="nav__mobile-toggle" id="navToggle" aria-label="Menu">☰</button>
+        </div>
+    </nav>
+
+    <main class="section" style="padding-top: 100px;">
+        <div class="container">
+
+            <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
+                <p class="label">Aprenda Fazendo</p>
+                <h1>25 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
+                    conceito novo.</p>
+            </div>
+
+            <div class="examples-layout">
+
+                <!-- Sidebar -->
+                <nav class="examples-sidebar" id="examplesSidebar">
+
+                    <div class="examples-sidebar__group">
+                        <div class="examples-sidebar__group-label">Básico</div>
+                        <button class="examples-sidebar__item active" data-ex="ex-00">
+                            <span class="examples-sidebar__num">00</span> Hello World
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-01">
+                            <span class="examples-sidebar__num">01</span> Valores & Variáveis
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-02">
+                            <span class="examples-sidebar__num">02</span> Arrays & Options
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-03">
+                            <span class="examples-sidebar__num">03</span> Controle de Fluxo
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-04">
+                            <span class="examples-sidebar__num">04</span> Funções & Closures
+                        </button>
+                    </div>
+
+                    <div class="examples-sidebar__group">
+                        <div class="examples-sidebar__group-label">Tipos & Estruturas</div>
+                        <button class="examples-sidebar__item" data-ex="ex-05">
+                            <span class="examples-sidebar__num">05</span> Structs, Enums & Match
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-06">
+                            <span class="examples-sidebar__num">06</span> Enum Shorthand
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-07">
+                            <span class="examples-sidebar__num">07</span> Pattern Matching + Guards
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-08">
+                            <span class="examples-sidebar__num">08</span> f-Strings & Format
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-09">
+                            <span class="examples-sidebar__num">09</span> Métodos em Struct & Enum
+                        </button>
+                    </div>
+
+                    <div class="examples-sidebar__group">
+                        <div class="examples-sidebar__group-label">Tratamento de Erros</div>
+                        <button class="examples-sidebar__item" data-ex="ex-10">
+                            <span class="examples-sidebar__num">10</span> Result & Propagação
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-24">
+                            <span class="examples-sidebar__num">24</span> Result/Option Sugar
+                        </button>
+                    </div>
+
+                    <div class="examples-sidebar__group">
+                        <div class="examples-sidebar__group-label">Coleções</div>
+                        <button class="examples-sidebar__item" data-ex="ex-11">
+                            <span class="examples-sidebar__num">11</span> Arrays Builtin Methods
+                        </button>
+                    </div>
+
+                    <div class="examples-sidebar__group">
+                        <div class="examples-sidebar__group-label">Memória & GC</div>
+                        <button class="examples-sidebar__item" data-ex="ex-12">
+                            <span class="examples-sidebar__num">12</span> Métricas de Execução
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-13">
+                            <span class="examples-sidebar__num">13</span> Weak Cycle Demo
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-14">
+                            <span class="examples-sidebar__num">14</span> Cycle Stub
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-15">
+                            <span class="examples-sidebar__num">15</span> Finalizers
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-16">
+                            <span class="examples-sidebar__num">16</span> Weak & Unowned
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-17">
+                            <span class="examples-sidebar__num">17</span> Métricas de Arena
+                        </button>
+                    </div>
+
+                    <div class="examples-sidebar__group">
+                        <div class="examples-sidebar__group-label">Standard Library</div>
+                        <button class="examples-sidebar__item" data-ex="ex-18">
+                            <span class="examples-sidebar__num">18</span> Stdlib Features
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-19">
+                            <span class="examples-sidebar__num">19</span> Performant Arena
+                        </button>
+                    </div>
+
+                    <div class="examples-sidebar__group">
+                        <div class="examples-sidebar__group-label">Concorrência</div>
+                        <button class="examples-sidebar__item" data-ex="ex-20">
+                            <span class="examples-sidebar__num">20</span> Atores Simples
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-21">
+                            <span class="examples-sidebar__num">21</span> Microkernel
+                        </button>
+                    </div>
+
+                    <div class="examples-sidebar__group">
+                        <div class="examples-sidebar__group-label">Ferramentas</div>
+                        <button class="examples-sidebar__item" data-ex="ex-22">
+                            <span class="examples-sidebar__num">22</span> Fmt Test
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-23">
+                            <span class="examples-sidebar__num">23</span> Linter Tests
+                        </button>
+                    </div>
+
+                </nav>
+
+                <!-- Panel -->
+                <div class="examples-panel" id="examplesPanel">
+
+                    <!-- 00: Hello World -->
+                    <div class="example-entry active" id="ex-00">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">00</span>
+                            <span class="example-entry__title">Hello World</span>
+                            <span class="example-tag">Básico</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            O ponto de partida. Em Artcode, <code>println</code> é uma função builtin que aceita
+                            qualquer valor e imprime com quebra de linha. Não há boilerplate — nenhuma função
+                            <code>main</code> obrigatória para scripts simples.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">00_hello.art</span>
+                            </div>
+                            <pre><span class="cm">// Exemplo 00 - Olá Mundo</span>
+<span class="fn">println</span>(<span class="str">"Hello, Artcode!"</span>);</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/00_hello.art</span></div>
+                    </div>
+                    <!-- 01: Valores e Variáveis -->
+                    <div class="example-entry" id="ex-01">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">01</span>
+                            <span class="example-entry__title">Valores e Variáveis</span>
+                            <span class="example-tag">Básico</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Artcode usa <code>let</code> para bindings imutáveis e <code>var</code> para mutáveis.
+                            A inferência de tipos é automática — <code>Int</code>, <code>Float</code>,
+                            <code>String</code> e <code>Bool</code> são detectados pelo compilador sem anotação.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">01_values_and_variables.art</span>
+                            </div>
+                            <pre><span class="cm">// Exemplo 01 - Valores e Variáveis</span>
+<span class="kw">let</span> inteiro  = <span class="num">42</span>;
+<span class="kw">let</span> flutuante = <span class="num">3.14</span>;
+<span class="kw">let</span> texto    = <span class="str">"Artcode"</span>;
+<span class="kw">let</span> booleano = <span class="kw">true</span>;
+<span class="fn">println</span>(inteiro);
+<span class="fn">println</span>(flutuante);
+<span class="fn">println</span>(texto);
+<span class="fn">println</span>(booleano);
+<span class="kw">let</span> soma = inteiro + <span class="num">8</span>;
+<span class="fn">println</span>(soma);</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/01_values_and_variables.art</span></div>
+                    </div>
+                    <!-- 02: Arrays & Options -->
+                    <div class="example-entry" id="ex-02">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">02</span>
+                            <span class="example-entry__title">Arrays &amp; Options</span>
+                            <span class="example-tag">Básico</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Arrays em Artcode são dinâmicos e heterogêneos por padrão. O tipo
+                            <code>Optional</code> é expresso com <code>none</code> — um literal especial que
+                            garante ausência de valor sem recorrer a <code>null</code> ou ponteiros nulos.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">02_arrays_options.art</span>
+                            </div>
+                            <pre><span class="cm">// Exemplo 02 - Arrays e Option (None)</span>
+<span class="kw">let</span> nums  = [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>];
+<span class="kw">let</span> vazio = [];
+<span class="kw">let</span> opt   = <span class="kw">none</span>; <span class="cm">// literal option vazio</span>
+<span class="fn">println</span>(nums);
+<span class="fn">println</span>(vazio);
+<span class="fn">println</span>(opt);</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/02_arrays_options.art</span></div>
+                    </div>
+                    <!-- 03: Controle de Fluxo -->
+                    <div class="example-entry" id="ex-03">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">03</span>
+                            <span class="example-entry__title">Controle de Fluxo</span>
+                            <span class="example-tag">Básico</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Artcode usa <code>if</code>/<code>else</code> clássico, mas os operadores lógicos
+                            são palavras-chave: <code>and</code>, <code>or</code>, <code>!</code>.
+                            Escopos aninhados com <code>{ }</code> criam novos namespaces — variáveis locais
+                            não "vazam" para o escopo externo (<em>shadowing</em> controlado).
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">03_control_flow.art</span>
+                            </div>
+                            <pre><span class="cm">// Exemplo 03 - Controle de Fluxo</span>
+<span class="kw">let</span> a = <span class="num">10</span>; <span class="kw">let</span> b = <span class="num">20</span>;
+<span class="kw">if</span> (a &lt; b) { <span class="fn">println</span>(<span class="str">"a &lt; b"</span>); } <span class="kw">else</span> { <span class="fn">println</span>(<span class="str">"a &gt;= b"</span>); }
+<span class="kw">if</span> (a &lt; b <span class="kw">and</span> b &gt; <span class="num">15</span>) { <span class="fn">println</span>(<span class="str">"duas condições"</span>); }
+<span class="kw">let</span> sol = <span class="kw">true</span>;
+<span class="kw">if</span> (sol) { <span class="fn">println</span>(<span class="str">"Praia!"</span>); }
+<span class="kw">if</span> (!sol <span class="kw">or</span> a == <span class="num">10</span>) { <span class="fn">println</span>(<span class="str">"Uma condição verdadeira"</span>); }
+<span class="cm">// Escopo aninhado</span>
+<span class="kw">let</span> nivel = <span class="str">"global"</span>;
+{ <span class="kw">let</span> nivel = <span class="str">"local"</span>; <span class="fn">println</span>(nivel); }
+<span class="fn">println</span>(nivel); <span class="cm">// "global" — não foi afetado</span></pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/03_control_flow.art</span></div>
+                    </div>
+                    <!-- 04: Funções & Closures -->
+                    <div class="example-entry" id="ex-04">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">04</span>
+                            <span class="example-entry__title">Funções &amp; Closures</span>
+                            <span class="example-tag">Básico</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Funções são declaradas com <code>func</code> e suportam anotações de tipo opcionais
+                            nos parâmetros e retorno. Closures capturam o ambiente léxico automaticamente —
+                            variáveis do escopo externo ficam acessíveis sem nenhuma sintaxe especial.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">04_functions_closures.art</span>
+                            </div>
+                            <pre><span class="cm">// Exemplo 04 - Funções e Captura de Escopo</span>
+<span class="kw">func</span> <span class="fn">soma</span>(a: <span class="type">Int</span>, b: <span class="type">Int</span>) -&gt; <span class="type">Int</span> { <span class="kw">return</span> a + b }
+<span class="fn">println</span>(<span class="fn">soma</span>(<span class="num">2</span>, <span class="num">3</span>));
+
+<span class="kw">let</span> x = <span class="num">5</span>;
+<span class="kw">func</span> <span class="fn">inc</span>(n) { <span class="kw">return</span> n + x } <span class="cm">// captura `x` do escopo externo</span>
+<span class="fn">println</span>(<span class="fn">inc</span>(<span class="num">10</span>)); <span class="cm">// 15</span></pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/04_functions_closures.art</span></div>
+                    </div>
+                    <!-- 05: Structs, Enums & Match -->
+                    <div class="example-entry" id="ex-05">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">05</span>
+                            <span class="example-entry__title">Structs, Enums &amp; Match</span>
+                            <span class="example-tag">Tipos &amp; Estruturas</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            <code>struct</code> define tipos produto com campos nomeados.
+                            <code>enum</code> define tipos soma com variantes que podem carregar dados.
+                            <code>match</code> faz pattern matching exaustivo — casos com <code>.Variant</code>
+                            desestrutura os dados da variante automaticamente.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">05_structs_enums_match.art</span>
+                            </div>
+                            <pre><span class="cm">// Exemplo 05 - Structs, Enums e Match</span>
+<span class="kw">struct</span> <span class="type">Pessoa</span> { nome: <span class="type">String</span>, idade: <span class="type">Int</span> }
+<span class="kw">enum</span> <span class="type">Status</span> { Ok, Erro(<span class="type">String</span>) }
+
+<span class="kw">let</span> p = <span class="type">Pessoa</span> { nome: <span class="str">"Ada"</span>, idade: <span class="num">42</span> };
+<span class="fn">println</span>(p.nome); <span class="fn">println</span>(p.idade);
+
+<span class="kw">let</span> falha = <span class="type">Status</span>.Erro(<span class="str">"Falhou"</span>);
+<span class="kw">match</span> falha {
+    <span class="kw">case</span> .Ok:          <span class="fn">println</span>(<span class="str">"Tudo certo"</span>)
+    <span class="kw">case</span> .Erro(msg):   <span class="fn">println</span>(msg)
+}</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/05_structs_enums_match.art</span></div>
+                    </div>
+                    <!-- 06: Enum Shorthand -->
+                    <div class="example-entry" id="ex-06">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">06</span>
+                            <span class="example-entry__title">Enum Shorthand</span>
+                            <span class="example-tag">Tipos &amp; Estruturas</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Variantes de enum podem ser referenciadas sem o prefixo do tipo quando o compilador
+                            consegue inferir o contexto — use <code>.Variant</code> em vez de
+                            <code>Tipo.Variant</code>. Para evitar ambiguidade, a forma qualificada
+                            (<code>Resultado.Ok(10)</code>) é sempre válida.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">06_enum_shorthand_inference.art</span>
+                            </div>
+                            <pre><span class="cm">// Exemplo 06 - Enum Shorthand &amp; Inferência</span>
+<span class="kw">enum</span> <span class="type">Resultado</span> { Ok(<span class="type">Int</span>), Err(<span class="type">String</span>) }
+
+<span class="kw">let</span> r1 = <span class="type">Resultado</span>.Ok(<span class="num">10</span>);
+<span class="kw">let</span> r2 = <span class="type">Resultado</span>.Err(<span class="str">"Falha"</span>);
+
+<span class="kw">match</span> r1 { <span class="kw">case</span> .Ok(v):  <span class="fn">println</span>(v)  <span class="kw">case</span> .Err(e): <span class="fn">println</span>(e) }
+<span class="kw">match</span> r2 { <span class="kw">case</span> .Ok(v):  <span class="fn">println</span>(v)  <span class="kw">case</span> .Err(e): <span class="fn">println</span>(e) }</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/06_enum_shorthand_inference.art</span>
+                        </div>
+                    </div>
+                    <!-- 07: Pattern Matching + Guards -->
+                    <div class="example-entry" id="ex-07">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">07</span>
+                            <span class="example-entry__title">Pattern Matching + Guards</span>
+                            <span class="example-tag">Tipos &amp; Estruturas</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Cases de <code>match</code> aceitam um guard opcional com <code>if</code> para adicionar
+                            predicados extras sobre o valor desestruturado. Permite lógica condicional
+                            precisa sem aninhamento de <code>if</code>s dentro dos arms.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">07_pattern_matching_guards.art</span>
+                            </div>
+                            <pre><span class="cm">// Exemplo 07 - Pattern Matching com Guards</span>
+<span class="kw">enum</span> <span class="type">E</span> { V(<span class="type">Int</span>), W(<span class="type">Int</span>) }
+<span class="kw">let</span> x = <span class="type">E</span>.V(<span class="num">10</span>);
+<span class="kw">let</span> y = <span class="type">E</span>.V(<span class="num">5</span>);
+<span class="kw">let</span> z = <span class="type">E</span>.W(<span class="num">8</span>);
+
+<span class="kw">match</span> x {
+    <span class="kw">case</span> .V(v) <span class="kw">if</span> v &gt; <span class="num">8</span>: <span class="fn">println</span>(f<span class="str">"v&gt;8: {v}"</span>)
+    <span class="kw">case</span> .V(v):           <span class="fn">println</span>(f<span class="str">"v: {v}"</span>)
+    <span class="kw">case</span> .W(w):           <span class="fn">println</span>(f<span class="str">"w: {w}"</span>)
+}</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/07_pattern_matching_guards.art</span>
+                        </div>
+                    </div>
+                    <!-- 08: f-Strings & Format -->
+                    <div class="example-entry" id="ex-08">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">08</span>
+                            <span class="example-entry__title">f-Strings &amp; Format Specs</span>
+                            <span class="example-tag">Tipos &amp; Estruturas</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            f-strings em Artcode suportam especificadores de formato embutidos com
+                            <code>:</code> — como <code>{n:hex}</code>, <code>{s:upper}</code>,
+                            <code>{s:trim}</code>, <code>{s:pad10}</code>. Chaves literais são escapadas
+                            com <code>{{ }}</code>.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">08_fstrings_format_specs.art</span>
+                            </div>
+                            <pre><span class="cm">// Exemplo 08 - f-Strings e Especificadores de Formato</span>
+<span class="kw">let</span> n = <span class="num">255</span>;
+<span class="kw">let</span> s = <span class="str">"  AbC  "</span>;
+<span class="fn">println</span>(f<span class="str">"hex={n:hex} trim={s:trim} upper={s:upper}"</span>);
+<span class="fn">println</span>(f<span class="str">"lower={s:lower} pad={s:pad10}"</span>);
+<span class="fn">println</span>(f<span class="str">"chave literal: {{ {n} }}"</span>);</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/08_fstrings_format_specs.art</span></div>
+                    </div>
+                    <!-- 09: Métodos em Struct & Enum -->
+                    <div class="example-entry" id="ex-09">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">09</span>
+                            <span class="example-entry__title">Métodos em Struct &amp; Enum</span>
+                            <span class="example-tag">Tipos &amp; Estruturas</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Métodos são funções declaradas com <code>func Tipo.nome(self)</code>. O
+                            <code>self</code> é auto-bound ao receiver na chamada. Enums têm acesso a
+                            <code>variant</code> e <code>values</code> intrinsecamente para inspeção em runtime.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">09_methods_struct_enum.art</span>
+                            </div>
+                            <pre><span class="cm">// Exemplo 09 - Métodos em Structs e Enums</span>
+<span class="kw">struct</span> <span class="type">Pessoa</span> { nome: <span class="type">String</span> }
+<span class="kw">func</span> <span class="type">Pessoa</span>.<span class="fn">greet</span>(self) { <span class="fn">println</span>(f<span class="str">"Olá, {self.nome}!"</span>); }
+
+<span class="kw">let</span> p = <span class="type">Pessoa</span> { nome: <span class="str">"Ada"</span> };
+p.<span class="fn">greet</span>(); <span class="cm">// → Olá, Ada!</span>
+
+<span class="kw">enum</span> <span class="type">Status</span> { Ok, Err(<span class="type">String</span>) }
+<span class="kw">func</span> <span class="type">Status</span>.<span class="fn">describe</span>(self) {
+    <span class="fn">println</span>(f<span class="str">"variant={variant} values={len(values)}"</span>);
+}
+<span class="kw">let</span> s1 = <span class="type">Status</span>.Ok;
+<span class="kw">let</span> s2 = <span class="type">Status</span>.Err(<span class="str">"x"</span>);
+s1.<span class="fn">describe</span>(); s2.<span class="fn">describe</span>();</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/09_methods_struct_enum.art</span></div>
+                    </div>
+                    <!-- 10: Result & Propagação -->
+                    <div class="example-entry" id="ex-10">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">10</span>
+                            <span class="example-entry__title">Result &amp; Propagação</span>
+                            <span class="example-tag">Tratamento de Erros</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            O enum <code>Result</code> (<code>Ok</code>, <code>Err</code>) está no prelude e é
+                            usado para propagação explícita de erros. Sem exceções implícitas — cada falha
+                            é um valor que o caller deve tratar com <code>match</code>.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">10_result_like_pattern_try.art</span>
+                            </div>
+                            <pre><span class="cm">// Exemplo 10 - Propagação explícita de Result</span>
+<span class="kw">func</span> <span class="fn">divide</span>(a: <span class="type">Int</span>, b: <span class="type">Int</span>) -&gt; <span class="type">Result</span> {
+    <span class="kw">if</span> b == <span class="num">0</span> { <span class="kw">return</span> <span class="type">Result</span>.Err(<span class="str">"/0"</span>) }
+    <span class="kw">return</span> <span class="type">Result</span>.Ok(a / b)
+}
+<span class="kw">func</span> <span class="fn">quarter</span>(n: <span class="type">Int</span>) -&gt; <span class="type">Result</span> {
+    <span class="kw">let</span> r = <span class="fn">divide</span>(n, <span class="num">2</span>);
+    <span class="kw">match</span> r {
+        <span class="kw">case</span> .Ok(h): {
+            <span class="kw">let</span> r2 = <span class="fn">divide</span>(h, <span class="num">2</span>);
+            <span class="kw">match</span> r2 {
+                <span class="kw">case</span> .Ok(q):  <span class="kw">return</span> <span class="type">Result</span>.Ok(q)
+                <span class="kw">case</span> .Err(e): <span class="kw">return</span> <span class="type">Result</span>.Err(e)
+            }
+        }
+        <span class="kw">case</span> .Err(e): <span class="kw">return</span> <span class="type">Result</span>.Err(e)
+    }
+}
+<span class="kw">let</span> r = <span class="fn">quarter</span>(<span class="num">40</span>);
+<span class="kw">match</span> r { <span class="kw">case</span> .Ok(v): <span class="fn">println</span>(f<span class="str">"q={v}"</span>)  <span class="kw">case</span> .Err(e): <span class="fn">println</span>(e) }</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/10_result_like_pattern_try.art</span>
+                        </div>
+                    </div>
+                    <!-- 11: Arrays Builtin Methods -->
+                    <div class="example-entry" id="ex-11">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">11</span>
+                            <span class="example-entry__title">Arrays Builtin Methods</span>
+                            <span class="example-tag">Coleções</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Arrays têm métodos nativos como <code>.sum()</code>, <code>.count()</code>,
+                            <code>.map(fn)</code> e <code>.filter(fn)</code>. O type-checker emite
+                            diagnósticos se você chamar <code>sum()</code> em um array heterogêneo.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">11_arrays_builtin_methods.art</span>
+                            </div>
+                            <pre><span class="cm">// Exemplo 11 - Métodos builtin de Array</span>
+<span class="kw">let</span> nums = [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>];
+<span class="fn">println</span>(nums.<span class="fn">sum</span>());   <span class="cm">// 10</span>
+<span class="fn">println</span>(nums.<span class="fn">count</span>()); <span class="cm">// 4</span>
+
+<span class="kw">let</span> mixed = [<span class="num">1</span>, <span class="num">2</span>, <span class="str">"a"</span>];
+<span class="fn">println</span>(mixed.<span class="fn">count</span>()); <span class="cm">// 3 (ok — heterogêneo)</span>
+<span class="cm">// mixed.sum() → erro de tipo (array misto)</span></pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/11_arrays_builtin_methods.art</span>
+                        </div>
+                    </div>
+                    <!-- 12: Métricas de Execução -->
+                    <div class="example-entry" id="ex-12">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">12</span>
+                            <span class="example-entry__title">Métricas de Execução</span>
+                            <span class="example-tag">Memória &amp; GC</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            O runtime Artcode emite métricas de execução no <code>stderr</code> ao finalizar:
+                            contagem de erros tratados, <code>crash_free%</code>, chamadas de função etc.
+                            Este exemplo mostra como evitar divisão por zero e ainda observar as métricas.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">12_metrics_demo.art</span>
+                            </div>
+                            <pre><span class="cm">// Exemplo 12 - Métricas de Execução (ver stderr)</span>
+<span class="fn">println</span>(<span class="str">"A"</span>); <span class="fn">println</span>(<span class="str">"B"</span>);
+<span class="kw">let</span> denom = <span class="num">0</span>;
+<span class="kw">if</span> denom == <span class="num">0</span> {
+    <span class="fn">println</span>(<span class="str">"denom is zero, skipping division"</span>)
+} <span class="kw">else</span> {
+    <span class="fn">println</span>(<span class="num">10</span> / denom)
+}
+<span class="fn">println</span>(<span class="str">"C"</span>);
+<span class="cm">// → stderr: handled_errors=0  crash_free=100%</span></pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/12_metrics_demo.art</span></div>
+                    </div>
+                    <!-- 13: Weak Cycle Demo -->
+                    <div class="example-entry" id="ex-13">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">13</span>
+                            <span class="example-entry__title">Weak Cycle Demo</span>
+                            <span class="example-tag">Memória &amp; GC</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            <code>weak</code> cria uma referência fraca — ela não impede o GC(ARC) de liberar
+                            o objeto. O operador <code>w?</code> é o <em>upgrade opcional</em>: retorna o
+                            valor se o dono ainda existir, ou <code>None</code> se já foi dropado.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">13_weak_cycle_demo.art</span>
+                            </div>
+                            <pre><span class="cm">// weak cria referência fraca para `a`</span>
+<span class="kw">let</span> a = <span class="num">1</span>;
+<span class="kw">let</span> w = <span class="kw">weak</span> a;
+<span class="cm">// w? — upgrade opcional: retorna o valor se `a` existir</span>
+<span class="kw">let</span> opt = w?;</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/13_weak_cycle_demo.art</span></div>
+                    </div>
+                    <!-- 14: Cycle Stub -->
+                    <div class="example-entry" id="ex-14">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">14</span>
+                            <span class="example-entry__title">Cycle Stub</span>
+                            <span class="example-tag">Memória &amp; GC</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Stub mínimo usado pelo linter de dependências para detectar ciclos de referência
+                            potenciais. Cria uma referência <code>weak</code> "morta" — útil para verificar
+                            que o linter identifica o padrão sem precisar de um ciclo real.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">14_cycle_stub.art</span>
+                            </div>
+                            <pre><span class="cm">// Nenhum ciclo real — weak "morta" simulada</span>
+<span class="kw">let</span> a = <span class="num">1</span>;
+<span class="kw">let</span> w = <span class="kw">weak</span> a;
+<span class="cm">// sem API para drop programático ainda</span></pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/14_cycle_stub.art</span></div>
+                    </div>
+
+                    <!-- 15: Finalizers -->
+                    <div class="example-entry" id="ex-15">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">15</span>
+                            <span class="example-entry__title">Finalizers</span>
+                            <span class="example-tag">Memória &amp; GC</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            <code>on_finalize(obj, fn)</code> registra uma função que será chamada quando o
+                            GC(ARC) liberar <code>obj</code>. Finalizers rodam de forma assíncrona e podem
+                            promover handles externos. Blocos <code>performant</code> usam a arena interna.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">15_finalizer_examples.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> outside = [<span class="num">99</span>];
+
+<span class="kw">func</span> <span class="fn">fin_promote</span>() {
+    <span class="kw">let</span> _promoted = outside;
+}
+
+<span class="cm">// Registra finalizer dentro de um bloco performant</span>
+<span class="kw">performant</span> {
+    <span class="kw">let</span> _target = [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>];
+    <span class="fn">on_finalize</span>(_target, fin_promote);
+}
+<span class="cm">// Ao sair do bloco, _target é finalizado e fin_promote é chamado</span></pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/15_finalizer_examples.art</span></div>
+                    </div>
+                    <!-- 16: Weak & Unowned -->
+                    <div class="example-entry" id="ex-16">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">16</span>
+                            <span class="example-entry__title">Weak &amp; Unowned</span>
+                            <span class="example-tag">Memória &amp; GC</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            <code>weak(obj)</code> retorna um handle que não mantém o objeto vivo.
+                            <code>unowned(obj)</code> é um ponteiro direto sem ownership — válido enquanto
+                            o dono existir. <code>weak_get(w)</code> e <code>unowned_get(u)</code> são as
+                            APIs de depuração para obter o valor.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">16_weak_unowned_demo.art</span>
+                            </div>
+                            <pre><span class="cm">// Exemplo 1: weak — upgrade falha após drop do strong</span>
+{
+    <span class="kw">let</span> owner = [<span class="num">99</span>];
+    <span class="kw">let</span> w = <span class="fn">weak</span>(owner);
+    <span class="fn">println</span>(<span class="str">"inside:"</span>, <span class="fn">weak_get</span>(w));
+}
+<span class="fn">println</span>(<span class="str">"after block: owner foi dropado"</span>);
+
+<span class="cm">// Exemplo 2: unowned — válido enquanto dono existir</span>
+{
+    <span class="kw">let</span> owner2 = [<span class="num">7</span>];
+    <span class="kw">let</span> u = <span class="fn">unowned</span>(owner2);
+    <span class="fn">println</span>(<span class="str">"inside:"</span>, <span class="fn">unowned_get</span>(u));
+}
+<span class="fn">println</span>(<span class="str">"after block: owner2 foi dropado"</span>);</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/16_weak_unowned_demo.art</span></div>
+                    </div>
+                    <!-- 17: Métricas de Arena -->
+                    <div class="example-entry" id="ex-17">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">17</span>
+                            <span class="example-entry__title">Métricas de Arena</span>
+                            <span class="example-tag">Memória &amp; GC</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Blocos <code>performant</code> alocam objetos em uma arena de curta duração —
+                            o GC processa tudo de uma vez ao sair do bloco. Combinando com
+                            <code>on_finalize</code>, é possível observar e reagir ao ciclo de vida de
+                            objetos de curta duração com precisão.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">17_metrics_arena_demo.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> outside = [<span class="num">99</span>];
+<span class="kw">let</span> promoted = <span class="kw">none</span>;
+
+<span class="kw">func</span> <span class="fn">fin_promote</span>() { <span class="kw">let</span> promoted = outside; }
+
+<span class="kw">performant</span> {
+    <span class="kw">let</span> _a = [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>];
+    <span class="fn">on_finalize</span>(_a, fin_promote);
+}
+<span class="cm">// após блок: _a finalizado, fin_promote chamado</span></pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/17_metrics_arena_demo.art</span></div>
+                    </div>
+
+                    <!-- 18: Stdlib Features -->
+                    <div class="example-entry" id="ex-18">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">18</span>
+                            <span class="example-entry__title">Standard Library</span>
+                            <span class="example-tag">Standard Library</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            A stdlib embutida inclui: <code>Map</code> (<code>map_new</code>, <code>map_set</code>,
+                            <code>map_get</code>), <code>Set</code>, funções matemáticas (<code>math_abs</code>,
+                            <code>math_pow</code>, <code>math_clamp</code>), <code>time_now</code>,
+                            <code>rand_next</code> e I/O de arquivos (<code>io_write_text</code>,
+                            <code>io_read_text</code>).
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">18_stdlib_features.art</span>
+                            </div>
+                            <pre><span class="cm">// Map</span>
+<span class="kw">let</span> m = <span class="fn">map_new</span>();
+<span class="fn">map_set</span>(m, <span class="str">"hello"</span>, <span class="num">42</span>);
+<span class="fn">println</span>(<span class="fn">map_get</span>(m, <span class="str">"hello"</span>));  <span class="cm">// 42</span>
+<span class="fn">println</span>(<span class="fn">len</span>(m));               <span class="cm">// 1</span>
+
+<span class="cm">// Set</span>
+<span class="kw">let</span> s = <span class="fn">set_new</span>();
+<span class="fn">set_add</span>(s, <span class="num">10</span>); <span class="fn">set_add</span>(s, <span class="num">10</span>); <span class="cm">// duplicata ignorada</span>
+<span class="fn">println</span>(<span class="fn">len</span>(s)); <span class="cm">// 1</span>
+
+<span class="cm">// Math</span>
+<span class="fn">println</span>(<span class="fn">math_pow</span>(<span class="num">2</span>, <span class="num">3</span>));    <span class="cm">// 8</span>
+<span class="fn">println</span>(<span class="fn">math_clamp</span>(<span class="num">15</span>, <span class="num">1</span>, <span class="num">10</span>)); <span class="cm">// 10</span>
+
+<span class="cm">// IO</span>
+<span class="fn">io_write_text</span>(<span class="str">"out.txt"</span>, <span class="str">"Hello IO!"</span>);
+<span class="fn">println</span>(<span class="fn">io_read_text</span>(<span class="str">"out.txt"</span>));</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/18_stdlib_features.art</span></div>
+                    </div>
+                    <!-- 19: Performant Arena -->
+                    <div class="example-entry" id="ex-19">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">19</span>
+                            <span class="example-entry__title">Performant Arena</span>
+                            <span class="example-tag">Standard Library</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Blocos <code>performant { }</code> são uma funcionalidade experimental que
+                            contorna o GC padrão usando uma arena de memória. Objectos alocados dentro
+                            não podem vazar para fora — o type-checker rejeita <code>return</code>
+                            de valores da arena.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">19_performant_arena.art</span>
+                            </div>
+                            <pre><span class="kw">performant</span> {
+    <span class="kw">let</span> x = [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>];
+    <span class="cm">// return x; ← rejeitado pelo TypeInfer (não pode vazar arena)</span>
+}</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/19_performant_arena.art</span></div>
+                    </div>
+
+                    <!-- 20: Atores Simples -->
+                    <div class="example-entry" id="ex-20">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">20</span>
+                            <span class="example-entry__title">Atores Simples</span>
+                            <span class="example-tag">Concorrência</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Artcode tem um modelo de atores baseado em mensagens. <code>spawn actor { }</code>
+                            cria um ator e retorna seu ID. <code>actor_send(id, envelope(...))</code> envia
+                            mensagens. <code>run_actors()</code> aciona o scheduler cooperativo para processar a fila.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">20_actors_simple.art</span>
+                            </div>
+                            <pre><span class="cm">// Spawn do ator como expressão — retorna actor id</span>
+<span class="kw">let</span> a = <span class="kw">spawn actor</span> {
+    <span class="kw">let</span> msg = <span class="fn">actor_receive</span>();
+    <span class="kw">if</span> msg { <span class="fn">println</span>(msg); }
+};
+
+<span class="cm">// Enviar envelopes para o ator `a`</span>
+<span class="kw">let</span> ok1 = <span class="fn">actor_send</span>(a, <span class="fn">envelope</span>(<span class="kw">none</span>, <span class="num">7</span>, <span class="num">1</span>));
+<span class="kw">let</span> ok2 = <span class="fn">actor_send</span>(a, <span class="fn">make_envelope</span>(<span class="num">42</span>, <span class="num">5</span>));
+
+<span class="cm">// Drive the scheduler — ator processa as mensagens</span>
+<span class="fn">run_actors</span>();</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/20_actors_simple.art</span></div>
+                    </div>
+                    <!-- 21: Microkernel -->
+                    <div class="example-entry" id="ex-21">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">21</span>
+                            <span class="example-entry__title">Microkernel</span>
+                            <span class="example-tag">Concorrência</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Demonstra uma carga CPU-bound com recursão para gerar chamadas quentes de função —
+                            útil para benchmarks de JIT/interpretador. A função <code>sum_work</code> usa
+                            tail-recursion e é chamada repetidamente para simular um microkernel de cálculo.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">21_microkernel.art</span>
+                            </div>
+                            <pre><span class="kw">func</span> <span class="fn">sum_work</span>(n) {
+    <span class="kw">func</span> <span class="fn">sum_down</span>(i, acc) {
+        <span class="kw">if</span> i &lt;= <span class="num">0</span> { <span class="kw">return</span> acc; }
+        <span class="kw">return</span> <span class="fn">sum_down</span>(i - <span class="num">1</span>, acc + i);
+    }
+    <span class="kw">return</span> <span class="fn">sum_down</span>(n, <span class="num">0</span>);
+}
+
+<span class="kw">func</span> <span class="fn">main</span>() {
+    <span class="cm">// 200 chamadas de sum_work(20) para gerar hot calls</span>
+    <span class="fn">sum_work</span>(<span class="num">20</span>); <span class="fn">sum_work</span>(<span class="num">20</span>); <span class="fn">sum_work</span>(<span class="num">20</span>);
+    <span class="cm">// ... (200 total)</span>
+    <span class="kw">return</span> <span class="num">0</span>;
+}
+<span class="fn">main</span>();</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/21_microkernel.art</span></div>
+                    </div>
+
+                    <!-- 22: Fmt Test -->
+                    <div class="example-entry" id="ex-22">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">22</span>
+                            <span class="example-entry__title">Fmt Test</span>
+                            <span class="example-tag">Ferramentas</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Código intencionalmente mal-formatado para testar o auto-formatter
+                            <code>art fmt</code>. Espaçamento inconsistente, chaves sem espaço —
+                            o formatter deve normalizar tudo enquanto preserva comentários e lógica.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">22_fmt_test.art</span>
+                            </div>
+                            <pre><span class="cm">// This file has terrible formatting!</span>
+<span class="kw">let</span> x= <span class="num">10</span>;
+<span class="kw">if</span> x &gt;<span class="num">5</span>{
+    <span class="fn">println</span>(<span class="str">"Bigger!"</span>);
+    <span class="cm">// I want to keep this comment intact!</span>
+    <span class="kw">if</span> x&gt;<span class="num">20</span> {
+        <span class="fn">println</span>(<span class="str">"Huge!"</span>);
+    } <span class="kw">else</span> { <span class="fn">println</span>(<span class="str">"Moderate"</span>); }
+}
+<span class="cm">// art fmt → normaliza espaçamento automaticamente</span></pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art fmt examples/22_fmt_test.art</span></div>
+                    </div>
+
+                    <!-- 23: Linter Tests -->
+                    <div class="example-entry" id="ex-23">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">23</span>
+                            <span class="example-entry__title">Linter Tests</span>
+                            <span class="example-tag">Ferramentas</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Demonstra dois padrões que o linter <code>art lint</code> detecta:
+                            <strong>shadowing suspeito</strong> (reuso de nome de variável em escopo aninhado)
+                            e <strong>arms mortos</strong> em match (case após wildcard <code>_</code>
+                            nunca será executado).
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">23_linter_tests.art</span>
+                            </div>
+                            <pre><span class="kw">func</span> <span class="fn">test_shadowing</span>() {
+    <span class="kw">let</span> x = <span class="num">10</span>;
+    <span class="kw">if</span> x &gt; <span class="num">5</span> {
+        <span class="kw">let</span> x = <span class="num">20</span>; <span class="cm">// ← linter: suspicious shadow</span>
+        <span class="fn">println</span>(x);
+    }
+}
+<span class="kw">func</span> <span class="fn">test_dead_arms</span>() {
+    <span class="kw">let</span> value = <span class="num">5</span>;
+    <span class="kw">match</span> value {
+        <span class="kw">case</span> _:  <span class="fn">println</span>(<span class="str">"Caught all!"</span>);
+        <span class="kw">case</span> <span class="num">10</span>: <span class="fn">println</span>(<span class="str">"unreachable"</span>); <span class="cm">// ← dead code</span>
+    }
+}
+<span class="fn">test_shadowing</span>(); <span class="fn">test_dead_arms</span>();</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art lint examples/23_linter_tests.art</span></div>
+                    </div>
+                    <!-- 24: Result/Option Sugar -->
+                    <div class="example-entry" id="ex-24">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">24</span>
+                            <span class="example-entry__title">Result &amp; Option Sugar</span>
+                            <span class="example-tag">Tratamento de Erros</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Açúcar sintático avançado para monads nativas: <code>if let Ok(v) = expr</code>
+                            desestrutura inline; <code>.is_ok()</code>, <code>.is_err()</code>,
+                            <code>.unwrap()</code> e <code>.unwrap_or(default)</code> são métodos builtin de
+                            <code>Result</code> e <code>Option</code>.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">24_result_option_sugar.art</span>
+                            </div>
+                            <pre><span class="kw">func</span> <span class="fn">test_result_sugar</span>() {
+    <span class="kw">let</span> success = <span class="type">Result</span>.Ok(<span class="num">42</span>);
+    <span class="kw">let</span> failure  = <span class="type">Result</span>.Err(<span class="str">"Went wrong"</span>);
+
+    <span class="fn">println</span>(success.<span class="fn">is_ok</span>());        <span class="cm">// true</span>
+    <span class="fn">println</span>(success.<span class="fn">unwrap</span>());       <span class="cm">// 42</span>
+    <span class="fn">println</span>(failure.<span class="fn">unwrap_or</span>(-<span class="num">1</span>)); <span class="cm">// -1</span>
+
+    <span class="kw">if let</span> Ok(value) = success {
+        <span class="fn">println</span>(<span class="str">"Success:"</span>, value)
+    }
+    <span class="kw">if let</span> Err(msg) = failure {
+        <span class="fn">println</span>(<span class="str">"Failure:"</span>, msg)
+    }
+}
+
+<span class="kw">func</span> <span class="fn">test_option_sugar</span>() {
+    <span class="kw">let</span> some_val = <span class="type">Option</span>.Some(<span class="str">"Hello"</span>);
+    <span class="kw">let</span> none_val = <span class="type">Option</span>.None;
+
+    <span class="fn">println</span>(some_val.<span class="fn">is_some</span>());              <span class="cm">// true</span>
+    <span class="fn">println</span>(none_val.<span class="fn">unwrap_or</span>(<span class="str">"Default"</span>));  <span class="cm">// "Default"</span>
+
+    <span class="kw">if let</span> Some(text) = some_val { <span class="fn">println</span>(text) }
+}
+
+<span class="fn">test_result_sugar</span>();
+<span class="fn">test_option_sugar</span>();</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/24_result_option_sugar.art</span></div>
+                    </div>
+
+                </div><!-- /examples-panel -->
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer__links">
+                <a href="https://github.com/kitsuneislife/artcode" target="_blank">GitHub</a>
+                <a href="docs.html">Documentação</a>
+                <a href="index.html">Início</a>
+                <a href="why.html">Por que Artcode?</a>
+            </div>
+            <p>Artcode v0.1.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
+                    target="_blank">kitsuneislife</a></p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script>
+        // Examples page interactivity
+        (function () {
+            const items = document.querySelectorAll('.examples-sidebar__item');
+            const entries = document.querySelectorAll('.example-entry');
+
+            function showExample(id) {
+                items.forEach(i => i.classList.remove('active'));
+                entries.forEach(e => e.classList.remove('active'));
+                const btn = document.querySelector(`[data-ex="${id}"]`);
+                const panel = document.getElementById(id);
+                if (btn) btn.classList.add('active');
+                if (panel) panel.classList.add('active');
+                history.replaceState(null, '', '#' + id);
+            }
+
+            items.forEach(btn => {
+                btn.addEventListener('click', () => showExample(btn.dataset.ex));
+            });
+
+            // Load from hash
+            const hash = location.hash.replace('#', '');
+            if (hash && document.getElementById(hash)) showExample(hash);
+        })();
+    </script>
+</body>
+
+</html>

@@ -216,7 +216,7 @@ Note: the project contains `.github/workflows/xtask-irgen-check.yml` (runs on pu
 - [ ] Guia de migração (pré 0.1 -> 0.1 se houver breaking)
 
 
-
+adn
 ## Riscos & Mitigações
 - Weak/unowned sem análise -> vazios/segfault: mitigar com runtime checks opcionais em debug.
 - Scheduler de atores injusto em cargas pesadas: adotar filas MPSC + work stealing futura.

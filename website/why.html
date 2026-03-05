@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Por que Artcode? — Comparativos e Trade-offs</title>
+    <meta name="description"
+        content="Entenda por que Artcode se posiciona entre Go, Rust, Python e JavaScript. Comparativos detalhados, trade-offs honestos e diferenciais técnicos.">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Nav -->
+    <nav class="nav">
+        <div class="nav__inner">
+            <a href="index.html" class="nav__logo"><img src="assets/logo_stripped.png" alt="Artcode"
+                    style="height: 28px; width: auto;"></a>
+            <div class="nav__links" id="navLinks">
+                <a href="index.html">Início</a>
+                <a href="why.html" class="active">Por que Artcode?</a>
+                <a href="docs.html">Docs</a>
+                <a href="examples.html">Exemplos</a>
+                <a href="https://github.com/kitsuneislife/artcode" class="nav__cta" target="_blank">GitHub →</a>
+            </div>
+            <button class="nav__mobile-toggle" id="navToggle" aria-label="Menu">☰</button>
+        </div>
+    </nav>
+
+    <main style="padding-top: 100px;">
+        <div class="container">
+
+            <!-- Intro -->
+            <div class="fade-in" style="text-align: center; margin-bottom: 64px;">
+                <p class="label">A Tese</p>
+                <h1>Por que escolher <span class="gradient-text">Artcode</span>?</h1>
+                <p class="subtitle" style="margin: 16px auto 0;">Nós não escondemos os trade-offs. Nós entregamos o
+                    vocabulário para você gerenciá-los.</p>
+            </div>
+
+            <!-- O Problema -->
+            <section class="section--sm fade-in">
+                <h2>O Problema: A Lei do Cobertor Curto</h2>
+                <p>Por décadas, escolher uma linguagem significou escolher qual dor você estava disposto a sofrer.
+                    Precisava de performance? Perdia segurança. Queria produtividade? Sacrificava tipagem e controle.
+                    Artcode foi projetada para quebrar essa dicotomia com um princípio: <strong>Complexidade
+                        Progressiva</strong>.</p>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Necessidade</th>
+                            <th>Linguagem Comum</th>
+                            <th>Custo Oculto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Máxima performance</td>
+                            <td>C / C++</td>
+                            <td>Sem segurança de memória. Segfaults, UB, CVEs.</td>
+                        </tr>
+                        <tr>
+                            <td>Segurança de memória</td>
+                            <td>Rust</td>
+                            <td>6+ meses de curva antes de ser produtivo.</td>
+                        </tr>
+                        <tr>
+                            <td>Rápida prototipagem</td>
+                            <td>Python / Ruby</td>
+                            <td>Sem tipos, sem null safety. Bugs em runtime.</td>
+                        </tr>
+                        <tr>
+                            <td>Leveza e clareza</td>
+                            <td>Go</td>
+                            <td>Teto artificial. Expressividade limitada.</td>
+                        </tr>
+                        <tr>
+                            <td>Apps mobile/server</td>
+                            <td>Swift / Kotlin</td>
+                            <td>Presos a ecossistemas corporativos.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 40px 0;">
+
+            <!-- vs Go -->
+            <section class="vs-section fade-in" id="vs-go">
+                <div class="vs-section__header">
+                    <span class="vs-section__icon">🛡️</span>
+                    <div>
+                        <h2>Artcode vs. Go</h2>
+                        <p class="subtitle" style="margin:0;">Uma questão de teto</p>
+                    </div>
+                </div>
+                <div class="vs-section__content">
+                    <p><strong>Onde Go acerta:</strong> Simplicidade intencional. Goroutines, GC eficiente, binários
+                        pequenos, compilação rápida. Para serviços Backend, é excelente.</p>
+                    <p><strong>Onde Go falha:</strong></p>
+
+                    <h3>1. Expressividade limitada</h3>
+                    <p>Go introduziu genéricos apenas em 1.18, com limitações. O sistema de tipos da Artcode é nativo e
+                        exaustivo: enums com payloads, pattern matching que força cobertura total, e
+                        <code>Result&lt;T, E&gt;</code> integrado.
+                    </p>
+
+                    <div class="code-block" style="max-width:100%;">
+                        <div class="code-block__header">
+                            <span class="code-block__dot code-block__dot--red"></span>
+                            <span class="code-block__dot code-block__dot--yellow"></span>
+                            <span class="code-block__dot code-block__dot--green"></span>
+                            <span class="code-block__title">pattern_matching.art</span>
+                        </div>
+                        <pre><span class="cm">// O compilador forca que todos os cases sejam tratados:</span>
+<span class="kw">match</span> <span class="var">resposta</span> {
+    <span class="kw">case</span> <span class="op">.</span><span class="type">Ok</span>(<span class="kw">let</span> <span class="var">dados</span>): <span class="fn">processar</span>(<span class="var">dados</span>)
+    <span class="kw">case</span> <span class="op">.</span><span class="type">Timeout</span>:       <span class="fn">retry_later</span>()
+    <span class="kw">case</span> <span class="op">.</span><span class="type">Err</span>(<span class="kw">let</span> <span class="var">e</span>):   <span class="fn">log_error</span>(<span class="var">e</span>)
+    <span class="cm">// Esquecer um case = erro de compilação</span>
+}</pre>
+                    </div>
+
+                    <h3>2. GC tem pausas</h3>
+                    <p>Em sistemas de tempo real (jogos, trading, VoIP), as pausas do GC do Go são inaceitáveis. Artcode
+                        tem ARC determinístico por padrão e Arenas para latência zero — nenhuma pausa, nenhuma surpresa.
+                    </p>
+
+                    <h3>3. Concorrência mais expressiva</h3>
+                    <p>Go usa goroutines + channels — funcional, mas manual. Artcode tem o Modelo de Atores como
+                        primitiva de primeira classe: isolamento de estado por design, sem data races fora de blocos
+                        <code>performant</code>.
+                    </p>
+
+                    <div class="advantage">
+                        <strong>Vantagem Artcode:</strong> Começa tão simples quanto Go, mas quando o seu sistema
+                        escalar, você não precisa trocar de linguagem. Go te impõe um teto; Artcode cresce com você.
+                    </div>
+
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Critério</th>
+                                <th>Go</th>
+                                <th>Artcode</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Simplicidade inicial</td>
+                                <td><span class="check">✅</span> Muito simples</td>
+                                <td><span class="check">✅</span> Equivalente</td>
+                            </tr>
+                            <tr>
+                                <td>Performance eventual</td>
+                                <td><span class="warn">⚠️</span> Limitada pelo GC</td>
+                                <td><span class="check">✅</span> AOT + Arenas</td>
+                            </tr>
+                            <tr>
+                                <td>Expressividade</td>
+                                <td><span class="cross">❌</span> Verboso</td>
+                                <td><span class="check">✅</span> Pattern matching, traits</td>
+                            </tr>
+                            <tr>
+                                <td>Concorrência</td>
+                                <td><span class="warn">⚠️</span> Channels manuais</td>
+                                <td><span class="check">✅</span> Atores + baixo nível opt-in</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 40px 0;">
+
+            <!-- vs Rust -->
+            <section class="vs-section fade-in" id="vs-rust">
+                <div class="vs-section__header">
+                    <span class="vs-section__icon">⚡</span>
+                    <div>
+                        <h2>Artcode vs. Rust</h2>
+                        <p class="subtitle" style="margin:0;">O caminho livre de atrito</p>
+                    </div>
+                </div>
+                <div class="vs-section__content">
+                    <p><strong>Onde Rust acerta:</strong> Performance de C++ com segurança de memória compile-time. O
+                        borrow checker é um feito de engenharia sem paralelo.</p>
+
+                    <h3>1. A muralha da curva de aprendizado</h3>
+                    <p>O borrow checker é necessário para as garantias do Rust, mas torna os primeiros meses
+                        frustrantes. A maioria demora 3-6 meses para se tornar produtivo. Para times que precisam de
+                        onboarding rápido, é risco alto.</p>
+                    <p>Artcode tem a <strong>mesma intenção de segurança</strong>, mas com escada de acesso. Você não
+                        precisa entender lifetimes para escrever o primeiro sistema concorrente seguro.</p>
+
+                    <h3>2. Integração, não competição</h3>
+                    <p>Nossa estratégia mais inteligente: <strong>FFI zero-cost com Rust</strong>. Ambas usam LLVM.
+                        Tipos compartilhados sem serialização. Use Rust para core libs; Artcode para lógica de
+                        aplicação. Você ganha <code>crates.io</code> de graça.</p>
+
+                    <h3>3. Iteração instantânea</h3>
+                    <p>Rust não tem modo JIT. Cada iteração exige <code>cargo build</code>. Artcode oferece execução JIT
+                        instantânea em dev (<code>art run</code>), o custo do AOT só vem quando você quer produção.</p>
+
+                    <div class="advantage">
+                        <strong>Vantagem Artcode:</strong> Artcode não compete com Rust — se integra a ele. Use Rust
+                        para as suas bibliotecas de core. Use Artcode para a camada de produto. Zero overhead na
+                        fronteira.
+                    </div>
+
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Critério</th>
+                                <th>Rust</th>
+                                <th>Artcode</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Segurança de memória</td>
+                                <td><span class="check">✅</span> Compile-time</td>
+                                <td><span class="check">✅</span> ARC + escada</td>
+                            </tr>
+                            <tr>
+                                <td>Curva de aprendizado</td>
+                                <td><span class="cross">❌</span> Muito íngreme</td>
+                                <td><span class="check">✅</span> Progressiva</td>
+                            </tr>
+                            <tr>
+                                <td>Iteração em dev</td>
+                                <td><span class="warn">⚠️</span> Compilação completa</td>
+                                <td><span class="check">✅</span> JIT instantâneo</td>
+                            </tr>
+                            <tr>
+                                <td>Interoperabilidade</td>
+                                <td>Base</td>
+                                <td><span class="check">✅</span> FFI zero-cost</td>
+                            </tr>
+                            <tr>
+                                <td>Produtividade inicial</td>
+                                <td><span class="warn">⚠️</span> Alta fricção</td>
+                                <td><span class="check">✅</span> Inferência total</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 40px 0;">
+
+            <!-- vs Python -->
+            <section class="vs-section fade-in" id="vs-python">
+                <div class="vs-section__header">
+                    <span class="vs-section__icon">🐍</span>
+                    <div>
+                        <h2>Artcode vs. Python</h2>
+                        <p class="subtitle" style="margin:0;">Segurança não é opcional</p>
+                    </div>
+                </div>
+                <div class="vs-section__content">
+                    <p><strong>Onde Python acerta:</strong> Fácil de ler, ecossistema vasto, prototipagem extremamente
+                        rápida. Para ciência de dados e automação, é a ferramenta certa.</p>
+
+                    <h3>1. O bug invisível mais caro: None</h3>
+                    <p>Em Python, qualquer variável pode ser <code>None</code>. Bugs silenciosos que explodem em
+                        produção. Refactoring é aterrorizante porque nenhum tipo é garantido.</p>
+                    <p>Em Artcode, <code>null</code> não existe. A ausência de valor é um tipo explícito
+                        (<code>Optional&lt;T&gt;</code>) que o compilador obriga tratar.</p>
+
+                    <div class="code-block" style="max-width:100%;">
+                        <div class="code-block__header">
+                            <span class="code-block__dot code-block__dot--red"></span>
+                            <span class="code-block__dot code-block__dot--yellow"></span>
+                            <span class="code-block__dot code-block__dot--green"></span>
+                            <span class="code-block__title">null_safety.art</span>
+                        </div>
+                        <pre><span class="kw">func</span> <span class="fn">buscar</span>(<span class="var">id</span>: <span class="type">Int</span>) <span class="op">-></span> <span class="type">Optional</span><span class="op">&lt;</span><span class="type">User</span><span class="op">&gt;</span> {
+    <span class="kw">if</span> <span class="var">id</span> <span class="op">&lt;=</span> <span class="num">0</span> { <span class="kw">return</span> <span class="op">.</span><span class="type">None</span> }
+    <span class="kw">return</span> <span class="op">.</span><span class="type">Some</span>(<span class="var">db</span>.<span class="fn">find</span>(<span class="var">id</span>))
+}
+
+<span class="kw">match</span> <span class="fn">buscar</span>(<span class="num">42</span>) {
+    <span class="kw">case</span> <span class="op">.</span><span class="type">Some</span>(<span class="kw">let</span> <span class="var">u</span>): <span class="fn">exibir</span>(<span class="var">u</span>)
+    <span class="kw">case</span> <span class="op">.</span><span class="type">None</span>:        <span class="fn">erro</span>(<span class="str">"Não encontrado"</span>)
+    <span class="cm">// Compilador não deixa esquecer .None</span>
+}</pre>
+                    </div>
+
+                    <h3>2. Performance que escala</h3>
+                    <p>Python é lento por design (GIL, duck typing). Precisa de extensões em C (NumPy). Artcode executa
+                        nativamente com AOT LLVM quando necessário, sem depender de FFI.</p>
+
+                    <div class="advantage">
+                        <strong>Vantagem Artcode:</strong> Mesma produtividade inicial do Python, mas com tipos
+                        verificáveis, null safety completo e performance nativa. Sem surpresas em produção.
+                    </div>
+
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Critério</th>
+                                <th>Python</th>
+                                <th>Artcode</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Produtividade inicial</td>
+                                <td><span class="check">✅</span> Muito alta</td>
+                                <td><span class="check">✅</span> Equivalente</td>
+                            </tr>
+                            <tr>
+                                <td>Null safety</td>
+                                <td><span class="cross">❌</span> None em todo lugar</td>
+                                <td><span class="check">✅</span> Optional&lt;T&gt;</td>
+                            </tr>
+                            <tr>
+                                <td>Performance</td>
+                                <td><span class="cross">❌</span> Lento</td>
+                                <td><span class="check">✅</span> JIT + AOT LLVM</td>
+                            </tr>
+                            <tr>
+                                <td>Segurança de tipos</td>
+                                <td><span class="cross">❌</span> Hints opcionais</td>
+                                <td><span class="check">✅</span> Forte e verificável</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 40px 0;">
+
+            <!-- vs JS/TS -->
+            <section class="vs-section fade-in" id="vs-js">
+                <div class="vs-section__header">
+                    <span class="vs-section__icon">🌐</span>
+                    <div>
+                        <h2>Artcode vs. JavaScript / TypeScript</h2>
+                        <p class="subtitle" style="margin:0;">Tipos reais, concorrência real</p>
+                    </div>
+                </div>
+                <div class="vs-section__content">
+                    <p>TypeScript melhorou imensamente o JS com tipos, mas eles são <strong>apagados em
+                            runtime</strong>. Você pode ter código perfeitamente tipado que explode com erros de tipo em
+                        produção.</p>
+                    <p>O modelo de concorrência do JS (event loop + Promises) não previne data races em ambientes
+                        multi-worker. O Modelo de Atores da Artcode isola estado por construção.</p>
+                    <p>Aplicações Node.js precisam distribuir o runtime. Artcode compila para binários nativos
+                        minúsculos — ideais para CLIs, daemons e sistemas embarcados.</p>
+
+                    <div class="advantage">
+                        <strong>Vantagem Artcode:</strong> Tipos que existem de verdade, concorrência que não pode ter
+                        data races, e binários que cabem em qualquer lugar.
+                    </div>
+                </div>
+            </section>
+
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 40px 0;">
+
+            <!-- Trade-offs honestos -->
+            <section class="section--sm fade-in" id="tradeoffs">
+                <div style="text-align:center; margin-bottom: 40px;">
+                    <p class="label">Honestidade</p>
+                    <h2>Trade-offs da v0.1.0</h2>
+                    <p class="subtitle" style="margin: 12px auto 0;">Nenhum documento de marketing sério omite
+                        limitações reais.</p>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px,1fr)); gap: 16px;">
+                    <div class="tradeoff-card">
+                        <h4>⏳ Ecossistema de Pacotes</h4>
+                        <p>Ainda não temos um registry próprio. Dependemos da FFI com Rust/C para bibliotecas de
+                            terceiros.</p>
+                    </div>
+                    <div class="tradeoff-card">
+                        <h4>⏳ WASM e GPU</h4>
+                        <p>Compilação para WebAssembly e aceleração por GPU estão previstos para v0.2+.</p>
+                    </div>
+                    <div class="tradeoff-card">
+                        <h4>⏳ LSP Avançado</h4>
+                        <p>O servidor de linguagem fornece diagnósticos em tempo real. Autocompletar e refatoração vêm
+                            nas próximas versões.</p>
+                    </div>
+                    <div class="tradeoff-card">
+                        <h4>⏳ Time-Travel Debugging</h4>
+                        <p>Planejado para integração no debugger. Atualmente em design de API.</p>
+                    </div>
+                </div>
+
+                <div style="margin-top: 40px;">
+                    <h3>O que entregamos sólido na v0.1.0</h3>
+                    <ul style="padding-left: 20px; margin-top: 16px;">
+                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Lexer, Parser,
+                            Interpreter e Type Checker completos e testados</li>
+                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Diagnósticos
+                            estruturados com spans e sugestões</li>
+                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Atores, Pattern
+                            Matching, Enums, Closures, f-Strings, ARC, weak/unowned, Arenas</li>
+                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> CLI unificada:
+                            <code>art run</code>, <code>art fmt</code>, <code>art lint</code>, <code>art lsp</code>
+                        </li>
+                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Suíte de testes
+                            com 17+ módulos (golden, integração, unitários)</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- CTA -->
+            <section class="section" style="text-align: center;">
+                <div class="fade-in">
+                    <h2>Pronto para experimentar?</h2>
+                    <p class="subtitle" style="margin: 12px auto 32px;">Instale, escreva <code>art run hello.art</code>,
+                        e descubra que a curva de aprendizado que você temia não existe aqui.</p>
+                    <div class="hero__actions" style="justify-content: center;">
+                        <a href="https://github.com/kitsuneislife/artcode" class="btn btn--primary" target="_blank">⚡
+                            Começar Agora</a>
+                        <a href="docs.html" class="btn btn--ghost">📖 Ler a Documentação</a>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer__links">
+                <a href="https://github.com/kitsuneislife/artcode" target="_blank">GitHub</a>
+                <a href="docs.html">Documentação</a>
+                <a href="examples.html">Exemplos</a>
+                <a href="index.html">Início</a>
+            </div>
+            <p>Artcode v0.1.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
+                    target="_blank">kitsuneislife</a></p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

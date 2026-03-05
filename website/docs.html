@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentação — Artcode</title>
+    <meta name="description"
+        content="Documentação completa da linguagem Artcode: visão geral, memória, concorrência, enums, f-strings, funções, performant e mais.">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Nav -->
+    <nav class="nav">
+        <div class="nav__inner">
+            <a href="index.html" class="nav__logo"><img src="assets/logo_stripped.png" alt="Artcode"
+                    style="height: 28px; width: auto;"></a>
+            <div class="nav__links" id="navLinks">
+                <a href="index.html">Início</a>
+                <a href="why.html">Por que Artcode?</a>
+                <a href="docs.html" class="active">Docs</a>
+                <a href="examples.html">Exemplos</a>
+                <a href="https://github.com/kitsuneislife/artcode" class="nav__cta" target="_blank">GitHub →</a>
+            </div>
+            <button class="nav__mobile-toggle" id="navToggle" aria-label="Menu">☰</button>
+        </div>
+    </nav>
+
+    <main class="section" style="padding-top: 100px;">
+        <div class="container docs-layout">
+
+            <!-- Sidebar -->
+            <aside class="docs-sidebar" id="docsSidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-section__title">Início</div>
+                    <a href="#overview" class="active" data-doc="overview">Visão Geral</a>
+                    <a href="#installation" data-doc="installation">Instalação</a>
+                    <a href="#prelude" data-doc="prelude">Prelude & Stdlib</a>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section__title">Linguagem</div>
+                    <a href="#enums" data-doc="enums">Enums & Pattern Matching</a>
+                    <a href="#functions" data-doc="functions">Funções & Closures</a>
+                    <a href="#fstrings" data-doc="fstrings">f-Strings</a>
+                    <a href="#modules" data-doc="modules">Módulos</a>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section__title">Sistema</div>
+                    <a href="#memory" data-doc="memory">Memória (ARC / Arenas)</a>
+                    <a href="#concurrency" data-doc="concurrency">Concorrência & Atores</a>
+                    <a href="#performant" data-doc="performant">Blocos Performant</a>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section__title">Internos</div>
+                    <a href="#parser-lexer" data-doc="parser-lexer">Lexer & Parser</a>
+                    <a href="#interpreter" data-doc="interpreter">Interpreter (Runtime)</a>
+                    <a href="#ir" data-doc="ir">IR & JIT</a>
+                    <a href="#ffi" data-doc="ffi">FFI (Interop)</a>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section__title">Projeto</div>
+                    <a href="#contributing" data-doc="contributing">Contribuindo</a>
+                    <a href="#roadmap" data-doc="roadmap">Roadmap</a>
+                    <a href="#coverage" data-doc="coverage">Coverage</a>
+                </div>
+            </aside>
+
+            <!-- Content -->
+            <div class="docs-content" id="docsContent">
+
+                <!-- Overview (default visible) -->
+                <article id="overview" class="doc-article active">
+                    <h1>Visão Geral do Artcode</h1>
+                    <p>Artcode é uma linguagem de programação experimental construída em Rust com foco em
+                        <strong>Complexidade Progressiva</strong>: iniciantes têm uma sintaxe simples; especialistas
+                        ganham controle total de memória e concorrência.
+                    </p>
+
+                    <h2>Objetivos</h2>
+                    <ul>
+                        <li>Base modular (lexer, parser, core AST, interpreter, CLI) para evoluir em direção a JIT/AOT
+                        </li>
+                        <li>Result e enums para modelagem de erros sem exceções implícitas</li>
+                        <li>f-strings poderosas sem sacrificar legibilidade</li>
+                        <li>Execução determinística e transparente</li>
+                    </ul>
+
+                    <h2>Fluxo de Execução</h2>
+                    <ol>
+                        <li>Ler fonte (arquivo ou REPL)</li>
+                        <li>Lexer gera tokens — inclui <code>InterpolatedString</code> para f-strings</li>
+                        <li>Parser converte tokens em AST (<code>Program = Vec&lt;Stmt&gt;</code>)</li>
+                        <li>Interpreter percorre statements, avaliando expressões, gerindo ambientes aninhados</li>
+                        <li>Funções criam closures capturando ambiente pai via weak refs (evita ciclos)</li>
+                        <li>Pattern matching resolve variantes de enum e injeta bindings no escopo do case</li>
+                    </ol>
+
+                    <h2>Arquitetura em Camadas</h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header">
+                            <span class="code-block__dot code-block__dot--red"></span>
+                            <span class="code-block__dot code-block__dot--yellow"></span>
+                            <span class="code-block__dot code-block__dot--green"></span>
+                            <span class="code-block__title">architecture</span>
+                        </div>
+                        <pre>cli  --> parser -----> core (AST + tokens + env)
+  \        ^            ^
+   \       |            |
+    \--> lexer ---------/
+          |
+          +---> interpreter (usa AST + registry de tipos)</pre>
+                    </div>
+
+                    <h2>Crates do Workspace</h2>
+                    <ul>
+                        <li><strong>core</strong> — AST, valores, tokens, ambiente léxico, padrões de match</li>
+                        <li><strong>lexer</strong> — Tokenizador com suporte a números, strings e f-strings</li>
+                        <li><strong>parser</strong> — Parser recursivo descendente que constrói a AST</li>
+                        <li><strong>interpreter</strong> — Runtime: execução, escopos, pattern matching, métodos,
+                            métricas</li>
+                        <li><strong>diagnostics</strong> — Sistema centralizado de erros com spans e sugestões</li>
+                        <li><strong>cli</strong> — Interface de linha de comando (run, fmt, lint, lsp)</li>
+                        <li><strong>ir</strong> — Intermediate Representation para futuro JIT/AOT</li>
+                        <li><strong>jit</strong> — Scaffold experimental de compilação LLVM</li>
+                    </ul>
+
+                    <h2>Decisões de Design</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Tema</th>
+                                <th>Decisão</th>
+                                <th>Racional</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Memória</td>
+                                <td>ARC + weak/unowned</td>
+                                <td>Determinismo sem GC; controle progressivo</td>
+                            </tr>
+                            <tr>
+                                <td>Erros</td>
+                                <td>Diagnostics + Result</td>
+                                <td>Sem panics; amigável para IDE/LSP</td>
+                            </tr>
+                            <tr>
+                                <td>f-strings</td>
+                                <td>Parser recursivo + specs</td>
+                                <td>Poder expressivo com reutilização do pipeline</td>
+                            </tr>
+                            <tr>
+                                <td>Pattern Match</td>
+                                <td>Exaustivo com guards</td>
+                                <td>Segurança: sem cases esquecidos</td>
+                            </tr>
+                            <tr>
+                                <td>Métodos</td>
+                                <td>TypeRegistry + auto-binding</td>
+                                <td>Clareza sem blocos impl complexos</td>
+                            </tr>
+                            <tr>
+                                <td>Métricas</td>
+                                <td><code>handled_errors</code>, <code>crash_free%</code>,
+                                    <code>executed_statements</code>
+                                </td>
+                                <td>Observabilidade builtin desde o dia 1</td>
+                            </tr>
+                            <tr>
+                                <td>Enum shorthand</td>
+                                <td>Inferência única por variante (<code>.Ok</code>, <code>.Err</code>)</td>
+                                <td>Ergonomia mantendo determinismo; erro em ambiguidade</td>
+                            </tr>
+                            <tr>
+                                <td>Qualidade</td>
+                                <td>CI (fmt, clippy -D warnings, testes, coverage badge)</td>
+                                <td>Reforça saúde do projeto; scan automático de panics/unwraps</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Estado Atual &amp; Limitações</h2>
+                    <ul>
+                        <li>Parser e lexer não panicam em entradas malformadas — erros viram diagnostics acumulados</li>
+                        <li>Métodos existem mas ainda não há bloco <code>impl</code> agrupador; use
+                            <code>func Tipo.metodo(self) {}</code>
+                        </li>
+                        <li>Sistema de tipos básico: sem generics, sem checagem de campo em parse-time para struct init
+                        </li>
+                        <li>Execução ainda interpretada (sem JIT/AOT) — plano: compilador "Jano" no roadmap v0.2+</li>
+                        <li>REPL básico: sem histórico e sem exibição automática do último valor</li>
+                    </ul>
+
+                    <h2>Scripts de Qualidade</h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">terminal</span></div>
+                        <pre><span class="fn">cargo</span> xtask ci                    <span class="cm"># fmt + clippy + testes + scan de panics + cobertura</span>
+<span class="fn">bash</span> scripts/devcheck.sh           <span class="cm"># atalho rápido de verificação</span>
+<span class="fn">bash</span> scripts/gen_coverage_badge.sh <span class="cm"># gera badge SVG de cobertura atualizado</span>
+<span class="fn">bash</span> scripts/check_ast_docs.sh     <span class="cm"># garante sync de docs quando AST mudar</span></pre>
+                    </div>
+                </article>
+
+                <!-- Installation -->
+                <article id="installation" class="doc-article">
+                    <h1>Instalação</h1>
+                    <h2>Requisitos</h2>
+                    <ul>
+                        <li>Rust stable (toolchain padrão via <a href="https://rustup.rs" target="_blank">rustup</a>)
+                        </li>
+                        <li>Componentes recomendados: <code>rustfmt</code>, <code>clippy</code></li>
+                        <li>Sistema: <code>build-essential</code>, <code>pkg-config</code>, <code>git</code></li>
+                    </ul>
+
+                    <h2>Ubuntu / Debian</h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">terminal</span></div>
+                        <pre><span class="fn">sudo apt</span> update
+<span class="fn">sudo apt</span> install -y build-essential pkg-config curl git
+<span class="fn">curl</span> --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+<span class="fn">source</span> $HOME/.cargo/env
+<span class="fn">rustup</span> component add rustfmt clippy</pre>
+                    </div>
+
+                    <h2>Arch Linux</h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">terminal</span></div>
+                        <pre><span class="fn">sudo pacman</span> -Syu --noconfirm base-devel pkgconf curl git python
+<span class="fn">sudo pacman</span> -S --noconfirm rustup
+<span class="fn">rustup</span> default stable
+<span class="fn">rustup</span> component add rustfmt clippy</pre>
+                    </div>
+
+                    <h2>Windows</h2>
+                    <p>Recomendamos usar <strong>WSL2 (Ubuntu)</strong> e seguir os passos de Ubuntu. Para instalação
+                        nativa, use <a href="https://rustup.rs" target="_blank">rustup</a> e instale o Build Tools for
+                        Visual Studio.</p>
+
+                    <h2>Build & Testes</h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">terminal</span></div>
+                        <pre><span class="fn">git</span> clone https://github.com/kitsuneislife/artcode
+<span class="fn">cd</span> artcode
+<span class="fn">cargo</span> test --all
+<span class="fn">cargo</span> run --bin art -- run examples/00_hello.art</pre>
+                    </div>
+                </article>
+
+                <!-- Prelude -->
+                <article id="prelude" class="doc-article">
+                    <h1>Prelude &amp; Standard Library</h1>
+                    <p>O Artcode carrega automaticamente um prelude com funções e tipos essenciais disponíveis em todo
+                        programa, sem necessidade de imports.</p>
+
+                    <h2>Funções Builtin</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Função</th>
+                                <th>Assinatura</th>
+                                <th>Comportamento</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>println</code></td>
+                                <td><code>println(value: Any) -&gt; None</code></td>
+                                <td>Imprime com newline via <code>Display</code>. Retorna <code>None</code>. Sem panic.
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>print</code></td>
+                                <td><code>print(value: Any) -&gt; None</code></td>
+                                <td>Imprime sem newline.</td>
+                            </tr>
+                            <tr>
+                                <td><code>len</code></td>
+                                <td><code>len(Array|String) -&gt; Int</code></td>
+                                <td>Diagnostic <code>len: unsupported type</code> se tipo inválido.</td>
+                            </tr>
+                            <tr>
+                                <td><code>type_of</code></td>
+                                <td><code>type_of(Any) -&gt; String</code></td>
+                                <td>Nome do tipo dinâmico. Útil para debug e REPL.</td>
+                            </tr>
+                            <tr>
+                                <td><code>input</code></td>
+                                <td><code>input(prompt: String) -&gt; String</code></td>
+                                <td>Lê linha do stdin após exibir prompt.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Enum Result (prelude automático)</h2>
+                    <p>Registrado via <code>Interpreter::with_prelude()</code>. Inferência shorthand:
+                        <code>.Ok(v)</code>
+                        busca o enum único contendo <code>Ok</code>. Emite diagnostic se 0 ou &gt;1 enum têm essa
+                        variante.
+                    </p>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">prelude.art</span></div>
+                        <pre><span class="kw">func</span> <span class="fn">dividir</span>(a: <span class="type">Int</span>, b: <span class="type">Int</span>) -&gt; <span class="type">Result</span> {
+    <span class="kw">if</span> b == <span class="num">0</span> { <span class="kw">return</span> .Err(<span class="str">"zero"</span>) }
+    <span class="kw">return</span> .Ok(a / b)
+}
+<span class="kw">let</span> r = <span class="fn">dividir</span>(<span class="num">10</span>, <span class="num">2</span>);
+<span class="kw">match</span> r {
+    <span class="kw">case</span> .Ok(v):  <span class="fn">println</span>(f<span class="str">"valor={v}"</span>)
+    <span class="kw">case</span> .Err(e): <span class="fn">println</span>(f<span class="str">"erro={e}"</span>)
+}</pre>
+                    </div>
+
+                    <h2>Standard Library</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Módulo</th>
+                                <th>Builtins principais</th>
+                                <th>Notas</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Collections</strong></td>
+                                <td><code>map_new</code>, <code>map_set</code>, <code>map_get</code>,
+                                    <code>set_new</code>, <code>set_add</code>
+                                </td>
+                                <td><code>len(m)</code> funciona em Map e Set</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Math</strong></td>
+                                <td><code>math_abs</code>, <code>math_pow</code>, <code>math_clamp</code>,
+                                    <code>math_sqrt</code>
+                                </td>
+                                <td>Funções numéricas sem panic</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Time</strong></td>
+                                <td><code>time_now() -&gt; Int</code> (ms)</td>
+                                <td>Timestamp em ms para benchmarks embutidos</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Rand</strong></td>
+                                <td><code>rand_next(max: Int) -&gt; Int</code></td>
+                                <td>Número inteiro pseudo-aleatório</td>
+                            </tr>
+                            <tr>
+                                <td><strong>File IO</strong></td>
+                                <td><code>io_write_text(path, data)</code>, <code>io_read_text(path)</code></td>
+                                <td>Sandboxed; apenas caminhos relativos</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Boas Práticas</h2>
+                    <ul>
+                        <li>Prefira pattern matching em vez de "desembrulhar" diretamente</li>
+                        <li>Evite variantes polimórficas excessivas; mantenha semântica clara</li>
+                        <li>Use <code>type_of()</code> no REPL para inspecionar valores inesperados</li>
+                    </ul>
+                </article>
+
+                <!-- Enums -->
+                <article id="enums" class="doc-article">
+                    <h1>Enums & Pattern Matching</h1>
+                    <p>Enums em Artcode suportam variantes com payloads e são o mecanismo central de modelagem de dados
+                        junto com o pattern matching exaustivo.</p>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">enums.art</span></div>
+                        <pre><span class="kw">enum</span> <span class="type">Shape</span> {
+    <span class="type">Circle</span>(<span class="type">Float</span>),
+    <span class="type">Rect</span>(<span class="type">Float</span>, <span class="type">Float</span>),
+    <span class="type">Point</span>
+}
+
+<span class="kw">func</span> <span class="fn">area</span>(<span class="var">s</span>: <span class="type">Shape</span>) <span class="op">-></span> <span class="type">Float</span> {
+    <span class="kw">match</span> <span class="var">s</span> {
+        <span class="kw">case</span> <span class="op">.</span><span class="type">Circle</span>(<span class="kw">let</span> <span class="var">r</span>):       <span class="num">3.14</span> <span class="op">*</span> <span class="var">r</span> <span class="op">*</span> <span class="var">r</span>
+        <span class="kw">case</span> <span class="op">.</span><span class="type">Rect</span>(<span class="kw">let</span> <span class="var">w</span>, <span class="kw">let</span> <span class="var">h</span>): <span class="var">w</span> <span class="op">*</span> <span class="var">h</span>
+        <span class="kw">case</span> <span class="op">.</span><span class="type">Point</span>:             <span class="num">0.0</span>
+    }
+}</pre>
+                    </div>
+                    <h2>Guards</h2>
+                    <p>Cases podem ter condições adicionais com <code>if</code>:</p>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">guards.art</span></div>
+                        <pre><span class="kw">match</span> <span class="var">valor</span> {
+    <span class="kw">case</span> <span class="op">.</span><span class="type">Ok</span>(<span class="kw">let</span> <span class="var">v</span>) <span class="kw">if</span> <span class="var">v</span> <span class="op">></span> <span class="num">100</span>: <span class="fn">println</span>(<span class="str">"Grande!"</span>)
+    <span class="kw">case</span> <span class="op">.</span><span class="type">Ok</span>(<span class="kw">let</span> <span class="var">v</span>):               <span class="fn">println</span>(<span class="str">f"Normal: </span><span class="op">{</span><span class="var">v</span><span class="op">}</span><span class="str">"</span>)
+    <span class="kw">case</span> <span class="op">.</span><span class="type">Err</span>(<span class="kw">let</span> <span class="var">e</span>):              <span class="fn">println</span>(<span class="str">f"Erro: </span><span class="op">{</span><span class="var">e</span><span class="op">}</span><span class="str">"</span>)
+}</pre>
+                    </div>
+                    <h2>Shorthand Inference</h2>
+                    <p>Quando o tipo esperado é inequívoco, use <code>.Variant</code> sem prefixar o nome do enum. O
+                        compilador detecta ambiguidades automaticamente (<code>.Ok</code> vs <code>Result.Ok</code>).
+                        Erro de ambiguidade se mais de um enum registrado tiver a mesma variante.</p>
+
+                    <h2>Implementação Interna</h2>
+                    <p>Enums são representados como <code>ArtValue::EnumInstance { enum_name, variant, values }</code>.
+                        Dentro de métodos de enum, os identificadores <code>variant</code> (String) e
+                        <code>values</code> (Array dos payloads) são injetados automaticamente para introspecção.
+                    </p>
+
+                    <h2>Erros Comuns</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Cenário</th>
+                                <th>Diagnóstico</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Variante inválida</td>
+                                <td>Variante não existe no enum registrado</td>
+                            </tr>
+                            <tr>
+                                <td>Aridade incorreta</td>
+                                <td>Chamando variante com número errado de argumentos</td>
+                            </tr>
+                            <tr>
+                                <td>Ambiguidade shorthand</td>
+                                <td>Mais de um enum contém a variante — use forma qualificada</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Roadmap</h2>
+                    <ul>
+                        <li>Variantes nomeadas com campos — <code>Resultado.Sucesso{ valor: 10 }</code></li>
+                        <li>Guard clauses em padrões — <code>case .Ok(v) if v &gt; 0:</code> (implementado)</li>
+                        <li>Derivações automáticas (Display, Debug) via macro futura</li>
+                    </ul>
+                </article>
+
+                <!-- Functions -->
+                <article id="functions" class="doc-article">
+                    <h1>Funções & Closures</h1>
+                    <p>Funções são cidadãs de primeira classe em Artcode. Closures capturam o ambiente léxico
+                        automaticamente.</p>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">closures.art</span></div>
+                        <pre><span class="kw">func</span> <span class="fn">make_counter</span>() {
+    <span class="kw">var</span> <span class="var">count</span> <span class="op">=</span> <span class="num">0</span>
+    <span class="kw">return</span> <span class="kw">fn</span>() {
+        <span class="var">count</span> <span class="op">=</span> <span class="var">count</span> <span class="op">+</span> <span class="num">1</span>
+        <span class="kw">return</span> <span class="var">count</span>
+    }
+}
+
+<span class="kw">let</span> <span class="var">next</span> <span class="op">=</span> <span class="fn">make_counter</span>()
+<span class="fn">println</span>(<span class="fn">next</span>()) <span class="cm">// 1</span>
+<span class="fn">println</span>(<span class="fn">next</span>()) <span class="cm">// 2</span></pre>
+                    </div>
+                    <h2>Métodos</h2>
+                    <p>Métodos são definidos em structs e enums com auto-binding de <code>self</code>:</p>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">methods.art</span></div>
+                        <pre><span class="kw">struct</span> <span class="type">Vec2</span> { <span class="var">x</span>: <span class="type">Float</span>, <span class="var">y</span>: <span class="type">Float</span> }
+
+<span class="kw">func</span> <span class="type">Vec2</span>.<span class="fn">length</span>(<span class="var">self</span>) -&gt; <span class="type">Float</span> {
+    <span class="kw">return</span> (<span class="var">self</span>.<span class="var">x</span> * <span class="var">self</span>.<span class="var">x</span> + <span class="var">self</span>.<span class="var">y</span> * <span class="var">self</span>.<span class="var">y</span>)
+}</pre>
+                    </div>
+
+                    <h2>Regras de Métodos</h2>
+                    <ul>
+                        <li>Primeiro parâmetro <strong>exatamente</strong> <code>self</code> é removido da lista pública
+                            e ligado implicitamente</li>
+                        <li>Métodos são registrados por tipo em <code>TypeRegistry</code> no momento da definição</li>
+                        <li>Chamada: <code>inst.metodo(args)</code> → FieldAccess produz BoundFunction com
+                            <code>self</code> predefinido</li>
+                        <li>Introspecção em enums: <code>variant</code> (String) e <code>values</code> (Array) são
+                            injetados no corpo</li>
+                    </ul>
+
+                    <h2>Limitações Atuais</h2>
+                    <ul>
+                        <li>Sem bloco <code>impl {}</code> agrupador (planejado)</li>
+                        <li>Sem sobrecarga: resolução por nome simples</li>
+                        <li>Checagens de campo de struct acontecem em runtime</li>
+                    </ul>
+
+                    <h2>Roadmap</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Auto-binding <code>self</code></td>
+                                <td>✅ Implementado</td>
+                            </tr>
+                            <tr>
+                                <td>Bloco <code>impl Tipo { }</code></td>
+                                <td>📅 Planejado</td>
+                            </tr>
+                            <tr>
+                                <td>Inline caching de chamadas quentes</td>
+                                <td>📅 Planejado</td>
+                            </tr>
+                            <tr>
+                                <td>Tail-call optimization (modo AOT)</td>
+                                <td>📅 Futuro</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </article>
+
+                <!-- f-Strings -->
+                <article id="fstrings" class="doc-article">
+                    <h1>f-Strings & Format Specs</h1>
+                    <p>Artcode suporta interpolação de strings com expressões arbitrárias e format specs integrados.</p>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">fstrings.art</span></div>
+                        <pre><span class="kw">let</span> <span class="var">nome</span> <span class="op">=</span> <span class="str">"artcode"</span>
+<span class="kw">let</span> <span class="var">ver</span> <span class="op">=</span> <span class="num">0.1</span>
+
+<span class="fn">println</span>(<span class="str">f"</span><span class="op">{</span><span class="var">nome</span><span class="op">:</span><span class="var">upper</span><span class="op">}</span><span class="str"> v</span><span class="op">{</span><span class="var">ver</span><span class="op">}</span><span class="str">"</span>)  <span class="cm">// "ARTCODE v0.1"</span>
+<span class="fn">println</span>(<span class="str">f"</span><span class="op">{</span><span class="num">255</span><span class="op">:</span><span class="var">hex</span><span class="op">}</span><span class="str">"</span>)             <span class="cm">// "ff"</span>
+<span class="fn">println</span>(<span class="str">f"</span><span class="op">{</span><span class="str">"hi"</span><span class="op">:</span><span class="var">pad10</span><span class="op">}</span><span class="str">"</span>)          <span class="cm">// "hi        "</span></pre>
+                    </div>
+                    <h2>Specs Disponíveis</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Spec</th>
+                                <th>Efeito</th>
+                                <th>Exemplo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>upper</code></td>
+                                <td>Converte para maiúsculas</td>
+                                <td><code>{s:upper}</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>lower</code></td>
+                                <td>Converte para minúsculas</td>
+                                <td><code>{s:lower}</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>trim</code></td>
+                                <td>Remove espaços em volta</td>
+                                <td><code>{s:trim}</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>hex</code></td>
+                                <td>Inteiro em hexadecimal</td>
+                                <td><code>{255:hex}</code> → <code>ff</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>padN</code></td>
+                                <td>Padding à direita até N chars</td>
+                                <td><code>{s:pad10}</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>debug</code></td>
+                                <td>Representação de debug</td>
+                                <td><code>{val:debug}</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Escapes</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Sequência</th>
+                                <th>Resultado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>{{</code></td>
+                                <td><code>{</code> literal</td>
+                            </tr>
+                            <tr>
+                                <td><code>}}</code></td>
+                                <td><code>}</code> literal</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Pipeline de Implementação</h2>
+                    <ol>
+                        <li>Lexer emite <code>InterpolatedString</code> com conteúdo bruto sem aspas</li>
+                        <li>Parser divide em partes (<code>Literal</code>, <code>Expr</code>, <code>Expr+Spec</code>)
+                            via scanner manual de profundidade de <code>{}</code></li>
+                        <li>Cada sub-expressão é re-lexada e re-parseada reutilizando o pipeline completo</li>
+                        <li>Interpreter avalia cada sub-expressão, converte via <code>Display</code> e aplica spec</li>
+                    </ol>
+
+                    <h2>Limitações Atuais</h2>
+                    <ul>
+                        <li>Erros dentro de sub-expressões ainda não produzem spans precisos</li>
+                        <li>Specs desconhecidas são ignoradas silenciosamente</li>
+                        <li>Specs avançadas (alinhamento, precisão numérica) não suportadas ainda</li>
+                    </ul>
+                </article>
+
+                <!-- Modules -->
+                <article id="modules" class="doc-article">
+                    <h1>Sistema de Módulos</h1>
+                    <p>Artcode suporta módulos e packages para organizar código em projetos maiores.
+                        Packages são definidos com um <code>Art.toml</code> na raiz do diretório, com
+                        <code>main.art</code> como ponto de entrada e <code>lib.art</code> opcional.
+                    </p>
+
+                    <h2>Estrutura de um Pacote</h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">estrutura</span></div>
+                        <pre>meu_projeto/
+├── Art.toml
+├── main.art
+└── lib.art</pre>
+                    </div>
+
+                    <h2>Manifesto <code>Art.toml</code></h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">Art.toml</span></div>
+                        <pre>name = "my-lib"
+version = "0.1.0"
+dependencies = { other = { path = "../other" } }</pre>
+                    </div>
+
+                    <h2>Resolução de Imports</h2>
+                    <p>A ordem de resolução do MVP é:</p>
+                    <ol>
+                        <li><strong>Imports relativos</strong> — <code>import ./util</code> ou
+                            <code>import utils.foo</code> resolve para <code>utils/foo.art</code> ou
+                            <code>utils/foo/mod.art</code></li>
+                        <li><strong>Cache global</strong> — imports não-relativos buscam em
+                            <code>~/.artcode/cache/</code></li>
+                        <li><strong>Tentativas de arquivo</strong> — tenta <code>X</code>, <code>X.art</code>,
+                            <code>X/mod.art</code> nessa ordem</li>
+                    </ol>
+
+                    <h2>CLI <code>art add</code></h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">terminal</span></div>
+                        <pre><span class="fn">art</span> add ./minha-lib       <span class="cm"># copia direto se tem Art.toml</span>
+<span class="fn">art</span> add github.com/user/repo  <span class="cm"># futura resolução via rede</span></pre>
+                    </div>
+                    <p>O <code>art add &lt;path-or-git&gt;</code> copia o diretório para
+                        <code>~/.artcode/cache/&lt;name&gt;-&lt;version&gt;</code>
+                        se o <code>Art.toml</code> existir. Caso contrário usa o nome do diretório.</p>
+
+                    <h2>Segurança &amp; Limitações (MVP)</h2>
+                    <ul>
+                        <li>MVP resolve apenas arquivos locais — resolução de rede/git é opcional futura</li>
+                        <li>Sem versioning semântico ainda; a versão do <code>Art.toml</code> é informativa</li>
+                        <li>Sem namespace isolation entre módulos (planejado com blocos <code>impl</code> futuros)</li>
+                    </ul>
+                </article>
+
+                <!-- Memory -->
+                <article id="memory" class="doc-article">
+                    <h1>Modelo de Memória</h1>
+                    <p>Artcode não usa Garbage Collector. A memória é gerenciada através de uma <strong>escada de 3
+                            degraus</strong>:</p>
+
+                    <h2>Degrau 1: ARC (padrão)</h2>
+                    <p>Contagem automática de referências. Objetos são liberados deterministicamente quando a última
+                        referência some. Zero pausas, zero surpresas.</p>
+
+                    <h2>Degrau 2: weak / unowned</h2>
+                    <p>Para quebrar ciclos de referência em grafos complexos (delegações, estruturas pai-filho):</p>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">weak.art</span></div>
+                        <pre><span class="kw">let</span> <span class="var">weakRef</span> <span class="op">=</span> <span class="kw">weak</span> <span class="var">alvo</span>    <span class="cm">// Não mantém vivo</span>
+<span class="kw">let</span> <span class="var">val</span> <span class="op">=</span> <span class="var">weakRef</span><span class="op">?</span>           <span class="cm">// Upgrade: Some ou None</span>
+
+<span class="kw">let</span> <span class="var">fastRef</span> <span class="op">=</span> <span class="kw">unowned</span> <span class="var">alvo</span>  <span class="cm">// Assume sempre válido</span>
+<span class="kw">let</span> <span class="var">val</span> <span class="op">=</span> <span class="var">fastRef</span><span class="op">!</span>           <span class="cm">// Acesso direto (mais rápido)</span></pre>
+                    </div>
+                    <p>Detector de ciclos: <code>art test --detect-cycles</code> identifica vazamentos sem impactar
+                        produção.</p>
+
+                    <h2>Degrau 3: Arenas (performant)</h2>
+                    <p>Dentro de blocos <code>performant {}</code>, alocações de curta duração são liberadas
+                        atomicamente:</p>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">arena.art</span></div>
+                        <pre><span class="kw">performant</span> {
+    <span class="kw">arena</span> (<span class="num">1</span> <span class="op">*</span> <span class="num">1024</span> <span class="op">*</span> <span class="num">1024</span>) <span class="kw">as</span> <span class="var">frame</span> {
+        <span class="kw">var</span> <span class="var">p</span> <span class="op">=</span> <span class="var">frame</span>.<span class="fn">alloc</span>(<span class="type">Entity</span> { <span class="var">id</span>: <span class="num">1</span> })
+        <span class="cm">// Processamento intensivo...</span>
+    } <span class="cm">// Tudo liberado de uma vez</span>
+}</pre>
+                    </div>
+
+                    <h2>Métricas de Runtime</h2>
+                    <p>O runtime expõe contadores via <code>art metrics --json</code>:</p>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Métrica</th>
+                                <th>Descrição</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>weak_created</code> / <code>weak_dangling</code></td>
+                                <td>Weak refs criadas e que perderam o dono</td>
+                            </tr>
+                            <tr>
+                                <td><code>unowned_created</code> / <code>unowned_dangling</code></td>
+                                <td>Unowned refs e dangling detectadas</td>
+                            </tr>
+                            <tr>
+                                <td><code>objects_finalized</code></td>
+                                <td>Objetos que tiveram finalizers executados</td>
+                            </tr>
+                            <tr>
+                                <td><code>arena_alloc_count</code></td>
+                                <td>Alocações por arena (chave: arena_id)</td>
+                            </tr>
+                            <tr>
+                                <td><code>finalizer_promotions_per_arena</code></td>
+                                <td>Finalizers que promoveram handles ao heap global</td>
+                            </tr>
+                            <tr>
+                                <td><code>cycle_reports_run</code></td>
+                                <td>Execuções do detector de ciclos em modo debug</td>
+                            </tr>
+                            <tr>
+                                <td><code>crash_free%</code></td>
+                                <td>Proporção de statements sem crash</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Política de Finalização</h2>
+                    <ol>
+                        <li><strong>Execução dos finalizers</strong>: quando <code>strong</code> chega a 0, o objeto é
+                            marcado <code>alive=false</code> e os finalizers são executados em frame filho temporário
+                        </li>
+                        <li><strong>Sweep</strong>: após os finalizers, o runtime remove objetos
+                            <code>alive==false &amp;&amp; weak==0</code>. Objetos com <code>weak&gt;0</code> permanecem
+                            até as weak refs serem liberadas</li>
+                    </ol>
+                    <p>Detecte ciclos em modo debug: <code>art test --detect-cycles</code> usa o algoritmo Tarjan SCC
+                        sobre o grafo de objetos vivos e classifica candidatos a leak.</p>
+
+                    <h2>Boas Práticas</h2>
+                    <ul>
+                        <li>Use <code>weak</code> para referências pai→filho em estruturas de delegação</li>
+                        <li>Monitore <code>finalizer_promotions_per_arena</code> — valores altos indicam que temporários
+                            estão escapando para o heap global</li>
+                        <li>Prefira <code>unowned</code> somente quando tiver certeza que o dono sobreviverá ao uso</li>
+                    </ul>
+                </article>
+
+                <!-- Concurrency -->
+                <article id="concurrency" class="doc-article">
+                    <h1>Concorrência & Atores</h1>
+                    <p>Artcode usa um <strong>modelo híbrido de concorrência</strong>: Atores para segurança por
+                        construção, e primitivas de baixo nível quando precisar.</p>
+
+                    <h2>Alto Nível: Modelo de Atores</h2>
+                    <p>Cada ator encapsula seu estado e se comunica por mensagens assíncronas — eliminando data races
+                        por design.</p>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">actors.art</span></div>
+                        <pre><span class="kw">let</span> <span class="var">worker</span> <span class="op">=</span> <span class="fn">spawn</span>(<span class="var">process_fn</span>)
+<span class="fn">actor_send</span>(<span class="var">worker</span>, <span class="fn">make_envelope</span>(<span class="str">"task"</span>, <span class="var">data</span>))
+
+<span class="cm">// Estado isolado. Sem mutexes. Sem data races.</span></pre>
+                    </div>
+
+                    <h2>Baixo Nível: Atomic &amp; Mutex</h2>
+                    <p>Protótipo de primitivas de baixo nível disponíveis globalmente. A semântica multithreaded formal
+                        ainda está sendo definida — atualmente são single-threaded com semântica cooperativa.</p>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">atomic.art</span></div>
+                        <pre><span class="kw">let</span> a = <span class="fn">atomic_new</span>(<span class="num">0</span>);
+<span class="kw">let</span> old = <span class="fn">atomic_add</span>(a, <span class="num">1</span>);
+<span class="fn">println</span>(<span class="fn">atomic_load</span>(a));  <span class="cm">// 1</span>
+
+<span class="kw">let</span> m = <span class="fn">mutex_new</span>([<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>]);
+<span class="fn">mutex_lock</span>(m);
+<span class="cm">// acesso seguro enquanto "possuímos" o lock</span>
+<span class="fn">mutex_unlock</span>(m);</pre>
+                    </div>
+
+                    <h2>Backpressure em Mailboxes</h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">backpressure.art</span></div>
+                        <pre><span class="kw">let</span> a = <span class="kw">spawn actor</span> { <span class="cm">/* ... */</span> };
+<span class="fn">actor_set_mailbox_limit</span>(a, <span class="num">1</span>);
+<span class="kw">let</span> ok1 = <span class="fn">actor_send</span>(a, <span class="num">1</span>);  <span class="cm">// true</span>
+<span class="kw">let</span> ok2 = <span class="fn">actor_send</span>(a, <span class="num">2</span>);  <span class="cm">// false — mailbox cheia, diagnostic emitido</span></pre>
+                    </div>
+
+                    <h2>Análise de Send-Safety</h2>
+                    <p>Em chamadas <code>actor_send</code>, <code>make_envelope</code> e <code>spawn actor {}</code>,
+                        o compilador faz uma análise conservadora: expressões simples (números, strings, variáveis
+                        primitivas locais, handles <code>Atomic</code>/<code>Mutex</code>) são seguras.
+                        Arrays/structs com handles heap ou closures geram diagnostic informativo.</p>
+                </article>
+
+                <!-- Performant -->
+                <article id="performant" class="doc-article">
+                    <h1>Blocos Performant</h1>
+                    <p>Blocos <code>performant {}</code> são zonas de código onde você opta explicitamente por controle
+                        manual de memória e concorrência de baixo nível em troca de performance máxima.</p>
+                    <h2>O que muda dentro de performant</h2>
+                    <ul>
+                        <li>Acesso a Arenas de memória para alocações de curta duração</li>
+                        <li>Primitivas de concorrência de baixo nível (<code>Atomic</code>, <code>Mutex</code>)</li>
+                        <li>Análise estática mais rigorosa (escape analysis, lifetime checks)</li>
+                        <li>Tipagem explícita obrigatória (modo strict implícito)</li>
+                    </ul>
+                    <p>Fora de blocos performant, o código permanece seguro por construção usando ARC e Atores.</p>
+
+                    <h2>Diagnósticos Comuns</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Mensagem</th>
+                                <th>Causa</th>
+                                <th>Correção</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Variable initialized with composite value inside <code>performant</code></td>
+                                <td>Inicializador cria array/struct/call — objetos compostos não podem escapar</td>
+                                <td>Mova a construção para fora do bloco, ou prefixe o binding com <code>_</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>return</code> not allowed inside <code>performant</code></td>
+                                <td>Retorno exporia referência de arena para o escopo externo</td>
+                                <td>Reestruture para retornar antes do <code>performant</code></td>
+                            </tr>
+                            <tr>
+                                <td>Assignment to outer-scope variable inside <code>performant</code></td>
+                                <td>Atribuição a variável do escopo externo pode promover objeto de arena</td>
+                                <td>Use binding local (<code>_tmp</code>) e realize a atribuição fora do bloco</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Exemplo Válido</h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">performant_ok.art</span></div>
+                        <pre><span class="kw">performant</span> {
+    <span class="kw">let</span> _tmp = <span class="num">42</span>;   <span class="cm">// primitivo: ok</span>
+    <span class="kw">let</span> _arr = [<span class="num">1</span>, <span class="num">2</span>]; <span class="cm">// composto mas prefixado com _ e não escapa</span>
+    <span class="fn">on_finalize</span>(_arr, fn_cleanup);
+} <span class="cm">// arena é finalizada aqui atomicamente</span></pre>
+                    </div>
+                </article>
+
+                <!-- Parser & Lexer -->
+                <article id="parser-lexer" class="doc-article">
+                    <h1>Lexer &amp; Parser</h1>
+                    <p>O pipeline de parsing do Artcode é projetado para <strong>nunca panicar</strong> em entradas
+                        malformadas. Erros são acumulados como diagnostics estruturados com spans precisos.</p>
+
+                    <h2>Pipeline</h2>
+                    <ol>
+                        <li><strong>Lexer</strong> — Tokeniza o source code; inclui <code>InterpolatedString</code> para
+                            f-strings</li>
+                        <li><strong>Parser</strong> — Recursivo descendente, constrói a AST via
+                            <code>parse_precedence</code>. F-strings delegam sub-expressões a um novo pipeline
+                            lexer/parser interno</li>
+                        <li><strong>Diagnostics</strong> — Erros de qualquer fase centralizados com spans; nenhum panic
+                            chega ao usuário</li>
+                    </ol>
+
+                    <h2>Tokens Principais</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Família</th>
+                                <th>Exemplos</th>
+                                <th>Observação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Identificadores / Keywords</td>
+                                <td><code>let</code>, <code>func</code>, <code>match</code></td>
+                                <td>Mapa de keywords decide entre keyword e <code>Identifier</code></td>
+                            </tr>
+                            <tr>
+                                <td>Literais numéricos</td>
+                                <td><code>42</code>, <code>3.14</code></td>
+                                <td>Ponto decimal distingue Int de Float</td>
+                            </tr>
+                            <tr>
+                                <td>Strings</td>
+                                <td><code>"texto"</code></td>
+                                <td>Escapes padrão</td>
+                            </tr>
+                            <tr>
+                                <td>f-strings</td>
+                                <td><code>f"olá {nome:upper}"</code></td>
+                                <td>Prefixo <code>f</code> → token <code>InterpolatedString</code> bruto para re-parse
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Operadores</td>
+                                <td><code>+ - * / == != &lt;= &gt;=</code></td>
+                                <td>Precedência gerida pelo enum <code>Precedence</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>f-strings: Pipeline Interno</h2>
+                    <ol>
+                        <li>Lexer detecta prefixo <code>f"</code> → emite <code>InterpolatedString</code> com conteúdo
+                            bruto</li>
+                        <li>Parser chama <code>parse_interpolated_string</code>: percorre chars com contador de
+                            profundidade de <code>{}</code></li>
+                        <li>Cada segmento <code>{ expr:spec }</code> é re-lexado e re-parseado como expressão Artcode
+                            completa</li>
+                    </ol>
+
+                    <h2>Pattern Matching no Parser</h2>
+                    <p>Statements <code>Match { expr, cases }</code> armazenam pares <code>(MatchPattern, Stmt)</code>.
+                        Padrões suportados: Literal, Wildcard <code>_</code>, Binding <code>let v</code>,
+                        EnumVariant com parâmetros recursivos, e Guards <code>if expr</code>.</p>
+
+                    <h2>Limitações Atuais</h2>
+                    <ul>
+                        <li>Recuperação de erro básica — sem sincronização avançada após erro</li>
+                        <li>Sem suporte a comentários de bloco (<code>/* */</code>)</li>
+                        <li>Tipos nas anotações são strings sem verificação semântica em parse-time</li>
+                    </ul>
+
+                    <h2>Roadmap</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Prioridade</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Erros com localização precisa (spans em f-strings)</td>
+                                <td>Alta</td>
+                            </tr>
+                            <tr>
+                                <td>Árvore de tipos dedicada no parser</td>
+                                <td>Média</td>
+                            </tr>
+                            <tr>
+                                <td>Suporte a macros</td>
+                                <td>Baixa (v0.3+)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </article>
+
+                <!-- Interpreter -->
+                <article id="interpreter" class="doc-article">
+                    <h1>Interpreter (Runtime)</h1>
+                    <p>O interpreter percorre a AST e executa o programa, gerindo escopos aninhados, closures com
+                        captura léxica, pattern matching e métodos bound.</p>
+                    <h2>Características</h2>
+                    <ul>
+                        <li>Execução determinística de statements</li>
+                        <li>Closures com captura de ambiente via weak refs (evita ciclos <code>Env→Fn→Env</code>)</li>
+                        <li>Pattern matching com destructuring e guards</li>
+                        <li>Registry de tipos para métodos em structs e enums (auto-binding de <code>self</code>)</li>
+                        <li>Métricas de runtime: <code>executed_statements</code>, <code>handled_errors</code>,
+                            <code>crash_free%</code></li>
+                    </ul>
+
+                    <h2>Tipos de Valor (<code>ArtValue</code>)</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Descrição</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>Int</code>, <code>Float</code>, <code>Bool</code>, <code>String</code></td>
+                                <td>Primitivos</td>
+                            </tr>
+                            <tr>
+                                <td><code>Optional(None | Some)</code></td>
+                                <td>Valor opcional do prelude</td>
+                            </tr>
+                            <tr>
+                                <td><code>Array</code></td>
+                                <td>Array dinâmico heterogêneo</td>
+                            </tr>
+                            <tr>
+                                <td><code>StructInstance</code></td>
+                                <td>Instância de struct com campos nomeados</td>
+                            </tr>
+                            <tr>
+                                <td><code>EnumInstance</code></td>
+                                <td>Variante de enum com payloads</td>
+                            </tr>
+                            <tr>
+                                <td><code>Function</code></td>
+                                <td>Closure com captura lexical</td>
+                            </tr>
+                            <tr>
+                                <td><code>BoundFunction</code></td>
+                                <td>Função já ligada a <code>self</code> (métodos)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Erros de Execução</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Condição</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>UndefinedVariable</code></td>
+                                <td>Nome não encontrado no chain de ambientes</td>
+                            </tr>
+                            <tr>
+                                <td><code>TypeMismatch</code></td>
+                                <td>Operação inválida para os tipos</td>
+                            </tr>
+                            <tr>
+                                <td><code>DivisionByZero</code></td>
+                                <td>Divisão por zero</td>
+                            </tr>
+                            <tr>
+                                <td><code>WrongNumberOfArguments</code></td>
+                                <td>Aridade incorreta em chamada</td>
+                            </tr>
+                            <tr>
+                                <td><code>InvalidEnumVariant</code></td>
+                                <td>Variante não existe no enum</td>
+                            </tr>
+                            <tr>
+                                <td><code>MissingField</code></td>
+                                <td>Campo ausente na inicialização de struct</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p>Todos os erros convertem-se em <code>Diagnostic</code> — o interpreter não panica em entradas
+                        malformadas (meta: crash-free 99%+).</p>
+
+                    <h2>Otimizações Futuras</h2>
+                    <ul>
+                        <li>Caching de lookup de variáveis</li>
+                        <li>Representação interna especializada para arrays numéricos</li>
+                        <li>JIT tiered: baseline + otimizado com PGO</li>
+                        <li>Inline caching para chamadas de método frequentes</li>
+                    </ul>
+                </article>
+
+                <!-- IR -->
+                <article id="ir" class="doc-article">
+                    <h1>IR &amp; JIT/AOT</h1>
+                    <p>A Intermediate Representation (IR) do Artcode é o passo intermediário entre a AST e o código
+                        de máquina. A IR textual serve para golden tests e inspeção humana.</p>
+
+                    <h2>Estado Atual dos Crates</h2>
+                    <ul>
+                        <li><strong>crates/ir</strong> — Emissão de IR textual estável para golden files e inspeção</li>
+                        <li><strong>crates/jit</strong> — Scaffold experimental com <code>inkwell</code> (bindings LLVM)
+                            e geração de código básica</li>
+                    </ul>
+
+                    <h2>Formato da IR Textual</h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">exemplo.ir</span></div>
+                        <pre>func @add(i64 %a, i64 %b) -&gt; i64 {
+entry:
+  %0 = add i64 %a %b
+  ret %0
+}
+
+func @fact(i64 %n) -&gt; i64 {
+entry:
+  br_cond %n, then, else_
+then:
+  %1 = sub i64 %n 1
+  %2 = call @fact %1
+  %3 = mul i64 %n %2
+  ret %3
+else_:
+  ret 1
+}</pre>
+                    </div>
+
+                    <h2>Instruções Suportadas</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Instrução</th>
+                                <th>Semântica</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>const &lt;type&gt; &lt;val&gt;</code></td>
+                                <td>Materializa constante</td>
+                            </tr>
+                            <tr>
+                                <td><code>add/sub/mul/div i64 %a %b</code></td>
+                                <td>Aritmética inteira</td>
+                            </tr>
+                            <tr>
+                                <td><code>fadd/fsub/fmul/fdiv f64 %a %b</code></td>
+                                <td>Aritmética float</td>
+                            </tr>
+                            <tr>
+                                <td><code>load/store &lt;type&gt; %ptr</code></td>
+                                <td>Acesso à memória</td>
+                            </tr>
+                            <tr>
+                                <td><code>call @fn %arg1 %arg2</code></td>
+                                <td>Chamada de função</td>
+                            </tr>
+                            <tr>
+                                <td><code>br &lt;label&gt;</code></td>
+                                <td>Branch incondicional</td>
+                            </tr>
+                            <tr>
+                                <td><code>br_cond %pred &lt;true&gt; &lt;false&gt;</code></td>
+                                <td>Branch condicional (truthy i64)</td>
+                            </tr>
+                            <tr>
+                                <td><code>phi &lt;type&gt; [%v1, bb1], [%v2, bb2]</code></td>
+                                <td>Seleção SSA em merge</td>
+                            </tr>
+                            <tr>
+                                <td><code>arena_alloc &lt;id&gt; &lt;bytes&gt;</code></td>
+                                <td>Alocação em arena (intrinsic)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Usando <code>--emit-ir</code></h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">terminal</span></div>
+                        <pre><span class="fn">art</span> run --emit-ir -         <span class="cm"># imprime IR em stdout</span>
+<span class="fn">art</span> run --emit-ir out.ir   <span class="cm"># escreve IR em arquivo</span></pre>
+                    </div>
+
+                    <h2>Golden Files</h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">terminal</span></div>
+                        <pre><span class="fn">cargo</span> run -p xtask -- irgen --write  <span class="cm"># atualiza goldens em crates/ir/golden/</span>
+<span class="fn">cargo</span> run -p xtask -- irgen --check  <span class="cm"># CI: falha se houver diffs</span></pre>
+                    </div>
+
+                    <h2>Compilador "Jano" (Roadmap v0.2+)</h2>
+                    <p>Duas faces: <strong>JIT</strong> para desenvolvimento (compilação instantânea) e
+                        <strong>AOT</strong> para produção com Profile-Guided Optimization (PGO):
+                    </p>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">terminal</span></div>
+                        <pre><span class="fn">art</span> run --gen-profile prog.art       <span class="cm"># coleta perfil de execução</span>
+<span class="fn">art</span> build --release --use-profile    <span class="cm"># gera binário PGO-otimizado</span></pre>
+                    </div>
+                </article>
+
+                <!-- FFI -->
+                <article id="ffi" class="doc-article">
+                    <h1>FFI (Interoperabilidade)</h1>
+                    <p>Artcode foi projetada para interoperar com C, Rust e WebAssembly.</p>
+                    <h2>FFI com C</h2>
+                    <p>Interface direta com marcação explícita de transferência de ownership para dados gerenciados por
+                        ARC.</p>
+                    <h2>FFI com Rust (Zero-Cost)</h2>
+                    <p>Ambas usam LLVM como backend e compartilham filosofias de segurança. Tipos podem ser
+                        compartilhados sem serialização na fronteira.</p>
+                    <h2>WebAssembly</h2>
+                    <p>Compilação direta para WASM com controle granular sobre o tamanho do binário (planejado para
+                        v0.2+).</p>
+
+                    <h2>Princípios</h2>
+                    <ul>
+                        <li>Zero abstrações mágicas — toda fronteira deve declarar conversões explicitamente</li>
+                        <li><strong>Ownership explícito</strong>: quem aloca, quem libera, se a posse é transferida</li>
+                        <li>Erros retornados via enum <code>Result</code> ou códigos explícitos — sem unwind/panic
+                            cruzando fronteiras</li>
+                    </ul>
+
+                    <h2>Tipos Suportados (Roadmap)</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Categoria</th>
+                                <th>Estado</th>
+                                <th>Representação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Int / Float</td>
+                                <td>Inicial</td>
+                                <td><code>i64</code> / <code>f64</code></td>
+                            </tr>
+                            <tr>
+                                <td>Bool</td>
+                                <td>Inicial</td>
+                                <td><code>u8</code> / <code>bool</code></td>
+                            </tr>
+                            <tr>
+                                <td>String</td>
+                                <td>Planejado</td>
+                                <td>Fat pointer (ptr, len)</td>
+                            </tr>
+                            <tr>
+                                <td>Array</td>
+                                <td>Planejado</td>
+                                <td>Header com len + ptr</td>
+                            </tr>
+                            <tr>
+                                <td>Struct Plain</td>
+                                <td>Planejado</td>
+                                <td>Layout repr(C) restrito</td>
+                            </tr>
+                            <tr>
+                                <td>Enum (tagged)</td>
+                                <td>Planejado</td>
+                                <td>Tag + union simplificado</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Padrões de Ownership na Fronteira</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Padrão</th>
+                                <th>Descrição</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Borrow</strong></td>
+                                <td>Chamador mantém posse; callee não retém (ex: <code>len</code> sobre slice)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Transfer</strong></td>
+                                <td>Callee assume e chamador não usa mais (ex: criação de array)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Clone RC</strong></td>
+                                <td>Incrementa contador para uso compartilhado (ex: cache de string)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </article>
+
+                <!-- Contributing -->
+                <article id="contributing" class="doc-article">
+                    <h1>Contribuindo</h1>
+                    <ul>
+                        <li>Leia <code>docs/</code> e as RFCs em <code>docs/rfcs/</code> antes de mudanças maiores</li>
+                        <li>Use o checklist em <code>.kit/checklist.md</code> para priorizar trabalho</li>
+                        <li>Abra RFCs para mudanças de design; referencie nas PRs</li>
+                        <li>Panics e <code>unwrap()</code> são proibidos — use o sistema de Diagnostics</li>
+                    </ul>
+                    <h2>Scripts de Dev</h2>
+                    <ul>
+                        <li><code>cargo xtask ci</code> — Pipeline local (fmt, clippy, testes, scan de panics)</li>
+                        <li><code>scripts/devcheck.sh</code> — Atalho rápido de verificação</li>
+                        <li><code>scripts/gen_coverage_badge.sh</code> — Gera badge SVG de cobertura</li>
+                    </ul>
+                </article>
+
+                <!-- Roadmap -->
+                <article id="roadmap" class="doc-article">
+                    <h1>Roadmap</h1>
+                    <p>As metas de longo prazo estão documentadas no checklist oficial (<code>.kit/checklist.md</code>).
+                    </p>
+                    <h2>v0.1.0 (atual)</h2>
+                    <ul>
+                        <li>✅ Lexer, Parser, Interpreter e Type Checker completos</li>
+                        <li>✅ Enums, Pattern Matching, Closures, f-Strings, Result</li>
+                        <li>✅ ARC, weak/unowned, Arenas, Finalizers</li>
+                        <li>✅ Modelo de Atores, CLI unificada, LSP básico</li>
+                    </ul>
+                    <h2>v0.2+ (planejado)</h2>
+                    <ul>
+                        <li>JIT/AOT com PGO via LLVM (compilador "Jano")</li>
+                        <li>LSP avançado (autocompletar, refactoring)</li>
+                        <li>WASM target</li>
+                        <li>Generics completos (monomorfização inicial)</li>
+                        <li>Traits e blocos <code>impl</code></li>
+                        <li>Time-Travel Debugging (record/replay)</li>
+                        <li>FFI Rust/C/WASM com fronteiras de ownership explícitas</li>
+                        <li>IR SSA + otimizações intermediárias</li>
+                    </ul>
+
+                    <h2>Métricas de Sucesso</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Métrica</th>
+                                <th>Alvo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Tempo de bootstrap</td>
+                                <td>&lt; 50ms (interpretador simples)</td>
+                            </tr>
+                            <tr>
+                                <td>Cobertura de testes</td>
+                                <td>&gt; 70% do núcleo (interpreter + parser)</td>
+                            </tr>
+                            <tr>
+                                <td>Sessões crash-free</td>
+                                <td>99% (eliminar panics não tratados)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Riscos &amp; Mitigações</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Risco</th>
+                                <th>Mitigação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Complexidade de generics</td>
+                                <td>Implementar versão mínima iterativa; RFC antes de merge</td>
+                            </tr>
+                            <tr>
+                                <td>Crescimento de código sem docs</td>
+                                <td>Enforcer CI para docs em PRs principais</td>
+                            </tr>
+                            <tr>
+                                <td>Performance degradada</td>
+                                <td>Benchmarks semanais básicos — microkernel como canário</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </article>
+
+                <!-- Coverage -->
+                <article id="coverage" class="doc-article">
+                    <h1>Coverage &amp; Métricas</h1>
+                    <p>O projeto usa <code>cargo-llvm-cov</code> para métricas de cobertura de linha e branch,
+                        com alvo de &gt;70% no núcleo (interpreter + parser).</p>
+
+                    <h2>Instalação</h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">terminal</span></div>
+                        <pre><span class="fn">cargo</span> install cargo-llvm-cov   <span class="cm"># requer LLVM toolchain</span></pre>
+                    </div>
+
+                    <h2>Comandos Principais</h2>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">terminal</span></div>
+                        <pre><span class="fn">cargo</span> llvm-cov --workspace --html --open  <span class="cm"># relatório HTML interativo</span>
+<span class="fn">cargo</span> llvm-cov --workspace               <span class="cm"># resumo no terminal</span>
+<span class="fn">cargo</span> llvm-cov clean                     <span class="cm"># limpa dados de instrumentação</span>
+<span class="fn">bash</span> scripts/gen_coverage_badge.sh       <span class="cm"># gera badge SVG atualizado</span></pre>
+                    </div>
+
+                    <h2>Pipeline de CI Automático (<code>cargo xtask ci</code>)</h2>
+                    <ol>
+                        <li><code>cargo fmt --check</code> — formatação</li>
+                        <li><code>cargo clippy -D warnings</code> — lints sem tolerar warnings</li>
+                        <li><code>cargo test --all</code> — todos os testes</li>
+                        <li>Scan de <code>panic!</code> / <code>unwrap()</code> fora de testes</li>
+                        <li>Cobertura com <code>cargo-llvm-cov</code> + geração do badge SVG</li>
+                    </ol>
+
+                    <h2>Métricas de Qualidade</h2>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Métrica</th>
+                                <th>Fonte</th>
+                                <th>Alvo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Cobertura de linha</td>
+                                <td><code>cargo-llvm-cov</code></td>
+                                <td>&gt; 70% núcleo</td>
+                            </tr>
+                            <tr>
+                                <td>Sessões crash-free</td>
+                                <td>Runtime <code>crash_free%</code></td>
+                                <td>99%</td>
+                            </tr>
+                            <tr>
+                                <td>Panics em produção</td>
+                                <td>Scan CI</td>
+                                <td>0 fora de testes</td>
+                            </tr>
+                            <tr>
+                                <td>Tempo de bootstrap</td>
+                                <td>Benchmarks canários</td>
+                                <td>&lt; 50ms</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h2>Próximos Passos</h2>
+                    <ul>
+                        <li>Threshold mínimo de cobertura em CI — falha o build se cair abaixo de 70%</li>
+                        <li>Integrar relatório HTML como artefato do CI (GitHub Actions upload)</li>
+                        <li>Benchmarks canários semanais via <code>21_microkernel.art</code></li>
+                    </ul>
+                </article>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer__links">
+                <a href="https://github.com/kitsuneislife/artcode" target="_blank">GitHub</a>
+                <a href="index.html">Início</a>
+                <a href="why.html">Por que Artcode?</a>
+                <a href="examples.html">Exemplos</a>
+            </div>
+            <p>Artcode v0.1.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
+                    target="_blank">kitsuneislife</a></p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
