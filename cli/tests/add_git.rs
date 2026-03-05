@@ -37,6 +37,10 @@ fn art_add_installs_from_git_file_url() {
         .arg("commit")
         .arg("-m")
         .arg("init")
+        .env("GIT_AUTHOR_NAME", "test")
+        .env("GIT_AUTHOR_EMAIL", "test@example.com")
+        .env("GIT_COMMITTER_NAME", "test")
+        .env("GIT_COMMITTER_EMAIL", "test@example.com")
         .status()
         .expect("git commit");
     assert!(status.success());
