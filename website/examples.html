@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="27 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
+        content="28 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -33,7 +33,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>27 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>28 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -94,6 +94,9 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-26">
                             <span class="examples-sidebar__num">26</span> Try/Catch
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-27">
+                            <span class="examples-sidebar__num">27</span> Pure Mode
                         </button>
                     </div>
 
@@ -1079,6 +1082,33 @@ s1.<span class="fn">describe</span>(); s2.<span class="fn">describe</span>();</p
 }</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/26_try_catch.art</span></div>
+                    </div>
+
+                    <!-- 27: Pure Mode -->
+                    <div class="example-entry" id="ex-27">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">27</span>
+                            <span class="example-entry__title">Pure Mode</span>
+                            <span class="example-tag">Tratamento de Erros</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Executa um script em <code>--pure</code>, bloqueando operacoes impuras de I/O
+                            e nao-determinismo no runtime. O erro e tratado com <code>try/catch</code>.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">27_pure_mode.art</span>
+                            </div>
+                            <pre><span class="kw">try</span> {
+    <span class="fn">io_write_text</span>(<span class="str">"/tmp/artcode-pure-demo.txt"</span>, <span class="str">"nao deve escrever"</span>);
+} <span class="kw">catch</span> err {
+    <span class="cm">// Em --pure, err recebe a mensagem de bloqueio.</span>
+}</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run --pure examples/27_pure_mode.art</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->

@@ -33,6 +33,7 @@ Current examples (ordered):
 - `24_result_option_sugar.art` — Uso avançado das Mônadas Nativas (Result/Option)
 - `25_loops_tuples_destructuring.art` — Loops `while`/`for` com tuplas e destructuring
 - `26_try_catch.art` — Tratamento explícito de erro com `try/catch`
+- `27_pure_mode.art` — Execução com `--pure` bloqueando operações impuras
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 

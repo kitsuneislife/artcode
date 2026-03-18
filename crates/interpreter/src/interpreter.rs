@@ -62,6 +62,7 @@ pub mod test_helpers;
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
     type_registry: TypeRegistry,
+    pure_mode: bool,
     pub diagnostics: Vec<Diagnostic>,
     pub last_value: Option<ArtValue>,
     pub handled_errors: usize,
@@ -485,6 +486,7 @@ impl Interpreter {
         Interpreter {
             environment: global_env,
             type_registry: TypeRegistry::new(),
+            pure_mode: false,
             diagnostics: Vec::new(),
             last_value: None,
             handled_errors: 0,
@@ -552,6 +554,23 @@ impl Interpreter {
             ],
         );
         interp
+    }
+
+    pub fn set_pure_mode(&mut self, pure: bool) {
+        self.pure_mode = pure;
+    }
+
+    fn ensure_pure_allowed(&mut self, op_name: &str) -> bool {
+        if self.pure_mode {
+            self.diagnostics.push(Diagnostic::new(
+                DiagnosticKind::Runtime,
+                format!("Operation '{}' is not allowed in --pure mode", op_name),
+                Span::new(0, 0, 0, 0),
+            ));
+            false
+        } else {
+            true
+        }
     }
 
     /// Exposto para testes / prototipagem: registra struct dinâmica.
@@ -2851,6 +2870,9 @@ impl Interpreter {
     fn call_builtin(&mut self, b: core::ast::BuiltinFn, arguments: Vec<Expr>) -> Result<ArtValue> {
         match b {
             core::ast::BuiltinFn::Println => {
+                if !self.ensure_pure_allowed("println") {
+                    return Ok(ArtValue::none());
+                }
                 if let Some(first) = arguments.into_iter().next() {
                     let val = self.evaluate(first)?;
                     println!("{}", val);
@@ -3075,6 +3097,9 @@ impl Interpreter {
                 }
             }
             core::ast::BuiltinFn::TimeNow => {
+                if !self.ensure_pure_allowed("time_now") {
+                    return Ok(ArtValue::none());
+                }
                 let now = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
@@ -3082,6 +3107,9 @@ impl Interpreter {
                 Ok(ArtValue::Int(now))
             }
             core::ast::BuiltinFn::IOReadText => {
+                if !self.ensure_pure_allowed("io_read_text") {
+                    return Ok(ArtValue::none());
+                }
                 if let Some(first) = arguments.into_iter().next() {
                     if let ArtValue::String(path) = self.evaluate(first)? {
                         if let Ok(content) = std::fs::read_to_string(path.as_ref()) {
@@ -3097,6 +3125,9 @@ impl Interpreter {
                 }
             }
             core::ast::BuiltinFn::IOWriteText => {
+                if !self.ensure_pure_allowed("io_write_text") {
+                    return Ok(ArtValue::Bool(false));
+                }
                 let mut args = arguments.into_iter();
                 if let (Some(path_expr), Some(content_expr)) = (args.next(), args.next()) {
                     if let (ArtValue::String(path), ArtValue::String(content)) =
@@ -3115,6 +3146,9 @@ impl Interpreter {
                 }
             }
             core::ast::BuiltinFn::RandomSeed => {
+                if !self.ensure_pure_allowed("rand_seed") {
+                    return Ok(ArtValue::none());
+                }
                 if let Some(first) = arguments.into_iter().next() {
                     if let ArtValue::Int(seed) = self.evaluate(first)? {
                         self.rng_state = seed as u64;
@@ -3127,6 +3161,9 @@ impl Interpreter {
                 }
             }
             core::ast::BuiltinFn::RandomNext => {
+                if !self.ensure_pure_allowed("rand_next") {
+                    return Ok(ArtValue::none());
+                }
                 // Simple LCG
                 self.rng_state = self
                     .rng_state

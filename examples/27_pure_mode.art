@@ -1,0 +1,9 @@
+// Exemplo 27 - Modo Pure
+// Execute com: art run --pure examples/27_pure_mode.art
+
+try {
+    io_write_text("/tmp/artcode-pure-demo.txt", "nao deve escrever");
+} catch err {
+    println("bloqueado em --pure:");
+    println(err);
+}

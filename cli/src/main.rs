@@ -18,7 +18,13 @@ use std::fs;
 use std::io::{self, Write};
 use std::process;
 
-fn run_with_source(_name: &str, source: String, profile: Option<&str>, emit_ir: Option<&str>) {
+fn run_with_source(
+    _name: &str,
+    source: String,
+    profile: Option<&str>,
+    emit_ir: Option<&str>,
+    pure_mode: bool,
+) {
     let mut lexer = Lexer::new(source.clone());
     let tokens = match lexer.scan_tokens() {
         Ok(t) => t,
@@ -133,6 +139,7 @@ fn run_with_source(_name: &str, source: String, profile: Option<&str>, emit_ir: 
     }
 
     let mut interpreter = Interpreter::with_prelude();
+    interpreter.set_pure_mode(pure_mode);
     if let Err(e) = interpreter.interpret(program) {
         eprintln!("Erro de execução: {}", e);
     }
@@ -159,7 +166,7 @@ fn run_with_source(_name: &str, source: String, profile: Option<&str>, emit_ir: 
     }
 }
 
-fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>) {
+fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>, pure_mode: bool) {
     // Use resolver to expand imports
     match crate::resolver::resolve(path) {
         Ok((program, main_source)) => {
@@ -368,6 +375,7 @@ fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>) {
             }
 
             let mut interpreter = Interpreter::with_prelude();
+            interpreter.set_pure_mode(pure_mode);
             if let Err(e) = interpreter.interpret(program) {
                 eprintln!("Erro de execução: {}", e);
             }
@@ -389,7 +397,7 @@ fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>) {
     }
 }
 
-fn run_prompt(emit_ir: Option<&str>) {
+fn run_prompt(emit_ir: Option<&str>, pure_mode: bool) {
     loop {
         print!("> ");
         io::stdout().flush().ok();
@@ -397,7 +405,7 @@ fn run_prompt(emit_ir: Option<&str>) {
         if io::stdin().read_line(&mut line).is_err() || line.trim().is_empty() {
             break;
         }
-        run_with_source("<repl>", line, None, emit_ir);
+        run_with_source("<repl>", line, None, emit_ir, pure_mode);
     }
 }
 
@@ -424,7 +432,7 @@ fn main() {
         i += 1;
     }
     if args.len() == 1 {
-        return run_prompt(emit_ir.as_deref());
+        return run_prompt(emit_ir.as_deref(), false);
     }
     // simple build command: art build --with-profile <profile> [--out <path>]
     if args[1] == "doc" && args.get(2).map(|s| s.as_str()) == Some("std") {
@@ -497,8 +505,24 @@ fn main() {
             process::exit(64);
         }
     }
-    if args[1] == "run" && args.len() == 3 {
-        return run_file(&args[2], gen_profile.as_deref(), emit_ir.as_deref());
+    if args[1] == "run" {
+        let mut pure_mode = false;
+        let mut file: Option<String> = None;
+        for a in &args[2..] {
+            if a == "--pure" {
+                pure_mode = true;
+            } else if file.is_none() {
+                file = Some(a.clone());
+            } else {
+                eprintln!("Usage: art run [--pure] <script>");
+                process::exit(64);
+            }
+        }
+        let Some(file) = file else {
+            eprintln!("Usage: art run [--pure] <script>");
+            process::exit(64);
+        };
+        return run_file(&file, gen_profile.as_deref(), emit_ir.as_deref(), pure_mode);
     }
     if args[1] == "metrics" {
         if args.len() < 3 {
