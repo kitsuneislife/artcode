@@ -1,0 +1,20 @@
+// Exemplo 28 - DAG de Dependencias (Topological Sort)
+
+let nodes = ["kernel", "drivers", "fs", "shell", "ui"];
+let deps = [
+    ("drivers", "kernel"),
+    ("fs", "drivers"),
+    ("shell", "fs"),
+    ("ui", "shell"),
+];
+
+let boot_order = dag_topo_sort(nodes, deps);
+println("Ordem de boot:");
+for step in (boot_order) println(step);
+
+// Ciclo proposital
+let bad_nodes = ["a", "b"];
+let bad_deps = [("a", "b"), ("b", "a")];
+let bad = dag_topo_sort(bad_nodes, bad_deps);
+println("Resultado com ciclo:");
+println(bad);

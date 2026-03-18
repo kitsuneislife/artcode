@@ -8,6 +8,7 @@
 - [Loops e Tuplas](loops_tuples.md)
 - [Error Handling](error_handling.md)
 - [Modo Pure](pure_mode.md)
+- [DAG de Dependências](dependency_dag.md)
 - [f-strings](fstrings.md)
 - [Interpreter](interpreter.md)
 - [Roadmap](roadmap.md)

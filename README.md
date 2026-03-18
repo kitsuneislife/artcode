@@ -15,6 +15,7 @@ Implementação experimental de uma linguagem interpretada em Rust com suporte a
 - Loops nativos (`while`, `for`) e tuplas com destructuring (`let (a, b) = value`)
 - Tratamento explicito de erro com `try/catch` (alem do operador `?`)
 - Modo de execução `--pure` para bloquear operações de I/O e não-determinismo em configurações seguras
+- Ferramenta de DAG para resolver ordem topológica de dependências (`dag_topo_sort`)
 - Funções e closures (captura léxica)
 - Métodos em structs e enums com auto-binding de `self`
 - Introspecção em métodos de enum (`variant`, `values`)
@@ -47,6 +48,7 @@ Principais recursos
 - Tuplas literais e destructuring por pattern (`let (a, b) = expr`)
 - Error handling explicito por statements `try/catch`
 - Modo `run --pure` para execução sem operações impuras (`println`, `io_*`, `time_now`, `rand_*`)
+- Ordenação topológica de dependências para cenários de boot/configuração
 - Funções, closures e métodos com auto-binding de `self`
 - f-Strings com format specs e re-lex/parsing das expressões internas
 - Standard Library Expansiva (Coleções Padrão de Map/Set, Manipulação de Matemática e IO Simples)
@@ -142,6 +144,7 @@ Links rápidos para os principais documentos:
 - [Loops & Tuplas](docs/loops_tuples.md)
 - [Error Handling](docs/error_handling.md)
 - [Modo Pure](docs/pure_mode.md)
+- [DAG de Dependências](docs/dependency_dag.md)
 - [Enums & Pattern Matching](docs/enums.md)
 - [Coverage & Métricas](docs/coverage.md)
 - [Roadmap](docs/roadmap.md)

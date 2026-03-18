@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="28 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
+        content="29 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -33,7 +33,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>28 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>29 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -136,6 +136,9 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-19">
                             <span class="examples-sidebar__num">19</span> Performant Arena
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-28">
+                            <span class="examples-sidebar__num">28</span> DAG de Dependências
                         </button>
                     </div>
 
@@ -1109,6 +1112,37 @@ s1.<span class="fn">describe</span>(); s2.<span class="fn">describe</span>();</p
 }</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run --pure examples/27_pure_mode.art</span></div>
+                    </div>
+
+                    <!-- 28: DAG de Dependências -->
+                    <div class="example-entry" id="ex-28">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">28</span>
+                            <span class="example-entry__title">DAG de Dependências</span>
+                            <span class="example-tag">Standard Library</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Usa <code>dag_topo_sort(nodes, deps)</code> para calcular ordem de boot.
+                            A lista de dependências segue o formato <code>(node, depends_on)</code>.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">28_dependency_dag.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> nodes = [<span class="str">"kernel"</span>, <span class="str">"drivers"</span>, <span class="str">"fs"</span>, <span class="str">"shell"</span>];
+<span class="kw">let</span> deps = [
+    (<span class="str">"drivers"</span>, <span class="str">"kernel"</span>),
+    (<span class="str">"fs"</span>, <span class="str">"drivers"</span>),
+    (<span class="str">"shell"</span>, <span class="str">"fs"</span>),
+];
+
+<span class="kw">let</span> order = <span class="fn">dag_topo_sort</span>(nodes, deps);
+<span class="kw">for</span> step <span class="kw">in</span> (order) <span class="fn">println</span>(step);</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/28_dependency_dag.art</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->

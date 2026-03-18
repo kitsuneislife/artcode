@@ -34,6 +34,7 @@ Current examples (ordered):
 - `25_loops_tuples_destructuring.art` — Loops `while`/`for` com tuplas e destructuring
 - `26_try_catch.art` — Tratamento explícito de erro com `try/catch`
 - `27_pure_mode.art` — Execução com `--pure` bloqueando operações impuras
+- `28_dependency_dag.art` — Ordenação topológica de dependências com `dag_topo_sort`
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 

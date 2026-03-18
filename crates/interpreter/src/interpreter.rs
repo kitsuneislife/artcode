@@ -463,6 +463,10 @@ impl Interpreter {
             "math_clamp",
             ArtValue::Builtin(core::ast::BuiltinFn::MathClamp),
         );
+        global_env.borrow_mut().define(
+            "dag_topo_sort",
+            ArtValue::Builtin(core::ast::BuiltinFn::DagTopoSort),
+        );
         global_env
             .borrow_mut()
             .define("time_now", ArtValue::Builtin(core::ast::BuiltinFn::TimeNow));
@@ -3095,6 +3099,154 @@ impl Interpreter {
                 } else {
                     Ok(ArtValue::none())
                 }
+            }
+            core::ast::BuiltinFn::DagTopoSort => {
+                fn as_array(interp: &Interpreter, v: ArtValue) -> Option<Vec<ArtValue>> {
+                    match v {
+                        ArtValue::Array(a) => Some(a),
+                        ArtValue::HeapComposite(h) => interp
+                            .heap_objects
+                            .get(&h.0)
+                            .map(|o| o.value.clone())
+                            .and_then(|ov| match ov {
+                                ArtValue::Array(a) => Some(a),
+                                _ => None,
+                            }),
+                        _ => None,
+                    }
+                }
+
+                fn as_tuple2(interp: &Interpreter, v: ArtValue) -> Option<(ArtValue, ArtValue)> {
+                    match v {
+                        ArtValue::Tuple(items) if items.len() == 2 => {
+                            Some((items[0].clone(), items[1].clone()))
+                        }
+                        ArtValue::HeapComposite(h) => interp
+                            .heap_objects
+                            .get(&h.0)
+                            .map(|o| o.value.clone())
+                            .and_then(|ov| match ov {
+                                ArtValue::Tuple(items) if items.len() == 2 => {
+                                    Some((items[0].clone(), items[1].clone()))
+                                }
+                                _ => None,
+                            }),
+                        _ => None,
+                    }
+                }
+
+                fn as_string(v: &ArtValue) -> Option<String> {
+                    match v {
+                        ArtValue::String(s) => Some(s.to_string()),
+                        _ => None,
+                    }
+                }
+
+                let mut args = arguments.into_iter();
+                let (Some(nodes_expr), Some(deps_expr)) = (args.next(), args.next()) else {
+                    return Ok(ArtValue::none());
+                };
+
+                let nodes_val = self.evaluate(nodes_expr)?;
+                let deps_val = self.evaluate(deps_expr)?;
+
+                let Some(node_items) = as_array(self, nodes_val) else {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "dag_topo_sort: first argument must be an array of strings".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                };
+                let Some(dep_items) = as_array(self, deps_val) else {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "dag_topo_sort: second argument must be an array of tuples (node, depends_on)"
+                            .to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                };
+
+                let mut indeg: HashMap<String, usize> = HashMap::new();
+                let mut adj: HashMap<String, Vec<String>> = HashMap::new();
+
+                for n in &node_items {
+                    let Some(name) = as_string(n) else {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "dag_topo_sort: nodes array must contain only strings".to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        return Ok(ArtValue::none());
+                    };
+                    indeg.entry(name.clone()).or_insert(0);
+                    adj.entry(name).or_default();
+                }
+
+                for dep in dep_items {
+                    let Some((node_v, dep_v)) = as_tuple2(self, dep) else {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "dag_topo_sort: dependency entries must be tuples (node, depends_on)"
+                                .to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        return Ok(ArtValue::none());
+                    };
+                    let (Some(node), Some(depends_on)) = (as_string(&node_v), as_string(&dep_v)) else {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "dag_topo_sort: dependency tuple values must be strings".to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        return Ok(ArtValue::none());
+                    };
+
+                    // (node, depends_on) means: depends_on -> node
+                    indeg.entry(node.clone()).or_insert(0);
+                    indeg.entry(depends_on.clone()).or_insert(0);
+                    adj.entry(depends_on.clone()).or_default().push(node.clone());
+                    adj.entry(node.clone()).or_default();
+                    if let Some(v) = indeg.get_mut(&node) {
+                        *v += 1;
+                    }
+                }
+
+                let mut ready = std::collections::BTreeSet::new();
+                for (n, d) in &indeg {
+                    if *d == 0 {
+                        ready.insert(n.clone());
+                    }
+                }
+
+                let mut out: Vec<ArtValue> = Vec::new();
+                while let Some(next) = ready.pop_first() {
+                    out.push(ArtValue::String(Arc::from(next.clone())));
+                    if let Some(children) = adj.get(&next).cloned() {
+                        for child in children {
+                            if let Some(d) = indeg.get_mut(&child)
+                                && *d > 0
+                            {
+                                *d -= 1;
+                                if *d == 0 {
+                                    ready.insert(child);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if out.len() != indeg.len() {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "dag_topo_sort: cycle detected in dependency graph".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+
+                Ok(self.heapify_composite(ArtValue::Array(out)))
             }
             core::ast::BuiltinFn::TimeNow => {
                 if !self.ensure_pure_allowed("time_now") {
