@@ -40,3 +40,6 @@
 
 ## Contribuição
 Abrir RFC para features que alterem sintaxe, semântica ou runtime. Pequenos ajustes (refactors internos) podem ir direto com testes.
+
+## Politica de Versionamento
+As promessas de compatibilidade publica e o fluxo para breaking changes estao em `docs/versioning.md`.

@@ -12,4 +12,5 @@
 - [f-strings](fstrings.md)
 - [Interpreter](interpreter.md)
 - [Roadmap](roadmap.md)
+- [Versionamento Publico](versioning.md)
 - [Contribuindo](contributing.md)

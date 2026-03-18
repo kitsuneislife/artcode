@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="29 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
+        content="30 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -33,7 +33,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>29 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>30 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -139,6 +139,9 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-28">
                             <span class="examples-sidebar__num">28</span> DAG de Dependências
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-29">
+                            <span class="examples-sidebar__num">29</span> Política de Versionamento
                         </button>
                     </div>
 
@@ -1143,6 +1146,35 @@ s1.<span class="fn">describe</span>(); s2.<span class="fn">describe</span>();</p
 <span class="kw">for</span> step <span class="kw">in</span> (order) <span class="fn">println</span>(step);</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/28_dependency_dag.art</span></div>
+                    </div>
+
+                    <!-- 29: Politica de Versionamento -->
+                    <div class="example-entry" id="ex-29">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">29</span>
+                            <span class="example-entry__title">Política de Versionamento</span>
+                            <span class="example-tag">Ferramentas</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Exemplo simples de metadados de release para reforçar a política pública
+                            de compatibilidade da série <code>0.2.x</code>.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">29_versioning_policy.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> release = <span class="str">"0.2.0"</span>;
+<span class="kw">let</span> compat_track = <span class="str">"0.2.x"</span>;
+<span class="kw">let</span> semver = <span class="str">"MAJOR.MINOR.PATCH"</span>;
+
+<span class="fn">println</span>(f<span class="str">"release={release}"</span>);
+<span class="fn">println</span>(f<span class="str">"track={compat_track}"</span>);
+<span class="fn">println</span>(f<span class="str">"schema={semver}"</span>);</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/29_versioning_policy.art</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->

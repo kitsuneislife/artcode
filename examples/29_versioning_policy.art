@@ -1,0 +1,11 @@
+// Exemplo 29 - Politica de Versionamento Publico (SemVer)
+// Este exemplo ilustra metadados de release e promessas de compatibilidade.
+
+let release = "0.2.0";
+let compat_track = "0.2.x";
+let semver = "MAJOR.MINOR.PATCH";
+
+println(f"release={release}");
+println(f"track={compat_track}");
+println(f"schema={semver}");
+println("breaking changes exigem RFC + plano de migracao");

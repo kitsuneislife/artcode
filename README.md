@@ -151,6 +151,7 @@ Links rápidos para os principais documentos:
 - [Enums & Pattern Matching](docs/enums.md)
 - [Coverage & Métricas](docs/coverage.md)
 - [Roadmap](docs/roadmap.md)
+- [Versionamento Público](docs/versioning.md)
 - [Sumário / Índice](docs/SUMMARY.md)
 
 ## Interoperabilidade / FFI (pasta `docs/`)

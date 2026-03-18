@@ -35,6 +35,7 @@ Current examples (ordered):
 - `26_try_catch.art` — Tratamento explícito de erro com `try/catch`
 - `27_pure_mode.art` — Execução com `--pure` bloqueando operações impuras
 - `28_dependency_dag.art` — Ordenação topológica de dependências com `dag_topo_sort`
+- `29_versioning_policy.art` — Metadados de release e promessas de compatibilidade pública
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 
