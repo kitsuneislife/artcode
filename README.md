@@ -24,7 +24,7 @@ Implementação experimental de uma linguagem interpretada em Rust com suporte a
 - Arrays com builtins (`sum`, `count`)
 - Standard Library embutida: Collections (Map, Set), Math (abs, pow, clamp), Time & Rand, File IO (sandboxed).
 - Métricas de execução (handled_errors, executed_statements, crash_free%)
-- Language Server Protocol (LSP) básico com diagnósticos instantâneos na IDE (`art lsp`)
+- Language Server Protocol (LSP) com diagnósticos, autocomplete, goto-definition, rename e semantic tokens na IDE (`art lsp`)
 
 # Complexidade Progressiva
 
@@ -116,6 +116,7 @@ art run examples/34_closure_callbacks_arc.art
 
 # Language Server (LSP) para editores
 art lsp
+# (suporta diagnósticos, autocomplete, goto-definition, rename e semantic tokens)
 
 # Build e testes (desenvolvimento)
 cargo test --all
