@@ -940,10 +940,11 @@ s1.<span class="fn">describe</span>(); s2.<span class="fn">describe</span>();</p
                             <span class="example-tag">Ferramentas</span>
                         </div>
                         <p class="example-entry__desc">
-                            Demonstra dois padrões que o linter <code>art lint</code> detecta:
+                            Demonstra três padrões que o linter <code>art lint</code> detecta:
                             <strong>shadowing suspeito</strong> (reuso de nome de variável em escopo aninhado)
                             e <strong>arms mortos</strong> em match (case após wildcard <code>_</code>
-                            nunca será executado).
+                            nunca será executado), além de <strong>hint de hotspot de alocação</strong>
+                            em loops fora de <code>performant {}</code>.
                         </p>
                         <div class="code-block example-panel__code">
                             <div class="code-block__header">
@@ -966,7 +967,12 @@ s1.<span class="fn">describe</span>(); s2.<span class="fn">describe</span>();</p
         <span class="kw">case</span> <span class="num">10</span>: <span class="fn">println</span>(<span class="str">"unreachable"</span>); <span class="cm">// ← dead code</span>
     }
 }
-<span class="fn">test_shadowing</span>(); <span class="fn">test_dead_arms</span>();</pre>
+<span class="kw">func</span> <span class="fn">test_memory_hotspot_hint</span>() {
+    <span class="kw">for</span> i <span class="kw">in</span> ([<span class="num">0</span>, <span class="num">1</span>, <span class="num">2</span>]) {
+        <span class="kw">let</span> pair = (i, [i, i + <span class="num">1</span>]); <span class="cm">// ← allocation hotspot hint</span>
+    }
+}
+<span class="fn">test_shadowing</span>(); <span class="fn">test_dead_arms</span>(); <span class="fn">test_memory_hotspot_hint</span>();</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art lint examples/23_linter_tests.art</span></div>
                     </div>

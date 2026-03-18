@@ -18,5 +18,13 @@ func test_dead_arms() {
     }
 }
 
+func test_memory_hotspot_hint() {
+    for i in ([0, 1, 2]) {
+        let pair = (i, [i, i + 1]); // Linter should suggest performant/weak strategy in hot loop
+        println(pair);
+    }
+}
+
 test_shadowing();
 test_dead_arms();
+test_memory_hotspot_hint();

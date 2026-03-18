@@ -101,6 +101,9 @@ art doc std
 # Checagem de migração entre versões
 art upgrade --check examples/31_upgrade_migration.art
 
+# Lint com heurística de hotspot de alocação em loops
+art lint examples/23_linter_tests.art
+
 # Language Server (LSP) para editores
 art lsp
 

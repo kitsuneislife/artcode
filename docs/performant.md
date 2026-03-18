@@ -43,6 +43,17 @@ Próximos passos recomendados
 - Ajustar mensagens de erro para serem mais instrutivas (sugerir alternativa segura).
 - Adicionar documentação de uso ao `examples/` mostrando padrões seguros.
 
+Hint de linter para hotspot de memoria
+
+O comando `art lint` aplica uma heuristica para loops (`while`/`for`) fora de blocos `performant {}`.
+Quando detecta alocacoes compostas recorrentes (arrays, tuplas, struct/enum init e alguns builtins de colecao),
+emite um hint sugerindo:
+
+- mover o trecho para `performant {}` quando apropriado;
+- revisar retencao de grafo com `weak`/`unowned` em relacoes seguras.
+
+Esse hint nao bloqueia compilacao e serve como guia de optimizacao progressiva.
+
 Diagnósticos e correções rápidas
 
 - Mensagem: "Variable 'x' initialized with a composite value inside `performant` — ensure it does not escape the block"

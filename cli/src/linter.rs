@@ -8,7 +8,7 @@ pub fn lint_ast(program: &[Stmt]) -> Vec<Diagnostic> {
     let mut scope_stack = ScopeStack::new();
 
     for stmt in program {
-        lint_stmt(stmt, &mut scope_stack, &mut diagnostics);
+        lint_stmt(stmt, &mut scope_stack, &mut diagnostics, false);
     }
 
     diagnostics
@@ -56,7 +56,12 @@ impl ScopeStack {
     }
 }
 
-fn lint_stmt(stmt: &Stmt, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnostic>) {
+fn lint_stmt(
+    stmt: &Stmt,
+    scopes: &mut ScopeStack,
+    diagnostics: &mut Vec<Diagnostic>,
+    in_performant: bool,
+) {
     match stmt {
         Stmt::Let {
             pattern,
@@ -74,15 +79,20 @@ fn lint_stmt(stmt: &Stmt, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
             for param in params {
                 scopes.declare(&param.name.lexeme, &param.name, diagnostics);
             }
-            lint_stmt(body, scopes, diagnostics);
+            lint_stmt(body, scopes, diagnostics, in_performant);
             scopes.pop();
         }
-        Stmt::Block { statements }
-        | Stmt::Performant { statements }
-        | Stmt::SpawnActor { body: statements } => {
+        Stmt::Block { statements } | Stmt::SpawnActor { body: statements } => {
             scopes.push();
             for s in statements {
-                lint_stmt(s, scopes, diagnostics);
+                lint_stmt(s, scopes, diagnostics, in_performant);
+            }
+            scopes.pop();
+        }
+        Stmt::Performant { statements } => {
+            scopes.push();
+            for s in statements {
+                lint_stmt(s, scopes, diagnostics, true);
             }
             scopes.pop();
         }
@@ -92,9 +102,9 @@ fn lint_stmt(stmt: &Stmt, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
             else_branch,
         } => {
             lint_expr(condition, scopes, diagnostics);
-            lint_stmt(then_branch, scopes, diagnostics);
+            lint_stmt(then_branch, scopes, diagnostics, in_performant);
             if let Some(els) = else_branch {
-                lint_stmt(els, scopes, diagnostics);
+                lint_stmt(els, scopes, diagnostics, in_performant);
             }
         }
         Stmt::IfLet {
@@ -106,10 +116,10 @@ fn lint_stmt(stmt: &Stmt, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
             lint_expr(value, scopes, diagnostics);
             scopes.push();
             declare_pattern_bindings(pattern, scopes, diagnostics);
-            lint_stmt(then_branch, scopes, diagnostics);
+            lint_stmt(then_branch, scopes, diagnostics, in_performant);
             scopes.pop();
             if let Some(els) = else_branch {
-                lint_stmt(els, scopes, diagnostics);
+                lint_stmt(els, scopes, diagnostics, in_performant);
             }
         }
         Stmt::TryCatch {
@@ -117,10 +127,10 @@ fn lint_stmt(stmt: &Stmt, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
             catch_name,
             catch_branch,
         } => {
-            lint_stmt(try_branch, scopes, diagnostics);
+            lint_stmt(try_branch, scopes, diagnostics, in_performant);
             scopes.push();
             scopes.declare(&catch_name.lexeme, catch_name, diagnostics);
-            lint_stmt(catch_branch, scopes, diagnostics);
+            lint_stmt(catch_branch, scopes, diagnostics, in_performant);
             scopes.pop();
         }
         Stmt::Expression(expr) | Stmt::Return { value: Some(expr) } => {
@@ -160,13 +170,23 @@ fn lint_stmt(stmt: &Stmt, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
                 if let Some(g) = guard {
                     lint_expr(g, scopes, diagnostics);
                 }
-                lint_stmt(body, scopes, diagnostics);
+                lint_stmt(body, scopes, diagnostics, in_performant);
                 scopes.pop();
             }
         }
         Stmt::While { condition, body } => {
             lint_expr(condition, scopes, diagnostics);
-            lint_stmt(body, scopes, diagnostics);
+            if !in_performant && stmt_contains_allocation(body) {
+                diagnostics.push(
+                    Diagnostic::new(
+                        DiagnosticKind::Lint,
+                        "Potential allocation hotspot in loop body; consider wrapping this block in `performant {}` or reducing heap graph retention with `weak`/`unowned` where safe.",
+                        Span::dummy(),
+                    )
+                    .note("This is a heuristic hint focused on memory-sensitive loops."),
+                );
+            }
+            lint_stmt(body, scopes, diagnostics, in_performant);
         }
         Stmt::For {
             element,
@@ -174,11 +194,118 @@ fn lint_stmt(stmt: &Stmt, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
             body,
         } => {
             lint_expr(iterator, scopes, diagnostics);
+            if !in_performant && stmt_contains_allocation(body) {
+                diagnostics.push(
+                    Diagnostic::new(
+                        DiagnosticKind::Lint,
+                        "Potential allocation hotspot in loop body; consider wrapping this block in `performant {}` or reducing heap graph retention with `weak`/`unowned` where safe.",
+                        Span::dummy(),
+                    )
+                    .note("This is a heuristic hint focused on memory-sensitive loops."),
+                );
+            }
             scopes.push();
             scopes.declare(&element.lexeme, element, diagnostics);
-            lint_stmt(body, scopes, diagnostics);
+            lint_stmt(body, scopes, diagnostics, in_performant);
             scopes.pop();
         }
+    }
+}
+
+fn stmt_contains_allocation(stmt: &Stmt) -> bool {
+    match stmt {
+        Stmt::Expression(expr) => expr_contains_allocation(expr),
+        Stmt::Let { initializer, .. } => expr_contains_allocation(initializer),
+        Stmt::Block { statements }
+        | Stmt::Performant { statements }
+        | Stmt::SpawnActor { body: statements } => {
+            statements.iter().any(stmt_contains_allocation)
+        }
+        Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        } => {
+            expr_contains_allocation(condition)
+                || stmt_contains_allocation(then_branch)
+                || else_branch
+                    .as_deref()
+                    .map(stmt_contains_allocation)
+                    .unwrap_or(false)
+        }
+        Stmt::IfLet {
+            value,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_contains_allocation(value)
+                || stmt_contains_allocation(then_branch)
+                || else_branch
+                    .as_deref()
+                    .map(stmt_contains_allocation)
+                    .unwrap_or(false)
+        }
+        Stmt::TryCatch {
+            try_branch,
+            catch_branch,
+            ..
+        } => stmt_contains_allocation(try_branch) || stmt_contains_allocation(catch_branch),
+        Stmt::Match { expr, cases } => {
+            expr_contains_allocation(expr)
+                || cases
+                    .iter()
+                    .any(|(_, guard, body)| {
+                        guard
+                            .as_ref()
+                            .map(expr_contains_allocation)
+                            .unwrap_or(false)
+                            || stmt_contains_allocation(body)
+                    })
+        }
+        Stmt::While { condition, body } => {
+            expr_contains_allocation(condition) || stmt_contains_allocation(body)
+        }
+        Stmt::For { iterator, body, .. } => {
+            expr_contains_allocation(iterator) || stmt_contains_allocation(body)
+        }
+        Stmt::Return { value } => value.as_ref().map(expr_contains_allocation).unwrap_or(false),
+        Stmt::StructDecl { .. } | Stmt::EnumDecl { .. } | Stmt::Function { .. } | Stmt::Import { .. } => false,
+    }
+}
+
+fn expr_contains_allocation(expr: &Expr) -> bool {
+    match expr {
+        Expr::Array(_) | Expr::Tuple(_) | Expr::StructInit { .. } | Expr::EnumInit { .. } => true,
+        Expr::Call {
+            callee, arguments, ..
+        } => {
+            let call_alloc = matches!(
+                &**callee,
+                Expr::Variable { name }
+                    if matches!(name.lexeme.as_str(), "map_new" | "set_new" | "weak" | "unowned")
+            );
+            call_alloc
+                || expr_contains_allocation(callee)
+                || arguments.iter().any(expr_contains_allocation)
+        }
+        Expr::Binary { left, right, .. } | Expr::Logical { left, right, .. } => {
+            expr_contains_allocation(left) || expr_contains_allocation(right)
+        }
+        Expr::Unary { right, .. }
+        | Expr::Grouping { expression: right }
+        | Expr::Try(right)
+        | Expr::Weak(right)
+        | Expr::Unowned(right)
+        | Expr::WeakUpgrade(right)
+        | Expr::UnownedAccess(right) => expr_contains_allocation(right),
+        Expr::FieldAccess { object, .. } | Expr::Cast { object, .. } => expr_contains_allocation(object),
+        Expr::InterpolatedString(parts) => parts.iter().any(|p| match p {
+            InterpolatedPart::Literal(_) => false,
+            InterpolatedPart::Expr { expr, .. } => expr_contains_allocation(expr),
+        }),
+        Expr::SpawnActor { body } => body.iter().any(stmt_contains_allocation),
+        Expr::Literal(_) | Expr::Variable { .. } => false,
     }
 }
 
@@ -263,7 +390,7 @@ fn lint_expr(expr: &Expr, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
         Expr::SpawnActor { body } => {
             scopes.push();
             for s in body {
-                lint_stmt(s, scopes, diagnostics);
+                lint_stmt(s, scopes, diagnostics, false);
             }
             scopes.pop();
         }
