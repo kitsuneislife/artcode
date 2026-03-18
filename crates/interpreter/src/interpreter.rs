@@ -2051,14 +2051,36 @@ impl Interpreter {
         let scope_env = self.environment.clone();
         for statement in statements {
             if let Err(e) = self.execute(statement) {
-                // If this is a Return carrying a HeapComposite, pin it BEFORE dropping
-                // the block scope so the GC does not collect the returned object.
-                if let RuntimeError::Return(ArtValue::HeapComposite(ref h)) = e {
-                    self.inc_heap_strong(h.0);
-                }
+                // If this is a Return carrying values that depend on the current scope,
+                // preserve them BEFORE dropping the block environment.
+                let transformed = match e {
+                    RuntimeError::Return(mut rv) => {
+                        if let ArtValue::HeapComposite(ref h) = rv {
+                            // Keep heap composite alive across scope teardown.
+                            self.inc_heap_strong(h.0);
+                        }
+                        if let ArtValue::Function(f) = &rv
+                            && f.retained_env.is_none()
+                        {
+                            // Returned closures can capture this block env.
+                            // Retain it strongly to avoid dangling closure env.
+                            let escaped = Function {
+                                name: f.name.clone(),
+                                type_params: f.type_params.clone(),
+                                params: f.params.clone(),
+                                body: f.body.clone(),
+                                closure: f.closure.clone(),
+                                retained_env: Some(scope_env.clone()),
+                            };
+                            rv = ArtValue::Function(Rc::new(escaped));
+                        }
+                        RuntimeError::Return(rv)
+                    }
+                    other => other,
+                };
                 self.drop_scope_heap_objects(&scope_env);
                 self.environment = previous;
-                return Err(e);
+                return Err(transformed);
             }
         }
         self.drop_scope_heap_objects(&scope_env);
@@ -2697,11 +2719,27 @@ impl Interpreter {
         // If the value is a HeapComposite, we must temporarily pin it (inc strong)
         // so that drop_scope_heap_objects does not GC the object before the caller
         // can capture the reference.
-        let return_val = match result {
+        let mut return_val = match result {
             Ok(()) => ArtValue::none(),
             Err(RuntimeError::Return(val)) => val,
             Err(e @ RuntimeError::TypeError(_)) => return Err(e),
         };
+        if let ArtValue::Function(f) = &return_val
+            && f.retained_env.is_none()
+            && let Some(captured_env) = f.closure.upgrade()
+        {
+            // A closure returned from this call can outlive the current scope.
+            // Keep a strong reference so future invocations do not observe a dangling env.
+            let escaped = Function {
+                name: f.name.clone(),
+                type_params: f.type_params.clone(),
+                params: f.params.clone(),
+                body: f.body.clone(),
+                closure: f.closure.clone(),
+                retained_env: Some(captured_env),
+            };
+            return_val = ArtValue::Function(Rc::new(escaped));
+        }
         // Transfer ownership of returned HeapComposite to the CALLER's environment
         // BEFORE we drop the function scope. This prevents the GC from collecting
         // the returned object while it is temporarily unowned between method return

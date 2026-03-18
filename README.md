@@ -110,6 +110,9 @@ bash scripts/run_fuzz_ci.sh 60
 # Fluxo actor request/response com HTTP básico
 art run examples/33_actor_http_runtime.art
 
+# Closures retornadas e callbacks com captura de ambiente (ARC)
+art run examples/34_closure_callbacks_arc.art
+
 # Language Server (LSP) para editores
 art lsp
 

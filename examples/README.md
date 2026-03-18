@@ -40,6 +40,7 @@ Current examples (ordered):
 - `31_upgrade_migration.art` — Guia rápido para checagem de migração com `art upgrade`
 - `32_fuzz_ci.art` — Worker de fuzzing contínuo para parser/loops no CI
 - `33_actor_http_runtime.art` — Request/response HTTP básico via atores
+- `34_closure_callbacks_arc.art` — Closures retornadas e callbacks com captura de ambiente
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 

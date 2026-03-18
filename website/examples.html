@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="34 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
+        content="35 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -33,7 +33,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>34 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>35 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -59,6 +59,9 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-04">
                             <span class="examples-sidebar__num">04</span> Funções & Closures
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-34">
+                            <span class="examples-sidebar__num">34</span> Closures & Callbacks ARC
                         </button>
                     </div>
 
@@ -1311,6 +1314,42 @@ s1.<span class="fn">describe</span>(); s2.<span class="fn">describe</span>();</p
 <span class="fn">run_actors</span>(<span class="num">20</span>);</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/33_actor_http_runtime.art</span></div>
+                    </div>
+
+                    <!-- 34: Closures & Callbacks ARC -->
+                    <div class="example-entry" id="ex-34">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">34</span>
+                            <span class="example-entry__title">Closures & Callbacks ARC</span>
+                            <span class="example-tag">Funções</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Demonstra closure retornada (escape de escopo) e passagem de callback
+                            mantendo ambiente capturado válido no runtime ARC.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">34_closure_callbacks_arc.art</span>
+                            </div>
+                            <pre><span class="kw">func</span> make_adder(base) {
+    <span class="kw">func</span> add(v) {
+        <span class="kw">return</span> v + base
+    }
+    <span class="kw">return</span> add
+}
+
+<span class="kw">func</span> apply_twice(cb, value) {
+    <span class="kw">return</span> cb(cb(value))
+}
+
+<span class="kw">let</span> plus_two = <span class="fn">make_adder</span>(<span class="num">2</span>)
+<span class="fn">println</span>(<span class="fn">plus_two</span>(<span class="num">40</span>))
+<span class="fn">println</span>(<span class="fn">apply_twice</span>(plus_two, <span class="num">10</span>))</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/34_closure_callbacks_arc.art</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->

@@ -1,0 +1,16 @@
+// Exemplo 34 - Closures e callbacks com captura de ambiente no runtime ARC
+
+func make_adder(base) {
+    func add(v) {
+        return v + base
+    }
+    return add
+}
+
+func apply_twice(cb, value) {
+    return cb(cb(value))
+}
+
+let plus_two = make_adder(2)
+println(plus_two(40))
+println(apply_twice(plus_two, 10))

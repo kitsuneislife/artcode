@@ -22,6 +22,34 @@ func inc(n) { return n + x }
 println(inc(10)) // 15
 ```
 
+## Closures Escapando do Escopo
+Quando uma função interna e retornada como callback, o runtime preserva o ambiente capturado
+para evitar ambiente "dangling" no momento da chamada futura.
+
+```
+func make_adder(base) {
+    func add(v) { return v + base }
+    return add
+}
+
+let plus_two = make_adder(2)
+println(plus_two(41)) // 43
+```
+
+## Passagem de Callbacks
+Funções podem ser passadas como parâmetros e reutilizadas em fluxos declarativos.
+
+```
+func apply_twice(cb, value) {
+    return cb(cb(value))
+}
+
+let delta = 3
+func add_delta(n) { return n + delta }
+
+println(apply_twice(add_delta, 10)) // 16
+```
+
 ## Fallback de Field Access
 `arr.sum()` é parseado como `Call(FieldAccess(arr, sum), [])`. Se o resultado de `FieldAccess` não for chamável e não houver argumentos, o interpretador retorna o valor direto (permitindo pseudo-métodos  sem implementar sistema de métodos ainda).
 
