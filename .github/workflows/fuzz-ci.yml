@@ -1,0 +1,32 @@
+name: Fuzz CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  parser-loops-fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (nightly)
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install LLVM/Clang
+        run: sudo apt-get update && sudo apt-get install -y clang lld
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+
+      - name: Run parser/loops fuzz worker
+        run: |
+          cd fuzzing
+          cargo fuzz run parser_loops -- -max_total_time=60

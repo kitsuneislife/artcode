@@ -38,6 +38,7 @@ Current examples (ordered):
 - `29_versioning_policy.art` — Metadados de release e promessas de compatibilidade pública
 - `30_changelog_workflow.art` — Estrutura semântica de changelog para releases
 - `31_upgrade_migration.art` — Guia rápido para checagem de migração com `art upgrade`
+- `32_fuzz_ci.art` — Worker de fuzzing contínuo para parser/loops no CI
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 

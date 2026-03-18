@@ -104,6 +104,9 @@ art upgrade --check examples/31_upgrade_migration.art
 # Lint com heurística de hotspot de alocação em loops
 art lint examples/23_linter_tests.art
 
+# Fuzzing contínuo (parser/loops)
+bash scripts/run_fuzz_ci.sh 60
+
 # Language Server (LSP) para editores
 art lsp
 

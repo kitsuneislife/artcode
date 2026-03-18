@@ -1,0 +1,8 @@
+// Exemplo 32 - Fuzzing continuo no CI
+
+let worker = "parser_loops";
+let command = "bash scripts/run_fuzz_ci.sh 60";
+
+println(f"fuzz-worker={worker}");
+println(f"run={command}");
+println("target: parser/loops panic-free handling");
