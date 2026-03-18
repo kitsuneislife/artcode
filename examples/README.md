@@ -42,6 +42,7 @@ Current examples (ordered):
 - `33_actor_http_runtime.art` — Request/response HTTP básico via atores
 - `34_closure_callbacks_arc.art` — Closures retornadas e callbacks com captura de ambiente
 - `35_shell_syntax.art` — Sintaxe shell com statement `$`, pipeline `|>` e retorno tipado em `shell_result`
+- `36_pipeline_operator.art` — Operador de pipeline de expressões (`valor |> fn(...)`)
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 

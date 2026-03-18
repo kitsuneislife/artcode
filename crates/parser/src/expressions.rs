@@ -291,6 +291,28 @@ pub fn parse_infix(parser: &mut Parser, left: Expr, operator: Token) -> Expr {
                 right: Box::new(right),
             }
         }
+        TokenType::PipeGreater => {
+            let right = parse_precedence(parser, precedence);
+            match right {
+                Expr::Call {
+                    callee,
+                    type_args,
+                    mut arguments,
+                } => {
+                    arguments.insert(0, left);
+                    Expr::Call {
+                        callee,
+                        type_args,
+                        arguments,
+                    }
+                }
+                other => Expr::Call {
+                    callee: Box::new(other),
+                    type_args: None,
+                    arguments: vec![left],
+                },
+            }
+        }
         _ => {
             let right = parse_precedence(parser, precedence);
             Expr::Binary {

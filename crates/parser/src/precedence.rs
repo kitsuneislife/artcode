@@ -2,6 +2,7 @@
 pub enum Precedence {
     None,
     Assignment,
+    Pipeline,
     Or,
     And,
     Equality,

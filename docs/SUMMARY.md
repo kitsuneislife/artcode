@@ -11,6 +11,7 @@
 - [Modo Pure](pure_mode.md)
 - [DAG de Dependências](dependency_dag.md)
 - [Sintaxe Shell](shell_syntax.md)
+- [Operador Pipeline](pipeline_operator.md)
 - [f-strings](fstrings.md)
 - [Interpreter](interpreter.md)
 - [Roadmap](roadmap.md)

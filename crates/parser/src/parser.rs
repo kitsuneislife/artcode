@@ -298,6 +298,7 @@ impl Parser {
 
     pub fn token_precedence(&self, token_type: &TokenType) -> u8 {
         match token_type {
+            TokenType::PipeGreater => Precedence::Pipeline as u8,
             TokenType::And => Precedence::And as u8,
             TokenType::Or => Precedence::Or as u8,
             TokenType::EqualEqual | TokenType::BangEqual => Precedence::Equality as u8,

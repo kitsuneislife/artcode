@@ -1,0 +1,12 @@
+// Exemplo 36 - Operador de pipeline de expressoes
+// Execute com: art run examples/36_pipeline_operator.art
+
+func inc(x: Int) -> Int { return x + 1 }
+func mul(a: Int, b: Int) -> Int { return a * b }
+func add(a: Int, b: Int) -> Int { return a + b }
+
+let chained = 10 |> inc |> mul(3)
+println(f"chained={chained}")
+
+let with_args = 5 |> add(7)
+println(f"with_args={with_args}")
