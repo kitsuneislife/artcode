@@ -6,6 +6,7 @@ use parser::parser::Parser;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::io::{self, BufRead, Read, Write};
+use std::path::{Path, PathBuf};
 
 const TOKEN_TYPES: [&str; 6] = ["keyword", "variable", "function", "string", "number", "operator"];
 const KEYWORDS: &[&str] = &[
@@ -164,12 +165,13 @@ fn collect_declarations(text: &str) -> HashMap<String, SymbolDecl> {
 }
 
 fn collect_workspace_declarations(documents: &HashMap<String, String>) -> HashMap<String, SymbolLoc> {
+    let all_docs = collect_project_documents(documents);
     let mut out = HashMap::new();
-    let mut uris: Vec<&String> = documents.keys().collect();
+    let mut uris: Vec<&String> = all_docs.keys().collect();
     uris.sort();
 
     for uri in uris {
-        if let Some(text) = documents.get(uri) {
+        if let Some(text) = all_docs.get(uri) {
             let defs = collect_declarations(text);
             let mut names: Vec<_> = defs.into_iter().collect();
             names.sort_by(|a, b| a.0.cmp(&b.0));
@@ -182,6 +184,154 @@ fn collect_workspace_declarations(documents: &HashMap<String, String>) -> HashMa
         }
     }
     out
+}
+
+fn decode_file_uri_path(uri: &str) -> Option<PathBuf> {
+    let raw = uri.strip_prefix("file://")?;
+    // Minimal decode for common VSCode file URIs.
+    let decoded = raw
+        .replace("%20", " ")
+        .replace("%23", "#")
+        .replace("%25", "%");
+    Some(PathBuf::from(decoded))
+}
+
+fn to_file_uri(path: &Path) -> Option<String> {
+    let canonical = std::fs::canonicalize(path).ok()?;
+    Some(format!("file://{}", canonical.to_string_lossy()))
+}
+
+fn parse_import_paths(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut lexer = Lexer::new(text.to_string());
+    let tokens = match lexer.scan_tokens() {
+        Ok(t) => t,
+        Err(_) => return out,
+    };
+
+    let mut i = 0usize;
+    while i < tokens.len() {
+        if !matches!(tokens[i].token_type, TokenType::Import) {
+            i += 1;
+            continue;
+        }
+
+        i += 1;
+        let mut parts: Vec<String> = Vec::new();
+        while i < tokens.len() {
+            match tokens[i].token_type {
+                TokenType::Identifier => {
+                    parts.push(tokens[i].lexeme.clone());
+                    i += 1;
+                    if i < tokens.len() && matches!(tokens[i].token_type, TokenType::Dot) {
+                        i += 1;
+                    }
+                }
+                TokenType::Semicolon => {
+                    i += 1;
+                    break;
+                }
+                _ => {
+                    i += 1;
+                }
+            }
+        }
+
+        if !parts.is_empty() {
+            out.push(parts.join("/"));
+        }
+    }
+
+    out
+}
+
+fn resolve_import_candidate(base_file: &Path, module: &str) -> Option<PathBuf> {
+    let base_dir = base_file.parent().unwrap_or_else(|| Path::new("."));
+    let rel = PathBuf::from(module);
+
+    let direct = base_dir.join(&rel);
+    if direct.exists() {
+        if direct.is_file() {
+            return Some(direct);
+        }
+        let mod_art = direct.join("mod.art");
+        if mod_art.exists() {
+            return Some(mod_art);
+        }
+        let main_art = direct.join("main.art");
+        if main_art.exists() {
+            return Some(main_art);
+        }
+    }
+
+    let mut with_ext = base_dir.join(&rel);
+    with_ext.set_extension("art");
+    if with_ext.exists() {
+        return Some(with_ext);
+    }
+
+    None
+}
+
+fn collect_project_documents(documents: &HashMap<String, String>) -> HashMap<String, String> {
+    let mut out = documents.clone();
+    let mut visited = HashSet::new();
+
+    let mut uris: Vec<String> = documents.keys().cloned().collect();
+    uris.sort();
+    for uri in uris {
+        collect_import_graph_from_uri(&uri, documents, &mut out, &mut visited);
+    }
+
+    out
+}
+
+fn collect_import_graph_from_uri(
+    uri: &str,
+    open_documents: &HashMap<String, String>,
+    all_documents: &mut HashMap<String, String>,
+    visited: &mut HashSet<PathBuf>,
+) {
+    let path = match decode_file_uri_path(uri) {
+        Some(p) => p,
+        None => return,
+    };
+    let canon = std::fs::canonicalize(&path).unwrap_or(path.clone());
+    if !visited.insert(canon.clone()) {
+        return;
+    }
+
+    let current_text = open_documents
+        .get(uri)
+        .cloned()
+        .or_else(|| std::fs::read_to_string(&canon).ok());
+    let current_text = match current_text {
+        Some(t) => t,
+        None => return,
+    };
+    all_documents.entry(uri.to_string()).or_insert(current_text.clone());
+
+    for module in parse_import_paths(&current_text) {
+        let import_path = match resolve_import_candidate(&canon, &module) {
+            Some(p) => p,
+            None => continue,
+        };
+
+        let import_uri = match to_file_uri(&import_path) {
+            Some(u) => u,
+            None => continue,
+        };
+
+        if !all_documents.contains_key(&import_uri) {
+            if let Some(open_text) = open_documents.get(&import_uri) {
+                all_documents.insert(import_uri.clone(), open_text.clone());
+            } else if let Ok(text) = std::fs::read_to_string(&import_path) {
+                all_documents.insert(import_uri.clone(), text);
+            }
+        }
+
+        collect_import_graph_from_uri(&import_uri, open_documents, all_documents, visited);
+    }
 }
 
 fn resolve_definition_location(
@@ -238,7 +388,8 @@ fn workspace_rename_edits(
         return None;
     }
 
-    let current_text = documents.get(uri)?;
+    let all_docs = collect_project_documents(documents);
+    let current_text = all_docs.get(uri)?;
     let old_name = word_at_position(current_text, line, character)?;
     if is_keyword_name(&old_name) {
         return None;
@@ -250,10 +401,10 @@ fn workspace_rename_edits(
     }
 
     let mut changes = serde_json::Map::new();
-    let mut uris: Vec<&String> = documents.keys().collect();
+    let mut uris: Vec<&String> = all_docs.keys().collect();
     uris.sort();
     for doc_uri in uris {
-        if let Some(text) = documents.get(doc_uri) {
+        if let Some(text) = all_docs.get(doc_uri) {
             let edits: Vec<Value> = find_identifier_occurrences(text, &old_name)
                 .into_iter()
                 .map(|(start, end)| {
@@ -362,15 +513,16 @@ fn completion_items(text: &str) -> Vec<Value> {
 }
 
 fn workspace_completion_items(documents: &HashMap<String, String>) -> Vec<Value> {
+    let all_docs = collect_project_documents(documents);
     let mut labels = HashSet::new();
     for kw in KEYWORDS {
         labels.insert((*kw).to_string());
     }
 
-    let mut uris: Vec<&String> = documents.keys().collect();
+    let mut uris: Vec<&String> = all_docs.keys().collect();
     uris.sort();
     for uri in uris {
-        if let Some(text) = documents.get(uri) {
+        if let Some(text) = all_docs.get(uri) {
             let mut lexer = Lexer::new(text.to_string());
             if let Ok(tokens) = lexer.scan_tokens() {
                 for t in tokens {
@@ -841,5 +993,55 @@ mod tests {
         assert!(items
             .iter()
             .any(|i| i.get("label").and_then(|l| l.as_str()) == Some("helper")));
+    }
+
+    #[test]
+    fn definition_resolves_imported_file_not_open() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let main_path = tmp.path().join("main.art");
+        let lib_path = tmp.path().join("lib.art");
+
+        std::fs::write(&main_path, "import lib;\nprintln(answer);\n").expect("write main");
+        std::fs::write(&lib_path, "let answer = 42;\n").expect("write lib");
+
+        let main_uri = format!("file://{}", main_path.to_string_lossy());
+        let lib_uri = format!("file://{}", lib_path.to_string_lossy());
+        let mut docs = HashMap::new();
+        docs.insert(
+            main_uri.clone(),
+            std::fs::read_to_string(&main_path).expect("read main"),
+        );
+
+        let loc = resolve_definition_location(&docs, &main_uri, 1, 9)
+            .expect("definition should resolve in lib.art from disk");
+        assert_eq!(loc.0, lib_uri);
+        assert_eq!(loc.1.line, 0);
+    }
+
+    #[test]
+    fn rename_updates_imported_file_not_open() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let main_path = tmp.path().join("main.art");
+        let lib_path = tmp.path().join("lib.art");
+
+        std::fs::write(&main_path, "import lib;\nprintln(answer);\n").expect("write main");
+        std::fs::write(&lib_path, "let answer = 42;\nprintln(answer);\n").expect("write lib");
+
+        let main_uri = format!("file://{}", main_path.to_string_lossy());
+        let lib_uri = format!("file://{}", lib_path.to_string_lossy());
+        let mut docs = HashMap::new();
+        docs.insert(
+            main_uri.clone(),
+            std::fs::read_to_string(&main_path).expect("read main"),
+        );
+
+        let edit = workspace_rename_edits(&docs, &main_uri, 1, 9, "result")
+            .expect("expected workspace edit");
+        let changes = edit
+            .get("changes")
+            .and_then(|c| c.as_object())
+            .expect("changes should be object");
+        assert!(changes.contains_key(&main_uri));
+        assert!(changes.contains_key(&lib_uri));
     }
 }
