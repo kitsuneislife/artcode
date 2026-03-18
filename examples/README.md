@@ -37,6 +37,7 @@ Current examples (ordered):
 - `28_dependency_dag.art` — Ordenação topológica de dependências com `dag_topo_sort`
 - `29_versioning_policy.art` — Metadados de release e promessas de compatibilidade pública
 - `30_changelog_workflow.art` — Estrutura semântica de changelog para releases
+- `31_upgrade_migration.art` — Guia rápido para checagem de migração com `art upgrade`
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 

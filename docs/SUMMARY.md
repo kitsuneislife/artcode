@@ -13,4 +13,5 @@
 - [Interpreter](interpreter.md)
 - [Roadmap](roadmap.md)
 - [Versionamento Publico](versioning.md)
+- [Guia de Migracao](migration.md)
 - [Contribuindo](contributing.md)

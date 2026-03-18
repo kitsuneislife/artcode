@@ -409,6 +409,106 @@ fn run_prompt(emit_ir: Option<&str>, pure_mode: bool) {
     }
 }
 
+fn run_upgrade(args: &[String]) {
+    let mut from = "0.1.x".to_string();
+    let mut to = "0.2.x".to_string();
+    let mut check_only = false;
+    let mut file: Option<String> = None;
+
+    let mut i = 2usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--from" if i + 1 < args.len() => {
+                from = args[i + 1].clone();
+                i += 2;
+            }
+            "--to" if i + 1 < args.len() => {
+                to = args[i + 1].clone();
+                i += 2;
+            }
+            "--check" => {
+                check_only = true;
+                i += 1;
+            }
+            other => {
+                if file.is_none() {
+                    file = Some(other.to_string());
+                    i += 1;
+                } else {
+                    eprintln!("Usage: art upgrade [--from <version>] [--to <version>] --check <script>");
+                    process::exit(64);
+                }
+            }
+        }
+    }
+
+    if !check_only || file.is_none() {
+        eprintln!("Usage: art upgrade [--from <version>] [--to <version>] --check <script>");
+        process::exit(64);
+    }
+
+    let file = file.unwrap();
+    let source = match fs::read_to_string(&file) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Error reading file: {}", e);
+            process::exit(74);
+        }
+    };
+
+    let rules = vec![
+        ("__weak(", "weak(", "Builtin antigo de weak foi renomeado."),
+        (
+            "__weak_get(",
+            "weak_get(",
+            "Builtin antigo de upgrade de weak foi renomeado.",
+        ),
+        (
+            "__unowned(",
+            "unowned(",
+            "Builtin antigo de unowned foi renomeado.",
+        ),
+        (
+            "__unowned_get(",
+            "unowned_get(",
+            "Builtin antigo de acesso unowned foi renomeado.",
+        ),
+        (
+            "__on_finalize(",
+            "on_finalize(",
+            "Builtin antigo de finalizer foi renomeado.",
+        ),
+    ];
+
+    let mut findings: Vec<String> = Vec::new();
+    for (line_idx, line) in source.lines().enumerate() {
+        for (old, new, reason) in &rules {
+            if line.contains(old) {
+                findings.push(format!(
+                    "line {}: '{}' -> '{}' ({})",
+                    line_idx + 1,
+                    old,
+                    new,
+                    reason
+                ));
+            }
+        }
+    }
+
+    println!("art upgrade report");
+    println!("from={} to={} mode=check", from, to);
+    println!("file={}", file);
+    if findings.is_empty() {
+        println!("No migration hints found.");
+    } else {
+        println!("Migration hints:");
+        for hint in findings {
+            println!("- {}", hint);
+        }
+        println!("\nFor full policy and migration process, see docs/versioning.md.");
+    }
+}
+
 fn main() {
     let mut args: Vec<String> = env::args().collect();
     // global: support --gen-profile <path> and --emit-ir <path|->
@@ -437,6 +537,11 @@ fn main() {
     // simple build command: art build --with-profile <profile> [--out <path>]
     if args[1] == "doc" && args.get(2).map(|s| s.as_str()) == Some("std") {
         std_doc::print_std_docs();
+        return;
+    }
+
+    if args[1] == "upgrade" {
+        run_upgrade(&args);
         return;
     }
 
@@ -1011,6 +1116,6 @@ fn main() {
         lsp::start_server();
         return;
     }
-    println!("Usage: art [run|detect-cycles|fmt|lint|doc|lsp] [--json] <script>");
+    println!("Usage: art [run|detect-cycles|fmt|lint|doc|upgrade|lsp] [--json] <script>");
     process::exit(64);
 }

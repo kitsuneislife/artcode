@@ -98,6 +98,9 @@ art metrics --json meu_script.art
 # Documentação da stdlib (autogerada a partir do prelude)
 art doc std
 
+# Checagem de migração entre versões
+art upgrade --check examples/31_upgrade_migration.art
+
 # Language Server (LSP) para editores
 art lsp
 
@@ -152,6 +155,7 @@ Links rápidos para os principais documentos:
 - [Coverage & Métricas](docs/coverage.md)
 - [Roadmap](docs/roadmap.md)
 - [Versionamento Público](docs/versioning.md)
+- [Guia de Migração](docs/migration.md)
 - [Changelog](CHANGELOG.md)
 - [Sumário / Índice](docs/SUMMARY.md)
 

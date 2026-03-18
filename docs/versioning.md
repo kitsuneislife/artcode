@@ -34,6 +34,10 @@ Para versoes `0.y.z`, a evolucao ainda e rapida, entao a compatibilidade e defin
 3. Publicar nota de migracao em docs e changelog.
 4. Atualizar exemplos e site antes de release.
 
+O guia pratico e o utilitario inicial de checagem estao em:
+- `docs/migration.md`
+- `art upgrade --check <script.art>`
+
 ## Politica de Deprecacao
 - Marcar API/comportamento como "deprecated" por no minimo 1 MINOR antes de remover.
 - Informar alternativa recomendada.

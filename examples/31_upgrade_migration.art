@@ -1,0 +1,7 @@
+// Exemplo 31 - Guia de migracao assistida
+
+let from = "0.1.x";
+let to = "0.2.x";
+
+println(f"migrate from={from} to={to}");
+println("execute: art upgrade --check <script.art>");
