@@ -1,0 +1,126 @@
+name: issue-labeler
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  categorize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply category labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const text = `${issue.title}\n${issue.body || ''}`.toLowerCase();
+
+            const categories = [
+              {
+                label: 'lang-design',
+                color: '5319E7',
+                description: 'Language design, syntax, semantics, typing and RFC topics',
+                patterns: [
+                  /\brfc\b/,
+                  /\blanguage\b/,
+                  /\bsyntax\b/,
+                  /\bsemantics\b/,
+                  /\btyping\b/,
+                  /\bparser\b/,
+                  /\blexer\b/,
+                  /\bgrammar\b/,
+                  /\benum\b/,
+                  /\bpattern matching\b/
+                ]
+              },
+              {
+                label: 'runtime',
+                color: 'FBCA04',
+                description: 'Interpreter, VM, ARC, memory model, performance and execution',
+                patterns: [
+                  /\bruntime\b/,
+                  /\binterpreter\b/,
+                  /\bvm\b/,
+                  /\barc\b/,
+                  /\bmemory\b/,
+                  /\bleak\b/,
+                  /\bperformance\b/,
+                  /\bjit\b/,
+                  /\baot\b/,
+                  /\bffi\b/
+                ]
+              },
+              {
+                label: 'tooling',
+                color: '0E8A16',
+                description: 'CLI, LSP, formatter, linter, CI/CD, docs tooling and developer experience',
+                patterns: [
+                  /\btooling\b/,
+                  /\bcli\b/,
+                  /\blsp\b/,
+                  /\bformatter\b/,
+                  /\blinter\b/,
+                  /\bdocs?\b/,
+                  /\bwebsite\b/,
+                  /\bci\b/,
+                  /\bgithub actions\b/,
+                  /\bxtask\b/
+                ]
+              }
+            ];
+
+            const matched = categories
+              .filter(({ patterns }) => patterns.some((pattern) => pattern.test(text)))
+              .map(({ label }) => label);
+
+            for (const category of categories) {
+              try {
+                await github.rest.issues.getLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: category.label,
+                });
+              } catch (error) {
+                if (error.status === 404) {
+                  await github.rest.issues.createLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    name: category.label,
+                    color: category.color,
+                    description: category.description,
+                  });
+                } else {
+                  throw error;
+                }
+              }
+            }
+
+            const currentCategoryLabels = issue.labels
+              .map((label) => label.name)
+              .filter((name) => categories.some((category) => category.label === name));
+
+            const labelsToRemove = currentCategoryLabels.filter((label) => !matched.includes(label));
+            for (const label of labelsToRemove) {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                name: label,
+              });
+            }
+
+            if (matched.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: matched,
+              });
+              core.info(`Applied labels: ${matched.join(', ')}`);
+            } else {
+              core.info('No category label matched this issue text.');
+            }

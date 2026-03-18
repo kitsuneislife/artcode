@@ -10,6 +10,11 @@ Se você encontrar bugs ou panics no compilador, problemas de performance, leaks
 - Sinta-se à vontade para abrir uma nova _Issue_.
 - Discutiremos, faremos a triagem dela no Milestone correto, e você poderá abrir um **Pull Request**.
 
+As issues abertas recebem triagem automática via GitHub Actions com categorias:
+- `lang-design`: linguagem, parser/lexer, sintaxe, semântica, tipagem, RFC.
+- `runtime`: interpreter/VM, memória (ARC), performance, JIT/AOT, FFI.
+- `tooling`: CLI, LSP, formatter/linter, CI e documentação.
+
 #### 2. Processo RFC (Request for Comments)
 O Artcode segue um processo formal de RFC para mudanças estruturais (linguagem, runtime, arquitetura de compilação e contratos públicos).
 
