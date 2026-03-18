@@ -208,6 +208,7 @@ impl<'a> TypeInfer<'a> {
             Stmt::StructDecl { .. }
             | Stmt::Return { .. }
             | Stmt::Match { .. }
+            | Stmt::ShellCommand { .. }
             | Stmt::Import { .. } => {}
             Stmt::Function {
                 name,
@@ -474,7 +475,11 @@ impl<'a> TypeInfer<'a> {
                 self.check_performant_stmt(body, outer_vars);
                 self.pop_scope();
             }
-            StructDecl { .. } | EnumDecl { .. } | Expression(_) | Import { .. } => { /* allowed */ }
+            StructDecl { .. }
+            | EnumDecl { .. }
+            | Expression(_)
+            | Import { .. }
+            | ShellCommand { .. } => { /* allowed */ }
         }
     }
 

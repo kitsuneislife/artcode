@@ -3,6 +3,9 @@ use core::TokenType;
 use core::ast::{ArtValue, Expr, MatchPattern, Stmt};
 
 pub fn statement(parser: &mut Parser) -> Stmt {
+    if parser.check(&TokenType::Dollar) {
+        return shell_statement(parser);
+    }
     if parser.check(&TokenType::Spawn) {
         // syntax: spawn actor { ... }
         parser.advance();
@@ -75,6 +78,98 @@ pub fn statement(parser: &mut Parser) -> Stmt {
 
     parser.match_token(TokenType::Semicolon);
     Stmt::Expression(expr)
+}
+
+fn shell_statement(parser: &mut Parser) -> Stmt {
+    let dollar = parser.consume(TokenType::Dollar, "Expect '$' before shell command.");
+    let line = dollar.line;
+    let mut parts: Vec<String> = Vec::new();
+    let mut current_arg: Option<(String, usize)> = None;
+
+    while !parser.is_at_end() {
+        if parser.check(&TokenType::Semicolon) {
+            parser.advance();
+            break;
+        }
+        if parser.check(&TokenType::RightBrace) {
+            break;
+        }
+        if parser.peek().line != line {
+            break;
+        }
+
+        let tok = parser.advance();
+        let (piece, force_new_arg) = match tok.token_type {
+            TokenType::String(s) | TokenType::InterpolatedString(s) => (s, true),
+            TokenType::Identifier
+            | TokenType::Number(_)
+            | TokenType::Dot
+            | TokenType::Slash
+            | TokenType::Colon
+            | TokenType::ColonColon
+            | TokenType::Equal
+            | TokenType::Less
+            | TokenType::Greater
+            | TokenType::Bang
+            | TokenType::Question
+            | TokenType::Underscore
+            | TokenType::Minus
+            | TokenType::Plus
+            | TokenType::Star
+            | TokenType::Comma => (tok.lexeme, false),
+            _ => {
+                parser.diagnostics.push(diagnostics::Diagnostic::new(
+                    diagnostics::DiagnosticKind::Parse,
+                    format!("Unsupported token in shell command: {:?}", tok.token_type),
+                    diagnostics::Span::new(tok.start, tok.end, tok.line, tok.col),
+                ));
+                continue;
+            }
+        };
+
+        if force_new_arg {
+            if let Some((arg, _)) = current_arg.take() {
+                parts.push(arg);
+            }
+            parts.push(piece);
+            continue;
+        }
+
+        match current_arg.as_mut() {
+            Some((arg, last_end)) if tok.start == *last_end => {
+                arg.push_str(&piece);
+                *last_end = tok.end;
+            }
+            Some(_) => {
+                if let Some((arg, _)) = current_arg.take() {
+                    parts.push(arg);
+                }
+                current_arg = Some((piece, tok.end));
+            }
+            None => {
+                current_arg = Some((piece, tok.end));
+            }
+        }
+    }
+
+    if let Some((arg, _)) = current_arg {
+        parts.push(arg);
+    }
+
+    if parts.is_empty() {
+        parser.diagnostics.push(diagnostics::Diagnostic::new(
+            diagnostics::DiagnosticKind::Parse,
+            "Shell command requires at least one program token after '$'.",
+            diagnostics::Span::new(dollar.start, dollar.end, dollar.line, dollar.col),
+        ));
+        return Stmt::Expression(Expr::Literal(ArtValue::none()));
+    }
+
+    let program = parts.remove(0);
+    Stmt::ShellCommand {
+        program,
+        args: parts,
+    }
 }
 
 pub fn let_declaration(parser: &mut Parser) -> Stmt {

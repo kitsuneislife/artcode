@@ -211,6 +211,7 @@ fn lint_stmt(
         }
         Stmt::Return { value: None }
         | Stmt::Import { .. }
+        | Stmt::ShellCommand { .. }
         | Stmt::StructDecl { .. }
         | Stmt::EnumDecl { .. } => {}
         Stmt::Match { expr, cases } => {
@@ -343,7 +344,11 @@ fn stmt_contains_allocation(stmt: &Stmt) -> bool {
             expr_contains_allocation(iterator) || stmt_contains_allocation(body)
         }
         Stmt::Return { value } => value.as_ref().map(expr_contains_allocation).unwrap_or(false),
-        Stmt::StructDecl { .. } | Stmt::EnumDecl { .. } | Stmt::Function { .. } | Stmt::Import { .. } => false,
+        Stmt::StructDecl { .. }
+        | Stmt::EnumDecl { .. }
+        | Stmt::Function { .. }
+        | Stmt::Import { .. }
+        | Stmt::ShellCommand { .. } => false,
     }
 }
 

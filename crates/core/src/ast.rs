@@ -82,6 +82,10 @@ pub enum Stmt {
     SpawnActor {
         body: Vec<Stmt>,
     },
+    ShellCommand {
+        program: String,
+        args: Vec<String>,
+    },
     Import {
         path: Vec<Token>,
     },

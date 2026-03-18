@@ -1,0 +1,6 @@
+// Exemplo 35 - Sintaxe shell (slice inicial)
+// Execute com: art run examples/35_shell_syntax.art
+
+$ echo "shell syntax ok"
+$ echo -n "args"
+println("fim")

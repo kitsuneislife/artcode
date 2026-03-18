@@ -9,6 +9,7 @@ pub enum TokenType {
     RightBrace,
     LeftBracket,
     RightBracket,
+    Dollar,
     Comma,
     Semicolon,
     Colon,

@@ -10,6 +10,7 @@
 - [Error Handling](error_handling.md)
 - [Modo Pure](pure_mode.md)
 - [DAG de Dependências](dependency_dag.md)
+- [Sintaxe Shell](shell_syntax.md)
 - [f-strings](fstrings.md)
 - [Interpreter](interpreter.md)
 - [Roadmap](roadmap.md)

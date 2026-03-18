@@ -7,6 +7,7 @@ use diagnostics::{Diagnostic, DiagnosticKind, Span};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::process::Command;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -1852,6 +1853,42 @@ impl Interpreter {
             Stmt::Import { path: _ } => {
                 // Import is a compile-time / resolver concern; runtime no-op for now.
                 Ok(())
+            }
+            Stmt::ShellCommand { program, args } => {
+                if !self.ensure_pure_allowed("shell") {
+                    return Ok(());
+                }
+
+                match Command::new(&program).args(&args).output() {
+                    Ok(output) => {
+                        if !output.stdout.is_empty() {
+                            print!("{}", String::from_utf8_lossy(&output.stdout));
+                        }
+                        if !output.stderr.is_empty() {
+                            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+                        }
+                        if !output.status.success() {
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                format!(
+                                    "Shell command '{}' exited with status {:?}",
+                                    program,
+                                    output.status.code()
+                                ),
+                                Span::new(0, 0, 0, 0),
+                            ));
+                        }
+                        Ok(())
+                    }
+                    Err(e) => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            format!("Failed to run shell command '{}': {}", program, e),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        Ok(())
+                    }
+                }
             }
             Stmt::While { condition, body } => {
                 loop {

@@ -23,6 +23,7 @@ Implementação experimental de uma linguagem interpretada em Rust com suporte a
 - Result-like enums e operador `?` (propagação inicial)
 - Arrays com builtins (`sum`, `count`)
 - Standard Library embutida: Collections (Map, Set), Math (abs, pow, clamp), Time & Rand, File IO (sandboxed).
+- Sintaxe shell inicial com statement `$ comando args...` (execução de processo externo)
 - Métricas de execução (handled_errors, executed_statements, crash_free%)
 - Language Server Protocol (LSP) com diagnósticos, autocomplete, goto-definition, rename e semantic tokens na IDE (`art lsp`)
 
@@ -54,6 +55,7 @@ Principais recursos
 - Standard Library Expansiva (Coleções Padrão de Map/Set, Manipulação de Matemática e IO Simples)
 - Result-like enums e operador `?` para propagação de erros
 - Blocos `performant {}` com arenas experimentais e análise conservadora de escape
+- Sintaxe shell inicial via statement `$` (com bloqueio automático em `--pure`)
 
 Status do projeto
 - Código modular em crates: `core`, `lexer`, `parser`, `interpreter`, `diagnostics`, `cli`.
@@ -115,6 +117,9 @@ art run examples/33_actor_http_runtime.art
 # Closures retornadas e callbacks com captura de ambiente (ARC)
 art run examples/34_closure_callbacks_arc.art
 
+# Sintaxe shell com execução de processo externo
+art run examples/35_shell_syntax.art
+
 # Language Server (LSP) para editores
 art lsp
 # (suporta diagnósticos, autocomplete, goto-definition/rename multi-arquivo com indexação recursiva de imports e semantic tokens)
@@ -168,6 +173,7 @@ Links rápidos para os principais documentos:
 - [Error Handling](docs/error_handling.md)
 - [Modo Pure](docs/pure_mode.md)
 - [DAG de Dependências](docs/dependency_dag.md)
+- [Sintaxe Shell](docs/shell_syntax.md)
 - [Enums & Pattern Matching](docs/enums.md)
 - [Coverage & Métricas](docs/coverage.md)
 - [Roadmap](docs/roadmap.md)
