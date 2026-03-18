@@ -39,6 +39,7 @@ Current examples (ordered):
 - `30_changelog_workflow.art` — Estrutura semântica de changelog para releases
 - `31_upgrade_migration.art` — Guia rápido para checagem de migração com `art upgrade`
 - `32_fuzz_ci.art` — Worker de fuzzing contínuo para parser/loops no CI
+- `33_actor_http_runtime.art` — Request/response HTTP básico via atores
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 

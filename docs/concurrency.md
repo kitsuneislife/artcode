@@ -56,6 +56,31 @@ let e = envelope(None, 42, 5);
 
 Notas de design e trade-offs estão na RFC `docs/rfcs/0003-actors.md`.
 
+## Adendo: HTTP basico via Atores
+
+Para demonstrar fluxo assíncrono sem travar o controle principal, o runtime expõe `http_get_text(url)`
+e pode ser combinado com atores no padrão request/response:
+
+```art
+let worker = spawn actor {
+  let req = actor_receive_envelope();
+  let body = http_get_text(req.payload);
+  actor_send(req.sender, body);
+};
+
+let client = spawn actor {
+  actor_send(worker, "http://127.0.0.1:8080/health");
+  let response = actor_receive();
+  println(response);
+};
+
+run_actors(20);
+```
+
+Observacao:
+- `http_get_text` suporta apenas `http://` no MVP atual.
+- Em `--pure`, a chamada e bloqueada por ser operacao de I/O.
+
 ## Protótipo: `Atomic` e `Mutex` (heap-backed)
 
 Status: protótipo implementado no runtime (single-threaded) e exposto via builtins.

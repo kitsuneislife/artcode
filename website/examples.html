@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="33 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
+        content="34 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -33,7 +33,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>33 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>34 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -152,6 +152,9 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-21">
                             <span class="examples-sidebar__num">21</span> Microkernel
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-33">
+                            <span class="examples-sidebar__num">33</span> Actor HTTP Runtime
                         </button>
                     </div>
 
@@ -1273,6 +1276,41 @@ s1.<span class="fn">describe</span>(); s2.<span class="fn">describe</span>();</p
 <span class="fn">println</span>(f<span class="str">"run={command}"</span>);</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/32_fuzz_ci.art</span></div>
+                    </div>
+
+                    <!-- 33: Actor HTTP Runtime -->
+                    <div class="example-entry" id="ex-33">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">33</span>
+                            <span class="example-entry__title">Actor HTTP Runtime</span>
+                            <span class="example-tag">Concorrência</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Demonstra request/response via atores: um worker consome envelopes,
+                            executa <code>http_get_text</code> e responde ao ator cliente.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">33_actor_http_runtime.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> worker = <span class="kw">spawn</span> <span class="kw">actor</span> {
+    <span class="kw">let</span> req = <span class="fn">actor_receive_envelope</span>();
+    <span class="kw">let</span> body = <span class="fn">http_get_text</span>(req.payload);
+    <span class="fn">actor_send</span>(req.sender, body);
+};
+
+<span class="kw">let</span> client = <span class="kw">spawn</span> <span class="kw">actor</span> {
+    <span class="fn">actor_send</span>(worker, <span class="str">"http://127.0.0.1:8080/health"</span>);
+    <span class="kw">let</span> response = <span class="fn">actor_receive</span>();
+    <span class="fn">println</span>(response);
+};
+
+<span class="fn">run_actors</span>(<span class="num">20</span>);</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/33_actor_http_runtime.art</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->

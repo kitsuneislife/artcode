@@ -193,6 +193,11 @@ fn std_doc_meta(name: &str) -> Option<StdDocMeta> {
             signature: "io_write_text(path: String, content: String)",
             description: "Escreve conteudo texto em arquivo.",
         }),
+        "http_get_text" => Some(StdDocMeta {
+            category: "IO & Time",
+            signature: "http_get_text(url: String)",
+            description: "Faz GET HTTP basico e retorna corpo texto (suporta apenas http://).",
+        }),
         "rand_seed" => Some(StdDocMeta {
             category: "Random",
             signature: "rand_seed(seed: Int)",

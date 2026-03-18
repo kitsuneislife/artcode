@@ -1,0 +1,15 @@
+// Exemplo 33 - Actor Runtime com HTTP basico (sem blocking no fluxo principal)
+
+let worker = spawn actor {
+    let req = actor_receive_envelope();
+    let body = http_get_text(req.payload);
+    actor_send(req.sender, body);
+};
+
+let client = spawn actor {
+    actor_send(worker, "http://127.0.0.1:8080/health");
+    let response = actor_receive();
+    println(response);
+};
+
+run_actors(20);

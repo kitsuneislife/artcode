@@ -385,6 +385,7 @@ impl Interpreter {
             ("time_now", core::ast::BuiltinFn::TimeNow),
             ("io_read_text", core::ast::BuiltinFn::IOReadText),
             ("io_write_text", core::ast::BuiltinFn::IOWriteText),
+            ("http_get_text", core::ast::BuiltinFn::HttpGetText),
             ("rand_seed", core::ast::BuiltinFn::RandomSeed),
             ("rand_next", core::ast::BuiltinFn::RandomNext),
         ]
@@ -3209,6 +3210,71 @@ impl Interpreter {
                     Ok(ArtValue::Bool(false))
                 }
             }
+            core::ast::BuiltinFn::HttpGetText => {
+                if !self.ensure_pure_allowed("http_get_text") {
+                    return Ok(ArtValue::none());
+                }
+
+                let Some(first) = arguments.into_iter().next() else {
+                    return Ok(ArtValue::none());
+                };
+                let ArtValue::String(url) = self.evaluate(first)? else {
+                    return Ok(ArtValue::none());
+                };
+
+                let url_str = url.as_ref();
+                let Some(rest) = url_str.strip_prefix("http://") else {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "http_get_text: only http:// URLs are supported".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                };
+
+                let (host_port, path_part) = match rest.split_once('/') {
+                    Some((h, p)) => (h, format!("/{}", p)),
+                    None => (rest, "/".to_string()),
+                };
+
+                let (host, port) = match host_port.rsplit_once(':') {
+                    Some((h, p)) => match p.parse::<u16>() {
+                        Ok(port) => (h, port),
+                        Err(_) => {
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                "http_get_text: invalid port in URL".to_string(),
+                                Span::new(0, 0, 0, 0),
+                            ));
+                            return Ok(ArtValue::none());
+                        }
+                    },
+                    None => (host_port, 80u16),
+                };
+
+                let request = format!(
+                    "GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n",
+                    path_part, host
+                );
+
+                match std::net::TcpStream::connect((host, port)) {
+                    Ok(mut stream) => {
+                        if std::io::Write::write_all(&mut stream, request.as_bytes()).is_err() {
+                            return Ok(ArtValue::none());
+                        }
+                        let mut response = String::new();
+                        if std::io::Read::read_to_string(&mut stream, &mut response).is_err() {
+                            return Ok(ArtValue::none());
+                        }
+                        if let Some((_, body)) = response.split_once("\r\n\r\n") {
+                            Ok(ArtValue::String(Arc::from(body.to_string())))
+                        } else {
+                            Ok(ArtValue::String(Arc::from(response)))
+                        }
+                    }
+                    Err(_) => Ok(ArtValue::none()),
+                }
+            }
             core::ast::BuiltinFn::RandomSeed => {
                 if !self.ensure_pure_allowed("rand_seed") {
                     return Ok(ArtValue::none());
@@ -3589,7 +3655,7 @@ impl Interpreter {
                                 struct_name: "Envelope".to_string(),
                                 fields,
                             };
-                            return Ok(self.heapify_composite(struct_val));
+                            return Ok(struct_val);
                         } else {
                             actor.parked = true;
                             return Ok(ArtValue::Optional(Box::new(None)));
@@ -3613,7 +3679,7 @@ impl Interpreter {
                                     struct_name: "Envelope".to_string(),
                                     fields,
                                 };
-                                return Ok(self.heapify_composite(struct_val));
+                                return Ok(struct_val);
                             } else {
                                 exec.parked = true;
                                 return Ok(ArtValue::Optional(Box::new(None)));
@@ -3941,8 +4007,24 @@ impl Interpreter {
                     // Swap environment
                     let previous_env = self.environment.clone();
                     self.environment = self.executing_actor.as_ref().unwrap().env.clone();
+                    let actor_env_before_stmt = self.environment.clone();
                     // Execute statement; ignore return errors for now
-                    let _ = self.execute(stmt);
+                    let _ = self.execute(stmt.clone());
+
+                    let actor_parked = self
+                        .executing_actor
+                        .as_ref()
+                        .map(|a| a.parked)
+                        .unwrap_or(false);
+                    if actor_parked {
+                        // actor_receive*/mailbox wait semantics: retry the same statement
+                        // after unpark so local bindings are evaluated with a real message.
+                        if let Some(act) = self.executing_actor.as_mut() {
+                            act.body.push_front(stmt);
+                        }
+                        self.environment = actor_env_before_stmt;
+                    }
+
                     // Mark that we made progress this rotation (executed a statement)
                     rotation_progress = true;
                     // Drop handles created in actor frame to avoid leaking into global

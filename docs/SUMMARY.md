@@ -2,6 +2,7 @@
 
 - [Visão Geral](overview.md)
 - [Prelude](prelude.md)
+- [Concorrencia](concurrency.md)
 - [Lexer e Parser](parser_lexer.md)
 - [Enums](enums.md)
 - [Funções](functions.md)

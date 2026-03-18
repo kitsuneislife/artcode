@@ -107,6 +107,9 @@ art lint examples/23_linter_tests.art
 # Fuzzing contínuo (parser/loops)
 bash scripts/run_fuzz_ci.sh 60
 
+# Fluxo actor request/response com HTTP básico
+art run examples/33_actor_http_runtime.art
+
 # Language Server (LSP) para editores
 art lsp
 
@@ -163,6 +166,7 @@ Links rápidos para os principais documentos:
 - [Versionamento Público](docs/versioning.md)
 - [Guia de Migração](docs/migration.md)
 - [Changelog](CHANGELOG.md)
+- [Concorrência (Atores)](docs/concurrency.md)
 - [Sumário / Índice](docs/SUMMARY.md)
 
 ## Interoperabilidade / FFI (pasta `docs/`)

@@ -281,6 +281,7 @@ pub enum BuiltinFn {
     TimeNow,
     IOReadText,
     IOWriteText,
+    HttpGetText,
     RandomSeed,
     RandomNext,
 
@@ -331,6 +332,7 @@ impl fmt::Debug for BuiltinFn {
             BuiltinFn::TimeNow => write!(f, "<builtin time_now>"),
             BuiltinFn::IOReadText => write!(f, "<builtin io_read_text>"),
             BuiltinFn::IOWriteText => write!(f, "<builtin io_write_text>"),
+            BuiltinFn::HttpGetText => write!(f, "<builtin http_get_text>"),
             BuiltinFn::RandomSeed => write!(f, "<builtin random_seed>"),
             BuiltinFn::RandomNext => write!(f, "<builtin random_next>"),
             BuiltinFn::EnumIsOk(_)
@@ -432,6 +434,7 @@ impl fmt::Display for ArtValue {
                 BuiltinFn::TimeNow => write!(f, "<builtin time_now>"),
                 BuiltinFn::IOReadText => write!(f, "<builtin io_read_text>"),
                 BuiltinFn::IOWriteText => write!(f, "<builtin io_write_text>"),
+                BuiltinFn::HttpGetText => write!(f, "<builtin http_get_text>"),
                 BuiltinFn::RandomSeed => write!(f, "<builtin random_seed>"),
                 BuiltinFn::RandomNext => write!(f, "<builtin random_next>"),
                 BuiltinFn::EnumIsOk(_)
