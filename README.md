@@ -95,6 +95,9 @@ art run --pure examples/27_pure_mode.art
 # Métricas de execução
 art metrics --json meu_script.art
 
+# Documentação da stdlib (autogerada a partir do prelude)
+art doc std
+
 # Language Server (LSP) para editores
 art lsp
 

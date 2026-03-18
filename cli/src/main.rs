@@ -997,7 +997,7 @@ fn main() {
     }
     if args[1] == "doc" {
         if args.len() < 3 {
-            println!("Usage: art doc <script>");
+            println!("Usage: art doc <script>|std");
             process::exit(64);
         }
         let file = &args[2];

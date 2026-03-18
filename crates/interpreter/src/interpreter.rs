@@ -340,152 +340,64 @@ impl Mailbox {
 }
 
 impl Interpreter {
+    pub fn prelude_builtin_bindings() -> Vec<(&'static str, core::ast::BuiltinFn)> {
+        vec![
+            ("println", core::ast::BuiltinFn::Println),
+            ("len", core::ast::BuiltinFn::Len),
+            ("type_of", core::ast::BuiltinFn::TypeOf),
+            ("weak", core::ast::BuiltinFn::WeakNew),
+            ("weak_get", core::ast::BuiltinFn::WeakGet),
+            ("unowned", core::ast::BuiltinFn::UnownedNew),
+            ("unowned_get", core::ast::BuiltinFn::UnownedGet),
+            ("on_finalize", core::ast::BuiltinFn::OnFinalize),
+            ("actor_send", core::ast::BuiltinFn::ActorSend),
+            ("actor_receive", core::ast::BuiltinFn::ActorReceive),
+            (
+                "actor_receive_envelope",
+                core::ast::BuiltinFn::ActorReceiveEnvelope,
+            ),
+            ("actor_yield", core::ast::BuiltinFn::ActorYield),
+            (
+                "actor_set_mailbox_limit",
+                core::ast::BuiltinFn::ActorSetMailboxLimit,
+            ),
+            ("envelope", core::ast::BuiltinFn::EnvelopeNew),
+            ("make_envelope", core::ast::BuiltinFn::MakeEnvelope),
+            ("run_actors", core::ast::BuiltinFn::RunActors),
+            ("atomic_new", core::ast::BuiltinFn::AtomicNew),
+            ("atomic_load", core::ast::BuiltinFn::AtomicLoad),
+            ("atomic_store", core::ast::BuiltinFn::AtomicStore),
+            ("atomic_add", core::ast::BuiltinFn::AtomicAdd),
+            ("mutex_new", core::ast::BuiltinFn::MutexNew),
+            ("mutex_lock", core::ast::BuiltinFn::MutexLock),
+            ("mutex_unlock", core::ast::BuiltinFn::MutexUnlock),
+            ("map_new", core::ast::BuiltinFn::MapNew),
+            ("map_set", core::ast::BuiltinFn::MapSet),
+            ("map_get", core::ast::BuiltinFn::MapGet),
+            ("map_has", core::ast::BuiltinFn::MapHas),
+            ("set_new", core::ast::BuiltinFn::SetNew),
+            ("set_add", core::ast::BuiltinFn::SetAdd),
+            ("set_has", core::ast::BuiltinFn::SetHas),
+            ("math_abs", core::ast::BuiltinFn::MathAbs),
+            ("math_pow", core::ast::BuiltinFn::MathPow),
+            ("math_clamp", core::ast::BuiltinFn::MathClamp),
+            ("dag_topo_sort", core::ast::BuiltinFn::DagTopoSort),
+            ("time_now", core::ast::BuiltinFn::TimeNow),
+            ("io_read_text", core::ast::BuiltinFn::IOReadText),
+            ("io_write_text", core::ast::BuiltinFn::IOWriteText),
+            ("rand_seed", core::ast::BuiltinFn::RandomSeed),
+            ("rand_next", core::ast::BuiltinFn::RandomNext),
+        ]
+    }
+
     pub fn new() -> Self {
         let global_env = Rc::new(RefCell::new(Environment::new(None)));
 
-        global_env
-            .borrow_mut()
-            .define("println", ArtValue::Builtin(core::ast::BuiltinFn::Println));
-        global_env
-            .borrow_mut()
-            .define("len", ArtValue::Builtin(core::ast::BuiltinFn::Len));
-        global_env
-            .borrow_mut()
-            .define("type_of", ArtValue::Builtin(core::ast::BuiltinFn::TypeOf));
-        global_env
-            .borrow_mut()
-            .define("weak", ArtValue::Builtin(core::ast::BuiltinFn::WeakNew));
-        global_env
-            .borrow_mut()
-            .define("weak_get", ArtValue::Builtin(core::ast::BuiltinFn::WeakGet));
-        global_env.borrow_mut().define(
-            "unowned",
-            ArtValue::Builtin(core::ast::BuiltinFn::UnownedNew),
-        );
-        global_env.borrow_mut().define(
-            "unowned_get",
-            ArtValue::Builtin(core::ast::BuiltinFn::UnownedGet),
-        );
-        global_env.borrow_mut().define(
-            "on_finalize",
-            ArtValue::Builtin(core::ast::BuiltinFn::OnFinalize),
-        );
-        global_env.borrow_mut().define(
-            "actor_send",
-            ArtValue::Builtin(core::ast::BuiltinFn::ActorSend),
-        );
-        global_env.borrow_mut().define(
-            "actor_receive",
-            ArtValue::Builtin(core::ast::BuiltinFn::ActorReceive),
-        );
-        global_env.borrow_mut().define(
-            "actor_receive_envelope",
-            ArtValue::Builtin(core::ast::BuiltinFn::ActorReceiveEnvelope),
-        );
-        global_env.borrow_mut().define(
-            "actor_yield",
-            ArtValue::Builtin(core::ast::BuiltinFn::ActorYield),
-        );
-        global_env.borrow_mut().define(
-            "actor_set_mailbox_limit",
-            ArtValue::Builtin(core::ast::BuiltinFn::ActorSetMailboxLimit),
-        );
-        global_env.borrow_mut().define(
-            "envelope",
-            ArtValue::Builtin(core::ast::BuiltinFn::EnvelopeNew),
-        );
-        global_env.borrow_mut().define(
-            "make_envelope",
-            ArtValue::Builtin(core::ast::BuiltinFn::MakeEnvelope),
-        );
-        global_env.borrow_mut().define(
-            "run_actors",
-            ArtValue::Builtin(core::ast::BuiltinFn::RunActors),
-        );
-        // Concurrency primitive prototypes
-        global_env.borrow_mut().define(
-            "atomic_new",
-            ArtValue::Builtin(core::ast::BuiltinFn::AtomicNew),
-        );
-        global_env.borrow_mut().define(
-            "atomic_load",
-            ArtValue::Builtin(core::ast::BuiltinFn::AtomicLoad),
-        );
-        global_env.borrow_mut().define(
-            "atomic_store",
-            ArtValue::Builtin(core::ast::BuiltinFn::AtomicStore),
-        );
-        global_env.borrow_mut().define(
-            "atomic_add",
-            ArtValue::Builtin(core::ast::BuiltinFn::AtomicAdd),
-        );
-        global_env.borrow_mut().define(
-            "mutex_new",
-            ArtValue::Builtin(core::ast::BuiltinFn::MutexNew),
-        );
-        global_env.borrow_mut().define(
-            "mutex_lock",
-            ArtValue::Builtin(core::ast::BuiltinFn::MutexLock),
-        );
-        global_env.borrow_mut().define(
-            "mutex_unlock",
-            ArtValue::Builtin(core::ast::BuiltinFn::MutexUnlock),
-        );
-        // Phase 15 builtins
-        global_env
-            .borrow_mut()
-            .define("map_new", ArtValue::Builtin(core::ast::BuiltinFn::MapNew));
-        global_env
-            .borrow_mut()
-            .define("map_set", ArtValue::Builtin(core::ast::BuiltinFn::MapSet));
-        global_env
-            .borrow_mut()
-            .define("map_get", ArtValue::Builtin(core::ast::BuiltinFn::MapGet));
-        global_env
-            .borrow_mut()
-            .define("map_has", ArtValue::Builtin(core::ast::BuiltinFn::MapHas));
-        global_env
-            .borrow_mut()
-            .define("set_new", ArtValue::Builtin(core::ast::BuiltinFn::SetNew));
-        global_env
-            .borrow_mut()
-            .define("set_add", ArtValue::Builtin(core::ast::BuiltinFn::SetAdd));
-        global_env
-            .borrow_mut()
-            .define("set_has", ArtValue::Builtin(core::ast::BuiltinFn::SetHas));
-        global_env
-            .borrow_mut()
-            .define("math_abs", ArtValue::Builtin(core::ast::BuiltinFn::MathAbs));
-        global_env
-            .borrow_mut()
-            .define("math_pow", ArtValue::Builtin(core::ast::BuiltinFn::MathPow));
-        global_env.borrow_mut().define(
-            "math_clamp",
-            ArtValue::Builtin(core::ast::BuiltinFn::MathClamp),
-        );
-        global_env.borrow_mut().define(
-            "dag_topo_sort",
-            ArtValue::Builtin(core::ast::BuiltinFn::DagTopoSort),
-        );
-        global_env
-            .borrow_mut()
-            .define("time_now", ArtValue::Builtin(core::ast::BuiltinFn::TimeNow));
-        global_env.borrow_mut().define(
-            "io_read_text",
-            ArtValue::Builtin(core::ast::BuiltinFn::IOReadText),
-        );
-        global_env.borrow_mut().define(
-            "io_write_text",
-            ArtValue::Builtin(core::ast::BuiltinFn::IOWriteText),
-        );
-        global_env.borrow_mut().define(
-            "rand_seed",
-            ArtValue::Builtin(core::ast::BuiltinFn::RandomSeed),
-        );
-        global_env.borrow_mut().define(
-            "rand_next",
-            ArtValue::Builtin(core::ast::BuiltinFn::RandomNext),
-        );
+        for (name, builtin) in Self::prelude_builtin_bindings() {
+            global_env
+                .borrow_mut()
+                .define(name, ArtValue::Builtin(builtin));
+        }
 
         Interpreter {
             environment: global_env,

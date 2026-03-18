@@ -9,6 +9,15 @@ O prelude inicializa o ambiente global com construções padrão necessárias pa
 ## Builtins
 Builtins são valores especiais representados internamente por `ArtValue::Builtin` e enumerados em `BuiltinFn`.
 
+### Autodoc da Stdlib
+Para inspecionar as assinaturas atuais dos builtins registrados no prelude, use:
+
+```bash
+art doc std
+```
+
+O comando gera a saída automaticamente a partir do registro de builtins inicializado no runtime.
+
 ### `println`
 Assinatura atual (provisória): `println(value: Any) -> None`
 
