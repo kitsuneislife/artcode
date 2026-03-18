@@ -31,6 +31,13 @@ fn metrics_json_includes_arena_and_finalized_maps() {
     let a_prom = v
         .get("finalizer_promotions_per_arena")
         .expect("missing finalizer_promotions_per_arena");
+    let cycle_leaks = v
+        .get("cycle_leaks_detected")
+        .expect("missing cycle_leaks_detected");
+    let cycle_components = v
+        .get("cycle_components_detected")
+        .expect("missing cycle_components_detected");
+    let cycle_summary = v.get("cycle_summary").expect("missing cycle_summary");
 
     // ensure top-level numeric fields exist and are non-negative
     if let Some(n) = v.get("handled_errors") {
@@ -69,4 +76,49 @@ fn metrics_json_includes_arena_and_finalized_maps() {
     validate_map(a_alloc, "arena_alloc_count");
     validate_map(a_final, "objects_finalized_per_arena");
     validate_map(a_prom, "finalizer_promotions_per_arena");
+
+    assert!(
+        cycle_leaks.as_u64().is_some(),
+        "cycle_leaks_detected must be an integer"
+    );
+    assert!(
+        cycle_components.as_u64().is_some(),
+        "cycle_components_detected must be an integer"
+    );
+    assert!(cycle_summary.is_object(), "cycle_summary should be an object");
+    for key in [
+        "weak_total",
+        "weak_alive",
+        "weak_dead",
+        "unowned_total",
+        "unowned_dangling",
+        "objects_finalized",
+        "heap_alive",
+    ] {
+        assert!(
+            cycle_summary
+                .get(key)
+                .and_then(|x| x.as_u64())
+                .is_some(),
+            "cycle_summary.{} must be an integer",
+            key
+        );
+    }
+    for key in ["avg_out_degree", "avg_in_degree"] {
+        assert!(
+            cycle_summary
+                .get(key)
+                .map(|x| x.is_number())
+                .unwrap_or(false),
+            "cycle_summary.{} must be numeric",
+            key
+        );
+    }
+    assert!(
+        cycle_summary
+            .get("candidate_owner_edges")
+            .map(|x| x.is_array())
+            .unwrap_or(false),
+        "cycle_summary.candidate_owner_edges must be an array"
+    );
 }

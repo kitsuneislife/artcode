@@ -672,6 +672,23 @@ fn main() {
 
                         // Print metrics (JSON or plain) while `interpreter` is in scope.
                         if json {
+                            let cycle_summary = interpreter.cycle_report();
+                            let cycle_detection = interpreter.detect_cycles();
+
+                            #[derive(Serialize)]
+                            struct CycleSummary {
+                                weak_total: usize,
+                                weak_alive: usize,
+                                weak_dead: usize,
+                                unowned_total: usize,
+                                unowned_dangling: usize,
+                                objects_finalized: usize,
+                                heap_alive: usize,
+                                avg_out_degree: f32,
+                                avg_in_degree: f32,
+                                candidate_owner_edges: Vec<(u64, u64)>,
+                            }
+
                             #[derive(Serialize)]
                             struct Metrics {
                                 handled_errors: usize,
@@ -688,6 +705,11 @@ fn main() {
                                 unowned_created: usize,
                                 unowned_dangling: usize,
                                 cycle_reports_run: usize,
+                                cycle_leaks_detected: usize,
+                                cycle_components_detected: usize,
+                                cycle_weak_dead_count: usize,
+                                cycle_unowned_dangling_count: usize,
+                                cycle_summary: CycleSummary,
                             }
 
                             // Ensure per-arena promotion map has entries for all arenas seen (default 0)
@@ -716,6 +738,22 @@ fn main() {
                                 unowned_created: interpreter.unowned_created,
                                 unowned_dangling: interpreter.unowned_dangling,
                                 cycle_reports_run: interpreter.cycle_reports_run.get(),
+                                cycle_leaks_detected: interpreter.cycle_leaks_detected,
+                                cycle_components_detected: cycle_detection.cycles.len(),
+                                cycle_weak_dead_count: cycle_detection.weak_dead.len(),
+                                cycle_unowned_dangling_count: cycle_detection.unowned_dangling.len(),
+                                cycle_summary: CycleSummary {
+                                    weak_total: cycle_summary.weak_total,
+                                    weak_alive: cycle_summary.weak_alive,
+                                    weak_dead: cycle_summary.weak_dead,
+                                    unowned_total: cycle_summary.unowned_total,
+                                    unowned_dangling: cycle_summary.unowned_dangling,
+                                    objects_finalized: cycle_summary.objects_finalized,
+                                    heap_alive: cycle_summary.heap_alive,
+                                    avg_out_degree: cycle_summary.avg_out_degree,
+                                    avg_in_degree: cycle_summary.avg_in_degree,
+                                    candidate_owner_edges: cycle_summary.candidate_owner_edges,
+                                },
                             };
 
                             match serde_json::to_string(&metrics) {
@@ -726,6 +764,9 @@ fn main() {
                                 }
                             }
                         } else {
+                            let cycle_summary = interpreter.cycle_report();
+                            let cycle_detection = interpreter.detect_cycles();
+
                             println!("[metrics] handled_errors={} executed_statements={} crash_free={:.1}% finalizer_promotions={}",
                                 interpreter.handled_errors,
                                 interpreter.executed_statements,
@@ -752,6 +793,16 @@ fn main() {
                             println!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
                                 interpreter.weak_created, interpreter.weak_upgrades, interpreter.weak_dangling,
                                 interpreter.unowned_created, interpreter.unowned_dangling, interpreter.cycle_reports_run.get());
+                            println!(
+                                "[cycle] weak_total={} weak_alive={} weak_dead={} unowned_total={} unowned_dangling={} components={} leaks_detected={}",
+                                cycle_summary.weak_total,
+                                cycle_summary.weak_alive,
+                                cycle_summary.weak_dead,
+                                cycle_summary.unowned_total,
+                                cycle_summary.unowned_dangling,
+                                cycle_detection.cycles.len(),
+                                interpreter.cycle_leaks_detected
+                            );
                         }
                         if let Some(p) = gen_profile.as_deref() {
                             let _ = interpreter.write_profile(std::path::Path::new(p));

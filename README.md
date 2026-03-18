@@ -94,6 +94,7 @@ art run --pure examples/27_pure_mode.art
 
 # Métricas de execução
 art metrics --json meu_script.art
+# (inclui sumário de GC/ciclos em cycle_summary e cycle_leaks_detected)
 
 # Documentação da stdlib (autogerada a partir do prelude)
 art doc std
