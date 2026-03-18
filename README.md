@@ -116,7 +116,7 @@ art run examples/34_closure_callbacks_arc.art
 
 # Language Server (LSP) para editores
 art lsp
-# (suporta diagnósticos, autocomplete, goto-definition, rename e semantic tokens)
+# (suporta diagnósticos, autocomplete, goto-definition/rename entre documentos abertos e semantic tokens)
 
 # Build e testes (desenvolvimento)
 cargo test --all

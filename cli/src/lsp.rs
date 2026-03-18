@@ -21,8 +21,30 @@ struct SymbolDecl {
     end_char: usize,
 }
 
+#[derive(Clone, Debug)]
+struct SymbolLoc {
+    uri: String,
+    decl: SymbolDecl,
+}
+
 fn is_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_'
+}
+
+fn is_valid_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    let first = match chars.next() {
+        Some(c) => c,
+        None => return false,
+    };
+    if !(first.is_alphabetic() || first == '_') {
+        return false;
+    }
+    chars.all(is_identifier_char)
+}
+
+fn is_keyword_name(name: &str) -> bool {
+    KEYWORDS.contains(&name)
 }
 
 fn line_chars(text: &str, line: usize) -> Option<Vec<char>> {
@@ -141,6 +163,45 @@ fn collect_declarations(text: &str) -> HashMap<String, SymbolDecl> {
     map
 }
 
+fn collect_workspace_declarations(documents: &HashMap<String, String>) -> HashMap<String, SymbolLoc> {
+    let mut out = HashMap::new();
+    let mut uris: Vec<&String> = documents.keys().collect();
+    uris.sort();
+
+    for uri in uris {
+        if let Some(text) = documents.get(uri) {
+            let defs = collect_declarations(text);
+            let mut names: Vec<_> = defs.into_iter().collect();
+            names.sort_by(|a, b| a.0.cmp(&b.0));
+            for (name, decl) in names {
+                out.entry(name).or_insert(SymbolLoc {
+                    uri: uri.clone(),
+                    decl,
+                });
+            }
+        }
+    }
+    out
+}
+
+fn resolve_definition_location(
+    documents: &HashMap<String, String>,
+    uri: &str,
+    line: usize,
+    character: usize,
+) -> Option<(String, SymbolDecl)> {
+    let text = documents.get(uri)?;
+    let word = word_at_position(text, line, character)?;
+
+    let local_defs = collect_declarations(text);
+    if let Some(d) = local_defs.get(&word) {
+        return Some((uri.to_string(), d.clone()));
+    }
+
+    let defs = collect_workspace_declarations(documents);
+    defs.get(&word).map(|loc| (loc.uri.clone(), loc.decl.clone()))
+}
+
 fn find_identifier_occurrences(text: &str, name: &str) -> Vec<(usize, usize)> {
     let mut out = Vec::new();
     let chars: Vec<char> = text.chars().collect();
@@ -164,6 +225,61 @@ fn find_identifier_occurrences(text: &str, name: &str) -> Vec<(usize, usize)> {
         }
     }
     out
+}
+
+fn workspace_rename_edits(
+    documents: &HashMap<String, String>,
+    uri: &str,
+    line: usize,
+    character: usize,
+    new_name: &str,
+) -> Option<Value> {
+    if !is_valid_identifier(new_name) || is_keyword_name(new_name) {
+        return None;
+    }
+
+    let current_text = documents.get(uri)?;
+    let old_name = word_at_position(current_text, line, character)?;
+    if is_keyword_name(&old_name) {
+        return None;
+    }
+
+    let defs = collect_workspace_declarations(documents);
+    if !defs.contains_key(&old_name) {
+        return None;
+    }
+
+    let mut changes = serde_json::Map::new();
+    let mut uris: Vec<&String> = documents.keys().collect();
+    uris.sort();
+    for doc_uri in uris {
+        if let Some(text) = documents.get(doc_uri) {
+            let edits: Vec<Value> = find_identifier_occurrences(text, &old_name)
+                .into_iter()
+                .map(|(start, end)| {
+                    let (sl, sc) = lsp_position_from_offset(text, start);
+                    let (el, ec) = lsp_position_from_offset(text, end);
+                    serde_json::json!({
+                        "range": {
+                            "start": { "line": sl, "character": sc },
+                            "end": { "line": el, "character": ec }
+                        },
+                        "newText": new_name
+                    })
+                })
+                .collect();
+
+            if !edits.is_empty() {
+                changes.insert(doc_uri.clone(), Value::Array(edits));
+            }
+        }
+    }
+
+    if changes.is_empty() {
+        return None;
+    }
+
+    Some(serde_json::json!({ "changes": changes }))
 }
 
 fn token_class(t: &TokenType, prev: Option<&TokenType>) -> Option<usize> {
@@ -243,6 +359,38 @@ fn completion_items(text: &str) -> Vec<Value> {
         }
     }
     items
+}
+
+fn workspace_completion_items(documents: &HashMap<String, String>) -> Vec<Value> {
+    let mut labels = HashSet::new();
+    for kw in KEYWORDS {
+        labels.insert((*kw).to_string());
+    }
+
+    let mut uris: Vec<&String> = documents.keys().collect();
+    uris.sort();
+    for uri in uris {
+        if let Some(text) = documents.get(uri) {
+            let mut lexer = Lexer::new(text.to_string());
+            if let Ok(tokens) = lexer.scan_tokens() {
+                for t in tokens {
+                    if matches!(t.token_type, TokenType::Identifier) {
+                        labels.insert(t.lexeme);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut names: Vec<String> = labels.into_iter().collect();
+    names.sort();
+    names
+        .into_iter()
+        .map(|name| {
+            let kind = if is_keyword_name(&name) { 14 } else { 6 };
+            serde_json::json!({"label": name, "kind": kind})
+        })
+        .collect()
 }
 
 fn semantic_tokens_data(text: &str) -> Vec<usize> {
@@ -428,26 +576,22 @@ fn handle_message(
             send_response(stdout, &response);
         }
         "textDocument/definition" => {
-            let result = req
-                .get("params")
-                .and_then(|p| p.get("textDocument"))
-                .and_then(|d| d.get("uri").and_then(|u| u.as_str()))
-                .and_then(|uri| {
-                    let text = documents.get(uri)?;
-                    let pos = req.get("params")?.get("position")?;
-                    let line = pos.get("line")?.as_u64()? as usize;
-                    let character = pos.get("character")?.as_u64()? as usize;
-                    let word = word_at_position(text, line, character)?;
-                    let decls = collect_declarations(text);
-                    let d = decls.get(&word)?;
-                    Some(serde_json::json!({
-                        "uri": uri,
-                        "range": {
-                            "start": { "line": d.line, "character": d.start_char },
-                            "end": { "line": d.line, "character": d.end_char }
-                        }
-                    }))
-                });
+            let result = req.get("params").and_then(|params| {
+                let uri = params
+                    .get("textDocument")
+                    .and_then(|d| d.get("uri").and_then(|u| u.as_str()))?;
+                let pos = params.get("position")?;
+                let line = pos.get("line")?.as_u64()? as usize;
+                let character = pos.get("character")?.as_u64()? as usize;
+                let (decl_uri, d) = resolve_definition_location(documents, uri, line, character)?;
+                Some(serde_json::json!({
+                    "uri": decl_uri,
+                    "range": {
+                        "start": { "line": d.line, "character": d.start_char },
+                        "end": { "line": d.line, "character": d.end_char }
+                    }
+                }))
+            });
             let response = serde_json::json!({
                 "jsonrpc": "2.0",
                 "id": id,
@@ -460,9 +604,14 @@ fn handle_message(
                 .get("params")
                 .and_then(|p| p.get("textDocument"))
                 .and_then(|d| d.get("uri").and_then(|u| u.as_str()))
-                .and_then(|uri| documents.get(uri))
-                .map(|text| completion_items(text))
-                .unwrap_or_default();
+                .and_then(|uri| {
+                    if documents.contains_key(uri) {
+                        Some(workspace_completion_items(documents))
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_else(|| completion_items(""));
 
             let response = serde_json::json!({
                 "jsonrpc": "2.0",
@@ -479,33 +628,12 @@ fn handle_message(
                 let uri = params
                     .get("textDocument")
                     .and_then(|d| d.get("uri").and_then(|u| u.as_str()))?;
-                let text = documents.get(uri)?;
                 let pos = params.get("position")?;
                 let line = pos.get("line")?.as_u64()? as usize;
                 let character = pos.get("character")?.as_u64()? as usize;
-                let old_name = word_at_position(text, line, character)?;
                 let new_name = params.get("newName")?.as_str()?;
 
-                let edits: Vec<Value> = find_identifier_occurrences(text, &old_name)
-                    .into_iter()
-                    .map(|(start, end)| {
-                        let (sl, sc) = lsp_position_from_offset(text, start);
-                        let (el, ec) = lsp_position_from_offset(text, end);
-                        serde_json::json!({
-                            "range": {
-                                "start": { "line": sl, "character": sc },
-                                "end": { "line": el, "character": ec }
-                            },
-                            "newText": new_name
-                        })
-                    })
-                    .collect();
-
-                Some(serde_json::json!({
-                    "changes": {
-                        uri: edits
-                    }
-                }))
+                workspace_rename_edits(documents, uri, line, character, new_name)
             });
 
             let response = serde_json::json!({
@@ -658,5 +786,60 @@ mod tests {
         let data = semantic_tokens_data(src);
         assert!(!data.is_empty());
         assert_eq!(data.len() % 5, 0);
+    }
+
+    #[test]
+    fn definition_resolves_across_open_documents() {
+        let mut docs = HashMap::new();
+        docs.insert(
+            "file:///main.art".to_string(),
+            "import \"./lib.art\"\nprintln(answer)".to_string(),
+        );
+        docs.insert(
+            "file:///lib.art".to_string(),
+            "let answer = 42".to_string(),
+        );
+
+        let loc = resolve_definition_location(&docs, "file:///main.art", 1, 9)
+            .expect("definition should resolve in lib.art");
+        assert_eq!(loc.0, "file:///lib.art");
+        assert_eq!(loc.1.line, 0);
+    }
+
+    #[test]
+    fn rename_produces_changes_for_multiple_documents() {
+        let mut docs = HashMap::new();
+        docs.insert(
+            "file:///main.art".to_string(),
+            "import \"./lib.art\"\nprintln(answer)".to_string(),
+        );
+        docs.insert(
+            "file:///lib.art".to_string(),
+            "let answer = 42\nprintln(answer)".to_string(),
+        );
+
+        let edit = workspace_rename_edits(&docs, "file:///main.art", 1, 9, "result")
+            .expect("expected workspace edit");
+        let changes = edit
+            .get("changes")
+            .and_then(|c| c.as_object())
+            .expect("changes should be object");
+        assert!(changes.contains_key("file:///main.art"));
+        assert!(changes.contains_key("file:///lib.art"));
+    }
+
+    #[test]
+    fn completion_includes_identifiers_from_workspace_documents() {
+        let mut docs = HashMap::new();
+        docs.insert("file:///main.art".to_string(), "println(helper)".to_string());
+        docs.insert(
+            "file:///lib.art".to_string(),
+            "func helper(x) { return x }".to_string(),
+        );
+
+        let items = workspace_completion_items(&docs);
+        assert!(items
+            .iter()
+            .any(|i| i.get("label").and_then(|l| l.as_str()) == Some("helper")));
     }
 }
