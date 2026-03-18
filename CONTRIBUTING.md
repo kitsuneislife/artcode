@@ -11,15 +11,16 @@ Se você encontrar bugs ou panics no compilador, problemas de performance, leaks
 - Discutiremos, faremos a triagem dela no Milestone correto, e você poderá abrir um **Pull Request**.
 
 #### 2. Processo RFC (Request for Comments)
-O Artcode segue um modelo de Governança para decisões arquiteturais baseada no modelo original de Especificações e RFC do Ecossistema Rust!
+O Artcode segue um processo formal de RFC para mudanças estruturais (linguagem, runtime, arquitetura de compilação e contratos públicos).
 
-Antes de propôr qualquer mudança profunda (novas features de Typings (Fase 18), mudança da lógica cooperativa dos Atores (Fase 9), ou de Memory Lifetime (Fase 8), você **DEVE** trilhar o caminho do processo RFC!
+Antes de propor qualquer mudança profunda (tipagem, atores, memória, FFI, JIT/AOT), você **DEVE** seguir este fluxo:
 
-1. Copie o template localizado em [`docs/rfcs/0000-template.md`](docs/rfcs/0000-template.md).
-2. Escreva sua proposta em uma [Issue/Draft PR] detalhando todo o seu design até as alternativas de Interoperação.
-3. Debatemos até a aceitação ou recusa. Só após aprovado que inicia-se o Pull Request com a implementação.
+1. Copie o template canônico em [`docs/rfcs/0000-template.md`](docs/rfcs/0000-template.md).
+2. Crie uma proposta em Issue ou Draft PR, incluindo motivação, design detalhado, alternativas e riscos.
+3. Aguarde revisão/consenso. Implementação só começa após aceitação do RFC.
+4. Se houver decisão arquitetural relevante, registre também um ADR em [`docs/decisions/`](docs/decisions/).
 
-Para checar os detalhes de liderança e escopo de Decisão do projeto, recomendamos que consulte fortemente o documento de [Governança (`GOVERNANCE.md`)](GOVERNANCE.md) na raiz do repositório!
+Para papéis e escopo de decisão do projeto, consulte [GOVERNANCE.md](GOVERNANCE.md).
 
 #### Preparando seu Ambiente
 A compilação e testes contínuos ocorrem inteiramente em Cargo Mvp base.
@@ -28,4 +29,4 @@ cargo check
 cargo test --all
 ```
 
-Ao rodar os testes garanta sempre de validar as fases anteriores de `fuzzing`/`stress` que construímos em `.kit/checklist.md`! Bons commits :)
+Ao rodar os testes, valide também o estado do roadmap operacional em `.kit/checklist-v0.2.0.md`. Bons commits :)
