@@ -1,0 +1,20 @@
+// Exemplo 26 - Try/Catch
+// Demonstra captura de erro de runtime (TypeError) e fluxo normal.
+
+try {
+    let (x, y) = 10;
+    println(x, y);
+} catch err {
+    println("Erro capturado:");
+    println(err);
+}
+
+try {
+    let (a, b) = (1, 2);
+    println("fluxo normal:");
+    println(a);
+    println(b);
+} catch err {
+    println("nao deve entrar aqui");
+    println(err);
+}

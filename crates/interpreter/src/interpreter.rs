@@ -8,6 +8,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use std::collections::BTreeMap;
 
@@ -1791,6 +1792,30 @@ impl Interpreter {
                 ));
                 Ok(())
             }
+            Stmt::TryCatch {
+                try_branch,
+                catch_name,
+                catch_branch,
+            } => match self.execute(*try_branch) {
+                Ok(()) => Ok(()),
+                Err(RuntimeError::Return(v)) => Err(RuntimeError::Return(v)),
+                Err(RuntimeError::TypeError(msg)) => {
+                    let previous_env = self.environment.clone();
+                    let catch_env = Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
+                    self.environment = catch_env.clone();
+
+                    self.environment
+                        .borrow_mut()
+                        .define(&catch_name.lexeme, ArtValue::String(Arc::from(msg)));
+
+                    let result = self.execute(*catch_branch);
+
+                    self.drop_scope_heap_objects(&catch_env);
+                    self.environment = previous_env;
+
+                    result
+                }
+            },
             Stmt::Function {
                 name,
                 type_params,

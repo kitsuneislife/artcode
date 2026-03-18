@@ -194,3 +194,31 @@ fn fstring_malformed_error() {
             .any(|d| d.message.contains("Unterminated interpolation"))
     );
 }
+
+#[test]
+fn try_catch_recovers_from_tuple_type_error() {
+    let src = r#"
+        try {
+            let (a, b) = 10;
+        } catch err {
+            println(err);
+        }
+    "#;
+    let diags = run(src);
+    assert!(diags.is_empty());
+}
+
+#[test]
+fn try_catch_skips_catch_when_no_error() {
+    let src = r#"
+        try {
+            let (a, b) = (1, 2);
+            println(a);
+            println(b);
+        } catch err {
+            println(err);
+        }
+    "#;
+    let diags = run(src);
+    assert!(diags.is_empty());
+}

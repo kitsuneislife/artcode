@@ -185,6 +185,19 @@ impl<'a> TypeInfer<'a> {
                     self.visit_stmt(e);
                 }
             }
+            Stmt::TryCatch {
+                try_branch,
+                catch_name,
+                catch_branch,
+            } => {
+                self.visit_stmt(try_branch);
+                self.push_scope();
+                self.record_var_binding(&catch_name.lexeme);
+                self.tenv.set_var(&catch_name.lexeme, Type::String);
+                self.declare_var(&catch_name.lexeme);
+                self.visit_stmt(catch_branch);
+                self.pop_scope();
+            }
             Stmt::EnumDecl { name, variants } => {
                 let mut map = HashMap::new();
                 for (v, params) in variants {
@@ -325,6 +338,14 @@ impl<'a> TypeInfer<'a> {
                 if let Some(e) = else_branch {
                     self.check_performant_stmt(e, outer_vars);
                 }
+            }
+            TryCatch {
+                try_branch,
+                catch_branch,
+                ..
+            } => {
+                self.check_performant_stmt(try_branch, outer_vars);
+                self.check_performant_stmt(catch_branch, outer_vars);
             }
             Let {
                 pattern, initializer, ..

@@ -48,6 +48,8 @@ pub enum TokenType {
     While,
     For,
     In,
+    Try,
+    Catch,
     Weak,    // keyword 'weak' (açúcar)
     Unowned, // keyword 'unowned' (açúcar)
     Identifier,
@@ -105,6 +107,8 @@ impl Token {
                 | TokenType::While
                 | TokenType::For
                 | TokenType::In
+                | TokenType::Try
+                | TokenType::Catch
         )
         .then(|| intern(&lexeme));
         Token {

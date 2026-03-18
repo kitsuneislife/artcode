@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="26 exemplos progressivos da linguagem Artcode: do Hello World a Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
+        content="27 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -33,7 +33,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>26 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>27 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -91,6 +91,9 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-24">
                             <span class="examples-sidebar__num">24</span> Result/Option Sugar
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-26">
+                            <span class="examples-sidebar__num">26</span> Try/Catch
                         </button>
                     </div>
 
@@ -1038,6 +1041,44 @@ s1.<span class="fn">describe</span>(); s2.<span class="fn">describe</span>();</p
                             <span class="kw">while</span> (sempre_falso) <span class="fn">println</span>(<span class="str">"nao executa"</span>);</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/25_loops_tuples_destructuring.art</span></div>
+                    </div>
+
+                    <!-- 26: Try/Catch -->
+                    <div class="example-entry" id="ex-26">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">26</span>
+                            <span class="example-entry__title">Try/Catch</span>
+                            <span class="example-tag">Tratamento de Erros</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Demonstra tratamento explicito de erros no runtime com <code>try/catch</code>.
+                            O primeiro bloco captura um <code>TypeError</code> e continua a execucao.
+                            O segundo bloco mostra o fluxo normal quando nao ha erro.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">26_try_catch.art</span>
+                            </div>
+                            <pre><span class="kw">try</span> {
+    <span class="kw">let</span> (x, y) = <span class="num">10</span>;
+    <span class="fn">println</span>(x, y);
+} <span class="kw">catch</span> err {
+    <span class="fn">println</span>(<span class="str">"Erro capturado:"</span>);
+    <span class="fn">println</span>(err);
+}
+
+<span class="kw">try</span> {
+    <span class="kw">let</span> (a, b) = (<span class="num">1</span>, <span class="num">2</span>);
+    <span class="fn">println</span>(a);
+    <span class="fn">println</span>(b);
+} <span class="kw">catch</span> err {
+    <span class="fn">println</span>(err);
+}</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/26_try_catch.art</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->

@@ -240,6 +240,8 @@ impl Lexer {
             "while" => TokenType::While,
             "for" => TokenType::For,
             "in" => TokenType::In,
+            "try" => TokenType::Try,
+            "catch" => TokenType::Catch,
             _ => TokenType::Identifier,
         };
         self.add_token(token_type);

@@ -36,6 +36,11 @@ pub enum Stmt {
         then_branch: Box<Stmt>,
         else_branch: Option<Box<Stmt>>,
     },
+    TryCatch {
+        try_branch: Box<Stmt>,
+        catch_name: Token,
+        catch_branch: Box<Stmt>,
+    },
     StructDecl {
         name: Token,
         fields: Vec<(Token, String)>,

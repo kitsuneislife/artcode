@@ -17,6 +17,9 @@ pub fn statement(parser: &mut Parser) -> Stmt {
     if parser.check(&TokenType::If) {
         return if_statement(parser);
     }
+    if parser.check(&TokenType::Try) {
+        return try_catch_statement(parser);
+    }
     if parser.check(&TokenType::Return) {
         return return_statement(parser);
     }
@@ -176,6 +179,21 @@ pub fn if_statement(parser: &mut Parser) -> Stmt {
         condition,
         then_branch,
         else_branch,
+    }
+}
+
+pub fn try_catch_statement(parser: &mut Parser) -> Stmt {
+    parser.consume(TokenType::Try, "Expect 'try'.");
+    let try_branch = Box::new(statement(parser));
+
+    parser.consume(TokenType::Catch, "Expect 'catch' after try branch.");
+    let catch_name = parser.consume(TokenType::Identifier, "Expect error binding name after 'catch'.");
+    let catch_branch = Box::new(statement(parser));
+
+    Stmt::TryCatch {
+        try_branch,
+        catch_name,
+        catch_branch,
     }
 }
 

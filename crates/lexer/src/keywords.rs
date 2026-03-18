@@ -24,5 +24,7 @@ pub fn make_keywords() -> HashMap<String, TokenType> {
     keywords.insert("while".to_string(), TokenType::While);
     keywords.insert("for".to_string(), TokenType::For);
     keywords.insert("in".to_string(), TokenType::In);
+    keywords.insert("try".to_string(), TokenType::Try);
+    keywords.insert("catch".to_string(), TokenType::Catch);
     keywords
 }

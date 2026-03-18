@@ -13,6 +13,7 @@ Implementação experimental de uma linguagem interpretada em Rust com suporte a
 - Enums (variantes com payload) + shorthand `.Variant` com detecção de ambiguidade
 - Pattern matching com guards (`case .X(v) if v > 10:`)
 - Loops nativos (`while`, `for`) e tuplas com destructuring (`let (a, b) = value`)
+- Tratamento explicito de erro com `try/catch` (alem do operador `?`)
 - Funções e closures (captura léxica)
 - Métodos em structs e enums com auto-binding de `self`
 - Introspecção em métodos de enum (`variant`, `values`)
@@ -43,6 +44,7 @@ Principais recursos
 - Pattern matching com guards
 - Loops `while` e `for` com execução em runtime e inferência de tipos conservadora
 - Tuplas literais e destructuring por pattern (`let (a, b) = expr`)
+- Error handling explicito por statements `try/catch`
 - Funções, closures e métodos com auto-binding de `self`
 - f-Strings com format specs e re-lex/parsing das expressões internas
 - Standard Library Expansiva (Coleções Padrão de Map/Set, Manipulação de Matemática e IO Simples)
@@ -133,6 +135,7 @@ Links rápidos para os principais documentos:
 - [f-Strings (format specs)](docs/fstrings.md)
 - [Funções & Closures](docs/functions.md)
 - [Loops & Tuplas](docs/loops_tuples.md)
+- [Error Handling](docs/error_handling.md)
 - [Enums & Pattern Matching](docs/enums.md)
 - [Coverage & Métricas](docs/coverage.md)
 - [Roadmap](docs/roadmap.md)

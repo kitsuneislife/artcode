@@ -112,6 +112,17 @@ fn lint_stmt(stmt: &Stmt, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
                 lint_stmt(els, scopes, diagnostics);
             }
         }
+        Stmt::TryCatch {
+            try_branch,
+            catch_name,
+            catch_branch,
+        } => {
+            lint_stmt(try_branch, scopes, diagnostics);
+            scopes.push();
+            scopes.declare(&catch_name.lexeme, catch_name, diagnostics);
+            lint_stmt(catch_branch, scopes, diagnostics);
+            scopes.pop();
+        }
         Stmt::Expression(expr) | Stmt::Return { value: Some(expr) } => {
             lint_expr(expr, scopes, diagnostics);
         }

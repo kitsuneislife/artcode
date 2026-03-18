@@ -32,6 +32,7 @@ Current examples (ordered):
 - `23_linter_tests.art` — Teste de detecção estática e dicas arquiteturais (`art lint`)
 - `24_result_option_sugar.art` — Uso avançado das Mônadas Nativas (Result/Option)
 - `25_loops_tuples_destructuring.art` — Loops `while`/`for` com tuplas e destructuring
+- `26_try_catch.art` — Tratamento explícito de erro com `try/catch`
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 
