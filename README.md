@@ -12,6 +12,7 @@ Implementação experimental de uma linguagem interpretada em Rust com suporte a
 - Structs
 - Enums (variantes com payload) + shorthand `.Variant` com detecção de ambiguidade
 - Pattern matching com guards (`case .X(v) if v > 10:`)
+- Loops nativos (`while`, `for`) e tuplas com destructuring (`let (a, b) = value`)
 - Funções e closures (captura léxica)
 - Métodos em structs e enums com auto-binding de `self`
 - Introspecção em métodos de enum (`variant`, `values`)
@@ -40,6 +41,8 @@ Por que Artcode é relevante
 Principais recursos
 - Structs e Enums (variants com payloads e shorthand `.Variant` com checagem de ambiguidade)
 - Pattern matching com guards
+- Loops `while` e `for` com execução em runtime e inferência de tipos conservadora
+- Tuplas literais e destructuring por pattern (`let (a, b) = expr`)
 - Funções, closures e métodos com auto-binding de `self`
 - f-Strings com format specs e re-lex/parsing das expressões internas
 - Standard Library Expansiva (Coleções Padrão de Map/Set, Manipulação de Matemática e IO Simples)
@@ -98,7 +101,7 @@ Design e diferenciais (curto)
 
 Contribuindo
 - Leia `docs/` e as RFCs em `docs/rfcs/` antes de mudanças maiores.
-- Use o checklist operacional em `/.kit/checklist.md` para priorizar trabalho.
+- Use o checklist operacional em `/.kit/checklist-v0.2.0.md` para priorizar trabalho.
 - Para mudanças de design: abra uma RFC (`docs/rfcs/0000-template.md` quando existir) e link no PR.
 
 Licença & contato
@@ -129,6 +132,7 @@ Links rápidos para os principais documentos:
 - [Memória (ARC / weak / arenas)](docs/memory.md)
 - [f-Strings (format specs)](docs/fstrings.md)
 - [Funções & Closures](docs/functions.md)
+- [Loops & Tuplas](docs/loops_tuples.md)
 - [Enums & Pattern Matching](docs/enums.md)
 - [Coverage & Métricas](docs/coverage.md)
 - [Roadmap](docs/roadmap.md)
