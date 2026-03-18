@@ -14,6 +14,14 @@ Detectado ao ver `f"`. O conteúdo interno (sem aspas) é armazenado bruto para 
 ### Identificadores vs Palavras-chave
 Mapa de keywords decide se o lexema vira token especial ou `Identifier`.
 
+### String Interning (Parser/Runtime)
+- O core expõe dois pools:
+	- `intern(&str) -> &'static str` para símbolos (identificadores/keywords).
+	- `intern_arc(&str) -> Arc<str>` para payload textual compartilhado na AST/runtime.
+- Literais string no parser agora usam `intern_arc`, reduzindo alocações duplicadas quando
+	o mesmo literal aparece várias vezes no código.
+- O runtime reutiliza strings internadas em caminhos quentes como `type_of(...)`.
+
 ## Parser
 Recursivo descendente. Constrói `Expr` e `Stmt`.
 

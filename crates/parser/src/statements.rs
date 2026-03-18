@@ -269,7 +269,7 @@ pub fn parse_pattern(parser: &mut Parser) -> MatchPattern {
                 }
             }
             TokenType::String(s) => {
-                MatchPattern::Literal(ArtValue::String(std::sync::Arc::from(s)))
+                MatchPattern::Literal(ArtValue::String(core::intern_arc(&s)))
             }
             TokenType::True => MatchPattern::Literal(ArtValue::Bool(true)),
             TokenType::False => MatchPattern::Literal(ArtValue::Bool(false)),

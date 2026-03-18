@@ -206,6 +206,7 @@
 <span class="fn">bash</span> scripts/run_fuzz_ci.sh 60     <span class="cm"># fuzzing parser/loops com janela curta</span></pre>
                     </div>
                     <p style="margin-top: 12px;">Adendo de atores: use <code>http_get_text(url)</code> em workers para fluxo request/response HTTP básico sem bloquear o controle principal.</p>
+                    <p style="margin-top: 8px;">O parser/runtime também usa string interning ampliado (<code>intern</code>/<code>intern_arc</code>) para reduzir alocações repetidas de símbolos e literais.</p>
                 </article>
                 <!-- Installation -->
                 <article id="installation" class="doc-article">

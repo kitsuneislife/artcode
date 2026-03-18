@@ -2141,7 +2141,7 @@ impl Interpreter {
                     }) = self.environment.borrow().get("self")
                 {
                     if name_str == "variant" {
-                        return Ok(ArtValue::String(std::sync::Arc::from(variant.clone())));
+                        return Ok(ArtValue::String(core::intern_arc(variant.as_str())));
                     } else {
                         return Ok(ArtValue::Array(values.clone()));
                     }
@@ -3408,7 +3408,7 @@ impl Interpreter {
                         ArtValue::Mutex(_) => "Mutex",
                         ArtValue::Actor(_) => "Actor",
                     };
-                    Ok(ArtValue::String(std::sync::Arc::from(t)))
+                    Ok(ArtValue::String(core::intern_arc(t)))
                 } else {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,

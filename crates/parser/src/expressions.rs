@@ -34,7 +34,7 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
             };
             Expr::Literal(art_val)
         }
-        TokenType::String(s) => Expr::Literal(core::ast::ArtValue::String(std::sync::Arc::from(s))),
+        TokenType::String(s) => Expr::Literal(core::ast::ArtValue::String(core::intern_arc(&s))),
         TokenType::InterpolatedString(s) => parser.parse_interpolated_string(s),
         TokenType::True => Expr::Literal(core::ast::ArtValue::Bool(true)),
         TokenType::False => Expr::Literal(core::ast::ArtValue::Bool(false)),
