@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="25 exemplos progressivos da linguagem Artcode: do Hello World a Microkernels, passando por Pattern Matching, Atores e Arenas.">
+        content="26 exemplos progressivos da linguagem Artcode: do Hello World a Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -33,7 +33,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>25 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>26 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -78,6 +78,9 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-09">
                             <span class="examples-sidebar__num">09</span> Métodos em Struct & Enum
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-25">
+                            <span class="examples-sidebar__num">25</span> Loops, Tuplas & Destructuring
                         </button>
                     </div>
 
@@ -999,6 +1002,42 @@ s1.<span class="fn">describe</span>(); s2.<span class="fn">describe</span>();</p
 <span class="fn">test_option_sugar</span>();</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/24_result_option_sugar.art</span></div>
+                    </div>
+
+                    <!-- 25: Loops + Tuplas + Destructuring -->
+                    <div class="example-entry" id="ex-25">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">25</span>
+                            <span class="example-entry__title">Loops, Tuplas &amp; Destructuring</span>
+                            <span class="example-tag">Tipos &amp; Estruturas</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Exemplo da trilha v0.2: combina <code>while</code> e <code>for</code> com
+                            tuples e destructuring em <code>let</code>, validando a evolucao do parser,
+                            runtime e inferencia de tipos para patterns compostos.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">25_loops_tuples_destructuring.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> pontos = [
+    (<span class="num">1</span>, <span class="num">2</span>),
+    (<span class="num">3</span>, <span class="num">4</span>),
+    (<span class="num">5</span>, <span class="num">6</span>),
+];
+
+                            <span class="kw">let</span> (x0, y0) = (<span class="num">100</span>, <span class="num">200</span>);
+                            <span class="fn">println</span>(<span class="str">"tuple inicial:"</span>, x0, y0);
+
+                            <span class="kw">for</span> ponto <span class="kw">in</span> (pontos) <span class="fn">println</span>(ponto);
+
+<span class="kw">let</span> sempre_falso = <span class="kw">false</span>;
+                            <span class="kw">while</span> (sempre_falso) <span class="fn">println</span>(<span class="str">"nao executa"</span>);</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/25_loops_tuples_destructuring.art</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->
