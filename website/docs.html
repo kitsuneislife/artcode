@@ -207,6 +207,7 @@
                     </div>
                     <p style="margin-top: 12px;">Adendo de atores: use <code>http_get_text(url)</code> em workers para fluxo request/response HTTP básico sem bloquear o controle principal.</p>
                     <p style="margin-top: 8px;">O parser/runtime também usa string interning ampliado (<code>intern</code>/<code>intern_arc</code>) para reduzir alocações repetidas de símbolos e literais.</p>
+                    <p style="margin-top: 8px;">O resolver de módulos agora coleta dependências em paralelo, mantendo ordem de emissão determinística para preservar comportamento.</p>
                 </article>
                 <!-- Installation -->
                 <article id="installation" class="doc-article">

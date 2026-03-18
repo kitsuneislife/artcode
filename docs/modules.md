@@ -7,6 +7,11 @@ Resolução (ordem):
 - Imports não-relativos: tratam-se como caminhos relativos ao workspace ou ao cache `~/.artcode/cache`.
 - Tentativas de arquivo: `X`, `X.art`, `X/mod.art`.
 
+Concorrência no resolver (v0.2):
+- A coleta do grafo de dependências de imports é paralela (resolução concorrente de módulos independentes).
+- A emissão final do programa permanece determinística: dependências primeiro, depois módulo importador,
+  respeitando a ordem léxica dos `import` em cada arquivo.
+
 Manifesto `Art.toml` (esqueleto):
 ```toml
 name = "my-lib"

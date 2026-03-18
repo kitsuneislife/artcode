@@ -126,6 +126,7 @@ Design e diferenciais (curto)
 - Complexidade Progressiva: níveis de abstração claros (ARC default → weak/unowned → arenas/performant).
 - Diagnósticos de qualidade: `diagnostics` crate centraliza mensagens e spans para boa DX.
 - Parser/runtime com string interning (`intern` + `intern_arc`) para reduzir alocações repetidas em símbolos e literais.
+- Resolver de módulos com coleta paralela de dependências e emissão determinística do programa final.
 - Foco em interoperabilidade e PGO a médio prazo.
 
 Contribuindo
