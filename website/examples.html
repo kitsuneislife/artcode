@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="30 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
+        content="31 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas e Microkernels, passando por Pattern Matching, Atores e Arenas.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -33,7 +33,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>30 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>31 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -162,6 +162,9 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-23">
                             <span class="examples-sidebar__num">23</span> Linter Tests
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-30">
+                            <span class="examples-sidebar__num">30</span> Changelog Workflow
                         </button>
                     </div>
 
@@ -1175,6 +1178,35 @@ s1.<span class="fn">describe</span>(); s2.<span class="fn">describe</span>();</p
 <span class="fn">println</span>(f<span class="str">"schema={semver}"</span>);</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/29_versioning_policy.art</span></div>
+                    </div>
+
+                    <!-- 30: Changelog Workflow -->
+                    <div class="example-entry" id="ex-30">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">30</span>
+                            <span class="example-entry__title">Changelog Workflow</span>
+                            <span class="example-tag">Ferramentas</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Exemplo simples para reforcar a manutencao semantica de release com
+                            secoes Added, Fixed e Docs no changelog.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">30_changelog_workflow.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> release = <span class="str">"0.2.0"</span>;
+<span class="kw">let</span> section_added = <span class="str">"Added"</span>;
+<span class="kw">let</span> section_fixed = <span class="str">"Fixed"</span>;
+<span class="kw">let</span> section_docs = <span class="str">"Docs"</span>;
+
+<span class="fn">println</span>(f<span class="str">"release={release}"</span>);
+<span class="fn">println</span>(f<span class="str">"sections={section_added}, {section_fixed}, {section_docs}"</span>);</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/30_changelog_workflow.art</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->

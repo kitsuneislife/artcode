@@ -53,3 +53,5 @@ Antes de publicar:
 - atualizar changelog com tipo de mudanca (breaking/feature/fix).
 - atualizar docs, README, examples e website.
 - validar testes e scripts de CI relevantes.
+
+Para padronizacao continua do changelog, consulte `CHANGELOG.md` e o utilitario `scripts/changelog_from_git.sh`.

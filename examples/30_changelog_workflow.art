@@ -1,0 +1,10 @@
+// Exemplo 30 - Workflow de Changelog Semantico
+
+let release = "0.2.0";
+let section_added = "Added";
+let section_fixed = "Fixed";
+let section_docs = "Docs";
+
+println(f"release={release}");
+println(f"sections={section_added}, {section_fixed}, {section_docs}");
+println("mantenha [Unreleased] atualizado a cada merge");
