@@ -29,22 +29,22 @@ fn finalizer_creates_multiple_handles() {
     // Program: define finalizer that assigns saved1 = owner1; saved2 = owner2
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![
                     Stmt::Let {
-                        name: core::Token::dummy("saved1"),
+                        pattern: core::ast::MatchPattern::Variable(core::Token::dummy("saved1")),
                         ty: None,
                         initializer: Expr::Variable {
                             name: core::Token::dummy("owner1"),
                         },
                     },
                     Stmt::Let {
-                        name: core::Token::dummy("saved2"),
+                        pattern: core::ast::MatchPattern::Variable(core::Token::dummy("saved2")),
                         ty: None,
                         initializer: Expr::Variable {
                             name: core::Token::dummy("owner2"),
@@ -55,7 +55,7 @@ fn finalizer_creates_multiple_handles() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -119,22 +119,22 @@ fn finalizer_promotes_multiple_to_root_from_arena() {
     // registrar finalizer que cria duas variáveis apontando para `outside`
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![
                     Stmt::Let {
-                        name: core::Token::dummy("p1"),
+                        pattern: core::ast::MatchPattern::Variable(core::Token::dummy("p1")),
                         ty: None,
                         initializer: Expr::Variable {
                             name: core::Token::dummy("outside"),
                         },
                     },
                     Stmt::Let {
-                        name: core::Token::dummy("p2"),
+                        pattern: core::ast::MatchPattern::Variable(core::Token::dummy("p2")),
                         ty: None,
                         initializer: Expr::Variable {
                             name: core::Token::dummy("outside"),
@@ -145,7 +145,7 @@ fn finalizer_promotes_multiple_to_root_from_arena() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),

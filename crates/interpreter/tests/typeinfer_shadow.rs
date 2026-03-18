@@ -10,14 +10,14 @@ fn typeinfer_restores_outer_bindings_on_shadow() {
     // simulate: let x = 1; { let x = 2; } ; x should still be Int
     let name = Token::dummy("x");
     let let_outer = Stmt::Let {
-        name: name.clone(),
+        pattern: core::ast::MatchPattern::Variable(name.clone()),
         ty: None,
         initializer: Expr::Literal(core::ast::ArtValue::Int(1)),
     };
     let inner_name = name.clone();
     let let_inner = Stmt::Block {
         statements: vec![Stmt::Let {
-            name: inner_name.clone(),
+            pattern: core::ast::MatchPattern::Variable(inner_name.clone()),
             ty: None,
             initializer: Expr::Literal(core::ast::ArtValue::Int(2)),
         }],

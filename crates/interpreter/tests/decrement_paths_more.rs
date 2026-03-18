@@ -12,20 +12,20 @@ fn finalizer_promotes_multiple_temporaries_to_root() {
     // Função finalizer que cria dois objetos e os define como globals (kept1 e kept2)
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin_multi"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![
                     Stmt::Let {
-                        name: core::Token::dummy("kept1"),
+                        pattern: core::ast::MatchPattern::Variable(core::Token::dummy("kept1")),
                         ty: None,
                         initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(11))]),
                     },
                     Stmt::Let {
-                        name: core::Token::dummy("kept2"),
+                        pattern: core::ast::MatchPattern::Variable(core::Token::dummy("kept2")),
                         ty: None,
                         initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(22))]),
                     },
@@ -35,7 +35,7 @@ fn finalizer_promotes_multiple_temporaries_to_root() {
         },
         // Registrar finalizer
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -80,8 +80,8 @@ fn nested_performant_return_emits_diagnostic() {
     // Função que contém um bloco performant que tenta retornar o objeto de arena
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("outer"),
             params: vec![],
             return_type: None,
@@ -89,7 +89,7 @@ fn nested_performant_return_emits_diagnostic() {
                 statements: vec![Stmt::Performant {
                     statements: vec![
                         Stmt::Let {
-                            name: core::Token::dummy("a"),
+                            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("a")),
                             ty: None,
                             initializer: Expr::Literal(ArtValue::HeapComposite(
                                 core::ast::ObjHandle(id),
@@ -107,10 +107,10 @@ fn nested_performant_return_emits_diagnostic() {
         },
         // Chamar e atribuir
         Stmt::Let {
-            name: core::Token::dummy("r"),
+            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("r")),
             ty: None,
             initializer: Expr::Call {
-        type_args: None,
+                type_args: None,
                 callee: Box::new(Expr::Variable {
                     name: core::Token::dummy("outer"),
                 }),
@@ -172,14 +172,14 @@ fn field_assign_prev_arena_triggers_finalizer() {
     // Registrar finalizer que cria flag
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin_prev"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("prev_flag"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("prev_flag")),
                     ty: None,
                     initializer: Expr::Literal(ArtValue::Int(55)),
                 }],
@@ -188,7 +188,7 @@ fn field_assign_prev_arena_triggers_finalizer() {
         },
         // on_finalize(child_arena, fin_prev)
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),

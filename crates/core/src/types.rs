@@ -11,6 +11,7 @@ pub enum Type {
     EnumInstance(String, Vec<Type>),
     GenericParam(String),
     Function(Vec<Type>, Box<Type>),
+    Tuple(Vec<Type>),
     Unknown,
 }
 
@@ -33,6 +34,10 @@ impl Type {
             Type::Function(params, ret) => {
                 let ps: Vec<String> = params.iter().map(|p| p.name()).collect();
                 format!("fn({}) -> {}", ps.join(", "), ret.name())
+            }
+            Type::Tuple(types) => {
+                let ts: Vec<String> = types.iter().map(|t| t.name()).collect();
+                format!("({})", ts.join(", "))
             }
             Type::Unknown => "_".into(),
         }

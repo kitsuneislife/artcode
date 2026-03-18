@@ -9,8 +9,8 @@ fn finalizer_promotes_handles_to_root_during_execution() {
     let program = vec![
         // finalizer function
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin_promote"),
             params: vec![],
             return_type: None,
@@ -18,7 +18,7 @@ fn finalizer_promotes_handles_to_root_during_execution() {
                 statements: vec![
                     // body: let promoted = outside
                     Stmt::Let {
-                        name: core::Token::dummy("promoted"),
+                        pattern: core::ast::MatchPattern::Variable(core::Token::dummy("promoted")),
                         ty: None,
                         initializer: Expr::Variable {
                             name: core::Token::dummy("outside"),
@@ -30,7 +30,7 @@ fn finalizer_promotes_handles_to_root_during_execution() {
         },
         // define an outside root object that finalizer will promote
         Stmt::Let {
-            name: core::Token::dummy("outside"),
+            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("outside")),
             ty: None,
             initializer: Expr::Array(vec![Expr::Literal(core::ast::ArtValue::Int(7)).into()]),
         },
@@ -38,7 +38,7 @@ fn finalizer_promotes_handles_to_root_during_execution() {
         Stmt::Block {
             statements: vec![
                 Stmt::Let {
-                    name: core::Token::dummy("x"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("x")),
                     ty: None,
                     initializer: Expr::Array(vec![
                         Expr::Literal(core::ast::ArtValue::Int(1)).into(),
@@ -46,7 +46,7 @@ fn finalizer_promotes_handles_to_root_during_execution() {
                 },
                 // register finalizer
                 Stmt::Expression(Expr::Call {
-        type_args: None,
+                    type_args: None,
                     callee: Box::new(Expr::Variable {
                         name: core::Token::dummy("on_finalize"),
                     }),
@@ -61,7 +61,7 @@ fn finalizer_promotes_handles_to_root_during_execution() {
                 }),
                 // rebind x to new value -> should drop the old and run finalizer which will promote `outside` into `promoted`
                 Stmt::Let {
-                    name: core::Token::dummy("x"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("x")),
                     ty: None,
                     initializer: Expr::Array(vec![]),
                 },

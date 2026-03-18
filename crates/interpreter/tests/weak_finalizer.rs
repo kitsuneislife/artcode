@@ -15,14 +15,14 @@ fn finalizer_runs_and_object_stays_while_weak() {
     // Criar função finalizer 'fin' que define 'created' global e registrar on_finalize(a, fin)
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("created"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("created")),
                     ty: None,
                     initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(2))]),
                 }],
@@ -30,7 +30,7 @@ fn finalizer_runs_and_object_stays_while_weak() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -133,14 +133,14 @@ fn finalizer_creates_handle_preserved() {
     // Criar finalizer que faz: let saved = owner
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("saved"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("saved")),
                     ty: None,
                     initializer: Expr::Variable {
                         name: core::Token::dummy("owner"),
@@ -150,7 +150,7 @@ fn finalizer_creates_handle_preserved() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -206,14 +206,14 @@ fn finalizer_promotes_handles_across_arenas() {
     // criar e registrar finalizer que salva a referência a `outside` em 'promoted'
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("promoted"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("promoted")),
                     ty: None,
                     initializer: Expr::Variable {
                         name: core::Token::dummy("outside"),
@@ -223,7 +223,7 @@ fn finalizer_promotes_handles_across_arenas() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),

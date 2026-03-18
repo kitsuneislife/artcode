@@ -17,14 +17,14 @@ fn stress_finalizer_mass_promotion() {
         // criar finalizer function dinamicamente
         let fname = format!("fin_{}", i);
         let fin = Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy(&fname),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("promoted"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("promoted")),
                     ty: None,
                     initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(100 + i as i64))]),
                 }],
@@ -37,7 +37,7 @@ fn stress_finalizer_mass_promotion() {
         );
         // registrar finalizer chamando on_finalize
         let call = Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -130,7 +130,7 @@ fn stress_chained_finalizers_cross_arena() {
         return_type: None,
         body: std::rc::Rc::new(Stmt::Block {
             statements: vec![Stmt::Let {
-                name: core::Token::dummy("from_fin1"),
+                pattern: core::ast::MatchPattern::Variable(core::Token::dummy("from_fin1")),
                 ty: None,
                 initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(1))]),
             }],
@@ -146,7 +146,7 @@ fn stress_chained_finalizers_cross_arena() {
         return_type: None,
         body: std::rc::Rc::new(Stmt::Block {
             statements: vec![Stmt::Let {
-                name: core::Token::dummy("from_fin2"),
+                pattern: core::ast::MatchPattern::Variable(core::Token::dummy("from_fin2")),
                 ty: None,
                 initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(2))]),
             }],
@@ -161,7 +161,7 @@ fn stress_chained_finalizers_cross_arena() {
     assert!(
         interp
             .interpret(vec![Stmt::Expression(Expr::Call {
-        type_args: None,
+                type_args: None,
                 callee: Box::new(Expr::Variable {
                     name: core::Token::dummy("on_finalize"),
                 }),
@@ -178,7 +178,7 @@ fn stress_chained_finalizers_cross_arena() {
     assert!(
         interp
             .interpret(vec![Stmt::Expression(Expr::Call {
-        type_args: None,
+                type_args: None,
                 callee: Box::new(Expr::Variable {
                     name: core::Token::dummy("on_finalize"),
                 }),

@@ -8,14 +8,14 @@ fn rebind_triggers_finalizer_and_clears_handles() {
     // define a finalizer function that sets a global flag
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("flag"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("flag")),
                     ty: None,
                     initializer: Expr::Literal(ArtValue::Int(1)),
                 }],
@@ -24,13 +24,13 @@ fn rebind_triggers_finalizer_and_clears_handles() {
         },
         // let a = [1]
         Stmt::Let {
-            name: core::Token::dummy("a"),
+            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("a")),
             ty: None,
             initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(1))]),
         },
         // on_finalize(a, fin)
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -45,7 +45,7 @@ fn rebind_triggers_finalizer_and_clears_handles() {
         }),
         // rebind a
         Stmt::Let {
-            name: core::Token::dummy("a"),
+            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("a")),
             ty: None,
             initializer: Expr::Array(vec![]),
         },
@@ -74,8 +74,8 @@ fn return_of_arena_object_is_reported() {
     let id = interp.debug_heap_register_in_arena(ArtValue::Array(vec![ArtValue::Int(9)]), aid);
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("ret_a"),
             params: vec![],
             return_type: None,
@@ -89,10 +89,10 @@ fn return_of_arena_object_is_reported() {
             method_owner: None,
         },
         Stmt::Let {
-            name: core::Token::dummy("g"),
+            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("g")),
             ty: None,
             initializer: Expr::Call {
-        type_args: None,
+                type_args: None,
                 callee: Box::new(Expr::Variable {
                     name: core::Token::dummy("ret_a"),
                 }),
@@ -135,14 +135,14 @@ fn field_mutation_runs_finalizer_on_previous_value() {
     // finalizer
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("finf"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("ff"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("ff")),
                     ty: None,
                     initializer: Expr::Literal(ArtValue::Int(7)),
                 }],
@@ -150,7 +150,7 @@ fn field_mutation_runs_finalizer_on_previous_value() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -208,14 +208,14 @@ fn performant_arena_finalization_promotes_and_cleans() {
     // register a finalizer that creates a global handle (promotion)
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fp"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("promoted"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("promoted")),
                     ty: None,
                     initializer: Expr::Literal(ArtValue::Int(42)),
                 }],
@@ -223,7 +223,7 @@ fn performant_arena_finalization_promotes_and_cleans() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),

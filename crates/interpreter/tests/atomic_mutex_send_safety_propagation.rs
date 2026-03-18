@@ -7,12 +7,12 @@ use interpreter::type_infer::{TypeEnv, TypeInfer};
 #[test]
 fn actor_send_propagation_allows_forwarded_array() {
     let let_a = Stmt::Let {
-        name: Token::dummy("a"),
+        pattern: core::ast::MatchPattern::Variable(Token::dummy("a")),
         ty: None,
         initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(1))]),
     };
     let let_b = Stmt::Let {
-        name: Token::dummy("b"),
+        pattern: core::ast::MatchPattern::Variable(Token::dummy("b")),
         ty: None,
         initializer: Expr::Variable {
             name: Token::dummy("a"),

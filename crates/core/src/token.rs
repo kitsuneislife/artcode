@@ -45,6 +45,9 @@ pub enum TokenType {
     Spawn,
     Actor,
     Return,
+    While,
+    For,
+    In,
     Weak,    // keyword 'weak' (açúcar)
     Unowned, // keyword 'unowned' (açúcar)
     Identifier,
@@ -99,6 +102,9 @@ impl Token {
                 | TokenType::Unowned
                 | TokenType::Spawn
                 | TokenType::Actor
+                | TokenType::While
+                | TokenType::For
+                | TokenType::In
         )
         .then(|| intern(&lexeme));
         Token {

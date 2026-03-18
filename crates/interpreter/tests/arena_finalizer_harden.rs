@@ -11,14 +11,14 @@ fn finalizer_promotions_counted_per_arena() {
     // finalizer that creates a heap allocation (Array) so there is a strong handle to promote
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fp2"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("promoted2"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("promoted2")),
                     ty: None,
                     initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(99))]),
                 }],
@@ -26,7 +26,7 @@ fn finalizer_promotions_counted_per_arena() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -77,7 +77,7 @@ fn finalize_arena_idempotent_and_safe() {
         return_type: None,
         body: std::rc::Rc::new(Stmt::Block {
             statements: vec![Stmt::Let {
-                name: core::Token::dummy("tmpx"),
+                pattern: core::ast::MatchPattern::Variable(core::Token::dummy("tmpx")),
                 ty: None,
                 initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(5))]),
             }],

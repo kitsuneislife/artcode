@@ -59,10 +59,12 @@ impl ScopeStack {
 fn lint_stmt(stmt: &Stmt, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnostic>) {
     match stmt {
         Stmt::Let {
-            name, initializer, ..
+            pattern,
+            initializer,
+            ..
         } => {
             lint_expr(initializer, scopes, diagnostics);
-            scopes.declare(&name.lexeme, name, diagnostics);
+            declare_pattern_bindings(pattern, scopes, diagnostics);
         }
         Stmt::Function {
             name, params, body, ..
@@ -96,13 +98,16 @@ fn lint_stmt(stmt: &Stmt, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
             }
         }
         Stmt::IfLet {
-            pattern: _,
+            pattern,
             value,
             then_branch,
             else_branch,
         } => {
             lint_expr(value, scopes, diagnostics);
+            scopes.push();
+            declare_pattern_bindings(pattern, scopes, diagnostics);
             lint_stmt(then_branch, scopes, diagnostics);
+            scopes.pop();
             if let Some(els) = else_branch {
                 lint_stmt(els, scopes, diagnostics);
             }
@@ -128,6 +133,7 @@ fn lint_stmt(stmt: &Stmt, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
                 }
 
                 scopes.push();
+                declare_pattern_bindings(pattern, scopes, diagnostics);
 
                 match pattern {
                     MatchPattern::Wildcard
@@ -147,6 +153,46 @@ fn lint_stmt(stmt: &Stmt, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
                 scopes.pop();
             }
         }
+        Stmt::While { condition, body } => {
+            lint_expr(condition, scopes, diagnostics);
+            lint_stmt(body, scopes, diagnostics);
+        }
+        Stmt::For {
+            element,
+            iterator,
+            body,
+        } => {
+            lint_expr(iterator, scopes, diagnostics);
+            scopes.push();
+            scopes.declare(&element.lexeme, element, diagnostics);
+            lint_stmt(body, scopes, diagnostics);
+            scopes.pop();
+        }
+    }
+}
+
+fn declare_pattern_bindings(
+    pattern: &MatchPattern,
+    scopes: &mut ScopeStack,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    match pattern {
+        MatchPattern::Variable(token) | MatchPattern::Binding(token) => {
+            scopes.declare(&token.lexeme, token, diagnostics);
+        }
+        MatchPattern::Tuple(parts) => {
+            for part in parts {
+                declare_pattern_bindings(part, scopes, diagnostics);
+            }
+        }
+        MatchPattern::EnumVariant { params, .. } => {
+            if let Some(params) = params {
+                for param in params {
+                    declare_pattern_bindings(param, scopes, diagnostics);
+                }
+            }
+        }
+        MatchPattern::Literal(_) | MatchPattern::Wildcard => {}
     }
 }
 
@@ -177,6 +223,11 @@ fn lint_expr(expr: &Expr, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
             lint_expr(object, scopes, diagnostics);
         }
         Expr::Array(elements) => {
+            for el in elements {
+                lint_expr(el, scopes, diagnostics);
+            }
+        }
+        Expr::Tuple(elements) => {
             for el in elements {
                 lint_expr(el, scopes, diagnostics);
             }

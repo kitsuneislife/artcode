@@ -17,7 +17,7 @@ fn candidate_owner_edges_detects_parent_field() {
     // (manter c vivo globalmente)
     let program = vec![
         Stmt::Let {
-            name: core::Token::dummy("p"),
+            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("p")),
             ty: None,
             initializer: Expr::StructInit {
                 name: core::Token::dummy("Parent"),
@@ -25,7 +25,7 @@ fn candidate_owner_edges_detects_parent_field() {
             },
         },
         Stmt::Let {
-            name: core::Token::dummy("c"),
+            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("c")),
             ty: None,
             initializer: Expr::StructInit {
                 name: core::Token::dummy("Child"),

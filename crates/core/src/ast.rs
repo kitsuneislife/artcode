@@ -18,7 +18,7 @@ pub type Program = Vec<Stmt>;
 pub enum Stmt {
     Expression(Expr),
     Let {
-        name: Token,
+        pattern: MatchPattern,
         ty: Option<String>,
         initializer: Expr,
     },
@@ -56,6 +56,15 @@ pub enum Stmt {
         body: Rc<Stmt>,
         method_owner: Option<String>,
         is_async: bool,
+    },
+    While {
+        condition: Expr,
+        body: Box<Stmt>,
+    },
+    For {
+        element: Token,
+        iterator: Expr,
+        body: Box<Stmt>,
     },
     Performant {
         statements: Vec<Stmt>,
@@ -122,6 +131,7 @@ pub enum Expr {
     },
     Try(Box<Expr>),
     Array(Vec<Expr>),
+    Tuple(Vec<Expr>),
     Cast {
         object: Box<Expr>,
         target_type: String,
@@ -194,6 +204,7 @@ pub enum ArtValue {
     Bool(bool),
     Optional(Box<Option<ArtValue>>),
     Array(Vec<ArtValue>),
+    Tuple(Vec<ArtValue>),
     StructInstance {
         struct_name: String,
         fields: std::collections::HashMap<String, ArtValue>,
@@ -346,6 +357,10 @@ impl fmt::Display for ArtValue {
                 let elems: Vec<String> = arr.iter().map(|item| item.to_string()).collect();
                 write!(f, "[{}]", elems.join(", "))
             }
+            ArtValue::Tuple(tup) => {
+                let elems: Vec<String> = tup.iter().map(|item| item.to_string()).collect();
+                write!(f, "({})", elems.join(", "))
+            }
             ArtValue::StructInstance {
                 struct_name,
                 fields,
@@ -475,4 +490,5 @@ pub enum MatchPattern {
     Variable(Token),
     Binding(Token),
     Wildcard,
+    Tuple(Vec<MatchPattern>),
 }

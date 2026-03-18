@@ -14,14 +14,14 @@ fn finalizer_promotes_handles_from_arena() {
     // finalizer that creates a local var (promoted to root by finalizer semantics)
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fp"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("promoted"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("promoted")),
                     ty: None,
                     initializer: Expr::Literal(ArtValue::Int(42)),
                 }],
@@ -29,7 +29,7 @@ fn finalizer_promotes_handles_from_arena() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -66,14 +66,14 @@ fn finalizer_allocation_inside_arena_does_not_break_finalize() {
     // finalizer that allocates a new array (which will be promoted to root by finalizer semantics)
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("allocf"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("tmp"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("tmp")),
                     ty: None,
                     initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(7))]),
                 }],
@@ -81,7 +81,7 @@ fn finalizer_allocation_inside_arena_does_not_break_finalize() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),

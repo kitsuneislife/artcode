@@ -39,14 +39,14 @@ fn field_mutation_runs_finalizer_and_decrements() {
     // Definir finalizer para old_obj que cria flag 'old_gone'
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("old_gone"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("old_gone")),
                     ty: None,
                     initializer: Expr::Literal(core::ast::ArtValue::Int(1)),
                 }],
@@ -55,7 +55,7 @@ fn field_mutation_runs_finalizer_and_decrements() {
         },
         // on_finalize(p.left, fin)
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),

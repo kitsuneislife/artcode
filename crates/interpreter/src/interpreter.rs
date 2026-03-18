@@ -1608,20 +1608,13 @@ impl Interpreter {
         }
     }
 
-    fn execute(&mut self, stmt: Stmt) -> Result<()> {
-        self.executed_statements += 1;
-        match stmt {
-            Stmt::Expression(expr) => {
-                let val = self.evaluate(expr)?;
-                self.last_value = Some(val.clone());
-                Ok(())
-            }
-            Stmt::Let {
-                name,
-                ty: _,
-                initializer,
-            } => {
-                let value = self.evaluate(initializer)?;
+    fn bind_value_to_pattern(
+        &mut self,
+        pattern: &core::ast::MatchPattern,
+        value: ArtValue,
+    ) -> Result<()> {
+        match pattern {
+            core::ast::MatchPattern::Variable(name) => {
                 // Runtime check: evitar que valores alocados em arena escapem para fora do bloco performant.
                 if let ArtValue::HeapComposite(h) = &value
                     && let Some(obj) = self.heap_objects.get(&h.0)
@@ -1632,7 +1625,6 @@ impl Interpreter {
                         "Attempt to bind arena object (arena={}) into scope outside of that arena (current_arena={:?}) for variable '{}'.",
                         aid, self.current_arena, name.lexeme
                     );
-                    // Em debug, usar debug_assert para ajudar no diagnóstico sem abortar logicamente
                     debug_assert!(!msg.is_empty(), "{}", msg);
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
@@ -1640,6 +1632,7 @@ impl Interpreter {
                         Span::new(name.start, name.end, name.line, name.col),
                     ));
                 }
+
                 // Captura possível valor antigo sem manter borrow mutável durante decremento
                 let old_opt = {
                     self.environment
@@ -1652,10 +1645,51 @@ impl Interpreter {
                     self.dec_value_if_heap(old);
                 }
                 let mut env = self.environment.borrow_mut();
-                // NOTE: do NOT manually push to env.strong_handles here.
-                // Environment::define() already does this automatically when it sees
-                // a HeapComposite value. Double-pushing caused double-decrement GC bugs.
                 env.define(&name.lexeme, value);
+                Ok(())
+            }
+            core::ast::MatchPattern::Tuple(patterns) => {
+                if let ArtValue::Tuple(values) = value {
+                    if patterns.len() != values.len() {
+                        return Err(RuntimeError::TypeError(format!(
+                            "Tuple pattern length {} does not match tuple value length {}",
+                            patterns.len(),
+                            values.len()
+                        )));
+                    }
+                    for (p, v) in patterns.iter().zip(values.into_iter()) {
+                        self.bind_value_to_pattern(p, v)?;
+                    }
+                    Ok(())
+                } else {
+                    return Err(RuntimeError::TypeError(format!(
+                        "Cannot destructure non-tuple value '{:?}' with tuple pattern",
+                        value
+                    )));
+                }
+            }
+            _ => {
+                // Ignore other patterns for `let` declarations for now (or throw error if unsupported)
+                Ok(())
+            }
+        }
+    }
+
+    fn execute(&mut self, stmt: Stmt) -> Result<()> {
+        self.executed_statements += 1;
+        match stmt {
+            Stmt::Expression(expr) => {
+                let val = self.evaluate(expr)?;
+                self.last_value = Some(val.clone());
+                Ok(())
+            }
+            Stmt::Let {
+                pattern,
+                ty: _,
+                initializer,
+            } => {
+                let value = self.evaluate(initializer)?;
+                self.bind_value_to_pattern(&pattern, value)?;
                 Ok(())
             }
             Stmt::Block { statements } => {
@@ -1856,6 +1890,80 @@ impl Interpreter {
             }
             Stmt::Import { path: _ } => {
                 // Import is a compile-time / resolver concern; runtime no-op for now.
+                Ok(())
+            }
+            Stmt::While { condition, body } => {
+                loop {
+                    let cond_val = self.evaluate(condition.clone())?;
+                    if !self.is_truthy(&cond_val) {
+                        break;
+                    }
+                    if let Err(e) = self.execute(*body.clone()) {
+                        return Err(e);
+                    }
+                }
+                Ok(())
+            }
+            Stmt::For {
+                element,
+                iterator,
+                body,
+            } => {
+                let iter_val = self.evaluate(iterator)?;
+
+                // Nós suportamos iteração apenas sobre arrays atualmente (alvo de melhorias futuras para custom Iterators via traits)
+                let array_elements = match iter_val {
+                    ArtValue::Array(arr) => arr,
+                    ArtValue::HeapComposite(h) => {
+                        match self.heap_objects.get(&h.0).map(|obj| obj.value.clone()) {
+                            Some(ArtValue::Array(arr)) => arr,
+                            Some(other) => {
+                                self.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Runtime,
+                                    format!("Cannot iterate over non-array type: {:?}", other),
+                                    Span::new(element.start, element.end, element.line, element.col),
+                                ));
+                                return Ok(());
+                            }
+                            None => {
+                                self.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Runtime,
+                                    "Cannot iterate over dangling heap handle.".to_string(),
+                                    Span::new(element.start, element.end, element.line, element.col),
+                                ));
+                                return Ok(());
+                            }
+                        }
+                    }
+                    _ => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            format!("Cannot iterate over non-array type: {:?}", iter_val),
+                            Span::new(element.start, element.end, element.line, element.col),
+                        ));
+                        return Ok(());
+                    }
+                };
+
+                for val in array_elements {
+                    let previous_env = self.environment.clone();
+                    let loop_env =
+                        Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
+                    self.environment = loop_env.clone();
+
+                    self.environment
+                        .borrow_mut()
+                        .define(&element.lexeme, val.clone());
+
+                    let result = self.execute(*body.clone());
+
+                    self.drop_scope_heap_objects(&loop_env);
+                    self.environment = previous_env;
+
+                    if let Err(e) = result {
+                        return Err(e);
+                    }
+                }
                 Ok(())
             }
             Stmt::SpawnActor { body } => {
@@ -2207,6 +2315,16 @@ impl Interpreter {
                 type_args,
                 arguments,
             } => self.handle_call(*callee, type_args, arguments),
+            Expr::Tuple(elements) => {
+                let mut evaluated_elements = Vec::new();
+                for element_expr in elements {
+                    let value = self.evaluate(element_expr)?;
+                    self.note_composite_child(&value);
+                    evaluated_elements.push(value);
+                }
+                // Tuple are heap allocated like arrays for passing by reference
+                Ok(self.heapify_composite(ArtValue::Tuple(evaluated_elements)))
+            }
             Expr::StructInit { name, fields } => {
                 let struct_def = match self.type_registry.get_struct(&name.lexeme) {
                     Some(def) => def.clone(),
@@ -2621,6 +2739,7 @@ impl Interpreter {
         let return_val = match result {
             Ok(()) => ArtValue::none(),
             Err(RuntimeError::Return(val)) => val,
+            Err(e @ RuntimeError::TypeError(_)) => return Err(e),
         };
         // Transfer ownership of returned HeapComposite to the CALLER's environment
         // BEFORE we drop the function scope. This prevents the GC from collecting
@@ -3045,6 +3164,7 @@ impl Interpreter {
                         ArtValue::Bool(_) => "Bool",
                         ArtValue::Optional(_) => "Optional",
                         ArtValue::Array(_) => "Array",
+                        ArtValue::Tuple(_) => "Tuple",
                         ArtValue::Map(_) => "Map",
                         ArtValue::Set(_) => "Set",
                         ArtValue::StructInstance { .. } => "Struct",

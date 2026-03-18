@@ -6,7 +6,7 @@ use interpreter::type_infer::{TypeEnv, TypeInfer};
 fn performant_return_is_type_error() {
     // Construir AST manualmente: performant { let x = [1,2]; return x; }
     let let_stmt = Stmt::Let {
-        name: Token::dummy("x"),
+        pattern: core::ast::MatchPattern::Variable(Token::dummy("x")),
         ty: None,
         initializer: Expr::Array(vec![
             Expr::Literal(ArtValue::Int(1)),

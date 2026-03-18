@@ -9,8 +9,8 @@ fn finalizer_reentrant_alloc_and_release_is_stable() {
     let program = vec![
         // finalizer function: creates a local temp and drops it
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin_reentrant"),
             params: vec![],
             return_type: None,
@@ -18,7 +18,7 @@ fn finalizer_reentrant_alloc_and_release_is_stable() {
                 statements: vec![
                     // let _tmp = []
                     Stmt::Let {
-                        name: core::Token::dummy("_tmp"),
+                        pattern: core::ast::MatchPattern::Variable(core::Token::dummy("_tmp")),
                         ty: None,
                         initializer: Expr::Array(vec![
                             Expr::Literal(core::ast::ArtValue::Int(99)).into(),
@@ -32,14 +32,14 @@ fn finalizer_reentrant_alloc_and_release_is_stable() {
         Stmt::Block {
             statements: vec![
                 Stmt::Let {
-                    name: core::Token::dummy("x"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("x")),
                     ty: None,
                     initializer: Expr::Array(vec![
                         Expr::Literal(core::ast::ArtValue::Int(1)).into(),
                     ]),
                 },
                 Stmt::Expression(Expr::Call {
-        type_args: None,
+                    type_args: None,
                     callee: Box::new(Expr::Variable {
                         name: core::Token::dummy("on_finalize"),
                     }),

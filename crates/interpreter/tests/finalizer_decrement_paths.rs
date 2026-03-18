@@ -10,7 +10,7 @@ fn return_arena_escape_diagnostic() {
 
     // Program: let b = <heap composite id>
     let program = vec![Stmt::Let {
-        name: core::Token::dummy("b"),
+        pattern: core::ast::MatchPattern::Variable(core::Token::dummy("b")),
         ty: None,
         initializer: Expr::Literal(ArtValue::HeapComposite(core::ast::ObjHandle(id))),
     }];
@@ -49,20 +49,20 @@ fn finalizer_allocs_temporary_promoted() {
     // Criar finalizer que faz: let temp = [42]; let kept = temp
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin_alloc"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![
                     Stmt::Let {
-                        name: core::Token::dummy("temp"),
+                        pattern: core::ast::MatchPattern::Variable(core::Token::dummy("temp")),
                         ty: None,
                         initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(42))]),
                     },
                     Stmt::Let {
-                        name: core::Token::dummy("kept"),
+                        pattern: core::ast::MatchPattern::Variable(core::Token::dummy("kept")),
                         ty: None,
                         initializer: Expr::Variable {
                             name: core::Token::dummy("temp"),
@@ -73,7 +73,7 @@ fn finalizer_allocs_temporary_promoted() {
             method_owner: None,
         },
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),

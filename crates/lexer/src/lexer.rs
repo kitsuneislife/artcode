@@ -237,6 +237,9 @@ impl Lexer {
             "unowned" => TokenType::Unowned,
             "spawn" => TokenType::Spawn,
             "actor" => TokenType::Actor,
+            "while" => TokenType::While,
+            "for" => TokenType::For,
+            "in" => TokenType::In,
             _ => TokenType::Identifier,
         };
         self.add_token(token_type);

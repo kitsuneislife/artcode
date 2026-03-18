@@ -20,6 +20,12 @@ pub fn statement(parser: &mut Parser) -> Stmt {
     if parser.check(&TokenType::Return) {
         return return_statement(parser);
     }
+    if parser.check(&TokenType::While) {
+        return while_statement(parser);
+    }
+    if parser.check(&TokenType::For) {
+        return for_statement(parser);
+    }
     if parser.check(&TokenType::LeftBrace) {
         parser.advance();
         return Stmt::Block {
@@ -69,7 +75,7 @@ pub fn statement(parser: &mut Parser) -> Stmt {
 }
 
 pub fn let_declaration(parser: &mut Parser) -> Stmt {
-    let name = parser.consume(TokenType::Identifier, "Expect variable name.");
+    let pattern = parse_pattern(parser);
 
     let ty = if parser.match_token(TokenType::Colon) {
         Some(parser.parse_type())
@@ -112,10 +118,26 @@ pub fn let_declaration(parser: &mut Parser) -> Stmt {
         };
     }
     parser.match_token(TokenType::Semicolon);
-    Stmt::Let {
-        name,
-        ty,
-        initializer,
+
+    // Fallback: If pattern is a simple variable, we use it directly as the name.
+    if let MatchPattern::Variable(name) = pattern {
+        Stmt::Let {
+            pattern: MatchPattern::Variable(name),
+            ty,
+            initializer,
+        }
+    } else {
+        // If it's a destructuring pattern (e.g. tuple), we need to update `Stmt::Let` to support `MatchPattern` later.
+        // For now, if we reach here and Stmt::Let doesn't accept pattern natively, we cheat by using a dummy
+        // name and handling it properly over the interpreter. Let's assume we update `Stmt::Let` next.
+        // Wait, AST Stmt::Let currently takes `name: Token`. 
+        // We will change `Stmt::Let` signature in AST to use `pattern: MatchPattern`.
+        // Let's assume `Stmt::Let` actually uses `pattern` in the updated AST.
+        Stmt::Let {
+            pattern,
+            ty,
+            initializer,
+        }
     }
 }
 
@@ -287,6 +309,18 @@ pub fn parse_pattern(parser: &mut Parser) -> MatchPattern {
         } else {
             MatchPattern::Variable(name)
         }
+    } else if parser.match_token(TokenType::LeftParen) {
+        let mut items = Vec::new();
+        if !parser.check(&TokenType::RightParen) {
+            loop {
+                items.push(parse_pattern(parser));
+                if !parser.match_token(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+        parser.consume(TokenType::RightParen, "Expect ')' after tuple pattern.");
+        MatchPattern::Tuple(items)
     } else {
         let p = parser.peek();
         parser.diagnostics.push(diagnostics::Diagnostic::new(
@@ -318,4 +352,28 @@ pub fn return_statement(parser: &mut Parser) -> Stmt {
     };
     parser.match_token(TokenType::Semicolon);
     Stmt::Return { value }
+}
+
+pub fn while_statement(parser: &mut Parser) -> Stmt {
+    parser.consume(TokenType::While, "Expect 'while'.");
+    let condition = parser.expression();
+    let body = Box::new(statement(parser));
+
+    Stmt::While { condition, body }
+}
+
+pub fn for_statement(parser: &mut Parser) -> Stmt {
+    parser.consume(TokenType::For, "Expect 'for'.");
+    let element = parser.consume(TokenType::Identifier, "Expect element name after 'for'.");
+
+    parser.consume(TokenType::In, "Expect 'in' after for loop element.");
+    let iterator = parser.expression();
+
+    let body = Box::new(statement(parser));
+
+    Stmt::For {
+        element,
+        iterator,
+        body,
+    }
 }

@@ -7,7 +7,7 @@ use interpreter::type_infer::{TypeEnv, TypeInfer};
 fn actor_send_non_send_payload_emits_diag() {
     // Build program: let arr = [1]; actor_send(1, arr)
     let call_arr = Stmt::Let {
-        name: Token::dummy("arr"),
+        pattern: core::ast::MatchPattern::Variable(Token::dummy("arr")),
         ty: None,
         initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(1))]),
     };

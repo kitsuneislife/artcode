@@ -7,14 +7,14 @@ fn rebind_decrements_strong_and_runs_finalizer() {
     // Define uma finalizer que cria flag; cria x, associa finalizer e rebinds x para outro valor
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("flag2"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("flag2")),
                     ty: None,
                     initializer: Expr::Literal(core::ast::ArtValue::Int(42)),
                 }],
@@ -24,7 +24,7 @@ fn rebind_decrements_strong_and_runs_finalizer() {
         Stmt::Block {
             statements: vec![
                 Stmt::Let {
-                    name: core::Token::dummy("x"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("x")),
                     ty: None,
                     initializer: Expr::Array(vec![
                         Expr::Literal(core::ast::ArtValue::Int(1)).into(),
@@ -32,7 +32,7 @@ fn rebind_decrements_strong_and_runs_finalizer() {
                 },
                 // registrar finalizer
                 Stmt::Expression(Expr::Call {
-        type_args: None,
+                    type_args: None,
                     callee: Box::new(Expr::Variable {
                         name: core::Token::dummy("on_finalize"),
                     }),
@@ -47,7 +47,7 @@ fn rebind_decrements_strong_and_runs_finalizer() {
                 }),
                 // Rebind x -> outro valor; antigo deve ser dropado e finalizer executado
                 Stmt::Let {
-                    name: core::Token::dummy("x"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("x")),
                     ty: None,
                     initializer: Expr::Array(vec![]),
                 },

@@ -62,7 +62,35 @@ pub fn parse_prefix(parser: &mut Parser) -> Expr {
                 ));
                 return Expr::Literal(core::ast::ArtValue::none());
             }
+
+            if parser.check(&TokenType::RightParen) {
+                // Empty tuple ()
+                parser.advance();
+                parser.pop_depth();
+                return Expr::Tuple(Vec::new());
+            }
+
             let expr = expression(parser);
+            
+            if parser.match_token(TokenType::Comma) {
+                // It's a tuple with at least 1 element
+                let mut elements = vec![expr];
+                
+                if !parser.check(&TokenType::RightParen) {
+                    while !parser.is_at_end() && !parser.check(&TokenType::RightParen) {
+                        elements.push(expression(parser));
+                        if !parser.match_token(TokenType::Comma) {
+                            break;
+                        }
+                    }
+                }
+                
+                parser.consume(TokenType::RightParen, "Expect ')' after tuple elements.");
+                parser.pop_depth();
+                return Expr::Tuple(elements);
+            }
+            
+            // Just a grouping expression (expr)
             parser.pop_depth();
             parser.consume(TokenType::RightParen, "Expect ')' after expression.");
             Expr::Grouping {

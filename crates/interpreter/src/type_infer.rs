@@ -138,7 +138,7 @@ impl<'a> TypeInfer<'a> {
                 self.infer_expr(e);
             }
             Stmt::Let {
-                name, initializer, ..
+                pattern, initializer, ..
             } => {
                 // If initializer is a simple variable reference, propagate its known type
                 let t = match initializer {
@@ -151,11 +151,7 @@ impl<'a> TypeInfer<'a> {
                     }
                     _ => self.infer_expr(initializer),
                 };
-                // record previous binding so we can restore on scope pop
-                self.record_var_binding(&name.lexeme);
-                self.tenv.set_var(&name.lexeme, t);
-                // declare in current lexical scope
-                self.declare_var(&name.lexeme);
+                self.bind_pattern_type(pattern, &t);
             }
             Stmt::Block { statements } => {
                 self.push_scope();
@@ -241,10 +237,54 @@ impl<'a> TypeInfer<'a> {
                     }
                 }
             }
+            Stmt::While { condition, body } => {
+                self.infer_expr(condition);
+                self.visit_stmt(body);
+            }
+            Stmt::For {
+                element,
+                iterator,
+                body,
+            } => {
+                self.infer_expr(iterator);
+                self.push_scope();
+                self.declare_var(&element.lexeme);
+                // type of element is inferred automatically at runtime in this version,
+                // but we might want to infer `element` type based on `iterator` array inner type later
+                self.visit_stmt(body);
+                self.pop_scope();
+            }
         }
     }
 
     // Minimal static escape analysis: `performant` blocks must not contain `return` statements
+    // --- helper methods for pattern typings ---
+
+    fn bind_pattern_type(&mut self, pattern: &core::ast::MatchPattern, ty: &Type) {
+        match pattern {
+            core::ast::MatchPattern::Variable(name) => {
+                self.record_var_binding(&name.lexeme);
+                self.tenv.set_var(&name.lexeme, ty.clone());
+                self.declare_var(&name.lexeme);
+            }
+            core::ast::MatchPattern::Tuple(patterns) => {
+                if let Type::Tuple(types) = ty {
+                    if patterns.len() == types.len() {
+                        for (p, t) in patterns.iter().zip(types.iter()) {
+                            self.bind_pattern_type(p, t);
+                        }
+                    } else {
+                        // Error on destructuring mismatch happens later during type check phase
+                    }
+                }
+            }
+            // For now only variable and tuple patterns make sense in `let` expressions.
+            _ => {}
+        }
+    }
+
+    // --- scoping ---
+
     // that would allow arena-allocated composites to escape the block. This is a conservative
     // check implemented early in the pipeline. More checks (assignments to outer scopes,
     // closures capturing arena values) will be added later.
@@ -287,18 +327,31 @@ impl<'a> TypeInfer<'a> {
                 }
             }
             Let {
-                name, initializer, ..
+                pattern, initializer, ..
             } => {
+                // Determine names bounded by the pattern
+                let bound_names = match pattern {
+                    core::ast::MatchPattern::Variable(n) => vec![n.lexeme.clone()],
+                    core::ast::MatchPattern::Tuple(subpats) => subpats.iter().filter_map(|p| match p {
+                        core::ast::MatchPattern::Variable(n) => Some(n.lexeme.clone()),
+                        _ => None
+                    }).collect(),
+                    _ => vec![],
+                };
+
                 // If this let shadows a visible outer variable (assignment to outer scope), report a type error.
-                if outer_vars.contains(&name.lexeme) {
-                    self.diags.push(Diagnostic::new(
-                        DiagnosticKind::Type,
-                        format!("Assignment to outer-scope variable '{}' inside `performant` is not allowed: may extend lifetime of arena values", name.lexeme),
-                        Span::new(name.start, name.end, name.line, name.col),
-                    ));
+                for n in &bound_names {
+                    if outer_vars.contains(n) {
+                        self.diags.push(Diagnostic::new(
+                            DiagnosticKind::Type,
+                            format!("Assignment to outer-scope variable '{}' inside `performant` is not allowed: may extend lifetime of arena values", n),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                    }
+                    // Declare this name in the current lexical scope so nested checks know it's local.
+                    self.declare_var(n);
                 }
-                // Declare this name in the current lexical scope so nested checks know it's local.
-                self.declare_var(&name.lexeme);
+
                 // Se inicializador é potencialmente composto, emitir aviso conservador.
                 // Suprimir para bindings que começam com '_' (convencionalmente temporários).
                 match initializer {
@@ -306,12 +359,14 @@ impl<'a> TypeInfer<'a> {
                     | Expr::StructInit { .. }
                     | Expr::EnumInit { .. }
                     | Expr::Call { .. } => {
-                        if !name.lexeme.starts_with('_') {
-                            self.diags.push(Diagnostic::new(
-                                DiagnosticKind::Type,
-                                format!("Variable '{}' initialized with a composite value inside `performant` — ensure it does not escape the block", name.lexeme),
-                                Span::new(name.start, name.end, name.line, name.col),
-                            ));
+                        for bn in &bound_names {
+                            if !bn.starts_with('_') {
+                                self.diags.push(Diagnostic::new(
+                                    DiagnosticKind::Type,
+                                    format!("Variable '{}' initialized with a composite value inside `performant` — ensure it does not escape the block", bn),
+                                    Span::new(0, 0, 0, 0),
+                                ));
+                            }
                         }
                     }
                     _ => {}
@@ -325,8 +380,8 @@ impl<'a> TypeInfer<'a> {
                     for cap in captures {
                         self.diags.push(Diagnostic::new(
                             DiagnosticKind::Type,
-                            format!("Initializer for '{}' references outer variable '{}', which may capture/escape arena values", name.lexeme, cap),
-                            Span::new(name.start, name.end, name.line, name.col),
+                            format!("Initializer for '{:?}' references outer variable '{}', which may capture/escape arena values", bound_names, cap),
+                            Span::new(0, 0, 0, 0),
                         ));
                     }
                 }
@@ -335,12 +390,14 @@ impl<'a> TypeInfer<'a> {
                 // until a full symbol-table/outer-scope analysis is implemented.
                 // If the binding starts with '_' it's a temporary by convention; suppress this
                 // heuristic diagnostic which otherwise triggers for normal names.
-                if !name.lexeme.starts_with('_') {
-                    self.diags.push(Diagnostic::new(
-                        DiagnosticKind::Type,
-                        format!("Binding '{}' inside `performant` may escape if it refers to an outer scope variable. Avoid assigning to outer names or prefix temporaries with '_'", name.lexeme),
-                        Span::new(name.start, name.end, name.line, name.col),
-                    ));
+                for bn in &bound_names {
+                    if !bn.starts_with('_') {
+                        self.diags.push(Diagnostic::new(
+                            DiagnosticKind::Type,
+                            format!("Binding '{}' inside `performant` may escape if it refers to an outer scope variable. Avoid assigning to outer names or prefix temporaries with '_'", bn),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                    }
                 }
             }
             Block { statements } => {
@@ -380,6 +437,21 @@ impl<'a> TypeInfer<'a> {
                     "spawn actor is not allowed inside performant blocks".to_string(),
                     Span::new(0, 0, 0, 0),
                 ));
+            }
+            While { condition, body } => {
+                // conservatively check conditions and body
+                self.expr_uses_outer_vars(condition, &self.visible_vars(), outer_vars); // will just walk
+                self.check_performant_stmt(body, outer_vars);
+            }
+            For {
+                element: _,
+                iterator,
+                body,
+            } => {
+                self.expr_uses_outer_vars(iterator, &self.visible_vars(), outer_vars);
+                self.push_scope(); // lexical scope for loop element
+                self.check_performant_stmt(body, outer_vars);
+                self.pop_scope();
             }
             StructDecl { .. } | EnumDecl { .. } | Expression(_) | Import { .. } => { /* allowed */ }
         }
@@ -450,6 +522,11 @@ impl<'a> TypeInfer<'a> {
                     found.extend(self.expr_uses_outer_vars(e, current_locals, outer_vars));
                 }
             }
+            Tuple(elements) => {
+                for e in elements {
+                    found.extend(self.expr_uses_outer_vars(e, current_locals, outer_vars));
+                }
+            }
             InterpolatedString(parts) => {
                 // parts are InterpolatedPart: either Literal(String) or Expr { expr, format }
                 for p in parts {
@@ -500,6 +577,7 @@ impl<'a> TypeInfer<'a> {
                 _ => false,
             },
             Array(elements) => elements.iter().all(|e| self.is_send_safe_expr(e)),
+            Tuple(elements) => elements.iter().all(|e| self.is_send_safe_expr(e)),
             StructInit { fields, .. } => fields.iter().all(|(_n, e)| self.is_send_safe_expr(e)),
             EnumInit { values, .. } => values.iter().all(|e| self.is_send_safe_expr(e)),
             Grouping { expression } => self.is_send_safe_expr(expression),
@@ -803,6 +881,10 @@ impl<'a> TypeInfer<'a> {
                     Type::Array(Box::new(Type::Unknown))
                 }
             }
+            Tuple(elements) => {
+                let types: Vec<Type> = elements.iter().map(|e| self.infer_expr(e)).collect();
+                Type::Tuple(types)
+            }
             Expr::SpawnActor { body } => {
                 // spawn actor retorna um handle (Actor). Para inferência simplificada,
                 // tratamos como Unknown (não tentamos modelar Actor no sistema de tipos agora).
@@ -831,6 +913,10 @@ fn value_type(v: &ArtValue) -> Type {
                 Type::Array(Box::new(Type::Unknown))
             }
         }
+        ArtValue::Tuple(vals) => {
+            let types: Vec<Type> = vals.iter().map(value_type).collect();
+            Type::Tuple(types)
+        }
         ArtValue::StructInstance { struct_name, .. } => Type::Struct(struct_name.clone()),
         ArtValue::EnumInstance { enum_name, .. } => Type::Enum(enum_name.clone()),
         ArtValue::Function(_) => Type::Function(vec![], Box::new(Type::Unknown)),
@@ -858,14 +944,14 @@ mod tests {
         // simulate: let x = 1; { let x = 2; } ; x should still be Int
         let name = core::Token::dummy("x");
         let let_outer = Stmt::Let {
-            name: name.clone(),
+            pattern: core::ast::MatchPattern::Variable(name.clone()),
             ty: None,
             initializer: Expr::Literal(core::ast::ArtValue::Int(1)),
         };
         let inner_name = name.clone();
         let let_inner = Stmt::Block {
             statements: vec![Stmt::Let {
-                name: inner_name.clone(),
+                pattern: core::ast::MatchPattern::Variable(inner_name.clone()),
                 ty: None,
                 initializer: Expr::Literal(core::ast::ArtValue::Int(2)),
             }],

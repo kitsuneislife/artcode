@@ -389,7 +389,23 @@ impl Parser {
                 TokenType::RightBracket,
                 "Expect ']' after array element type.",
             );
-            type_str.push(']');
+        } else if self.match_token(TokenType::LeftParen) {
+            let mut types = Vec::new();
+            if !self.check(&TokenType::RightParen) {
+                loop {
+                    types.push(self.parse_type());
+                    if !self.match_token(TokenType::Comma) {
+                        break;
+                    }
+                }
+            }
+            self.consume(
+                TokenType::RightParen,
+                "Expect ')' after tuple type elements.",
+            );
+            type_str.push_str("(");
+            type_str.push_str(&types.join(", "));
+            type_str.push_str(")");
         } else {
             let type_name = self.consume(TokenType::Identifier, "Expect type name.");
             type_str.push_str(&type_name.lexeme);

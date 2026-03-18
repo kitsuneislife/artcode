@@ -6,12 +6,12 @@ use interpreter::type_infer::{TypeEnv, TypeInfer};
 #[test]
 fn propagation_rebind_allows_send() {
     let let_a = Stmt::Let {
-        name: Token::dummy("a"),
+        pattern: core::ast::MatchPattern::Variable(Token::dummy("a")),
         ty: None,
         initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(1))]),
     };
     let let_b = Stmt::Let {
-        name: Token::dummy("b"),
+        pattern: core::ast::MatchPattern::Variable(Token::dummy("b")),
         ty: None,
         initializer: Expr::Variable {
             name: Token::dummy("a"),
@@ -50,13 +50,13 @@ fn propagation_rebind_allows_send() {
 #[test]
 fn shadowing_restores_outer_type() {
     let let_a = Stmt::Let {
-        name: Token::dummy("a"),
+        pattern: core::ast::MatchPattern::Variable(Token::dummy("a")),
         ty: None,
         initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(1))]),
     };
     let block = Stmt::Block {
         statements: vec![Stmt::Let {
-            name: Token::dummy("a"),
+            pattern: core::ast::MatchPattern::Variable(Token::dummy("a")),
             ty: None,
             initializer: Expr::Literal(ArtValue::Int(42)),
         }],
@@ -97,7 +97,7 @@ fn function_param_propagation() {
     use std::rc::Rc;
     let fn_body = Stmt::Block {
         statements: vec![Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: Token::dummy("actor_send"),
             }),

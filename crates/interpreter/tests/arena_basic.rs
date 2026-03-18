@@ -7,12 +7,12 @@ fn performant_block_allocates_in_arena_and_finalizes() {
     let program = vec![Stmt::Performant {
         statements: vec![
             Stmt::Let {
-                name: core::Token::dummy("a"),
+                pattern: core::ast::MatchPattern::Variable(core::Token::dummy("a")),
                 ty: None,
                 initializer: Expr::Array(vec![Expr::Literal(core::ast::ArtValue::Int(1)).into()]),
             },
             Stmt::Let {
-                name: core::Token::dummy("b"),
+                pattern: core::ast::MatchPattern::Variable(core::Token::dummy("b")),
                 ty: None,
                 initializer: Expr::Array(vec![Expr::Literal(core::ast::ArtValue::Int(2)).into()]),
             },

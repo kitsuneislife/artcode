@@ -10,7 +10,7 @@ fn objects_finalized_increment_on_scope_exit_chain() {
     // Programa: bloco escopo cria array com struct dentro
     let program = vec![Stmt::Block {
         statements: vec![Stmt::Let {
-            name: core::Token::dummy("a"),
+            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("a")),
             ty: None,
             initializer: Expr::Array(vec![Expr::StructInit {
                 name: core::Token::dummy("Point"),

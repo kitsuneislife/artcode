@@ -8,14 +8,14 @@ fn rebind_decrements_and_updates_weak_unowned() {
     // Criar objeto e definir finalizer que marca 'rebound_flag'
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin_rebind"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("rebound_flag"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("rebound_flag")),
                     ty: None,
                     initializer: Expr::Literal(ArtValue::Int(7)),
                 }],
@@ -24,16 +24,16 @@ fn rebind_decrements_and_updates_weak_unowned() {
         },
         // let a = [0]
         Stmt::Let {
-            name: core::Token::dummy("a"),
+            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("a")),
             ty: None,
             initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(0))]),
         },
         // let w = weak(a)
         Stmt::Let {
-            name: core::Token::dummy("w"),
+            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("w")),
             ty: None,
             initializer: Expr::Call {
-        type_args: None,
+                type_args: None,
                 callee: Box::new(Expr::Variable {
                     name: core::Token::dummy("weak"),
                 }),
@@ -44,10 +44,10 @@ fn rebind_decrements_and_updates_weak_unowned() {
         },
         // let u = unowned(a)
         Stmt::Let {
-            name: core::Token::dummy("u"),
+            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("u")),
             ty: None,
             initializer: Expr::Call {
-        type_args: None,
+                type_args: None,
                 callee: Box::new(Expr::Variable {
                     name: core::Token::dummy("unowned"),
                 }),
@@ -58,7 +58,7 @@ fn rebind_decrements_and_updates_weak_unowned() {
         },
         // on_finalize(a, fin_rebind)
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -73,7 +73,7 @@ fn rebind_decrements_and_updates_weak_unowned() {
         }),
         // Rebind a to [] (drop original)
         Stmt::Let {
-            name: core::Token::dummy("a"),
+            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("a")),
             ty: None,
             initializer: Expr::Array(vec![]),
         },
@@ -129,8 +129,8 @@ fn returns_do_not_allow_arena_escape() {
     // function that returns the arena object
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("ret_a"),
             params: vec![],
             return_type: None,
@@ -145,10 +145,10 @@ fn returns_do_not_allow_arena_escape() {
         },
         // call ret_a and bind to global g
         Stmt::Let {
-            name: core::Token::dummy("g"),
+            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("g")),
             ty: None,
             initializer: Expr::Call {
-        type_args: None,
+                type_args: None,
                 callee: Box::new(Expr::Variable {
                     name: core::Token::dummy("ret_a"),
                 }),
@@ -192,14 +192,14 @@ fn field_assignment_triggers_decrement_and_finalizer() {
     // Registrar finalizer em x
     let program = vec![
         Stmt::Function {
-        type_params: None,
-        is_async: false,
+            type_params: None,
+            is_async: false,
             name: core::Token::dummy("fin_field"),
             params: vec![],
             return_type: None,
             body: std::rc::Rc::new(Stmt::Block {
                 statements: vec![Stmt::Let {
-                    name: core::Token::dummy("field_flag"),
+                    pattern: core::ast::MatchPattern::Variable(core::Token::dummy("field_flag")),
                     ty: None,
                     initializer: Expr::Literal(ArtValue::Int(123)),
                 }],
@@ -208,7 +208,7 @@ fn field_assignment_triggers_decrement_and_finalizer() {
         },
         // on_finalize(x, fin_field)
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::Variable {
                 name: core::Token::dummy("on_finalize"),
             }),
@@ -223,7 +223,7 @@ fn field_assignment_triggers_decrement_and_finalizer() {
         }),
         // Assign s.child = x
         Stmt::Expression(Expr::Call {
-        type_args: None,
+            type_args: None,
             callee: Box::new(Expr::FieldAccess {
                 object: Box::new(Expr::Variable {
                     name: core::Token::dummy("s"),
