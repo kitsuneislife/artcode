@@ -11,6 +11,7 @@ Progresso desta fase (parcial / atualizado):
 * Métodos "bound": adicionamos `retained_env` (strong) para manter o ambiente sintético vivo; `closure` continua Weak.
 * Chamada com ambiente já coletado emite diagnóstico `Dangling closure environment` e executa em ambiente vazio (provisório para debug).
 * Açúcar sintático: `weak expr`, `unowned expr`, postfix `?` (upgrade opcional de weak) e `!` (acesso unowned) mapeiam para builtins internos.
+* Validador sintático/linter: `art lint` agora sinaliza uso semântico inválido de `?`/`!` quando a expressão não é referência `weak`/`unowned`, além de alertar `weak/unowned` aplicados a literais escalares.
 * Detector de ciclos protótipo: agora opera sobre ids reais de heap (`HeapComposite`) construindo grafo de objetos vivos; algoritmo Tarjan SCC. Classifica `isolated` (sem incoming externo), `reachable_from_root` e marca `leak_candidate = isolated && !reachable_from_root`.
 * Sugestões: arestas internas iniciais + ranking (score = out_deg(from)+in_deg(to)) top 3.
 * Métricas em runtime atuais: `weak_created`, `weak_upgrades`, `weak_dangling`, `unowned_created`, `unowned_dangling`, `cycle_reports_run`, `cycle_leaks_detected`, `strong_increments`, `strong_decrements`, `objects_finalized`, `heap_alive`, `avg_out_degree`, `avg_in_degree`.

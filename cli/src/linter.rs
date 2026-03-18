@@ -1,7 +1,13 @@
 use core::ast::{Expr, InterpolatedPart, MatchPattern, Stmt};
 use core::Token;
 use diagnostics::{Diagnostic, DiagnosticKind, Span};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RefKind {
+    Weak,
+    Unowned,
+}
 
 pub fn lint_ast(program: &[Stmt]) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
@@ -16,21 +22,25 @@ pub fn lint_ast(program: &[Stmt]) -> Vec<Diagnostic> {
 
 struct ScopeStack {
     scopes: Vec<HashSet<String>>,
+    ref_kinds: Vec<HashMap<String, RefKind>>,
 }
 
 impl ScopeStack {
     fn new() -> Self {
         Self {
             scopes: vec![HashSet::new()],
+            ref_kinds: vec![HashMap::new()],
         }
     }
 
     fn push(&mut self) {
         self.scopes.push(HashSet::new());
+        self.ref_kinds.push(HashMap::new());
     }
 
     fn pop(&mut self) {
         self.scopes.pop();
+        self.ref_kinds.pop();
     }
 
     fn declare(&mut self, name: &str, token: &Token, diagnostics: &mut Vec<Diagnostic>) {
@@ -54,6 +64,67 @@ impl ScopeStack {
             current.insert(name.to_string());
         }
     }
+
+    fn set_ref_kind(&mut self, name: &str, kind: RefKind) {
+        if let Some(current) = self.ref_kinds.last_mut() {
+            current.insert(name.to_string(), kind);
+        }
+    }
+
+    fn get_ref_kind(&self, name: &str) -> Option<RefKind> {
+        for scope in self.ref_kinds.iter().rev() {
+            if let Some(kind) = scope.get(name) {
+                return Some(*kind);
+            }
+        }
+        None
+    }
+}
+
+fn infer_ref_kind(expr: &Expr, scopes: &ScopeStack) -> Option<RefKind> {
+    match expr {
+        Expr::Weak(_) => Some(RefKind::Weak),
+        Expr::Unowned(_) => Some(RefKind::Unowned),
+        Expr::Grouping { expression } => infer_ref_kind(expression, scopes),
+        Expr::Variable { name } => scopes.get_ref_kind(&name.lexeme),
+        Expr::Call { callee, .. } => {
+            if let Expr::Variable { name } = &**callee {
+                match name.lexeme.as_str() {
+                    "weak" => Some(RefKind::Weak),
+                    "unowned" => Some(RefKind::Unowned),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+fn is_scalar_literal(expr: &Expr) -> bool {
+    match expr {
+        Expr::Literal(v) => matches!(
+            v,
+            core::ast::ArtValue::Int(_)
+                | core::ast::ArtValue::Float(_)
+                | core::ast::ArtValue::Bool(_)
+                | core::ast::ArtValue::Optional(_)
+        ),
+        Expr::Grouping { expression } => is_scalar_literal(expression),
+        _ => false,
+    }
+}
+
+fn bind_ref_kind_from_pattern(pattern: &MatchPattern, kind: Option<RefKind>, scopes: &mut ScopeStack) {
+    if let Some(kind) = kind {
+        match pattern {
+            MatchPattern::Variable(tok) | MatchPattern::Binding(tok) => {
+                scopes.set_ref_kind(&tok.lexeme, kind);
+            }
+            _ => {}
+        }
+    }
 }
 
 fn lint_stmt(
@@ -69,7 +140,9 @@ fn lint_stmt(
             ..
         } => {
             lint_expr(initializer, scopes, diagnostics);
+            let ref_kind = infer_ref_kind(initializer, scopes);
             declare_pattern_bindings(pattern, scopes, diagnostics);
+            bind_ref_kind_from_pattern(pattern, ref_kind, scopes);
         }
         Stmt::Function {
             name, params, body, ..
@@ -340,14 +413,63 @@ fn lint_expr(expr: &Expr, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
             lint_expr(left, scopes, diagnostics);
             lint_expr(right, scopes, diagnostics);
         }
-        Expr::Unary { right, .. }
-        | Expr::Grouping { expression: right }
-        | Expr::Try(right)
-        | Expr::Weak(right)
-        | Expr::Unowned(right)
-        | Expr::WeakUpgrade(right)
-        | Expr::UnownedAccess(right) => {
+        Expr::Unary { right, .. } | Expr::Grouping { expression: right } | Expr::Try(right) => {
             lint_expr(right, scopes, diagnostics);
+        }
+        Expr::Weak(right) => {
+            lint_expr(right, scopes, diagnostics);
+            if is_scalar_literal(right) {
+                diagnostics.push(
+                    Diagnostic::new(
+                        DiagnosticKind::Lint,
+                        "Suspicious weak target: applying `weak` to scalar literals usually has no ownership semantics.",
+                        Span::dummy(),
+                    )
+                    .note("Use `weak` with heap-backed values (arrays, structs, enums, maps, sets or object handles)."),
+                );
+            }
+        }
+        Expr::Unowned(right) => {
+            lint_expr(right, scopes, diagnostics);
+            if is_scalar_literal(right) {
+                diagnostics.push(
+                    Diagnostic::new(
+                        DiagnosticKind::Lint,
+                        "Suspicious unowned target: applying `unowned` to scalar literals usually has no ownership semantics.",
+                        Span::dummy(),
+                    )
+                    .note("Use `unowned` only when the referenced heap object lifetime is externally guaranteed."),
+                );
+            }
+        }
+        Expr::WeakUpgrade(right) => {
+            lint_expr(right, scopes, diagnostics);
+            let ok = infer_ref_kind(right, scopes) == Some(RefKind::Weak) || matches!(&**right, Expr::Weak(_));
+            if !ok {
+                diagnostics.push(
+                    Diagnostic::new(
+                        DiagnosticKind::Lint,
+                        "Weak upgrade misuse: postfix `?` expects a weak reference expression.",
+                        Span::dummy(),
+                    )
+                    .note("Assign `weak expr` (or `weak(...)`) to a variable and apply `?` on that reference."),
+                );
+            }
+        }
+        Expr::UnownedAccess(right) => {
+            lint_expr(right, scopes, diagnostics);
+            let ok =
+                infer_ref_kind(right, scopes) == Some(RefKind::Unowned) || matches!(&**right, Expr::Unowned(_));
+            if !ok {
+                diagnostics.push(
+                    Diagnostic::new(
+                        DiagnosticKind::Lint,
+                        "Unowned access misuse: postfix `!` expects an unowned reference expression.",
+                        Span::dummy(),
+                    )
+                    .note("Create an unowned reference with `unowned expr` (or `unowned(...)`) before using `!`."),
+                );
+            }
         }
         Expr::Call {
             callee, arguments, ..
@@ -395,5 +517,50 @@ fn lint_expr(expr: &Expr, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
             scopes.pop();
         }
         Expr::Literal(_) | Expr::Variable { .. } => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use lexer::lexer::Lexer;
+    use parser::parser::Parser;
+
+    fn lint_messages(src: &str) -> Vec<String> {
+        let mut lexer = Lexer::new(src.to_string());
+        let tokens = lexer.scan_tokens().expect("scan tokens");
+        let mut parser = Parser::new(tokens);
+        let (program, parse_diags) = parser.parse();
+        assert!(parse_diags.is_empty(), "source should parse in lint tests");
+        lint_ast(&program)
+            .into_iter()
+            .map(|d| d.message.to_string())
+            .collect()
+    }
+
+    #[test]
+    fn warns_when_weak_upgrade_is_applied_to_non_weak_expr() {
+        let msgs = lint_messages("let arr = [1];\nlet v = arr?;\n");
+        assert!(msgs
+            .iter()
+            .any(|m| m.contains("Weak upgrade misuse: postfix `?` expects a weak reference")));
+    }
+
+    #[test]
+    fn warns_when_unowned_access_is_applied_to_non_unowned_expr() {
+        let msgs = lint_messages("let arr = [1];\nlet v = arr!;\n");
+        assert!(msgs
+            .iter()
+            .any(|m| m.contains("Unowned access misuse: postfix `!` expects an unowned reference")));
+    }
+
+    #[test]
+    fn accepts_valid_weak_unowned_flow_without_semantic_warnings() {
+        let msgs = lint_messages(
+            "let arr = [1];\nlet w = weak arr;\nlet x = w?;\nlet u = unowned arr;\nlet y = u!;\nprintln(x);\nprintln(y);\n",
+        );
+        assert!(!msgs
+            .iter()
+            .any(|m| m.contains("Weak upgrade misuse") || m.contains("Unowned access misuse")));
     }
 }

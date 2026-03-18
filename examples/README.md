@@ -22,7 +22,7 @@ Current examples (ordered):
 - `13_weak_cycle_demo.art` — Demonstração de ciclos fracos
 - `14_cycle_stub.art` — Stub de ciclo (usado no linter de dependências)
 - `15_finalizer_examples.art` — Finalizers (métodos especiais executados no GC)
-- `16_weak_unowned_demo.art` — Weak References e Unowned Pointers
+- `16_weak_unowned_demo.art` — Weak/Unowned com açúcar sintático e validação semântica no lint
 - `17_metrics_arena_demo.art` — Profiling com a Arena (métricas de alocamento de vida curta)
 - `18_stdlib_features.art` — Standard Library embutida: I/O files, Time, Map e Set nativos
 - `19_performant_arena.art` — Blocos experimentais "performant" de GC Bypass

@@ -1,12 +1,13 @@
 // 99_weak_unowned_demo.art -> 16_weak_unowned_demo.art
 // Objetivo: demonstrar comportamento mínimo de weak/unowned usando builtins
+// Dica: execute `art lint examples/16_weak_unowned_demo.art` para validar padrões semânticos.
 
 // Exemplo 1: weak - upgrade falha após drop do strong
 // Exemplo 1: weak - upgrade falha após drop do strong (usa bloco para simular scope)
 {
     let owner = [99];
-    let w = weak(owner);
-    println("inside block weak_get:", weak_get(w));
+    let w = weak owner;
+    println("inside block weak upgrade (? ):", w?);
 }
 println("after block: owner foi dropado ao sair do bloco");
 
@@ -16,8 +17,8 @@ println("after block: owner foi dropado ao sair do bloco");
     // owner2 existe dentro deste bloco. Criamos um unowned que aponta para ele.
     // Enquanto o dono existe, `unowned_get(u)` deve retornar o valor.
     let owner2 = [7];
-    let u = unowned(owner2);
-    println("inside block unowned_get:", unowned_get(u));
+    let u = unowned owner2;
+    println("inside block unowned access (!):", u!);
 }
 // Ao sair do bloco, owner2 foi dropado; accesses posteriores via `unowned_get` devem
 // falhar (ou retornar `None` na API de depuração) — aqui apenas registramos que
