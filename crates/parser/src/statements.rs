@@ -116,7 +116,8 @@ fn shell_statement(parser: &mut Parser) -> Stmt {
             | TokenType::Minus
             | TokenType::Plus
             | TokenType::Star
-            | TokenType::Comma => (tok.lexeme, false),
+            | TokenType::Comma
+            | TokenType::PipeGreater => (tok.lexeme, false),
             _ => {
                 parser.diagnostics.push(diagnostics::Diagnostic::new(
                     diagnostics::DiagnosticKind::Parse,

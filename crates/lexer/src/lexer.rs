@@ -110,6 +110,13 @@ impl Lexer {
                     self.add_token(TokenType::Slash);
                 }
             }
+            '|' => {
+                if self.match_char('>') {
+                    self.add_token(TokenType::PipeGreater);
+                } else {
+                    return Err(self.error_current("Unexpected '|' (did you mean '|>'?)"));
+                }
+            }
             ' ' | '\r' | '\t' => (),
             '\n' => {
                 self.line += 1;

@@ -7,7 +7,8 @@ use diagnostics::{Diagnostic, DiagnosticKind, Span};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::process::Command;
+use std::io::Write;
+use std::process::{Command, Stdio};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -489,6 +490,74 @@ impl Interpreter {
         } else {
             true
         }
+    }
+
+    fn run_shell_stages(
+        &mut self,
+        program: &str,
+        args: &[String],
+    ) -> std::result::Result<std::process::Output, String> {
+        let mut stages: Vec<Vec<String>> = Vec::new();
+        let mut current = vec![program.to_string()];
+        for arg in args {
+            if arg == "|>" {
+                if current.is_empty() {
+                    return Err("Empty shell pipeline stage before '|>'".to_string());
+                }
+                stages.push(current);
+                current = Vec::new();
+            } else {
+                current.push(arg.clone());
+            }
+        }
+        if !current.is_empty() {
+            stages.push(current);
+        }
+        if stages.is_empty() {
+            return Err("Shell command is empty".to_string());
+        }
+
+        let mut piped_input: Option<Vec<u8>> = None;
+        let mut last_output: Option<std::process::Output> = None;
+
+        for stage in stages {
+            if stage.is_empty() {
+                return Err("Empty shell pipeline stage".to_string());
+            }
+            let cmd = &stage[0];
+            let cmd_args = &stage[1..];
+
+            if let Some(input_bytes) = piped_input.take() {
+                let mut child = Command::new(cmd)
+                    .args(cmd_args)
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn()
+                    .map_err(|e| format!("Failed to spawn shell stage '{}': {}", cmd, e))?;
+
+                if let Some(stdin) = child.stdin.as_mut() {
+                    stdin
+                        .write_all(&input_bytes)
+                        .map_err(|e| format!("Failed to write to stdin of '{}': {}", cmd, e))?;
+                }
+
+                let output = child
+                    .wait_with_output()
+                    .map_err(|e| format!("Failed to wait shell stage '{}': {}", cmd, e))?;
+                piped_input = Some(output.stdout.clone());
+                last_output = Some(output);
+            } else {
+                let output = Command::new(cmd)
+                    .args(cmd_args)
+                    .output()
+                    .map_err(|e| format!("Failed to run shell command '{}': {}", cmd, e))?;
+                piped_input = Some(output.stdout.clone());
+                last_output = Some(output);
+            }
+        }
+
+        last_output.ok_or_else(|| "Shell pipeline produced no output".to_string())
     }
 
     /// Exposto para testes / prototipagem: registra struct dinâmica.
@@ -1859,7 +1928,7 @@ impl Interpreter {
                     return Ok(());
                 }
 
-                match Command::new(&program).args(&args).output() {
+                match self.run_shell_stages(&program, &args) {
                     Ok(output) => {
                         if !output.stdout.is_empty() {
                             print!("{}", String::from_utf8_lossy(&output.stdout));
@@ -1883,7 +1952,7 @@ impl Interpreter {
                     Err(e) => {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
-                            format!("Failed to run shell command '{}': {}", program, e),
+                            e,
                             Span::new(0, 0, 0, 0),
                         ));
                         Ok(())

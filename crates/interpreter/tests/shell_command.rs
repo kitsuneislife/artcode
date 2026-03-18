@@ -35,3 +35,16 @@ fn shell_command_is_blocked_in_pure_mode() {
         "expected pure-mode diagnostic for shell command"
     );
 }
+
+#[test]
+fn runs_shell_pipeline_statement() {
+    let src = "$ echo shell_pipe_ok |> tr a-z A-Z";
+    let mut lx = Lexer::new(src.to_string());
+    let tokens = lx.scan_tokens().expect("lex ok");
+    let mut p = Parser::new(tokens);
+    let (program, diags) = p.parse();
+    assert!(diags.is_empty(), "parse diagnostics: {:?}", diags);
+
+    let mut interp = Interpreter::with_prelude();
+    assert!(interp.interpret(program).is_ok(), "interpreter should not fail");
+}

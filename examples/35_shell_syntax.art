@@ -2,5 +2,6 @@
 // Execute com: art run examples/35_shell_syntax.art
 
 $ echo "shell syntax ok"
+$ echo shell_pipeline_ok |> tr a-z A-Z
 $ echo -n "args"
 println("fim")
