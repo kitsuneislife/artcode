@@ -41,7 +41,7 @@ Current examples (ordered):
 - `32_fuzz_ci.art` — Worker de fuzzing contínuo para parser/loops no CI
 - `33_actor_http_runtime.art` — Request/response HTTP básico via atores
 - `34_closure_callbacks_arc.art` — Closures retornadas e callbacks com captura de ambiente
-- `35_shell_syntax.art` — Slice inicial da sintaxe shell com statement `$ comando args...`
+- `35_shell_syntax.art` — Sintaxe shell com statement `$`, pipeline `|>` e retorno tipado em `shell_result`
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 

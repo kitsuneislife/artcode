@@ -1364,7 +1364,9 @@ s1.<span class="fn">describe</span>(); s2.<span class="fn">describe</span>();</p
                         </div>
                         <p class="example-entry__desc">
                             Slice inicial da integração shell: statement com prefixo <code>$</code> para
-                            executar processos externos. Em modo <code>--pure</code>, a operação é bloqueada.
+                            executar processos externos. O retorno da última execução é publicado em
+                            <code>shell_result</code> como <code>Result.Ok/Err</code>. Em modo <code>--pure</code>,
+                            a operação é bloqueada.
                         </p>
                         <div class="code-block example-panel__code">
                             <div class="code-block__header">
@@ -1377,8 +1379,11 @@ s1.<span class="fn">describe</span>(); s2.<span class="fn">describe</span>();</p
 <span class="cm">// Execute com: art run examples/35_shell_syntax.art</span>
 
 $ <span class="fn">echo</span> <span class="str">"shell syntax ok"</span>
-$ <span class="fn">echo</span> <span class="op">-</span><span class="var">n</span> <span class="str">"args"</span>
-<span class="fn">println</span>(<span class="str">"fim"</span>)</pre>
+$ <span class="fn">echo</span> shell_pipeline_ok <span class="op">|&gt;</span> <span class="fn">tr</span> a-z A-Z
+<span class="kw">match</span> shell_result {
+<span class="kw">case</span> .Ok(out): <span class="fn">println</span>(<span class="str">f"ok={out}"</span>)
+<span class="kw">case</span> .Err(err): <span class="fn">println</span>(<span class="str">f"err={err}"</span>)
+}</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/35_shell_syntax.art</span></div>
                     </div>

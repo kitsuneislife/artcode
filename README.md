@@ -23,7 +23,7 @@ Implementação experimental de uma linguagem interpretada em Rust com suporte a
 - Result-like enums e operador `?` (propagação inicial)
 - Arrays com builtins (`sum`, `count`)
 - Standard Library embutida: Collections (Map, Set), Math (abs, pow, clamp), Time & Rand, File IO (sandboxed).
-- Sintaxe shell inicial com statement `$ comando args...` (execução de processo externo)
+- Sintaxe shell com statement `$ comando args...`, pipeline `|>` e retorno tipado em `shell_result`
 - Métricas de execução (handled_errors, executed_statements, crash_free%)
 - Language Server Protocol (LSP) com diagnósticos, autocomplete, goto-definition, rename e semantic tokens na IDE (`art lsp`)
 
@@ -55,7 +55,7 @@ Principais recursos
 - Standard Library Expansiva (Coleções Padrão de Map/Set, Manipulação de Matemática e IO Simples)
 - Result-like enums e operador `?` para propagação de erros
 - Blocos `performant {}` com arenas experimentais e análise conservadora de escape
-- Sintaxe shell inicial via statement `$` (com bloqueio automático em `--pure`)
+- Sintaxe shell via statement `$` com pipeline `|>`, retorno `Result` em `shell_result` e bloqueio automático em `--pure`
 
 Status do projeto
 - Código modular em crates: `core`, `lexer`, `parser`, `interpreter`, `diagnostics`, `cli`.

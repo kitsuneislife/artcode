@@ -560,6 +560,27 @@ impl Interpreter {
         last_output.ok_or_else(|| "Shell pipeline produced no output".to_string())
     }
 
+    fn shell_result_ok(stdout: String) -> ArtValue {
+        ArtValue::EnumInstance {
+            enum_name: "Result".to_string(),
+            variant: "Ok".to_string(),
+            values: vec![ArtValue::String(Arc::from(stdout))],
+        }
+    }
+
+    fn shell_result_err(stderr: String) -> ArtValue {
+        ArtValue::EnumInstance {
+            enum_name: "Result".to_string(),
+            variant: "Err".to_string(),
+            values: vec![ArtValue::String(Arc::from(stderr))],
+        }
+    }
+
+    fn publish_shell_result(&mut self, result: ArtValue) {
+        self.last_value = Some(result.clone());
+        self.environment.borrow_mut().define("shell_result", result);
+    }
+
     /// Exposto para testes / prototipagem: registra struct dinâmica.
     pub fn register_struct_for_test(&mut self, name: &str, fields: Vec<(core::Token, String)>) {
         self.type_registry
@@ -1925,6 +1946,10 @@ impl Interpreter {
             }
             Stmt::ShellCommand { program, args } => {
                 if !self.ensure_pure_allowed("shell") {
+                    let blocked = Self::shell_result_err(
+                        "Operation 'shell' is not allowed in --pure mode".to_string(),
+                    );
+                    self.publish_shell_result(blocked);
                     return Ok(());
                 }
 
@@ -1936,25 +1961,31 @@ impl Interpreter {
                         if !output.stderr.is_empty() {
                             eprint!("{}", String::from_utf8_lossy(&output.stderr));
                         }
-                        if !output.status.success() {
-                            self.diagnostics.push(Diagnostic::new(
-                                DiagnosticKind::Runtime,
-                                format!(
-                                    "Shell command '{}' exited with status {:?}",
-                                    program,
-                                    output.status.code()
-                                ),
-                                Span::new(0, 0, 0, 0),
-                            ));
-                        }
+                        let result = if output.status.success() {
+                            Self::shell_result_ok(
+                                String::from_utf8_lossy(&output.stdout).to_string(),
+                            )
+                        } else if output.stderr.is_empty() {
+                            Self::shell_result_err(format!(
+                                "Shell command '{}' exited with status {:?}",
+                                program,
+                                output.status.code()
+                            ))
+                        } else {
+                            Self::shell_result_err(
+                                String::from_utf8_lossy(&output.stderr).to_string(),
+                            )
+                        };
+                        self.publish_shell_result(result);
                         Ok(())
                     }
                     Err(e) => {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
-                            e,
+                            e.clone(),
                             Span::new(0, 0, 0, 0),
                         ));
+                        self.publish_shell_result(Self::shell_result_err(e));
                         Ok(())
                     }
                 }

@@ -13,6 +13,24 @@ fn runs_shell_command_statement() {
 
     let mut interp = Interpreter::with_prelude();
     assert!(interp.interpret(program).is_ok(), "interpreter should not fail");
+    match interp.last_value.clone().expect("shell should publish result") {
+        core::ast::ArtValue::EnumInstance {
+            enum_name,
+            variant,
+            values,
+        } => {
+            assert_eq!(enum_name, "Result");
+            assert_eq!(variant, "Ok");
+            assert_eq!(values.len(), 1);
+            match &values[0] {
+                core::ast::ArtValue::String(s) => {
+                    assert!(s.contains("shell_ok"), "stdout payload should include shell output")
+                }
+                other => panic!("expected string payload, got {:?}", other),
+            }
+        }
+        other => panic!("expected Result enum value, got {:?}", other),
+    }
 }
 
 #[test]
@@ -47,4 +65,41 @@ fn runs_shell_pipeline_statement() {
 
     let mut interp = Interpreter::with_prelude();
     assert!(interp.interpret(program).is_ok(), "interpreter should not fail");
+    match interp.last_value.clone().expect("shell should publish result") {
+        core::ast::ArtValue::EnumInstance { variant, values, .. } => {
+            assert_eq!(variant, "Ok");
+            match &values[0] {
+                core::ast::ArtValue::String(s) => {
+                    assert!(s.contains("SHELL_PIPE_OK"), "pipeline stdout should be captured")
+                }
+                other => panic!("expected string payload, got {:?}", other),
+            }
+        }
+        other => panic!("expected Result enum value, got {:?}", other),
+    }
+}
+
+#[test]
+fn shell_command_failure_returns_result_err() {
+    let src = "$ sh -c \"echo shell_err 1>&2; exit 7\"";
+    let mut lx = Lexer::new(src.to_string());
+    let tokens = lx.scan_tokens().expect("lex ok");
+    let mut p = Parser::new(tokens);
+    let (program, diags) = p.parse();
+    assert!(diags.is_empty(), "parse diagnostics: {:?}", diags);
+
+    let mut interp = Interpreter::with_prelude();
+    assert!(interp.interpret(program).is_ok(), "interpreter should not fail");
+    match interp.last_value.clone().expect("shell should publish result") {
+        core::ast::ArtValue::EnumInstance { variant, values, .. } => {
+            assert_eq!(variant, "Err");
+            match &values[0] {
+                core::ast::ArtValue::String(s) => {
+                    assert!(s.contains("shell_err"), "stderr payload should be captured")
+                }
+                other => panic!("expected string payload, got {:?}", other),
+            }
+        }
+        other => panic!("expected Result enum value, got {:?}", other),
+    }
 }

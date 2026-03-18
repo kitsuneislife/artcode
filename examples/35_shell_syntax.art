@@ -3,5 +3,13 @@
 
 $ echo "shell syntax ok"
 $ echo shell_pipeline_ok |> tr a-z A-Z
-$ echo -n "args"
-println("fim")
+match shell_result {
+case .Ok(out): println(f"ok={out}")
+case .Err(err): println(f"err={err}")
+}
+
+$ sh -c "echo shell_err 1>&2; exit 7"
+match shell_result {
+case .Ok(out): println(f"ok={out}")
+case .Err(err): println(f"err={err}")
+}
