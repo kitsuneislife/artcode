@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="37 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas, Shell Syntax, Pipeline de Expressoes e Microkernels, passando por Pattern Matching, Atores e Arenas.">
+        content="38 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas, Shell Syntax, Pipelines de Expressoes/Streams e Microkernels, passando por Pattern Matching, Atores e Arenas.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -33,7 +33,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>37 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>38 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -183,6 +183,9 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-36">
                             <span class="examples-sidebar__num">36</span> Pipeline Operator
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-37">
+                            <span class="examples-sidebar__num">37</span> Stream Pipeline
                         </button>
                     </div>
 
@@ -1417,6 +1420,33 @@ $ <span class="fn">echo</span> shell_pipeline_ok <span class="op">|&gt;</span> <
 <span class="fn">println</span>(<span class="str">f"chained={chained}"</span>)</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/36_pipeline_operator.art</span></div>
+                    </div>
+
+                    <!-- 37: Stream Pipeline -->
+                    <div class="example-entry" id="ex-37">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">37</span>
+                            <span class="example-entry__title">Stream Pipeline</span>
+                            <span class="example-tag">Ferramentas</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Slice de stream lazy para processamento sem arrays intermediários entre
+                            transformações: <code>stream |> map |> filter |> collect/count</code>.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">37_stream_pipeline.art</span>
+                            </div>
+                            <pre><span class="kw">func</span> inc(x: <span class="type">Int</span>) <span class="op">-&gt;</span> <span class="type">Int</span> { <span class="kw">return</span> x + <span class="num">1</span> }
+<span class="kw">func</span> is_even(x: <span class="type">Int</span>) <span class="op">-&gt;</span> <span class="type">Bool</span> { <span class="kw">return</span> ((x / <span class="num">2</span>) * <span class="num">2</span>) == x }
+
+<span class="kw">let</span> out = [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>] <span class="op">|&gt;</span> stream <span class="op">|&gt;</span> map(inc) <span class="op">|&gt;</span> filter(is_even) <span class="op">|&gt;</span> collect
+<span class="fn">println</span>(out)</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/37_stream_pipeline.art</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->

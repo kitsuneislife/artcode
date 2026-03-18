@@ -1,0 +1,11 @@
+// Exemplo 37 - Pipeline lazy de streams (sem arrays intermediarios)
+// Execute com: art run examples/37_stream_pipeline.art
+
+func inc(x: Int) -> Int { return x + 1 }
+func is_even(x: Int) -> Bool { return ((x / 2) * 2) == x }
+
+let collected = [1, 2, 3, 4, 5] |> stream |> map(inc) |> filter(is_even) |> collect
+println(f"collected={collected}")
+
+let counted = [1, 2, 3, 4, 5] |> stream |> map(inc) |> filter(is_even) |> count
+println(f"counted={counted}")

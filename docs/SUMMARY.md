@@ -12,6 +12,7 @@
 - [DAG de Dependências](dependency_dag.md)
 - [Sintaxe Shell](shell_syntax.md)
 - [Operador Pipeline](pipeline_operator.md)
+- [Pipeline Lazy de Streams](stream_pipeline.md)
 - [f-strings](fstrings.md)
 - [Interpreter](interpreter.md)
 - [Roadmap](roadmap.md)

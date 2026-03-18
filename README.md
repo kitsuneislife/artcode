@@ -25,6 +25,7 @@ Implementação experimental de uma linguagem interpretada em Rust com suporte a
 - Standard Library embutida: Collections (Map, Set), Math (abs, pow, clamp), Time & Rand, File IO (sandboxed).
 - Sintaxe shell com statement `$ comando args...`, pipeline `|>` e retorno tipado em `shell_result`
 - Operador de pipeline para expressoes (`valor |> fn(...)`) com encadeamento funcional
+- Pipeline lazy de streams com `stream |> map |> filter |> collect/count` sem arrays intermediarios entre etapas
 - Métricas de execução (handled_errors, executed_statements, crash_free%)
 - Language Server Protocol (LSP) com diagnósticos, autocomplete, goto-definition, rename e semantic tokens na IDE (`art lsp`)
 
@@ -58,6 +59,7 @@ Principais recursos
 - Blocos `performant {}` com arenas experimentais e análise conservadora de escape
 - Sintaxe shell via statement `$` com pipeline `|>`, retorno `Result` em `shell_result` e bloqueio automático em `--pure`
 - Operador `|>` para pipeline de expressoes (transformado para chamada com insercao do argumento a esquerda)
+- Streams lazy para pipelines de dados (`stream/map/filter/collect/count`) em passe unico na etapa terminal
 
 Status do projeto
 - Código modular em crates: `core`, `lexer`, `parser`, `interpreter`, `diagnostics`, `cli`.
@@ -125,6 +127,9 @@ art run examples/35_shell_syntax.art
 # Pipeline de expressoes
 art run examples/36_pipeline_operator.art
 
+# Pipeline lazy de streams
+art run examples/37_stream_pipeline.art
+
 # Language Server (LSP) para editores
 art lsp
 # (suporta diagnósticos, autocomplete, goto-definition/rename multi-arquivo com indexação recursiva de imports e semantic tokens)
@@ -180,6 +185,7 @@ Links rápidos para os principais documentos:
 - [DAG de Dependências](docs/dependency_dag.md)
 - [Sintaxe Shell](docs/shell_syntax.md)
 - [Operador Pipeline](docs/pipeline_operator.md)
+- [Pipeline Lazy de Streams](docs/stream_pipeline.md)
 - [Enums & Pattern Matching](docs/enums.md)
 - [Coverage & Métricas](docs/coverage.md)
 - [Roadmap](docs/roadmap.md)

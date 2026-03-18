@@ -390,6 +390,11 @@ impl Interpreter {
             ("http_get_text", core::ast::BuiltinFn::HttpGetText),
             ("rand_seed", core::ast::BuiltinFn::RandomSeed),
             ("rand_next", core::ast::BuiltinFn::RandomNext),
+            ("stream", core::ast::BuiltinFn::StreamNew),
+            ("map", core::ast::BuiltinFn::StreamMap),
+            ("filter", core::ast::BuiltinFn::StreamFilter),
+            ("collect", core::ast::BuiltinFn::StreamCollect),
+            ("count", core::ast::BuiltinFn::StreamCount),
         ]
     }
 
@@ -579,6 +584,113 @@ impl Interpreter {
     fn publish_shell_result(&mut self, result: ArtValue) {
         self.last_value = Some(result.clone());
         self.environment.borrow_mut().define("shell_result", result);
+    }
+
+    fn decode_stream_value(&self, value: ArtValue) -> std::result::Result<(Vec<ArtValue>, Vec<ArtValue>), String> {
+        let resolved = self.resolve_composite(&value).clone();
+        if let ArtValue::StructInstance { struct_name, fields } = resolved {
+            if struct_name != "__Stream" {
+                return Err("Expected stream value".to_string());
+            }
+            let source = match fields.get("source") {
+                Some(ArtValue::Array(v)) => v.clone(),
+                _ => return Err("Malformed stream: missing source array".to_string()),
+            };
+            let ops = match fields.get("ops") {
+                Some(ArtValue::Array(v)) => v.clone(),
+                _ => return Err("Malformed stream: missing ops array".to_string()),
+            };
+            Ok((source, ops))
+        } else {
+            Err("Expected stream value".to_string())
+        }
+    }
+
+    fn build_stream_value(&self, source: Vec<ArtValue>, ops: Vec<ArtValue>) -> ArtValue {
+        let mut fields = HashMap::new();
+        fields.insert("source".to_string(), ArtValue::Array(source));
+        fields.insert("ops".to_string(), ArtValue::Array(ops));
+        ArtValue::StructInstance {
+            struct_name: "__Stream".to_string(),
+            fields,
+        }
+    }
+
+    fn stream_op(op_name: &str, callable: ArtValue) -> ArtValue {
+        ArtValue::Tuple(vec![ArtValue::String(Arc::from(op_name.to_string())), callable])
+    }
+
+    fn invoke_callable_with_values(
+        &mut self,
+        callable: ArtValue,
+        args: Vec<ArtValue>,
+    ) -> Result<ArtValue> {
+        let arg_exprs: Vec<Expr> = args.into_iter().map(Expr::Literal).collect();
+        match callable {
+            ArtValue::Function(func) => self.call_function(func, None, arg_exprs),
+            ArtValue::Builtin(b) => self.call_builtin(b, arg_exprs),
+            _ => {
+                self.diagnostics.push(Diagnostic::new(
+                    DiagnosticKind::Runtime,
+                    "Stream operation expects a callable argument".to_string(),
+                    Span::new(0, 0, 0, 0),
+                ));
+                Ok(ArtValue::none())
+            }
+        }
+    }
+
+    fn run_stream_pipeline(&mut self, source: Vec<ArtValue>, ops: Vec<ArtValue>) -> Result<Vec<ArtValue>> {
+        let mut out = Vec::new();
+        'outer: for mut item in source {
+            for op in &ops {
+                match op {
+                    ArtValue::Tuple(parts) if parts.len() == 2 => {
+                        let op_name = match &parts[0] {
+                            ArtValue::String(s) => s.as_ref(),
+                            _ => {
+                                self.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Runtime,
+                                    "Malformed stream op: invalid operation name".to_string(),
+                                    Span::new(0, 0, 0, 0),
+                                ));
+                                return Ok(Vec::new());
+                            }
+                        };
+                        let callable = parts[1].clone();
+                        match op_name {
+                            "map" => {
+                                item = self.invoke_callable_with_values(callable, vec![item])?;
+                            }
+                            "filter" => {
+                                let keep = self.invoke_callable_with_values(callable, vec![item.clone()])?;
+                                if !self.is_truthy(&keep) {
+                                    continue 'outer;
+                                }
+                            }
+                            _ => {
+                                self.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Runtime,
+                                    format!("Unsupported stream operation '{}'", op_name),
+                                    Span::new(0, 0, 0, 0),
+                                ));
+                                return Ok(Vec::new());
+                            }
+                        }
+                    }
+                    _ => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "Malformed stream operation payload".to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        return Ok(Vec::new());
+                    }
+                }
+            }
+            out.push(item);
+        }
+        Ok(out)
     }
 
     /// Exposto para testes / prototipagem: registra struct dinâmica.
@@ -3090,6 +3202,131 @@ impl Interpreter {
                     }
                 } else {
                     Ok(ArtValue::Bool(false))
+                }
+            }
+            core::ast::BuiltinFn::StreamNew => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "stream expects exactly one array argument".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let input = self.evaluate(arguments[0].clone())?;
+                let resolved = self.resolve_composite(&input).clone();
+                match resolved {
+                    ArtValue::Array(source) => Ok(self.build_stream_value(source, Vec::new())),
+                    _ => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "stream expects an array argument".to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        Ok(ArtValue::none())
+                    }
+                }
+            }
+            core::ast::BuiltinFn::StreamMap => {
+                if arguments.len() != 2 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "map expects (stream, callable)".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let stream_value = self.evaluate(arguments[0].clone())?;
+                let callable = self.evaluate(arguments[1].clone())?;
+                match self.decode_stream_value(stream_value) {
+                    Ok((source, mut ops)) => {
+                        ops.push(Self::stream_op("map", callable));
+                        Ok(self.build_stream_value(source, ops))
+                    }
+                    Err(msg) => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            msg,
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        Ok(ArtValue::none())
+                    }
+                }
+            }
+            core::ast::BuiltinFn::StreamFilter => {
+                if arguments.len() != 2 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "filter expects (stream, callable)".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let stream_value = self.evaluate(arguments[0].clone())?;
+                let callable = self.evaluate(arguments[1].clone())?;
+                match self.decode_stream_value(stream_value) {
+                    Ok((source, mut ops)) => {
+                        ops.push(Self::stream_op("filter", callable));
+                        Ok(self.build_stream_value(source, ops))
+                    }
+                    Err(msg) => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            msg,
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        Ok(ArtValue::none())
+                    }
+                }
+            }
+            core::ast::BuiltinFn::StreamCollect => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "collect expects a stream argument".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let stream_value = self.evaluate(arguments[0].clone())?;
+                match self.decode_stream_value(stream_value) {
+                    Ok((source, ops)) => {
+                        let collected = self.run_stream_pipeline(source, ops)?;
+                        Ok(ArtValue::Array(collected))
+                    }
+                    Err(msg) => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            msg,
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        Ok(ArtValue::none())
+                    }
+                }
+            }
+            core::ast::BuiltinFn::StreamCount => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "count expects a stream argument".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let stream_value = self.evaluate(arguments[0].clone())?;
+                match self.decode_stream_value(stream_value) {
+                    Ok((source, ops)) => {
+                        let collected = self.run_stream_pipeline(source, ops)?;
+                        Ok(ArtValue::Int(collected.len() as i64))
+                    }
+                    Err(msg) => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            msg,
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        Ok(ArtValue::none())
+                    }
                 }
             }
             core::ast::BuiltinFn::SetNew => Ok(ArtValue::Set(core::ast::SetRef(

@@ -288,6 +288,11 @@ pub enum BuiltinFn {
     HttpGetText,
     RandomSeed,
     RandomNext,
+    StreamNew,
+    StreamMap,
+    StreamFilter,
+    StreamCollect,
+    StreamCount,
 
     // Built-in methods internally bound to Enum structs
     EnumIsOk(Box<ArtValue>),
@@ -339,6 +344,11 @@ impl fmt::Debug for BuiltinFn {
             BuiltinFn::HttpGetText => write!(f, "<builtin http_get_text>"),
             BuiltinFn::RandomSeed => write!(f, "<builtin random_seed>"),
             BuiltinFn::RandomNext => write!(f, "<builtin random_next>"),
+            BuiltinFn::StreamNew => write!(f, "<builtin stream>"),
+            BuiltinFn::StreamMap => write!(f, "<builtin map>"),
+            BuiltinFn::StreamFilter => write!(f, "<builtin filter>"),
+            BuiltinFn::StreamCollect => write!(f, "<builtin collect>"),
+            BuiltinFn::StreamCount => write!(f, "<builtin count>"),
             BuiltinFn::EnumIsOk(_)
             | BuiltinFn::EnumIsErr(_)
             | BuiltinFn::EnumUnwrap(_)
@@ -441,6 +451,11 @@ impl fmt::Display for ArtValue {
                 BuiltinFn::HttpGetText => write!(f, "<builtin http_get_text>"),
                 BuiltinFn::RandomSeed => write!(f, "<builtin random_seed>"),
                 BuiltinFn::RandomNext => write!(f, "<builtin random_next>"),
+                BuiltinFn::StreamNew => write!(f, "<builtin stream>"),
+                BuiltinFn::StreamMap => write!(f, "<builtin map>"),
+                BuiltinFn::StreamFilter => write!(f, "<builtin filter>"),
+                BuiltinFn::StreamCollect => write!(f, "<builtin collect>"),
+                BuiltinFn::StreamCount => write!(f, "<builtin count>"),
                 BuiltinFn::EnumIsOk(_)
                 | BuiltinFn::EnumIsErr(_)
                 | BuiltinFn::EnumUnwrap(_)
