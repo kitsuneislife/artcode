@@ -1048,6 +1048,7 @@ fn value_type(v: &ArtValue) -> Type {
         ArtValue::Capability { kind, .. } => Type::Struct(format!("Capability[{}]", kind)),
         ArtValue::MovedCapability => Type::Unknown,
         ArtValue::HeapComposite(_) => Type::Unknown, // resolução ocorre em nível de interpretador; para inferência simplificada tratamos como Unknown
+        ArtValue::Buffer(_) => Type::Buffer,
     }
 }
 

@@ -148,6 +148,21 @@ fn std_doc_meta(name: &str) -> Option<StdDocMeta> {
             signature: "idl_validate(message: Any, struct_name: String)",
             description: "Valida mensagem runtime contra schema de struct para uso em IPC.",
         }),
+        "buffer_new" => Some(StdDocMeta {
+            category: "IPC & Types",
+            signature: "buffer_new(size: Int)",
+            description: "Cria um novo buffer vazio nativo com capacidade especificada.",
+        }),
+        "serialize" => Some(StdDocMeta {
+            category: "IPC & Types",
+            signature: "serialize(value: Any)",
+            description: "Serializa uma estrutura de dados valida para Buffer (zero-copy IPC).",
+        }),
+        "deserialize" => Some(StdDocMeta {
+            category: "IPC & Types",
+            signature: "deserialize(buffer: Buffer)",
+            description: "Desserializa um Buffer para estrutura de origem (DFS binario).",
+        }),
         "capability_acquire" => Some(StdDocMeta {
             category: "IPC & Types",
             signature: "capability_acquire(kind: String)",

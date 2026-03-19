@@ -343,6 +343,167 @@ impl Mailbox {
     }
 }
 
+pub fn encode_val(val: &ArtValue, out: &mut Vec<u8>) -> std::result::Result<(), String> {
+    match val {
+        ArtValue::Int(n) => { out.push(1); out.extend_from_slice(&n.to_le_bytes()); }
+        ArtValue::Float(f) => { out.push(2); out.extend_from_slice(&f.to_le_bytes()); }
+        ArtValue::String(s) => { out.push(3); out.extend_from_slice(&(s.len() as u32).to_le_bytes()); out.extend_from_slice(s.as_bytes()); }
+        ArtValue::Bool(b) => { out.push(4); out.push(if *b { 1 } else { 0 }); }
+        ArtValue::Optional(opt) => {
+            if let Some(inner) = &**opt {
+                out.push(5); encode_val(inner, out)?;
+            } else { out.push(6); }
+        }
+        ArtValue::Array(arr) => {
+            out.push(7); out.extend_from_slice(&(arr.len() as u32).to_le_bytes());
+            for item in arr { encode_val(item, out)?; }
+        }
+        ArtValue::Map(m) => {
+            let map = m.0.lock().unwrap_or_else(|e| e.into_inner());
+            out.push(8); out.extend_from_slice(&(map.len() as u32).to_le_bytes());
+            for (k, v) in map.iter() {
+                let k_bytes = k.as_bytes();
+                out.extend_from_slice(&(k_bytes.len() as u32).to_le_bytes());
+                out.extend_from_slice(k_bytes);
+                encode_val(v, out)?;
+            }
+        }
+        ArtValue::Set(s) => {
+            let set = s.0.lock().unwrap_or_else(|e| e.into_inner());
+            out.push(9); out.extend_from_slice(&(set.len() as u32).to_le_bytes());
+            for item in set.iter() { encode_val(item, out)?; }
+        }
+        ArtValue::Buffer(buf) => {
+            out.push(10); out.extend_from_slice(&(buf.len() as u32).to_le_bytes());
+            out.extend_from_slice(buf);
+        }
+        ArtValue::StructInstance { struct_name, fields } => {
+            out.push(11);
+            let n_bytes = struct_name.as_bytes();
+            out.extend_from_slice(&(n_bytes.len() as u32).to_le_bytes());
+            out.extend_from_slice(n_bytes);
+            out.extend_from_slice(&(fields.len() as u32).to_le_bytes());
+            for (k, v) in fields {
+                let k_bytes = k.as_bytes();
+                out.extend_from_slice(&(k_bytes.len() as u32).to_le_bytes());
+                out.extend_from_slice(k_bytes);
+                encode_val(v, out)?;
+            }
+        }
+        ArtValue::EnumInstance { enum_name, variant, values } => {
+            out.push(12);
+            let n_bytes = enum_name.as_bytes();
+            out.extend_from_slice(&(n_bytes.len() as u32).to_le_bytes());
+            out.extend_from_slice(n_bytes);
+            let v_bytes = variant.as_bytes();
+            out.extend_from_slice(&(v_bytes.len() as u32).to_le_bytes());
+            out.extend_from_slice(v_bytes);
+            out.extend_from_slice(&(values.len() as u32).to_le_bytes());
+            for v in values { encode_val(v, out)?; }
+        }
+        ArtValue::Tuple(tup) => {
+            out.push(13); out.extend_from_slice(&(tup.len() as u32).to_le_bytes());
+            for item in tup { encode_val(item, out)?; }
+        }
+        _ => return Err(format!("Cannot serialize type {}", val)),
+    }
+    Ok(())
+}
+
+pub fn decode_val(cur: &mut std::io::Cursor<&[u8]>) -> std::result::Result<ArtValue, String> {
+    use std::io::Read;
+    let mut tag = [0u8; 1];
+    cur.read_exact(&mut tag).map_err(|_| "EOF reading tag")?;
+    match tag[0] {
+        1 => { let mut b = [0u8; 8]; cur.read_exact(&mut b).map_err(|_| "EOF reading int")?; Ok(ArtValue::Int(i64::from_le_bytes(b))) }
+        2 => { let mut b = [0u8; 8]; cur.read_exact(&mut b).map_err(|_| "EOF reading float")?; Ok(ArtValue::Float(f64::from_le_bytes(b))) }
+        3 => {
+            let mut b = [0u8; 4]; cur.read_exact(&mut b).map_err(|_| "EOF str len")?;
+            let mut str_b = vec![0u8; u32::from_le_bytes(b) as usize];
+            cur.read_exact(&mut str_b).map_err(|_| "EOF str")?;
+            Ok(ArtValue::String(String::from_utf8(str_b).map_err(|_| "UTF8 error")?.into()))
+        }
+        4 => { let mut b = [0u8; 1]; cur.read_exact(&mut b).map_err(|_| "EOF bool")?; Ok(ArtValue::Bool(b[0] != 0)) }
+        5 => Ok(ArtValue::Optional(Box::new(Some(decode_val(cur)?)))),
+        6 => Ok(ArtValue::none()),
+        7 => {
+            let mut b = [0u8; 4]; cur.read_exact(&mut b).map_err(|_| "EOF array len")?;
+            let len = u32::from_le_bytes(b) as usize;
+            let mut arr = Vec::with_capacity(len);
+            for _ in 0..len { arr.push(decode_val(cur)?); }
+            Ok(ArtValue::Array(arr))
+        }
+        8 => {
+            let mut b = [0u8; 4]; cur.read_exact(&mut b).map_err(|_| "EOF map len")?;
+            let len = u32::from_le_bytes(b) as usize;
+            let mut map = std::collections::HashMap::with_capacity(len);
+            for _ in 0..len {
+                let mut lb = [0u8; 4]; cur.read_exact(&mut lb).map_err(|_| "EOF map k len")?;
+                let mut k_b = vec![0u8; u32::from_le_bytes(lb) as usize];
+                cur.read_exact(&mut k_b).map_err(|_| "EOF map k")?;
+                let k_str = String::from_utf8(k_b).map_err(|_| "UTF8 error")?;
+                map.insert(k_str, decode_val(cur)?);
+            }
+            Ok(ArtValue::Map(core::ast::MapRef(std::sync::Arc::new(std::sync::Mutex::new(map)))))
+        }
+        9 => {
+             let mut b = [0u8; 4]; cur.read_exact(&mut b).map_err(|_| "EOF set len")?;
+             let len = u32::from_le_bytes(b) as usize;
+             let mut set = Vec::with_capacity(len);
+             for _ in 0..len { set.push(decode_val(cur)?); }
+             Ok(ArtValue::Set(core::ast::SetRef(std::sync::Arc::new(std::sync::Mutex::new(set)))))
+        }
+        10 => {
+             let mut b = [0u8; 4]; cur.read_exact(&mut b).map_err(|_| "EOF buffer len")?;
+             let mut buf = vec![0u8; u32::from_le_bytes(b) as usize];
+             cur.read_exact(&mut buf).map_err(|_| "EOF buf")?;
+             Ok(ArtValue::Buffer(buf.into()))
+        }
+        11 => {
+             let mut lb = [0u8; 4]; cur.read_exact(&mut lb).map_err(|_| "EOF struct name len")?;
+             let mut sn_b = vec![0u8; u32::from_le_bytes(lb) as usize];
+             cur.read_exact(&mut sn_b).map_err(|_| "EOF struct name")?;
+             let struct_name = String::from_utf8(sn_b).map_err(|_| "UTF8 error")?;
+             let mut fb = [0u8; 4]; cur.read_exact(&mut fb).map_err(|_| "EOF fields len")?;
+             let f_len = u32::from_le_bytes(fb) as usize;
+             let mut fields = std::collections::HashMap::with_capacity(f_len);
+             for _ in 0..f_len {
+                 let mut klb = [0u8; 4]; cur.read_exact(&mut klb).map_err(|_| "EOF field k len")?;
+                 let mut k_b = vec![0u8; u32::from_le_bytes(klb) as usize];
+                 cur.read_exact(&mut k_b).map_err(|_| "EOF field name")?;
+                 let fname = String::from_utf8(k_b).map_err(|_| "UTF8 error")?;
+                 fields.insert(fname, decode_val(cur)?);
+             }
+             Ok(ArtValue::StructInstance { struct_name, fields })
+        }
+        12 => {
+            let mut lb = [0u8; 4]; cur.read_exact(&mut lb).map_err(|_| "EOF enum name len")?;
+            let mut n_b = vec![0u8; u32::from_le_bytes(lb) as usize];
+            cur.read_exact(&mut n_b).map_err(|_| "EOF enum name")?;
+            let enum_name = String::from_utf8(n_b).map_err(|_| "UTF8 err")?;
+
+            let mut vb = [0u8; 4]; cur.read_exact(&mut vb).map_err(|_| "EOF variant len")?;
+            let mut v_b = vec![0u8; u32::from_le_bytes(vb) as usize];
+            cur.read_exact(&mut v_b).map_err(|_| "EOF variant")?;
+            let variant = String::from_utf8(v_b).map_err(|_| "UTF8 err")?;
+
+            let mut ab = [0u8; 4]; cur.read_exact(&mut ab).map_err(|_| "EOF arr len")?;
+            let arr_len = u32::from_le_bytes(ab) as usize;
+            let mut values = Vec::with_capacity(arr_len);
+            for _ in 0..arr_len { values.push(decode_val(cur)?); }
+            Ok(ArtValue::EnumInstance { enum_name, variant, values })
+        }
+        13 => {
+            let mut b = [0u8; 4]; cur.read_exact(&mut b).map_err(|_| "EOF tuple len")?;
+            let len = u32::from_le_bytes(b) as usize;
+            let mut tup = Vec::with_capacity(len);
+            for _ in 0..len { tup.push(decode_val(cur)?); }
+            Ok(ArtValue::Tuple(tup))
+        }
+        t => Err(format!("Unknown tag {}", t)),
+    }
+}
+
 impl Interpreter {
     pub fn prelude_builtin_bindings() -> Vec<(&'static str, core::ast::BuiltinFn)> {
         vec![
@@ -380,6 +541,9 @@ impl Interpreter {
             ("arena_with", core::ast::BuiltinFn::ArenaWith),
             ("idl_schema", core::ast::BuiltinFn::IdlSchema),
             ("idl_validate", core::ast::BuiltinFn::IdlValidate),
+            ("buffer_new", core::ast::BuiltinFn::BufferNew),
+            ("serialize", core::ast::BuiltinFn::Serialize),
+            ("deserialize", core::ast::BuiltinFn::Deserialize),
             ("capability_acquire", core::ast::BuiltinFn::CapabilityAcquire),
             ("capability_kind", core::ast::BuiltinFn::CapabilityKind),
             ("map_new", core::ast::BuiltinFn::MapNew),
@@ -532,6 +696,7 @@ impl Interpreter {
             ArtValue::Capability { kind, .. } => format!("Capability[{}]", kind),
             ArtValue::MovedCapability => "MovedCapability".to_string(),
             ArtValue::HeapComposite(_) => "Composite".to_string(),
+            ArtValue::Buffer(_) => "Buffer".to_string(),
         }
     }
 
@@ -4256,6 +4421,7 @@ impl Interpreter {
                         ArtValue::Actor(_) => "Actor",
                         ArtValue::Capability { .. } => "Capability",
                         ArtValue::MovedCapability => "MovedCapability",
+                        ArtValue::Buffer(_) => "Buffer",
                     };
                     Ok(ArtValue::String(core::intern_arc(t)))
                 } else {
@@ -5050,6 +5216,87 @@ impl Interpreter {
                 }
 
                 Ok(ArtValue::Bool(true))
+            }
+            core::ast::BuiltinFn::BufferNew => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "buffer_new expects exactly one integer size argument".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                match self.evaluate(arguments[0].clone())? {
+                    ArtValue::Int(size) if size >= 0 => {
+                        let buf = vec![0u8; size as usize];
+                        Ok(ArtValue::Buffer(buf.into()))
+                    }
+                    _ => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "buffer_new argument must be a non-negative Int".to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        Ok(ArtValue::none())
+                    }
+                }
+            }
+            core::ast::BuiltinFn::Serialize => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "serialize expects exactly one argument".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let val = self.evaluate(arguments[0].clone())?;
+                let mut out = Vec::new();
+                match crate::interpreter::encode_val(&val, &mut out) {
+                    Ok(_) => Ok(ArtValue::Buffer(out.into())),
+                    Err(e) => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            format!("serialize error: {}", e),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        Ok(ArtValue::none())
+                    }
+                }
+            }
+            core::ast::BuiltinFn::Deserialize => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "deserialize expects exactly one Buffer argument".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                match self.evaluate(arguments[0].clone())? {
+                    ArtValue::Buffer(buf) => {
+                        let mut cur = std::io::Cursor::new(buf.as_ref());
+                        match crate::interpreter::decode_val(&mut cur) {
+                            Ok(val) => Ok(val),
+                            Err(e) => {
+                                self.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Runtime,
+                                    format!("deserialize error: {}", e),
+                                    Span::new(0, 0, 0, 0),
+                                ));
+                                Ok(ArtValue::none())
+                            }
+                        }
+                    }
+                    _ => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "deserialize requires a Buffer".to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        Ok(ArtValue::none())
+                    }
+                }
             }
             core::ast::BuiltinFn::CapabilityAcquire => {
                 if arguments.len() != 1 {

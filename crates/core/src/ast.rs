@@ -236,9 +236,9 @@ pub enum ArtValue {
     // Fase 8 (protótipo): referências não-fortes
     WeakRef(ObjHandle),    // id para registro global
     UnownedRef(ObjHandle), // id para registro global (não mantém vivo)
-    // Fase 15 (Stdlib expansions)
     Map(MapRef),
     Set(SetRef),
+    Buffer(Arc<[u8]>),
     Capability { kind: Arc<str>, id: u64 },
     MovedCapability,
 }
@@ -277,6 +277,9 @@ pub enum BuiltinFn {
     ArenaWith,   // arena_with(arena_id:Int, callback: Fn0) -> Any
     IdlSchema,   // idl_schema(struct_name:String) -> Map<String, String>
     IdlValidate, // idl_validate(value:Any, struct_name:String) -> Bool
+    BufferNew,   // buffer_new(size:Int) -> Buffer
+    Serialize,   // serialize(value:Any) -> Buffer
+    Deserialize, // deserialize(buffer:Buffer) -> Any
     CapabilityAcquire, // capability_acquire(kind:String) -> Capability[kind]
     CapabilityKind,    // capability_kind(capability) -> String
     // Fase 15 Stdlib
@@ -341,6 +344,9 @@ impl fmt::Debug for BuiltinFn {
             BuiltinFn::ArenaWith => write!(f, "<builtin arena_with>"),
             BuiltinFn::IdlSchema => write!(f, "<builtin idl_schema>"),
             BuiltinFn::IdlValidate => write!(f, "<builtin idl_validate>"),
+            BuiltinFn::BufferNew => write!(f, "<builtin buffer_new>"),
+            BuiltinFn::Serialize => write!(f, "<builtin serialize>"),
+            BuiltinFn::Deserialize => write!(f, "<builtin deserialize>"),
             BuiltinFn::CapabilityAcquire => write!(f, "<builtin capability_acquire>"),
             BuiltinFn::CapabilityKind => write!(f, "<builtin capability_kind>"),
             BuiltinFn::MapNew => write!(f, "<builtin map_new>"),
@@ -455,6 +461,9 @@ impl fmt::Display for ArtValue {
                 BuiltinFn::ArenaWith => write!(f, "<builtin arena_with>"),
                 BuiltinFn::IdlSchema => write!(f, "<builtin idl_schema>"),
                 BuiltinFn::IdlValidate => write!(f, "<builtin idl_validate>"),
+                BuiltinFn::BufferNew => write!(f, "<builtin buffer_new>"),
+                BuiltinFn::Serialize => write!(f, "<builtin serialize>"),
+                BuiltinFn::Deserialize => write!(f, "<builtin deserialize>"),
                 BuiltinFn::CapabilityAcquire => write!(f, "<builtin capability_acquire>"),
                 BuiltinFn::CapabilityKind => write!(f, "<builtin capability_kind>"),
                 BuiltinFn::MapNew => write!(f, "<builtin map_new>"),
@@ -503,6 +512,7 @@ impl fmt::Display for ArtValue {
                 let elems: Vec<String> = set.iter().map(|item| item.to_string()).collect();
                 write!(f, "Set {{ {} }}", elems.join(", "))
             }
+            ArtValue::Buffer(buf) => write!(f, "<buffer {} bytes>", buf.len()),
             ArtValue::Capability { kind, id } => write!(f, "Capability[{}]#{}", kind, id),
             ArtValue::MovedCapability => write!(f, "<moved capability>"),
         }
