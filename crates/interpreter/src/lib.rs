@@ -3,6 +3,7 @@ pub mod fstring;
 pub mod heap;
 pub mod heap_utils;
 pub mod interpreter;
+pub mod tracer;
 // keep top-level compatibility: re-export interpreter::test_helpers as test_helpers only for tests
 #[cfg(test)]
 pub use interpreter::test_helpers;

@@ -98,7 +98,8 @@ pub struct Interpreter {
     // Per-arena promotions counter (experimental)
     pub finalizer_promotions_per_arena: std::collections::HashMap<u32, usize>,
     // transient: currently finalizing arena id to attribute promotions
-    pub current_finalizer_promotion_target: Option<u32>,
+    pub current_finalizing_arena: Option<u32>,
+    pub tracer: Option<crate::tracer::Tracer>,
     pub invariant_checks: bool,
     finalizers: HashMap<u64, Rc<Function>>, // finalizers por objeto composto
     // Arena support
@@ -603,7 +604,8 @@ impl Interpreter {
             objects_finalized: 0,
             finalizer_promotions: 0,
             finalizer_promotions_per_arena: std::collections::HashMap::new(),
-            current_finalizer_promotion_target: None,
+            current_finalizing_arena: None,
+            tracer: None,
             arena_alloc_count: std::collections::HashMap::new(),
             objects_finalized_per_arena: std::collections::HashMap::new(),
             invariant_checks: false,
@@ -1330,8 +1332,8 @@ impl Interpreter {
             .collect();
         ids.sort_unstable();
         // attribute promotions during finalization to this arena
-        let prev_promo_target = self.current_finalizer_promotion_target;
-        self.current_finalizer_promotion_target = Some(arena_id);
+        let prev_promo_target = self.current_finalizing_arena;
+        self.current_finalizing_arena = Some(arena_id);
         for id in ids {
             // Forçar queda de strong para 0 e disparar finalização recursiva
             // limitar o escopo do borrow mutável para evitar conflitos durante a recursão
@@ -1373,7 +1375,7 @@ impl Interpreter {
             }
         }
         // restore previous promotion target
-        self.current_finalizer_promotion_target = prev_promo_target;
+        self.current_finalizing_arena = prev_promo_target;
         // Hardening: normalizar invariantes após finalização da arena.
         // Se por alguma razão existirem objetos com strong==0 mas alive==true,
         // marcamos como mortos para que a varredura os remova corretamente.
@@ -1594,7 +1596,7 @@ impl Interpreter {
                         let promoted = local_handles.len();
                         if promoted > 0 {
                             self.finalizer_promotions += promoted;
-                            if let Some(aid) = self.current_finalizer_promotion_target {
+                            if let Some(aid) = self.current_finalizing_arena {
                                 *self.finalizer_promotions_per_arena.entry(aid).or_insert(0) +=
                                     promoted;
                             }
@@ -1941,6 +1943,22 @@ impl Interpreter {
         }
         env.define(name, val);
     }
+
+    pub fn get_global(&self, name: &str) -> Option<ArtValue> {
+        let env = self.environment.borrow();
+        env.get(name)
+    }
+
+    pub fn enable_tracer(&mut self, path: &str) -> std::io::Result<()> {
+        let tracer = crate::tracer::Tracer::new(path)?;
+        self.tracer = Some(tracer);
+        Ok(())
+    }
+
+    pub fn env_ref(&self) -> Rc<RefCell<Environment>> {
+        self.environment.clone()
+    }
+
     pub fn debug_get_global(&self, name: &str) -> Option<ArtValue> {
         self.environment.borrow().get(name)
     }
@@ -4219,6 +4237,11 @@ impl Interpreter {
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_millis() as i64;
+                
+                if let Some(tracer) = &mut self.tracer {
+                    let _ = tracer.record_event("time_now", self.executed_statements, ArtValue::Int(now));
+                }
+
                 Ok(ArtValue::Int(now))
             }
             core::ast::BuiltinFn::IOReadText => {
@@ -4350,6 +4373,11 @@ impl Interpreter {
                     .wrapping_mul(6364136223846793005)
                     .wrapping_add(1442695040888963407);
                 let rand_val = (self.rng_state >> 32) as i64;
+                
+                if let Some(tracer) = &mut self.tracer {
+                    let _ = tracer.record_event("rand_next", self.executed_statements, ArtValue::Int(rand_val));
+                }
+
                 Ok(ArtValue::Int(
                     format!("{}", rand_val)
                         .trim_start_matches('-')

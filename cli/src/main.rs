@@ -166,7 +166,13 @@ fn run_with_source(
     }
 }
 
-fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>, pure_mode: bool) {
+fn run_file(
+    path: &str,
+    profile: Option<&str>,
+    emit_ir: Option<&str>,
+    pure_mode: bool,
+    record_file: Option<&str>,
+) {
     // Use resolver to expand imports
     match crate::resolver::resolve(path) {
         Ok((program, main_source)) => {
@@ -376,6 +382,11 @@ fn run_file(path: &str, profile: Option<&str>, emit_ir: Option<&str>, pure_mode:
 
             let mut interpreter = Interpreter::with_prelude();
             interpreter.set_pure_mode(pure_mode);
+            if let Some(rf) = record_file {
+                if let Err(e) = interpreter.enable_tracer(rf) {
+                    eprintln!("Warning: failed to enable tracer: {}", e);
+                }
+            }
             if let Err(e) = interpreter.interpret(program) {
                 eprintln!("Erro de execução: {}", e);
             }
@@ -594,7 +605,7 @@ fn main() {
                         }
                     };
                     if let Err(e) =
-                        aot::write_minimal_aot_artifact(std::path::Path::new(&out_path), &art_path)
+                        aot::write_minimal_aot_artifact(std::path::Path::new(&out_path), art_path.as_path())
                     {
                         eprintln!("failed to write aot artifact: {}", e);
                     } else {
@@ -615,21 +626,29 @@ fn main() {
     if args[1] == "run" {
         let mut pure_mode = false;
         let mut file: Option<String> = None;
-        for a in &args[2..] {
+        let mut record_file: Option<String> = None;
+        let mut j = 2usize;
+        while j < args.len() {
+            let a = &args[j];
             if a == "--pure" {
                 pure_mode = true;
+                j += 1;
+            } else if a == "--record" && j + 1 < args.len() {
+                record_file = Some(args[j + 1].clone());
+                j += 2;
             } else if file.is_none() {
                 file = Some(a.clone());
+                j += 1;
             } else {
-                eprintln!("Usage: art run [--pure] <script>");
+                eprintln!("Usage: art run [--pure] [--record <file>] <script>");
                 process::exit(64);
             }
         }
         let Some(file) = file else {
-            eprintln!("Usage: art run [--pure] <script>");
+            eprintln!("Usage: art run [--pure] [--record <file>] <script>");
             process::exit(64);
         };
-        return run_file(&file, gen_profile.as_deref(), emit_ir.as_deref(), pure_mode);
+        return run_file(&file, gen_profile.as_deref(), emit_ir.as_deref(), pure_mode, record_file.as_deref());
     }
     if args[1] == "metrics" {
         if args.len() < 3 {
@@ -982,14 +1001,14 @@ fn main() {
                     let ty = entry.file_type()?;
                     let dest = to.join(entry.file_name());
                     if ty.is_dir() {
-                        copy_dir(&entry.path(), &dest)?;
+                        copy_dir(entry.path().as_path(), dest.as_path())?;
                     } else {
                         std::fs::copy(entry.path(), dest)?;
                     }
                 }
                 Ok(())
             }
-            match copy_dir(&working_src, &dest) {
+            match copy_dir(working_src.as_path(), dest.as_path()) {
                 Ok(()) => Ok(0u64),
                 Err(e) => Err(e),
             }

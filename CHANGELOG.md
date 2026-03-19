@@ -9,6 +9,7 @@ O formato segue Keep a Changelog e SemVer adaptado para a trilha 0.2.x.
 ### Added
 - Politica publica de versionamento em docs/versioning.md.
 - Exemplo 29 sobre metadados de release e compatibilidade (examples/29_versioning_policy.art).
+- **Time-Travel Debugging (Fase 1: Tracer e Formato):** A infraestrutura base de trace determinístico por Event Sourcing foi estabelecida (RFC 0002). Adicionada flag no CLI `--record <arquivo>` permitindo salvar o log binário de fontes não-determinísticas nativas como `time_now` e `rand_next` para arquivo usando serialização zero-copy IPC. A API estendida para Time-Travel e log estruturado é o primeiro passo para a ferramenta de debug robusta que suporta IPC avançado. Detalhes documentados em `docs/debugging.md`.
 - **Native Serialization (Zero-copy IPC)**:
   - Adicionado suporte a serialização binária recursiva focada em zero-copy no runtime e serializador binário DFS.
   - Adicionado o tipo de dado `Buffer` e builtins: `buffer_new`, `serialize`, `deserialize`.
