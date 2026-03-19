@@ -22,3 +22,28 @@ func is_even(x: Int) -> Bool { return ((x / 2) * 2) == x }
     assert!(interp.interpret(program).is_ok(), "interpreter should not fail");
     assert_eq!(interp.last_value, Some(ArtValue::Int(3)));
 }
+
+#[test]
+fn for_loop_iterates_over_stream_pipeline() {
+    let src = r#"
+func inc(x: Int) -> Int { return x + 1 }
+func is_even(x: Int) -> Bool { return ((x / 2) * 2) == x }
+
+for n in [1, 2, 3, 4, 5] |> stream |> map(inc) |> filter(is_even) {
+    let seen = n;
+}
+99
+"#;
+
+    let mut lx = Lexer::new(src.to_string());
+    let tokens = lx.scan_tokens().expect("lex ok");
+    let mut p = Parser::new(tokens);
+    let (program, diags) = p.parse();
+    assert!(diags.is_empty(), "parse diagnostics: {:?}", diags);
+
+    let mut interp = Interpreter::with_prelude();
+    assert!(interp.interpret(program).is_ok(), "interpreter should not fail");
+    let diags = interp.take_diagnostics();
+    assert!(diags.is_empty(), "runtime diagnostics: {:?}", diags);
+    assert_eq!(interp.last_value, Some(ArtValue::Int(99)));
+}

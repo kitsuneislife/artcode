@@ -2121,16 +2121,42 @@ impl Interpreter {
             } => {
                 let iter_val = self.evaluate(iterator)?;
 
-                // Nós suportamos iteração apenas sobre arrays atualmente (alvo de melhorias futuras para custom Iterators via traits)
+                // Suporte atual: arrays e stream lazy (__Stream).
                 let array_elements = match iter_val {
                     ArtValue::Array(arr) => arr,
+                    ArtValue::StructInstance { ref struct_name, .. } if struct_name == "__Stream" => {
+                        match self.decode_stream_value(iter_val) {
+                            Ok((source, ops)) => self.run_stream_pipeline(source, ops)?,
+                            Err(msg) => {
+                                self.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Runtime,
+                                    msg,
+                                    Span::new(element.start, element.end, element.line, element.col),
+                                ));
+                                return Ok(());
+                            }
+                        }
+                    }
                     ArtValue::HeapComposite(h) => {
                         match self.heap_objects.get(&h.0).map(|obj| obj.value.clone()) {
                             Some(ArtValue::Array(arr)) => arr,
+                            Some(ref v @ ArtValue::StructInstance { ref struct_name, .. }) if struct_name == "__Stream" => {
+                                match self.decode_stream_value(v.clone()) {
+                                    Ok((source, ops)) => self.run_stream_pipeline(source, ops)?,
+                                    Err(msg) => {
+                                        self.diagnostics.push(Diagnostic::new(
+                                            DiagnosticKind::Runtime,
+                                            msg,
+                                            Span::new(element.start, element.end, element.line, element.col),
+                                        ));
+                                        return Ok(());
+                                    }
+                                }
+                            }
                             Some(other) => {
                                 self.diagnostics.push(Diagnostic::new(
                                     DiagnosticKind::Runtime,
-                                    format!("Cannot iterate over non-array type: {:?}", other),
+                                    format!("Cannot iterate over unsupported type: {:?}", other),
                                     Span::new(element.start, element.end, element.line, element.col),
                                 ));
                                 return Ok(());
@@ -2148,7 +2174,7 @@ impl Interpreter {
                     _ => {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
-                            format!("Cannot iterate over non-array type: {:?}", iter_val),
+                            format!("Cannot iterate over unsupported type: {:?}", iter_val),
                             Span::new(element.start, element.end, element.line, element.col),
                         ));
                         return Ok(());

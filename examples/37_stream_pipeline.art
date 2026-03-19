@@ -9,3 +9,7 @@ println(f"collected={collected}")
 
 let counted = [1, 2, 3, 4, 5] |> stream |> map(inc) |> filter(is_even) |> count
 println(f"counted={counted}")
+
+for n in [1, 2, 3, 4, 5] |> stream |> map(inc) |> filter(is_even) {
+	println(f"iter={n}")
+}
