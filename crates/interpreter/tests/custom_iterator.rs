@@ -14,7 +14,7 @@ func gen() {
     // Increment stored counter and yield up to 3.
     map_set(state, "i", map_get(state, "i").unwrap_or(0) + 1);
     if map_get(state, "i").unwrap_or(0) <= 3 {
-        return Option.Some(map_get(state, "i").unwrap_or(0));
+        yield map_get(state, "i").unwrap_or(0);
     }
     return Option.None;
 }

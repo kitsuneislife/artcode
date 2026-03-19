@@ -62,6 +62,8 @@ println(a, b, c);
 
 `for` pode iterar sobre qualquer função que retorna um `Option` (internamente representado como `Optional`/`Option.Some` / `Option.None`). A cada iteração, a função é chamada até que ela retorne `Option.None`.
 
+Tambem existe o acucar `yield expr`, que eh desugar para `return Option.Some(expr)`.
+
 Exemplo (veja `examples/38_custom_iterators.art`):
 
 ```art
@@ -71,7 +73,7 @@ map_set(state, "i", 0);
 func gen() {
     map_set(state, "i", map_get(state, "i").unwrap_or(0) + 1);
     if map_get(state, "i").unwrap_or(0) <= 3 {
-        return Option.Some(map_get(state, "i").unwrap_or(0));
+        yield map_get(state, "i").unwrap_or(0);
     }
     return Option.None;
 }

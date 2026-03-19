@@ -47,6 +47,7 @@ pub enum TokenType {
     Spawn,
     Actor,
     Return,
+    Yield,
     While,
     For,
     In,
@@ -100,6 +101,7 @@ impl Token {
                 | TokenType::Case
                 | TokenType::Func
                 | TokenType::Return
+                | TokenType::Yield
                 | TokenType::None
                 | TokenType::As
                 | TokenType::Weak

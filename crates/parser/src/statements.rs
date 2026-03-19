@@ -26,6 +26,9 @@ pub fn statement(parser: &mut Parser) -> Stmt {
     if parser.check(&TokenType::Return) {
         return return_statement(parser);
     }
+    if parser.check(&TokenType::Yield) {
+        return yield_statement(parser);
+    }
     if parser.check(&TokenType::While) {
         return while_statement(parser);
     }
@@ -467,6 +470,21 @@ pub fn return_statement(parser: &mut Parser) -> Stmt {
     };
     parser.match_token(TokenType::Semicolon);
     Stmt::Return { value }
+}
+
+pub fn yield_statement(parser: &mut Parser) -> Stmt {
+    parser.consume(TokenType::Yield, "Expect 'yield'.");
+    let value = parser.expression();
+    parser.match_token(TokenType::Semicolon);
+
+    // Sugar: `yield expr` => `return Option.Some(expr)`.
+    Stmt::Return {
+        value: Some(Expr::EnumInit {
+            name: Some(core::Token::dummy("Option")),
+            variant: core::Token::dummy("Some"),
+            values: vec![value],
+        }),
+    }
 }
 
 pub fn while_statement(parser: &mut Parser) -> Stmt {
