@@ -19,7 +19,10 @@ func is_even(x: Int) -> Bool { return ((x / 2) * 2) == x }
     assert!(diags.is_empty(), "parse diagnostics: {:?}", diags);
 
     let mut interp = Interpreter::with_prelude();
-    assert!(interp.interpret(program).is_ok(), "interpreter should not fail");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpreter should not fail"
+    );
     assert_eq!(interp.last_value, Some(ArtValue::Int(3)));
 }
 
@@ -42,7 +45,10 @@ for n in [1, 2, 3, 4, 5] |> stream |> map(inc) |> filter(is_even) {
     assert!(diags.is_empty(), "parse diagnostics: {:?}", diags);
 
     let mut interp = Interpreter::with_prelude();
-    assert!(interp.interpret(program).is_ok(), "interpreter should not fail");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpreter should not fail"
+    );
     let diags = interp.take_diagnostics();
     assert!(diags.is_empty(), "runtime diagnostics: {:?}", diags);
     assert_eq!(interp.last_value, Some(ArtValue::Int(99)));

@@ -116,7 +116,11 @@ fn is_scalar_literal(expr: &Expr) -> bool {
     }
 }
 
-fn bind_ref_kind_from_pattern(pattern: &MatchPattern, kind: Option<RefKind>, scopes: &mut ScopeStack) {
+fn bind_ref_kind_from_pattern(
+    pattern: &MatchPattern,
+    kind: Option<RefKind>,
+    scopes: &mut ScopeStack,
+) {
     if let Some(kind) = kind {
         match pattern {
             MatchPattern::Variable(tok) | MatchPattern::Binding(tok) => {
@@ -292,9 +296,7 @@ fn stmt_contains_allocation(stmt: &Stmt) -> bool {
         Stmt::Let { initializer, .. } => expr_contains_allocation(initializer),
         Stmt::Block { statements }
         | Stmt::Performant { statements }
-        | Stmt::SpawnActor { body: statements } => {
-            statements.iter().any(stmt_contains_allocation)
-        }
+        | Stmt::SpawnActor { body: statements } => statements.iter().any(stmt_contains_allocation),
         Stmt::If {
             condition,
             then_branch,
@@ -327,15 +329,13 @@ fn stmt_contains_allocation(stmt: &Stmt) -> bool {
         } => stmt_contains_allocation(try_branch) || stmt_contains_allocation(catch_branch),
         Stmt::Match { expr, cases } => {
             expr_contains_allocation(expr)
-                || cases
-                    .iter()
-                    .any(|(_, guard, body)| {
-                        guard
-                            .as_ref()
-                            .map(expr_contains_allocation)
-                            .unwrap_or(false)
-                            || stmt_contains_allocation(body)
-                    })
+                || cases.iter().any(|(_, guard, body)| {
+                    guard
+                        .as_ref()
+                        .map(expr_contains_allocation)
+                        .unwrap_or(false)
+                        || stmt_contains_allocation(body)
+                })
         }
         Stmt::While { condition, body } => {
             expr_contains_allocation(condition) || stmt_contains_allocation(body)
@@ -343,7 +343,10 @@ fn stmt_contains_allocation(stmt: &Stmt) -> bool {
         Stmt::For { iterator, body, .. } => {
             expr_contains_allocation(iterator) || stmt_contains_allocation(body)
         }
-        Stmt::Return { value } => value.as_ref().map(expr_contains_allocation).unwrap_or(false),
+        Stmt::Return { value } => value
+            .as_ref()
+            .map(expr_contains_allocation)
+            .unwrap_or(false),
         Stmt::StructDecl { .. }
         | Stmt::EnumDecl { .. }
         | Stmt::Function { .. }
@@ -377,7 +380,9 @@ fn expr_contains_allocation(expr: &Expr) -> bool {
         | Expr::Unowned(right)
         | Expr::WeakUpgrade(right)
         | Expr::UnownedAccess(right) => expr_contains_allocation(right),
-        Expr::FieldAccess { object, .. } | Expr::Cast { object, .. } => expr_contains_allocation(object),
+        Expr::FieldAccess { object, .. } | Expr::Cast { object, .. } => {
+            expr_contains_allocation(object)
+        }
         Expr::InterpolatedString(parts) => parts.iter().any(|p| match p {
             InterpolatedPart::Literal(_) => false,
             InterpolatedPart::Expr { expr, .. } => expr_contains_allocation(expr),
@@ -449,7 +454,8 @@ fn lint_expr(expr: &Expr, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
         }
         Expr::WeakUpgrade(right) => {
             lint_expr(right, scopes, diagnostics);
-            let ok = infer_ref_kind(right, scopes) == Some(RefKind::Weak) || matches!(&**right, Expr::Weak(_));
+            let ok = infer_ref_kind(right, scopes) == Some(RefKind::Weak)
+                || matches!(&**right, Expr::Weak(_));
             if !ok {
                 diagnostics.push(
                     Diagnostic::new(
@@ -463,8 +469,8 @@ fn lint_expr(expr: &Expr, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
         }
         Expr::UnownedAccess(right) => {
             lint_expr(right, scopes, diagnostics);
-            let ok =
-                infer_ref_kind(right, scopes) == Some(RefKind::Unowned) || matches!(&**right, Expr::Unowned(_));
+            let ok = infer_ref_kind(right, scopes) == Some(RefKind::Unowned)
+                || matches!(&**right, Expr::Unowned(_));
             if !ok {
                 diagnostics.push(
                     Diagnostic::new(
@@ -554,9 +560,11 @@ mod tests {
     #[test]
     fn warns_when_unowned_access_is_applied_to_non_unowned_expr() {
         let msgs = lint_messages("let arr = [1];\nlet v = arr!;\n");
-        assert!(msgs
-            .iter()
-            .any(|m| m.contains("Unowned access misuse: postfix `!` expects an unowned reference")));
+        assert!(
+            msgs.iter()
+                .any(|m| m
+                    .contains("Unowned access misuse: postfix `!` expects an unowned reference"))
+        );
     }
 
     #[test]

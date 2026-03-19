@@ -18,7 +18,10 @@ func mul(a: Int, b: Int) -> Int { return a * b }
     assert!(diags.is_empty(), "parse diagnostics: {:?}", diags);
 
     let mut interp = Interpreter::with_prelude();
-    assert!(interp.interpret(program).is_ok(), "interpreter should not fail");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpreter should not fail"
+    );
     assert_eq!(interp.last_value, Some(ArtValue::Int(33)));
 }
 
@@ -36,6 +39,9 @@ func add(a: Int, b: Int) -> Int { return a + b }
     assert!(diags.is_empty(), "parse diagnostics: {:?}", diags);
 
     let mut interp = Interpreter::with_prelude();
-    assert!(interp.interpret(program).is_ok(), "interpreter should not fail");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpreter should not fail"
+    );
     assert_eq!(interp.last_value, Some(ArtValue::Int(12)));
 }

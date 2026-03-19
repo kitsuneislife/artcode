@@ -435,7 +435,9 @@ fn run_upgrade(args: &[String]) {
                     file = Some(other.to_string());
                     i += 1;
                 } else {
-                    eprintln!("Usage: art upgrade [--from <version>] [--to <version>] --check <script>");
+                    eprintln!(
+                        "Usage: art upgrade [--from <version>] [--to <version>] --check <script>"
+                    );
                     process::exit(64);
                 }
             }
@@ -741,7 +743,9 @@ fn main() {
                                 cycle_leaks_detected: interpreter.cycle_leaks_detected,
                                 cycle_components_detected: cycle_detection.cycles.len(),
                                 cycle_weak_dead_count: cycle_detection.weak_dead.len(),
-                                cycle_unowned_dangling_count: cycle_detection.unowned_dangling.len(),
+                                cycle_unowned_dangling_count: cycle_detection
+                                    .unowned_dangling
+                                    .len(),
                                 cycle_summary: CycleSummary {
                                     weak_total: cycle_summary.weak_total,
                                     weak_alive: cycle_summary.weak_alive,

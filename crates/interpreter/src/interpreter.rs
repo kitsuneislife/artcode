@@ -586,9 +586,16 @@ impl Interpreter {
         self.environment.borrow_mut().define("shell_result", result);
     }
 
-    fn decode_stream_value(&self, value: ArtValue) -> std::result::Result<(Vec<ArtValue>, Vec<ArtValue>), String> {
+    fn decode_stream_value(
+        &self,
+        value: ArtValue,
+    ) -> std::result::Result<(Vec<ArtValue>, Vec<ArtValue>), String> {
         let resolved = self.resolve_composite(&value).clone();
-        if let ArtValue::StructInstance { struct_name, fields } = resolved {
+        if let ArtValue::StructInstance {
+            struct_name,
+            fields,
+        } = resolved
+        {
             if struct_name != "__Stream" {
                 return Err("Expected stream value".to_string());
             }
@@ -617,7 +624,10 @@ impl Interpreter {
     }
 
     fn stream_op(op_name: &str, callable: ArtValue) -> ArtValue {
-        ArtValue::Tuple(vec![ArtValue::String(Arc::from(op_name.to_string())), callable])
+        ArtValue::Tuple(vec![
+            ArtValue::String(Arc::from(op_name.to_string())),
+            callable,
+        ])
     }
 
     fn invoke_callable_with_values(
@@ -640,7 +650,11 @@ impl Interpreter {
         }
     }
 
-    fn run_stream_pipeline(&mut self, source: Vec<ArtValue>, ops: Vec<ArtValue>) -> Result<Vec<ArtValue>> {
+    fn run_stream_pipeline(
+        &mut self,
+        source: Vec<ArtValue>,
+        ops: Vec<ArtValue>,
+    ) -> Result<Vec<ArtValue>> {
         let mut out = Vec::new();
         'outer: for mut item in source {
             for op in &ops {
@@ -663,7 +677,8 @@ impl Interpreter {
                                 item = self.invoke_callable_with_values(callable, vec![item])?;
                             }
                             "filter" => {
-                                let keep = self.invoke_callable_with_values(callable, vec![item.clone()])?;
+                                let keep =
+                                    self.invoke_callable_with_values(callable, vec![item.clone()])?;
                                 if !self.is_truthy(&keep) {
                                     continue 'outer;
                                 }
@@ -1940,7 +1955,8 @@ impl Interpreter {
                 Err(RuntimeError::Return(v)) => Err(RuntimeError::Return(v)),
                 Err(RuntimeError::TypeError(msg)) => {
                     let previous_env = self.environment.clone();
-                    let catch_env = Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
+                    let catch_env =
+                        Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
                     self.environment = catch_env.clone();
 
                     self.environment
@@ -2121,17 +2137,32 @@ impl Interpreter {
             } => {
                 let iter_val = self.evaluate(iterator)?;
 
-                // Suporte atual: arrays e stream lazy (__Stream).
-                let array_elements = match iter_val {
-                    ArtValue::Array(arr) => arr,
-                    ArtValue::StructInstance { ref struct_name, .. } if struct_name == "__Stream" => {
-                        match self.decode_stream_value(iter_val) {
-                            Ok((source, ops)) => self.run_stream_pipeline(source, ops)?,
+                // Support: arrays, stream pipelines, or iterator protocols (callable returning Option).
+                // This allows generators to be implemented as closures returning Option.None.
+                enum IterSource {
+                    Array(Vec<ArtValue>),
+                    Iterator,
+                }
+
+                let iter_source = match iter_val.clone() {
+                    ArtValue::Array(arr) => IterSource::Array(arr),
+                    ArtValue::StructInstance {
+                        ref struct_name, ..
+                    } if struct_name == "__Stream" => {
+                        match self.decode_stream_value(iter_val.clone()) {
+                            Ok((source, ops)) => {
+                                IterSource::Array(self.run_stream_pipeline(source, ops)?)
+                            }
                             Err(msg) => {
                                 self.diagnostics.push(Diagnostic::new(
                                     DiagnosticKind::Runtime,
                                     msg,
-                                    Span::new(element.start, element.end, element.line, element.col),
+                                    Span::new(
+                                        element.start,
+                                        element.end,
+                                        element.line,
+                                        element.col,
+                                    ),
                                 ));
                                 return Ok(());
                             }
@@ -2139,38 +2170,48 @@ impl Interpreter {
                     }
                     ArtValue::HeapComposite(h) => {
                         match self.heap_objects.get(&h.0).map(|obj| obj.value.clone()) {
-                            Some(ArtValue::Array(arr)) => arr,
-                            Some(ref v @ ArtValue::StructInstance { ref struct_name, .. }) if struct_name == "__Stream" => {
+                            Some(ArtValue::Array(arr)) => IterSource::Array(arr),
+                            Some(
+                                ref v @ ArtValue::StructInstance {
+                                    ref struct_name, ..
+                                },
+                            ) if struct_name == "__Stream" => {
                                 match self.decode_stream_value(v.clone()) {
-                                    Ok((source, ops)) => self.run_stream_pipeline(source, ops)?,
+                                    Ok((source, ops)) => {
+                                        IterSource::Array(self.run_stream_pipeline(source, ops)?)
+                                    }
                                     Err(msg) => {
                                         self.diagnostics.push(Diagnostic::new(
                                             DiagnosticKind::Runtime,
                                             msg,
-                                            Span::new(element.start, element.end, element.line, element.col),
+                                            Span::new(
+                                                element.start,
+                                                element.end,
+                                                element.line,
+                                                element.col,
+                                            ),
                                         ));
                                         return Ok(());
                                     }
                                 }
                             }
-                            Some(other) => {
-                                self.diagnostics.push(Diagnostic::new(
-                                    DiagnosticKind::Runtime,
-                                    format!("Cannot iterate over unsupported type: {:?}", other),
-                                    Span::new(element.start, element.end, element.line, element.col),
-                                ));
-                                return Ok(());
-                            }
+                            Some(_) => IterSource::Iterator,
                             None => {
                                 self.diagnostics.push(Diagnostic::new(
                                     DiagnosticKind::Runtime,
                                     "Cannot iterate over dangling heap handle.".to_string(),
-                                    Span::new(element.start, element.end, element.line, element.col),
+                                    Span::new(
+                                        element.start,
+                                        element.end,
+                                        element.line,
+                                        element.col,
+                                    ),
                                 ));
                                 return Ok(());
                             }
                         }
                     }
+                    ArtValue::Function(_) | ArtValue::Builtin(_) => IterSource::Iterator,
                     _ => {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
@@ -2181,26 +2222,219 @@ impl Interpreter {
                     }
                 };
 
-                for val in array_elements {
-                    let previous_env = self.environment.clone();
-                    let loop_env =
-                        Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
-                    self.environment = loop_env.clone();
+                // Helper to call iterator `next()` and return the next value (or None).
+                let call_next = |me: &mut Interpreter, iter_val: &ArtValue| -> Result<ArtValue> {
+                    match iter_val {
+                        ArtValue::Function(func) => {
+                            me.call_function(func.clone(), None, Vec::new())
+                        }
+                        ArtValue::Builtin(b) => me.call_builtin(b.clone(), Vec::new()),
+                        ArtValue::StructInstance {
+                            struct_name,
+                            fields,
+                        } => {
+                            let token = Token::dummy("next");
+                            if let Some(callable) = crate::field_access::struct_field_or_method(
+                                struct_name,
+                                fields,
+                                &token,
+                                &me.type_registry,
+                            ) {
+                                match callable {
+                                    ArtValue::Function(func) => {
+                                        me.call_function(func, None, Vec::new())
+                                    }
+                                    ArtValue::Builtin(b) => me.call_builtin(b, Vec::new()),
+                                    other => {
+                                        me.diagnostics.push(Diagnostic::new(
+                                            DiagnosticKind::Runtime,
+                                            format!(
+                                                "Iterator 'next' must be callable, got: {:?}",
+                                                other
+                                            ),
+                                            Span::new(
+                                                element.start,
+                                                element.end,
+                                                element.line,
+                                                element.col,
+                                            ),
+                                        ));
+                                        Ok(ArtValue::none())
+                                    }
+                                }
+                            } else {
+                                me.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Runtime,
+                                    "Iterator object does not implement 'next()' method."
+                                        .to_string(),
+                                    Span::new(
+                                        element.start,
+                                        element.end,
+                                        element.line,
+                                        element.col,
+                                    ),
+                                ));
+                                Ok(ArtValue::none())
+                            }
+                        }
+                        ArtValue::HeapComposite(_) => {
+                            let resolved = me.resolve_composite(iter_val).clone();
+                            if let ArtValue::StructInstance {
+                                struct_name,
+                                fields,
+                            } = resolved
+                            {
+                                let token = Token::dummy("next");
+                                if let Some(callable) = crate::field_access::struct_field_or_method(
+                                    &struct_name,
+                                    &fields,
+                                    &token,
+                                    &me.type_registry,
+                                ) {
+                                    match callable {
+                                        ArtValue::Function(func) => {
+                                            me.call_function(func, None, Vec::new())
+                                        }
+                                        ArtValue::Builtin(b) => me.call_builtin(b, Vec::new()),
+                                        other => {
+                                            me.diagnostics.push(Diagnostic::new(
+                                                DiagnosticKind::Runtime,
+                                                format!(
+                                                    "Iterator 'next' must be callable, got: {:?}",
+                                                    other
+                                                ),
+                                                Span::new(
+                                                    element.start,
+                                                    element.end,
+                                                    element.line,
+                                                    element.col,
+                                                ),
+                                            ));
+                                            Ok(ArtValue::none())
+                                        }
+                                    }
+                                } else {
+                                    me.diagnostics.push(Diagnostic::new(
+                                        DiagnosticKind::Runtime,
+                                        "Iterator object does not implement 'next()' method."
+                                            .to_string(),
+                                        Span::new(
+                                            element.start,
+                                            element.end,
+                                            element.line,
+                                            element.col,
+                                        ),
+                                    ));
+                                    Ok(ArtValue::none())
+                                }
+                            } else {
+                                me.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Runtime,
+                                    format!("Cannot iterate over unsupported type: {:?}", iter_val),
+                                    Span::new(
+                                        element.start,
+                                        element.end,
+                                        element.line,
+                                        element.col,
+                                    ),
+                                ));
+                                Ok(ArtValue::none())
+                            }
+                        }
+                        _ => {
+                            me.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                format!("Cannot iterate over unsupported type: {:?}", iter_val),
+                                Span::new(element.start, element.end, element.line, element.col),
+                            ));
+                            Ok(ArtValue::none())
+                        }
+                    }
+                };
 
-                    self.environment
-                        .borrow_mut()
-                        .define(&element.lexeme, val.clone());
+                match iter_source {
+                    IterSource::Array(array_elements) => {
+                        for val in array_elements {
+                            let previous_env = self.environment.clone();
+                            let loop_env =
+                                Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
+                            self.environment = loop_env.clone();
 
-                    let result = self.execute(*body.clone());
+                            self.environment
+                                .borrow_mut()
+                                .define(&element.lexeme, val.clone());
 
-                    self.drop_scope_heap_objects(&loop_env);
-                    self.environment = previous_env;
+                            let result = self.execute(*body.clone());
 
-                    if let Err(e) = result {
-                        return Err(e);
+                            self.drop_scope_heap_objects(&loop_env);
+                            self.environment = previous_env;
+
+                            if let Err(e) = result {
+                                return Err(e);
+                            }
+                        }
+                        Ok(())
+                    }
+                    IterSource::Iterator => {
+                        let iter_val = iter_val;
+                        loop {
+                            let next_val = call_next(self, &iter_val)?;
+                            let next_val = self.resolve_composite(&next_val).clone();
+                            let item = match next_val {
+                                ArtValue::Optional(boxed) => match *boxed {
+                                    Some(v) => v,
+                                    None => break,
+                                },
+                                ArtValue::EnumInstance {
+                                    enum_name,
+                                    variant,
+                                    values,
+                                } if enum_name == "Option" => {
+                                    if variant == "Some" {
+                                        values.into_iter().next().unwrap_or(ArtValue::none())
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                other => {
+                                    self.diagnostics.push(Diagnostic::new(
+                                        DiagnosticKind::Runtime,
+                                        format!(
+                                            "Iterator protocol expected Optional, got: {:?}",
+                                            other
+                                        ),
+                                        Span::new(
+                                            element.start,
+                                            element.end,
+                                            element.line,
+                                            element.col,
+                                        ),
+                                    ));
+                                    break;
+                                }
+                            };
+
+                            let previous_env = self.environment.clone();
+                            let loop_env =
+                                Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
+                            self.environment = loop_env.clone();
+
+                            self.environment
+                                .borrow_mut()
+                                .define(&element.lexeme, item.clone());
+
+                            let result = self.execute(*body.clone());
+
+                            self.drop_scope_heap_objects(&loop_env);
+                            self.environment = previous_env;
+
+                            if let Err(e) = result {
+                                return Err(e);
+                            }
+                        }
+                        Ok(())
                     }
                 }
-                Ok(())
             }
             Stmt::SpawnActor { body } => {
                 // Create a new actor with its own lexical environment snapshot
@@ -2726,7 +2960,25 @@ impl Interpreter {
             Expr::FieldAccess { object, field } => {
                 let evaluated = self.evaluate(*object)?;
                 let obj_value_ref = self.resolve_composite(&evaluated).clone();
-                let obj_value = obj_value_ref; // owned for match
+                // Normalize internal Optional representation to the language-level Option enum.
+                let obj_value = match obj_value_ref {
+                    ArtValue::Optional(boxed) => {
+                        if let Some(v) = &*boxed {
+                            ArtValue::EnumInstance {
+                                enum_name: "Option".to_string(),
+                                variant: "Some".to_string(),
+                                values: vec![v.clone()],
+                            }
+                        } else {
+                            ArtValue::EnumInstance {
+                                enum_name: "Option".to_string(),
+                                variant: "None".to_string(),
+                                values: Vec::new(),
+                            }
+                        }
+                    }
+                    other => other,
+                };
                 use crate::field_access::{enum_method, struct_field_or_method};
                 match obj_value {
                     ArtValue::Array(arr) => match field.lexeme.as_str() {
@@ -3545,7 +3797,8 @@ impl Interpreter {
                         ));
                         return Ok(ArtValue::none());
                     };
-                    let (Some(node), Some(depends_on)) = (as_string(&node_v), as_string(&dep_v)) else {
+                    let (Some(node), Some(depends_on)) = (as_string(&node_v), as_string(&dep_v))
+                    else {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "dag_topo_sort: dependency tuple values must be strings".to_string(),
@@ -3557,7 +3810,9 @@ impl Interpreter {
                     // (node, depends_on) means: depends_on -> node
                     indeg.entry(node.clone()).or_insert(0);
                     indeg.entry(depends_on.clone()).or_insert(0);
-                    adj.entry(depends_on.clone()).or_default().push(node.clone());
+                    adj.entry(depends_on.clone())
+                        .or_default()
+                        .push(node.clone());
                     adj.entry(node.clone()).or_default();
                     if let Some(v) = indeg.get_mut(&node) {
                         *v += 1;

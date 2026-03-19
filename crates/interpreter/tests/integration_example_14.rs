@@ -88,7 +88,9 @@ fn integration_example_14_finalizer_examples() {
                     return_type: None,
                     body: std::rc::Rc::new(core::ast::Stmt::Block {
                         statements: vec![core::ast::Stmt::Let {
-                            pattern: core::ast::MatchPattern::Variable(core::Token::dummy("promoted")),
+                            pattern: core::ast::MatchPattern::Variable(core::Token::dummy(
+                                "promoted"
+                            )),
                             ty: None,
                             initializer: core::ast::Expr::Variable {
                                 name: core::Token::dummy("outside"),

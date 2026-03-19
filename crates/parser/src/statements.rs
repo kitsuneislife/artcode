@@ -229,7 +229,7 @@ pub fn let_declaration(parser: &mut Parser) -> Stmt {
         // If it's a destructuring pattern (e.g. tuple), we need to update `Stmt::Let` to support `MatchPattern` later.
         // For now, if we reach here and Stmt::Let doesn't accept pattern natively, we cheat by using a dummy
         // name and handling it properly over the interpreter. Let's assume we update `Stmt::Let` next.
-        // Wait, AST Stmt::Let currently takes `name: Token`. 
+        // Wait, AST Stmt::Let currently takes `name: Token`.
         // We will change `Stmt::Let` signature in AST to use `pattern: MatchPattern`.
         // Let's assume `Stmt::Let` actually uses `pattern` in the updated AST.
         Stmt::Let {
@@ -283,7 +283,10 @@ pub fn try_catch_statement(parser: &mut Parser) -> Stmt {
     let try_branch = Box::new(statement(parser));
 
     parser.consume(TokenType::Catch, "Expect 'catch' after try branch.");
-    let catch_name = parser.consume(TokenType::Identifier, "Expect error binding name after 'catch'.");
+    let catch_name = parser.consume(
+        TokenType::Identifier,
+        "Expect error binding name after 'catch'.",
+    );
     let catch_branch = Box::new(statement(parser));
 
     Stmt::TryCatch {
@@ -364,9 +367,7 @@ pub fn parse_pattern(parser: &mut Parser) -> MatchPattern {
                     MatchPattern::Literal(ArtValue::Float(n))
                 }
             }
-            TokenType::String(s) => {
-                MatchPattern::Literal(ArtValue::String(core::intern_arc(&s)))
-            }
+            TokenType::String(s) => MatchPattern::Literal(ArtValue::String(core::intern_arc(&s))),
             TokenType::True => MatchPattern::Literal(ArtValue::Bool(true)),
             TokenType::False => MatchPattern::Literal(ArtValue::Bool(false)),
             TokenType::None => MatchPattern::Literal(ArtValue::none()),

@@ -49,12 +49,7 @@ fn dag_topo_sort_returns_valid_order_for_acyclic_graph() {
         })
         .collect();
 
-    let pos = |name: &str| -> usize {
-        names
-            .iter()
-            .position(|n| n == name)
-            .unwrap_or(usize::MAX)
-    };
+    let pos = |name: &str| -> usize { names.iter().position(|n| n == name).unwrap_or(usize::MAX) };
 
     assert!(pos("kernel") < pos("fs"));
     assert!(pos("fs") < pos("shell"));
@@ -75,9 +70,7 @@ fn dag_topo_sort_reports_cycle() {
 
     let diags = interp.take_diagnostics();
     assert!(
-        diags
-            .iter()
-            .any(|d| d.message.contains("cycle detected")),
+        diags.iter().any(|d| d.message.contains("cycle detected")),
         "expected cycle diagnostic, got {:?}",
         diags.iter().map(|d| d.message.clone()).collect::<Vec<_>>()
     );

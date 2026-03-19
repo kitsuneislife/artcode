@@ -179,7 +179,9 @@ fn normalize_module_path(path: &Path) -> Result<(PathBuf, PathBuf), String> {
     Ok((actual_path, file_key))
 }
 
-fn parse_program(path: &Path) -> Result<(String, core::Program), Vec<(String, diagnostics::Diagnostic)>> {
+fn parse_program(
+    path: &Path,
+) -> Result<(String, core::Program), Vec<(String, diagnostics::Diagnostic)>> {
     let source = match fs::read_to_string(path) {
         Ok(s) => s,
         Err(e) => {

@@ -4,23 +4,21 @@ use interpreter::interpreter::Interpreter;
 #[test]
 fn tuple_destructuring_assignment() {
     let mut interp = Interpreter::with_prelude();
-    
+
     // Test: let (a, b) = (1, 2);
     // Evaluates to verify a=1 and b=2 are present in environment
-    
-    let program = vec![
-        Stmt::Let {
-            pattern: MatchPattern::Tuple(vec![
-                MatchPattern::Variable(core::Token::dummy("a")),
-                MatchPattern::Variable(core::Token::dummy("b")),
-            ]),
-            ty: None,
-            initializer: Expr::Tuple(vec![
-                Expr::Literal(ArtValue::Int(1)).into(),
-                Expr::Literal(ArtValue::Int(2)).into(),
-            ]),
-        },
-    ];
+
+    let program = vec![Stmt::Let {
+        pattern: MatchPattern::Tuple(vec![
+            MatchPattern::Variable(core::Token::dummy("a")),
+            MatchPattern::Variable(core::Token::dummy("b")),
+        ]),
+        ty: None,
+        initializer: Expr::Tuple(vec![
+            Expr::Literal(ArtValue::Int(1)).into(),
+            Expr::Literal(ArtValue::Int(2)).into(),
+        ]),
+    }];
 
     assert!(
         interp.interpret(program).is_ok(),
@@ -40,28 +38,27 @@ fn tuple_destructuring_assignment() {
 #[test]
 fn nested_tuple_destructuring_assignment() {
     let mut interp = Interpreter::with_prelude();
-    
+
     // Test: let (a, (b, c)) = (1, (2, 3));
-    
-    let program = vec![
-        Stmt::Let {
-            pattern: MatchPattern::Tuple(vec![
-                MatchPattern::Variable(core::Token::dummy("a")),
-                MatchPattern::Tuple(vec![
-                    MatchPattern::Variable(core::Token::dummy("b")),
-                    MatchPattern::Variable(core::Token::dummy("c"))
-                ]),
+
+    let program = vec![Stmt::Let {
+        pattern: MatchPattern::Tuple(vec![
+            MatchPattern::Variable(core::Token::dummy("a")),
+            MatchPattern::Tuple(vec![
+                MatchPattern::Variable(core::Token::dummy("b")),
+                MatchPattern::Variable(core::Token::dummy("c")),
             ]),
-            ty: None,
-            initializer: Expr::Tuple(vec![
-                Expr::Literal(ArtValue::Int(1)).into(),
-                Expr::Tuple(vec![
-                    Expr::Literal(ArtValue::Int(2)).into(),
-                    Expr::Literal(ArtValue::Int(3)).into(),
-                ]).into(),
-            ]),
-        },
-    ];
+        ]),
+        ty: None,
+        initializer: Expr::Tuple(vec![
+            Expr::Literal(ArtValue::Int(1)).into(),
+            Expr::Tuple(vec![
+                Expr::Literal(ArtValue::Int(2)).into(),
+                Expr::Literal(ArtValue::Int(3)).into(),
+            ])
+            .into(),
+        ]),
+    }];
 
     assert!(
         interp.interpret(program).is_ok(),

@@ -138,7 +138,9 @@ impl<'a> TypeInfer<'a> {
                 self.infer_expr(e);
             }
             Stmt::Let {
-                pattern, initializer, ..
+                pattern,
+                initializer,
+                ..
             } => {
                 // If initializer is a simple variable reference, propagate its known type
                 let t = match initializer {
@@ -349,15 +351,20 @@ impl<'a> TypeInfer<'a> {
                 self.check_performant_stmt(catch_branch, outer_vars);
             }
             Let {
-                pattern, initializer, ..
+                pattern,
+                initializer,
+                ..
             } => {
                 // Determine names bounded by the pattern
                 let bound_names = match pattern {
                     core::ast::MatchPattern::Variable(n) => vec![n.lexeme.clone()],
-                    core::ast::MatchPattern::Tuple(subpats) => subpats.iter().filter_map(|p| match p {
-                        core::ast::MatchPattern::Variable(n) => Some(n.lexeme.clone()),
-                        _ => None
-                    }).collect(),
+                    core::ast::MatchPattern::Tuple(subpats) => subpats
+                        .iter()
+                        .filter_map(|p| match p {
+                            core::ast::MatchPattern::Variable(n) => Some(n.lexeme.clone()),
+                            _ => None,
+                        })
+                        .collect(),
                     _ => vec![],
                 };
 

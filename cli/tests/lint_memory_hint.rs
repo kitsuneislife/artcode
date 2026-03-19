@@ -15,7 +15,10 @@ fn lint_reports_allocation_hotspot_hint_for_loops() {
     cmd.arg("lint").arg(path);
 
     let output = cmd.output().expect("run art lint");
-    assert!(output.status.success(), "lint command should exit successfully");
+    assert!(
+        output.status.success(),
+        "lint command should exit successfully"
+    );
 
     let stderr = String::from_utf8(output.stderr).expect("utf8 stderr");
     assert!(

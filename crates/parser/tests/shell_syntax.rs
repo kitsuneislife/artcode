@@ -33,7 +33,16 @@ fn parses_shell_pipeline_statement() {
         Stmt::ShellCommand { program, args } => {
             assert_eq!(program, "echo");
             assert!(args.iter().any(|a| a == "|>"));
-            assert_eq!(args, &vec!["hello".to_string(), "|>".to_string(), "tr".to_string(), "a-z".to_string(), "A-Z".to_string()]);
+            assert_eq!(
+                args,
+                &vec![
+                    "hello".to_string(),
+                    "|>".to_string(),
+                    "tr".to_string(),
+                    "a-z".to_string(),
+                    "A-Z".to_string()
+                ]
+            );
         }
         other => panic!("expected shell command stmt, got {:?}", other),
     }

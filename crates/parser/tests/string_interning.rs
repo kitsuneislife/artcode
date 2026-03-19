@@ -46,7 +46,8 @@ fn literal_strings_share_same_arc_instance() {
 
 #[test]
 fn match_pattern_string_literals_are_interned() {
-    let program = parse_program("match \"x\" { case \"hit\": println(1); case \"hit\": println(2); }");
+    let program =
+        parse_program("match \"x\" { case \"hit\": println(1); case \"hit\": println(2); }");
 
     let (p1, p2) = match &program[0] {
         Stmt::Match { cases, .. } => {

@@ -30,7 +30,10 @@ fn type_of_reuses_interned_runtime_string() {
         },
     ];
 
-    assert!(interp.interpret(program).is_ok(), "interpret should succeed");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpret should succeed"
+    );
 
     let a = match interp.debug_get_global("a") {
         Some(ArtValue::String(s)) => s,

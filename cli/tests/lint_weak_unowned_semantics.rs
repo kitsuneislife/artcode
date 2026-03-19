@@ -15,7 +15,10 @@ fn lint_reports_misuse_of_weak_unowned_postfix_operators() {
     cmd.arg("lint").arg(path);
 
     let output = cmd.output().expect("run art lint");
-    assert!(output.status.success(), "lint command should exit successfully");
+    assert!(
+        output.status.success(),
+        "lint command should exit successfully"
+    );
 
     let stderr = String::from_utf8(output.stderr).expect("utf8 stderr");
     assert!(
@@ -23,7 +26,9 @@ fn lint_reports_misuse_of_weak_unowned_postfix_operators() {
         "expected weak misuse lint warning"
     );
     assert!(
-        stderr.contains("Unowned access misuse: postfix `!` expects an unowned reference expression."),
+        stderr.contains(
+            "Unowned access misuse: postfix `!` expects an unowned reference expression."
+        ),
         "expected unowned misuse lint warning"
     );
 }

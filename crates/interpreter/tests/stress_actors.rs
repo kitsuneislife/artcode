@@ -42,7 +42,7 @@ fn test_scheduler_actor_massive_message_stress() {
                         statements: receive_statements,
                     }
                 ];
-                
+
                 interp.interpret(vec![Stmt::SpawnActor { body }]).unwrap();
                 let aid = match interp.last_value.clone().unwrap() {
                     core::ast::ArtValue::Actor(id) => id,
@@ -56,7 +56,7 @@ fn test_scheduler_actor_massive_message_stress() {
             for (i, aid) in actor_ids.iter().enumerate() {
                 for m in 0..messages_per_actor {
                     let target = actor_ids[(i + (m as usize)) % actors_qty as usize];
-                    
+
                     // actor_send(target, message_value)
                     interp.interpret(vec![Stmt::Expression(Expr::Call {
                         type_args: None,
@@ -85,7 +85,7 @@ fn test_scheduler_actor_massive_message_stress() {
             }
 
             assert_eq!(
-                remaining, 
+                remaining,
                 0,
                 "Não pode haver mensagens trancadas nos mailboxes após run_actors! Scheduler Deadlock detectado!"
             );

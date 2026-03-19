@@ -32,8 +32,18 @@ fn resolver_parallel_keeps_import_order_deterministic() {
 
     let stdout = String::from_utf8(out.stdout).expect("utf8 stdout");
     let lines: Vec<&str> = stdout.lines().collect();
-    assert!(lines.len() >= 2, "expected at least 2 lines, got: {}", stdout);
+    assert!(
+        lines.len() >= 2,
+        "expected at least 2 lines, got: {}",
+        stdout
+    );
 
-    assert_eq!(lines[0], "3", "import order should keep last override from c");
-    assert_eq!(lines[1], "10", "shared dependency should load correctly once");
+    assert_eq!(
+        lines[0], "3",
+        "import order should keep last override from c"
+    );
+    assert_eq!(
+        lines[1], "10",
+        "shared dependency should load correctly once"
+    );
 }

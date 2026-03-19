@@ -54,10 +54,34 @@ println(a, b, c);
 
 ## Estado atual
 
-- `for` atualmente itera sobre arrays.
+- `for` atualmente itera sobre arrays e agora também aceita iteradores customizados via protocolo `next()` (isto inclui funções que retornam `Option` para construir generators).
 - `break` e `continue` ainda nao fazem parte da sintaxe.
 - O sistema de tipos infere `Tuple(...)` e propaga tipos em patterns de `let`.
 
+## Iteradores customizados (protocolo `next()`)
+
+`for` pode iterar sobre qualquer função que retorna um `Option` (internamente representado como `Optional`/`Option.Some` / `Option.None`). A cada iteração, a função é chamada até que ela retorne `Option.None`.
+
+Exemplo (veja `examples/38_custom_iterators.art`):
+
+```art
+let state = map_new();
+map_set(state, "i", 0);
+
+func gen() {
+    map_set(state, "i", map_get(state, "i").unwrap_or(0) + 1);
+    if map_get(state, "i").unwrap_or(0) <= 3 {
+        return Option.Some(map_get(state, "i").unwrap_or(0));
+    }
+    return Option.None;
+}
+
+let acc = map_new();
+map_set(acc, "sum", 0);
+for x in gen {
+    map_set(acc, "sum", map_get(acc, "sum").unwrap_or(0) + x);
+}
+```
 ## Referencias
 
 - `crates/parser/src/statements.rs`

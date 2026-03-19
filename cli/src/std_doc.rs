@@ -176,7 +176,8 @@ fn std_doc_meta(name: &str) -> Option<StdDocMeta> {
         "dag_topo_sort" => Some(StdDocMeta {
             category: "Algorithms",
             signature: "dag_topo_sort(nodes: Array, deps: Array)",
-            description: "Retorna ordenacao topologica; em ciclos retorna Optional::none e diagnostico.",
+            description:
+                "Retorna ordenacao topologica; em ciclos retorna Optional::none e diagnostico.",
         }),
         "time_now" => Some(StdDocMeta {
             category: "IO & Time",

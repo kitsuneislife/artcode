@@ -85,7 +85,10 @@ fn metrics_json_includes_arena_and_finalized_maps() {
         cycle_components.as_u64().is_some(),
         "cycle_components_detected must be an integer"
     );
-    assert!(cycle_summary.is_object(), "cycle_summary should be an object");
+    assert!(
+        cycle_summary.is_object(),
+        "cycle_summary should be an object"
+    );
     for key in [
         "weak_total",
         "weak_alive",
@@ -96,10 +99,7 @@ fn metrics_json_includes_arena_and_finalized_maps() {
         "heap_alive",
     ] {
         assert!(
-            cycle_summary
-                .get(key)
-                .and_then(|x| x.as_u64())
-                .is_some(),
+            cycle_summary.get(key).and_then(|x| x.as_u64()).is_some(),
             "cycle_summary.{} must be an integer",
             key
         );

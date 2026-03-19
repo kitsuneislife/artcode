@@ -1,5 +1,5 @@
-use diagnostics::{Diagnostic, DiagnosticKind};
 use core::TokenType;
+use diagnostics::{Diagnostic, DiagnosticKind};
 use interpreter::type_infer::{TypeEnv, TypeInfer};
 use lexer::lexer::Lexer;
 use parser::parser::Parser;
@@ -8,11 +8,36 @@ use std::collections::{HashMap, HashSet};
 use std::io::{self, BufRead, Read, Write};
 use std::path::{Path, PathBuf};
 
-const TOKEN_TYPES: [&str; 6] = ["keyword", "variable", "function", "string", "number", "operator"];
+const TOKEN_TYPES: [&str; 6] = [
+    "keyword", "variable", "function", "string", "number", "operator",
+];
 const KEYWORDS: &[&str] = &[
-    "let", "if", "else", "true", "false", "struct", "enum", "and", "or", "match", "case",
-    "import", "func", "performant", "spawn", "actor", "return", "while", "for", "in", "try",
-    "catch", "weak", "unowned", "none", "as",
+    "let",
+    "if",
+    "else",
+    "true",
+    "false",
+    "struct",
+    "enum",
+    "and",
+    "or",
+    "match",
+    "case",
+    "import",
+    "func",
+    "performant",
+    "spawn",
+    "actor",
+    "return",
+    "while",
+    "for",
+    "in",
+    "try",
+    "catch",
+    "weak",
+    "unowned",
+    "none",
+    "as",
 ];
 
 #[derive(Clone, Debug)]
@@ -132,7 +157,8 @@ fn collect_declarations(text: &str) -> HashMap<String, SymbolDecl> {
                 }
                 if j < tokens.len() {
                     j += 1;
-                    while j < tokens.len() && !matches!(tokens[j].token_type, TokenType::RightParen) {
+                    while j < tokens.len() && !matches!(tokens[j].token_type, TokenType::RightParen)
+                    {
                         if matches!(tokens[j].token_type, TokenType::Identifier) {
                             let p = &tokens[j];
                             map.entry(p.lexeme.clone()).or_insert(SymbolDecl {
@@ -164,7 +190,9 @@ fn collect_declarations(text: &str) -> HashMap<String, SymbolDecl> {
     map
 }
 
-fn collect_workspace_declarations(documents: &HashMap<String, String>) -> HashMap<String, SymbolLoc> {
+fn collect_workspace_declarations(
+    documents: &HashMap<String, String>,
+) -> HashMap<String, SymbolLoc> {
     let all_docs = collect_project_documents(documents);
     let mut out = HashMap::new();
     let mut uris: Vec<&String> = all_docs.keys().collect();
@@ -309,7 +337,9 @@ fn collect_import_graph_from_uri(
         Some(t) => t,
         None => return,
     };
-    all_documents.entry(uri.to_string()).or_insert(current_text.clone());
+    all_documents
+        .entry(uri.to_string())
+        .or_insert(current_text.clone());
 
     for module in parse_import_paths(&current_text) {
         let import_path = match resolve_import_candidate(&canon, &module) {
@@ -349,7 +379,8 @@ fn resolve_definition_location(
     }
 
     let defs = collect_workspace_declarations(documents);
-    defs.get(&word).map(|loc| (loc.uri.clone(), loc.decl.clone()))
+    defs.get(&word)
+        .map(|loc| (loc.uri.clone(), loc.decl.clone()))
 }
 
 fn find_identifier_occurrences(text: &str, name: &str) -> Vec<(usize, usize)> {
@@ -947,10 +978,7 @@ mod tests {
             "file:///main.art".to_string(),
             "import \"./lib.art\"\nprintln(answer)".to_string(),
         );
-        docs.insert(
-            "file:///lib.art".to_string(),
-            "let answer = 42".to_string(),
-        );
+        docs.insert("file:///lib.art".to_string(), "let answer = 42".to_string());
 
         let loc = resolve_definition_location(&docs, "file:///main.art", 1, 9)
             .expect("definition should resolve in lib.art");
@@ -983,7 +1011,10 @@ mod tests {
     #[test]
     fn completion_includes_identifiers_from_workspace_documents() {
         let mut docs = HashMap::new();
-        docs.insert("file:///main.art".to_string(), "println(helper)".to_string());
+        docs.insert(
+            "file:///main.art".to_string(),
+            "println(helper)".to_string(),
+        );
         docs.insert(
             "file:///lib.art".to_string(),
             "func helper(x) { return x }".to_string(),

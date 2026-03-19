@@ -1,0 +1,26 @@
+// Exemplo 38 - Iteradores customizados (generators)
+
+// O for-loop agora aceita qualquer "iterador" que implementa o protocolo `next()`.
+// Aqui usamos uma função global `next` que retorna Option.None para encerrar.
+
+// Estado compartilhado de forma mutável (mapa em heap).
+let state = map_new();
+map_set(state, "i", 0);
+
+func gen() {
+    // Incrementa o contador no mapa e retorna Optional.
+    map_set(state, "i", map_get(state, "i").unwrap_or(0) + 1);
+    if map_get(state, "i").unwrap_or(0) <= 3 {
+        return Option.Some(map_get(state, "i").unwrap_or(0));
+    }
+    return Option.None;
+}
+
+let acc = map_new();
+map_set(acc, "sum", 0);
+for x in gen {
+    // Atualiza soma através de um estado mutável compartilhado.
+    map_set(acc, "sum", map_get(acc, "sum").unwrap_or(0) + x);
+}
+
+println("sum=", map_get(acc, "sum").unwrap_or(0));
