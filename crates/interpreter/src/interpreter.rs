@@ -586,6 +586,52 @@ impl Interpreter {
         self.environment.borrow_mut().define("shell_result", result);
     }
 
+    fn run_shell_function_call(&mut self, program: &str, arguments: Vec<Expr>) -> Result<ArtValue> {
+        if !self.ensure_pure_allowed("shell") {
+            let blocked = Self::shell_result_err(
+                "Operation 'shell' is not allowed in --pure mode".to_string(),
+            );
+            self.publish_shell_result(blocked.clone());
+            return Ok(blocked);
+        }
+
+        let mut args = Vec::new();
+        for arg in arguments {
+            let v = self.evaluate(arg)?;
+            match v {
+                ArtValue::String(s) => args.push(s.to_string()),
+                other => args.push(other.to_string()),
+            }
+        }
+
+        let result = match self.run_shell_stages(program, &args) {
+            Ok(output) => {
+                if output.status.success() {
+                    Self::shell_result_ok(String::from_utf8_lossy(&output.stdout).to_string())
+                } else if output.stderr.is_empty() {
+                    Self::shell_result_err(format!(
+                        "Shell command '{}' exited with status {:?}",
+                        program,
+                        output.status.code()
+                    ))
+                } else {
+                    Self::shell_result_err(String::from_utf8_lossy(&output.stderr).to_string())
+                }
+            }
+            Err(e) => {
+                self.diagnostics.push(Diagnostic::new(
+                    DiagnosticKind::Runtime,
+                    e.clone(),
+                    Span::new(0, 0, 0, 0),
+                ));
+                Self::shell_result_err(e)
+            }
+        };
+
+        self.publish_shell_result(result.clone());
+        Ok(result)
+    }
+
     fn decode_stream_value(
         &self,
         value: ArtValue,
@@ -3169,6 +3215,13 @@ impl Interpreter {
         type_args: Option<Vec<String>>,
         arguments: Vec<Expr>,
     ) -> Result<ArtValue> {
+        if let Expr::Variable { name } = &callee {
+            let is_defined = self.environment.borrow().get(&name.lexeme).is_some();
+            if !is_defined {
+                return self.run_shell_function_call(&name.lexeme, arguments);
+            }
+        }
+
         let original_expr = callee.clone();
         let value = self.evaluate(callee)?;
         match value {

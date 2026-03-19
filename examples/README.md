@@ -44,6 +44,8 @@ Current examples (ordered):
 - `35_shell_syntax.art` — Sintaxe shell com statement `$`, pipeline `|>` e retorno tipado em `shell_result`
 - `36_pipeline_operator.art` — Operador de pipeline de expressões (`valor |> fn(...)`)
 - `37_stream_pipeline.art` — Pipeline lazy com `stream/map/filter/collect/count` sem arrays intermediários entre etapas
+- `38_custom_iterators.art` — Iteradores customizados com protocolo `next()` e açúcar `yield`
+- `39_shell_function_call.art` — Execução shell em chamada de função (`echo("...")`) com retorno `Result`
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 

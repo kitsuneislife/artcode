@@ -16,11 +16,7 @@ func gen() {
     return Option.None;
 }
 
-let acc = map_new();
-map_set(acc, "sum", 0);
 for x in gen {
-    // Atualiza soma através de um estado mutável compartilhado.
-    map_set(acc, "sum", map_get(acc, "sum").unwrap_or(0) + x);
+    // Consumimos o valor gerado a cada iteracao.
+    println(f"iter={x}");
 }
-
-println("sum=", map_get(acc, "sum").unwrap_or(0));

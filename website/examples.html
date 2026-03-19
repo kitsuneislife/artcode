@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="38 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas, Shell Syntax, Pipelines de Expressoes/Streams e Microkernels, passando por Pattern Matching, Atores e Arenas.">
+        content="40 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas, Shell Syntax, Iteradores Customizados, Pipelines de Expressoes/Streams e Microkernels, passando por Pattern Matching, Atores e Arenas.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -33,7 +33,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>38 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>40 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -186,6 +186,12 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-37">
                             <span class="examples-sidebar__num">37</span> Stream Pipeline
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-38">
+                            <span class="examples-sidebar__num">38</span> Custom Iterators
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-39">
+                            <span class="examples-sidebar__num">39</span> Shell Function Call
                         </button>
                     </div>
 
@@ -1451,6 +1457,66 @@ $ <span class="fn">echo</span> shell_pipeline_ok <span class="op">|&gt;</span> <
 }</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/37_stream_pipeline.art</span></div>
+                    </div>
+
+                    <!-- 38: Custom Iterators -->
+                    <div class="example-entry" id="ex-38">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">38</span>
+                            <span class="example-entry__title">Custom Iterators</span>
+                            <span class="example-tag">Tipos &amp; Estruturas</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Iteradores customizados via protocolo <code>next()</code>, com açúcar
+                            <code>yield expr</code> para <code>Option.Some(expr)</code>.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">38_custom_iterators.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> state = <span class="fn">map_new</span>();
+<span class="fn">map_set</span>(state, <span class="str">"i"</span>, <span class="num">0</span>);
+
+<span class="kw">func</span> gen() {
+    <span class="fn">map_set</span>(state, <span class="str">"i"</span>, <span class="fn">map_get</span>(state, <span class="str">"i"</span>).unwrap_or(<span class="num">0</span>) + <span class="num">1</span>);
+    <span class="kw">if</span> <span class="fn">map_get</span>(state, <span class="str">"i"</span>).unwrap_or(<span class="num">0</span>) &lt;= <span class="num">3</span> {
+        <span class="kw">yield</span> <span class="fn">map_get</span>(state, <span class="str">"i"</span>).unwrap_or(<span class="num">0</span>);
+    }
+    <span class="kw">return</span> Option.None;
+}</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/38_custom_iterators.art</span></div>
+                    </div>
+
+                    <!-- 39: Shell Function Call -->
+                    <div class="example-entry" id="ex-39">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">39</span>
+                            <span class="example-entry__title">Shell Function Call</span>
+                            <span class="example-tag">Ferramentas</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Quando o identificador nao resolve para simbolo Artcode, chamadas
+                            <code>cmd(...)</code> sao mapeadas para executaveis no PATH com retorno
+                            <code>Result.Ok/Err</code>.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">39_shell_function_call.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> ok = <span class="fn">echo</span>(<span class="str">"shell function style"</span>)
+<span class="kw">match</span> ok {
+<span class="kw">case</span> .Ok(out): <span class="fn">println</span>(<span class="str">f"ok={out}"</span>)
+<span class="kw">case</span> .Err(err): <span class="fn">println</span>(<span class="str">f"err={err}"</span>)
+}</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/39_shell_function_call.art</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->

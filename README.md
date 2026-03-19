@@ -23,7 +23,7 @@ Implementação experimental de uma linguagem interpretada em Rust com suporte a
 - Result-like enums e operador `?` (propagação inicial)
 - Arrays com builtins (`sum`, `count`)
 - Standard Library embutida: Collections (Map, Set), Math (abs, pow, clamp), Time & Rand, File IO (sandboxed).
-- Sintaxe shell com statement `$ comando args...`, pipeline `|>` e retorno tipado em `shell_result`
+- Sintaxe shell com statement `$ comando args...`, pipeline `|>`, retorno tipado em `shell_result` e chamada estilo função (`echo("...")`)
 - Operador de pipeline para expressoes (`valor |> fn(...)`) com encadeamento funcional
 - Pipeline lazy de streams com `stream |> map |> filter |> collect/count` sem arrays intermediarios entre etapas
 - Métricas de execução (handled_errors, executed_statements, crash_free%)
@@ -57,7 +57,7 @@ Principais recursos
 - Standard Library Expansiva (Coleções Padrão de Map/Set, Manipulação de Matemática e IO Simples)
 - Result-like enums e operador `?` para propagação de erros
 - Blocos `performant {}` com arenas experimentais e análise conservadora de escape
-- Sintaxe shell via statement `$` com pipeline `|>`, retorno `Result` em `shell_result` e bloqueio automático em `--pure`
+- Sintaxe shell via statement `$` e chamada estilo função para executáveis no PATH, com retorno `Result` em `shell_result` e bloqueio automático em `--pure`
 - Operador `|>` para pipeline de expressoes (transformado para chamada com insercao do argumento a esquerda)
 - Streams lazy para pipelines de dados (`stream/map/filter/collect/count`) em passe unico na etapa terminal
 
@@ -123,6 +123,9 @@ art run examples/34_closure_callbacks_arc.art
 
 # Sintaxe shell com execução de processo externo
 art run examples/35_shell_syntax.art
+
+# Shell via chamada de função (mapeamento PATH)
+art run examples/39_shell_function_call.art
 
 # Pipeline de expressoes
 art run examples/36_pipeline_operator.art

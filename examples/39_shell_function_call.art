@@ -1,0 +1,14 @@
+// Exemplo 39 - Shell como chamada de funcao (mapeamento para PATH)
+// Execute com: art run examples/39_shell_function_call.art
+
+let ok = echo("shell function style")
+match ok {
+case .Ok(out): println(f"ok={out}")
+case .Err(err): println(f"err={err}")
+}
+
+let err = sh("-c", "echo shell_func_err 1>&2; exit 7")
+match err {
+case .Ok(out): println(f"ok={out}")
+case .Err(e): println(f"err={e}")
+}
