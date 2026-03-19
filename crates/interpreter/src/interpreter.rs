@@ -103,6 +103,7 @@ pub struct Interpreter {
     // Arena support
     pub current_arena: Option<u32>,
     pub next_arena_id: u32,
+    pub reusable_arenas: std::collections::HashSet<u32>,
     // Actor support (Fase 9 MVP)
     pub actors: HashMap<u32, ActorState>,
     pub next_actor_id: u32,
@@ -373,6 +374,9 @@ impl Interpreter {
             ("mutex_new", core::ast::BuiltinFn::MutexNew),
             ("mutex_lock", core::ast::BuiltinFn::MutexLock),
             ("mutex_unlock", core::ast::BuiltinFn::MutexUnlock),
+            ("arena_new", core::ast::BuiltinFn::ArenaNew),
+            ("arena_release", core::ast::BuiltinFn::ArenaRelease),
+            ("arena_with", core::ast::BuiltinFn::ArenaWith),
             ("map_new", core::ast::BuiltinFn::MapNew),
             ("map_set", core::ast::BuiltinFn::MapSet),
             ("map_get", core::ast::BuiltinFn::MapGet),
@@ -436,6 +440,7 @@ impl Interpreter {
             finalizers: HashMap::new(),
             current_arena: None,
             next_arena_id: 1,
+            reusable_arenas: std::collections::HashSet::new(),
             actors: HashMap::new(),
             next_actor_id: 1,
             current_actor: None,
@@ -4675,6 +4680,112 @@ impl Interpreter {
                     return Ok(ArtValue::Bool(self.heap_mutex_unlock(h)));
                 }
                 Ok(ArtValue::Bool(false))
+            }
+            core::ast::BuiltinFn::ArenaNew => {
+                if !arguments.is_empty() {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "arena_new expects no arguments".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+                let arena_id = self.next_arena_id;
+                self.next_arena_id = self.next_arena_id.saturating_add(1);
+                self.reusable_arenas.insert(arena_id);
+                Ok(ArtValue::Int(arena_id as i64))
+            }
+            core::ast::BuiltinFn::ArenaRelease => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "arena_release expects exactly one arena id argument".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::Bool(false));
+                }
+
+                let arena_val = self.evaluate(arguments[0].clone())?;
+                let arena_id = match arena_val {
+                    ArtValue::Int(i) if i > 0 && i <= u32::MAX as i64 => i as u32,
+                    _ => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "arena_release expects a positive Int arena id".to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        return Ok(ArtValue::Bool(false));
+                    }
+                };
+
+                if !self.reusable_arenas.contains(&arena_id) {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        format!("arena_release: unknown reusable arena id {}", arena_id),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::Bool(false));
+                }
+
+                self.finalize_arena(arena_id);
+                Ok(ArtValue::Bool(true))
+            }
+            core::ast::BuiltinFn::ArenaWith => {
+                if arguments.len() != 2 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "arena_with expects (arena_id, callback)".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+
+                let arena_val = self.evaluate(arguments[0].clone())?;
+                let arena_id = match arena_val {
+                    ArtValue::Int(i) if i > 0 && i <= u32::MAX as i64 => i as u32,
+                    _ => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "arena_with expects a positive Int arena id as first argument"
+                                .to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        return Ok(ArtValue::none());
+                    }
+                };
+
+                if !self.reusable_arenas.contains(&arena_id) {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        format!("arena_with: unknown reusable arena id {}", arena_id),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+
+                let callback = self.evaluate(arguments[1].clone())?;
+                let previous_arena = self.current_arena;
+                self.current_arena = Some(arena_id);
+
+                let callback_result = match callback {
+                    ArtValue::Function(func) => self.call_function(func, None, Vec::new()),
+                    ArtValue::Builtin(bi) => self.call_builtin(bi, Vec::new()),
+                    other => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            format!(
+                                "arena_with expects callback as function/builtin, got {:?}",
+                                other
+                            ),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        Ok(ArtValue::none())
+                    }
+                };
+
+                self.finalize_arena(arena_id);
+                self.current_arena = previous_arena;
+                callback_result
             }
         }
     }

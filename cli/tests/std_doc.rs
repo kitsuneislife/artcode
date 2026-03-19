@@ -18,6 +18,10 @@ fn doc_std_lists_registered_builtins() {
         "stdout should include dag_topo_sort signature"
     );
     assert!(
+        stdout.contains("arena_with(arena_id: Int, callback: Fn)"),
+        "stdout should include arena_with signature"
+    );
+    assert!(
         stdout.contains("rand_next()"),
         "stdout should include random builtin signature"
     );

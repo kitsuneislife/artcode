@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="40 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas, Shell Syntax, Iteradores Customizados, Pipelines de Expressoes/Streams e Microkernels, passando por Pattern Matching, Atores e Arenas.">
+        content="41 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas, Shell Syntax, Iteradores Customizados, Pipelines de Expressoes/Streams e Microkernels, passando por Pattern Matching, Atores e Arenas.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -33,7 +33,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>40 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>41 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -192,6 +192,9 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-39">
                             <span class="examples-sidebar__num">39</span> Shell Function Call
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-40">
+                            <span class="examples-sidebar__num">40</span> Reusable Arena
                         </button>
                     </div>
 
@@ -1517,6 +1520,38 @@ $ <span class="fn">echo</span> shell_pipeline_ok <span class="op">|&gt;</span> <
 }</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/39_shell_function_call.art</span></div>
+                    </div>
+
+                    <!-- 40: Reusable Arena -->
+                    <div class="example-entry" id="ex-40">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">40</span>
+                            <span class="example-entry__title">Reusable Arena</span>
+                            <span class="example-tag">Memória</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Reuso explícito de arena via stdlib com
+                            <code>arena_new</code>, <code>arena_with</code> e
+                            <code>arena_release</code>.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">40_reusable_arena.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> aid = <span class="fn">arena_new</span>()
+
+<span class="kw">func</span> batch() {
+    <span class="kw">let</span> _tmp = [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>]
+}
+
+<span class="fn">arena_with</span>(aid, batch)
+<span class="fn">arena_with</span>(aid, batch)
+<span class="fn">arena_release</span>(aid)</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/40_reusable_arena.art</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->

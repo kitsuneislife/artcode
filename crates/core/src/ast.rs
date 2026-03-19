@@ -270,6 +270,9 @@ pub enum BuiltinFn {
     MutexNew,    // mutex_new(value)
     MutexLock,   // mutex_lock(mutex) -> Bool
     MutexUnlock, // mutex_unlock(mutex) -> Bool
+    ArenaNew,    // arena_new() -> Int (arena id)
+    ArenaRelease, // arena_release(arena_id:Int) -> Bool
+    ArenaWith,   // arena_with(arena_id:Int, callback: Fn0) -> Any
     // Fase 15 Stdlib
     MapNew,
     MapSet,
@@ -327,6 +330,9 @@ impl fmt::Debug for BuiltinFn {
             BuiltinFn::MutexNew => write!(f, "<builtin mutex_new>"),
             BuiltinFn::MutexLock => write!(f, "<builtin mutex_lock>"),
             BuiltinFn::MutexUnlock => write!(f, "<builtin mutex_unlock>"),
+            BuiltinFn::ArenaNew => write!(f, "<builtin arena_new>"),
+            BuiltinFn::ArenaRelease => write!(f, "<builtin arena_release>"),
+            BuiltinFn::ArenaWith => write!(f, "<builtin arena_with>"),
             BuiltinFn::MapNew => write!(f, "<builtin map_new>"),
             BuiltinFn::MapSet => write!(f, "<builtin map_set>"),
             BuiltinFn::MapGet => write!(f, "<builtin map_get>"),
@@ -434,6 +440,9 @@ impl fmt::Display for ArtValue {
                 BuiltinFn::MutexNew => write!(f, "<builtin mutex_new>"),
                 BuiltinFn::MutexLock => write!(f, "<builtin mutex_lock>"),
                 BuiltinFn::MutexUnlock => write!(f, "<builtin mutex_unlock>"),
+                BuiltinFn::ArenaNew => write!(f, "<builtin arena_new>"),
+                BuiltinFn::ArenaRelease => write!(f, "<builtin arena_release>"),
+                BuiltinFn::ArenaWith => write!(f, "<builtin arena_with>"),
                 BuiltinFn::MapNew => write!(f, "<builtin map_new>"),
                 BuiltinFn::MapSet => write!(f, "<builtin map_set>"),
                 BuiltinFn::MapGet => write!(f, "<builtin map_get>"),

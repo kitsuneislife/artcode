@@ -1,0 +1,15 @@
+// Exemplo 40 - APIs de arena reutilizavel na stdlib
+// Execute com: art run examples/40_reusable_arena.art
+
+let arena = arena_new()
+
+func batch() {
+    let _tmp = [1, 2, 3]
+    println("batch em arena")
+}
+
+arena_with(arena, batch)
+arena_with(arena, batch)
+
+let released = arena_release(arena)
+println(f"released={released}")

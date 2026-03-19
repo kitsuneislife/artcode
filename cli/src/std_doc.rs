@@ -123,6 +123,21 @@ fn std_doc_meta(name: &str) -> Option<StdDocMeta> {
             signature: "mutex_unlock(mutex: MutexRef)",
             description: "Destrava mutex e retorna status de sucesso.",
         }),
+        "arena_new" => Some(StdDocMeta {
+            category: "Memory",
+            signature: "arena_new()",
+            description: "Cria uma arena reutilizavel e retorna seu identificador.",
+        }),
+        "arena_release" => Some(StdDocMeta {
+            category: "Memory",
+            signature: "arena_release(arena_id: Int)",
+            description: "Finaliza os objetos vivos da arena, preservando o ID para reuso.",
+        }),
+        "arena_with" => Some(StdDocMeta {
+            category: "Memory",
+            signature: "arena_with(arena_id: Int, callback: Fn)",
+            description: "Executa callback dentro da arena e finaliza ao terminar.",
+        }),
         "map_new" => Some(StdDocMeta {
             category: "Collections",
             signature: "map_new()",

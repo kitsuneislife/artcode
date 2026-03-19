@@ -81,6 +81,32 @@ Observações de estabilidade e robustez:
 	- Ao sair do bloco, `finalize_arena(arena_id)` é invocado: decresce fortes, executa finalizers pertinentes e realiza sweep local/determinístico.
 	- Finalizers de objetos de arena podem promover handles para o root; tais promoções são atribuídas à arena via `finalizer_promotions_per_arena`.
 
+### APIs de arena reutilizavel (stdlib)
+
+O prelude agora expõe um fluxo explícito para reuso de arena sem depender apenas de `performant {}`:
+
+- `arena_new() -> Int`
+	- Reserva um `arena_id` reutilizável para o processo atual.
+- `arena_with(arena_id, callback)`
+	- Executa `callback` dentro da arena informada e finaliza essa arena ao final da chamada.
+	- O mesmo `arena_id` pode ser reutilizado em múltiplas chamadas.
+- `arena_release(arena_id) -> Bool`
+	- Força finalização imediata da arena (retorna `false` para id desconhecido).
+
+Exemplo:
+
+```art
+let aid = arena_new()
+
+func phase() {
+	let _tmp = [1, 2, 3]
+}
+
+arena_with(aid, phase)
+arena_with(aid, phase)
+arena_release(aid)
+```
+
 - Regras estáticas (checagem conservadora):
 
 
