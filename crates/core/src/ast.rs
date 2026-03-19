@@ -273,6 +273,8 @@ pub enum BuiltinFn {
     ArenaNew,    // arena_new() -> Int (arena id)
     ArenaRelease, // arena_release(arena_id:Int) -> Bool
     ArenaWith,   // arena_with(arena_id:Int, callback: Fn0) -> Any
+    IdlSchema,   // idl_schema(struct_name:String) -> Map<String, String>
+    IdlValidate, // idl_validate(value:Any, struct_name:String) -> Bool
     // Fase 15 Stdlib
     MapNew,
     MapSet,
@@ -333,6 +335,8 @@ impl fmt::Debug for BuiltinFn {
             BuiltinFn::ArenaNew => write!(f, "<builtin arena_new>"),
             BuiltinFn::ArenaRelease => write!(f, "<builtin arena_release>"),
             BuiltinFn::ArenaWith => write!(f, "<builtin arena_with>"),
+            BuiltinFn::IdlSchema => write!(f, "<builtin idl_schema>"),
+            BuiltinFn::IdlValidate => write!(f, "<builtin idl_validate>"),
             BuiltinFn::MapNew => write!(f, "<builtin map_new>"),
             BuiltinFn::MapSet => write!(f, "<builtin map_set>"),
             BuiltinFn::MapGet => write!(f, "<builtin map_get>"),
@@ -443,6 +447,8 @@ impl fmt::Display for ArtValue {
                 BuiltinFn::ArenaNew => write!(f, "<builtin arena_new>"),
                 BuiltinFn::ArenaRelease => write!(f, "<builtin arena_release>"),
                 BuiltinFn::ArenaWith => write!(f, "<builtin arena_with>"),
+                BuiltinFn::IdlSchema => write!(f, "<builtin idl_schema>"),
+                BuiltinFn::IdlValidate => write!(f, "<builtin idl_validate>"),
                 BuiltinFn::MapNew => write!(f, "<builtin map_new>"),
                 BuiltinFn::MapSet => write!(f, "<builtin map_set>"),
                 BuiltinFn::MapGet => write!(f, "<builtin map_get>"),

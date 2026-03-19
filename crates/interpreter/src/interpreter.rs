@@ -377,6 +377,8 @@ impl Interpreter {
             ("arena_new", core::ast::BuiltinFn::ArenaNew),
             ("arena_release", core::ast::BuiltinFn::ArenaRelease),
             ("arena_with", core::ast::BuiltinFn::ArenaWith),
+            ("idl_schema", core::ast::BuiltinFn::IdlSchema),
+            ("idl_validate", core::ast::BuiltinFn::IdlValidate),
             ("map_new", core::ast::BuiltinFn::MapNew),
             ("map_set", core::ast::BuiltinFn::MapSet),
             ("map_get", core::ast::BuiltinFn::MapGet),
@@ -500,6 +502,106 @@ impl Interpreter {
         } else {
             true
         }
+    }
+
+    fn runtime_type_label(&self, value: &ArtValue) -> String {
+        let resolved = self.resolve_composite(value);
+        match resolved {
+            ArtValue::Int(_) => "Int".to_string(),
+            ArtValue::Float(_) => "Float".to_string(),
+            ArtValue::Bool(_) => "Bool".to_string(),
+            ArtValue::String(_) => "String".to_string(),
+            ArtValue::Array(_) => "Array".to_string(),
+            ArtValue::Tuple(_) => "Tuple".to_string(),
+            ArtValue::Optional(_) => "Optional".to_string(),
+            ArtValue::StructInstance { struct_name, .. } => struct_name.clone(),
+            ArtValue::EnumInstance { enum_name, .. } => enum_name.clone(),
+            ArtValue::Function(_) => "Function".to_string(),
+            ArtValue::Builtin(_) => "Builtin".to_string(),
+            ArtValue::WeakRef(_) => "WeakRef".to_string(),
+            ArtValue::UnownedRef(_) => "UnownedRef".to_string(),
+            ArtValue::Atomic(_) => "Atomic".to_string(),
+            ArtValue::Mutex(_) => "Mutex".to_string(),
+            ArtValue::Actor(_) => "Actor".to_string(),
+            ArtValue::Map(_) => "Map".to_string(),
+            ArtValue::Set(_) => "Set".to_string(),
+            ArtValue::HeapComposite(_) => "Composite".to_string(),
+        }
+    }
+
+    fn value_matches_declared_type(&self, value: &ArtValue, expected_type: &str) -> bool {
+        let expected = expected_type.trim();
+        if expected.is_empty() || expected == "Any" {
+            return true;
+        }
+
+        let resolved = self.resolve_composite(value);
+        match expected {
+            "Int" => matches!(resolved, ArtValue::Int(_)),
+            "Float" => matches!(resolved, ArtValue::Float(_)),
+            "Bool" => matches!(resolved, ArtValue::Bool(_)),
+            "String" => matches!(resolved, ArtValue::String(_)),
+            "Array" => matches!(resolved, ArtValue::Array(_)),
+            "Tuple" => matches!(resolved, ArtValue::Tuple(_)),
+            _ => {
+                if expected.starts_with("Optional<") && expected.ends_with('>') {
+                    let inner = &expected[9..expected.len() - 1];
+                    return match resolved {
+                        ArtValue::Optional(opt) => match &**opt {
+                            Some(v) => self.value_matches_declared_type(v, inner),
+                            None => true,
+                        },
+                        ArtValue::EnumInstance {
+                            enum_name,
+                            variant,
+                            values,
+                        } if enum_name == "Option" => {
+                            if variant == "None" {
+                                true
+                            } else if variant == "Some" {
+                                values
+                                    .first()
+                                    .map(|v| self.value_matches_declared_type(v, inner))
+                                    .unwrap_or(false)
+                            } else {
+                                false
+                            }
+                        }
+                        _ => false,
+                    };
+                }
+
+                if expected.starts_with("Array<") && expected.ends_with('>') {
+                    let inner = &expected[6..expected.len() - 1];
+                    return match resolved {
+                        ArtValue::Array(items) => items
+                            .iter()
+                            .all(|item| self.value_matches_declared_type(item, inner)),
+                        _ => false,
+                    };
+                }
+
+                match resolved {
+                    ArtValue::StructInstance { struct_name, .. } => struct_name == expected,
+                    ArtValue::EnumInstance { enum_name, .. } => enum_name == expected,
+                    _ => false,
+                }
+            }
+        }
+    }
+
+    fn build_idl_schema_map(&self, struct_name: &str) -> Option<ArtValue> {
+        let struct_def = self.type_registry.get_struct(struct_name)?;
+        let mut map = std::collections::HashMap::new();
+        for (field_name, field_ty) in &struct_def.fields {
+            map.insert(
+                field_name.clone(),
+                ArtValue::String(Arc::from(field_ty.clone())),
+            );
+        }
+        Some(ArtValue::Map(core::ast::MapRef(std::sync::Arc::new(
+            std::sync::Mutex::new(map),
+        ))))
     }
 
     fn run_shell_stages(
@@ -4786,6 +4888,134 @@ impl Interpreter {
                 self.finalize_arena(arena_id);
                 self.current_arena = previous_arena;
                 callback_result
+            }
+            core::ast::BuiltinFn::IdlSchema => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "idl_schema expects exactly one struct name argument".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+
+                let schema_name = self.evaluate(arguments[0].clone())?;
+                let struct_name = match schema_name {
+                    ArtValue::String(s) => s.to_string(),
+                    _ => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "idl_schema expects struct name as String".to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        return Ok(ArtValue::none());
+                    }
+                };
+
+                match self.build_idl_schema_map(&struct_name) {
+                    Some(schema) => Ok(schema),
+                    None => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            format!("idl_schema: unknown struct '{}'", struct_name),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        Ok(ArtValue::none())
+                    }
+                }
+            }
+            core::ast::BuiltinFn::IdlValidate => {
+                if arguments.len() != 2 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "idl_validate expects (value, struct_name)".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::Bool(false));
+                }
+
+                let value = self.evaluate(arguments[0].clone())?;
+                let schema_name = self.evaluate(arguments[1].clone())?;
+                let struct_name = match schema_name {
+                    ArtValue::String(s) => s.to_string(),
+                    _ => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "idl_validate expects schema name as String".to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        return Ok(ArtValue::Bool(false));
+                    }
+                };
+
+                let Some(struct_def) = self.type_registry.get_struct(&struct_name).cloned() else {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        format!("idl_validate: unknown struct '{}'", struct_name),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::Bool(false));
+                };
+
+                let resolved = self.resolve_composite(&value).clone();
+                let ArtValue::StructInstance {
+                    struct_name: value_struct_name,
+                    fields,
+                } = resolved
+                else {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        format!(
+                            "idl_validate: expected Struct '{}' message, got {}",
+                            struct_name,
+                            self.runtime_type_label(&value)
+                        ),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::Bool(false));
+                };
+
+                if value_struct_name != struct_name {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        format!(
+                            "idl_validate: expected struct '{}' but got '{}'",
+                            struct_name, value_struct_name
+                        ),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::Bool(false));
+                }
+
+                for (field_name, expected_ty) in &struct_def.fields {
+                    let Some(field_val) = fields.get(field_name) else {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            format!(
+                                "idl_validate: missing field '{}' for schema '{}'",
+                                field_name, struct_name
+                            ),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        return Ok(ArtValue::Bool(false));
+                    };
+
+                    if !self.value_matches_declared_type(field_val, expected_ty) {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            format!(
+                                "idl_validate: field '{}' expected '{}' but got '{}'",
+                                field_name,
+                                expected_ty,
+                                self.runtime_type_label(field_val)
+                            ),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        return Ok(ArtValue::Bool(false));
+                    }
+                }
+
+                Ok(ArtValue::Bool(true))
             }
         }
     }

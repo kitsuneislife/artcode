@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="41 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas, Shell Syntax, Iteradores Customizados, Pipelines de Expressoes/Streams e Microkernels, passando por Pattern Matching, Atores e Arenas.">
+        content="42 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas, Shell Syntax, IDL de IPC, Iteradores Customizados, Pipelines de Expressoes/Streams e Microkernels, passando por Pattern Matching, Atores e Arenas.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -33,7 +33,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>41 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>42 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -195,6 +195,9 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-40">
                             <span class="examples-sidebar__num">40</span> Reusable Arena
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-41">
+                            <span class="examples-sidebar__num">41</span> IDL IPC
                         </button>
                     </div>
 
@@ -1552,6 +1555,36 @@ $ <span class="fn">echo</span> shell_pipeline_ok <span class="op">|&gt;</span> <
 <span class="fn">arena_release</span>(aid)</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/40_reusable_arena.art</span></div>
+                    </div>
+
+                    <!-- 41: IDL IPC -->
+                    <div class="example-entry" id="ex-41">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">41</span>
+                            <span class="example-entry__title">IDL IPC</span>
+                            <span class="example-tag">IPC &amp; Tipos</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Define schema de mensagem via <code>struct</code> e valida payload de IPC
+                            com <code>idl_schema</code> e <code>idl_validate</code>.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">41_idl_ipc.art</span>
+                            </div>
+                            <pre><span class="kw">struct</span> BootMsg {
+    service: String,
+    retries: Int
+}
+
+<span class="kw">let</span> msg = BootMsg { service: <span class="str">"nexus"</span>, retries: <span class="num">3</span> }
+<span class="kw">let</span> ok = <span class="fn">idl_validate</span>(msg, <span class="str">"BootMsg"</span>)
+<span class="fn">println</span>(<span class="str">f"ok={ok}"</span>)</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/41_idl_ipc.art</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->

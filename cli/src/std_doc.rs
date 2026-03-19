@@ -138,6 +138,16 @@ fn std_doc_meta(name: &str) -> Option<StdDocMeta> {
             signature: "arena_with(arena_id: Int, callback: Fn)",
             description: "Executa callback dentro da arena e finaliza ao terminar.",
         }),
+        "idl_schema" => Some(StdDocMeta {
+            category: "IPC & Types",
+            signature: "idl_schema(struct_name: String)",
+            description: "Retorna schema declarativo (campo -> tipo) para struct registrada.",
+        }),
+        "idl_validate" => Some(StdDocMeta {
+            category: "IPC & Types",
+            signature: "idl_validate(message: Any, struct_name: String)",
+            description: "Valida mensagem runtime contra schema de struct para uso em IPC.",
+        }),
         "map_new" => Some(StdDocMeta {
             category: "Collections",
             signature: "map_new()",

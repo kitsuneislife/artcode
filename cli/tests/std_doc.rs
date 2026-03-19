@@ -22,6 +22,10 @@ fn doc_std_lists_registered_builtins() {
         "stdout should include arena_with signature"
     );
     assert!(
+        stdout.contains("idl_validate(message: Any, struct_name: String)"),
+        "stdout should include idl_validate signature"
+    );
+    assert!(
         stdout.contains("rand_next()"),
         "stdout should include random builtin signature"
     );

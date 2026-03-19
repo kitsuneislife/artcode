@@ -10,6 +10,7 @@
 - [Error Handling](error_handling.md)
 - [Modo Pure](pure_mode.md)
 - [DAG de Dependências](dependency_dag.md)
+- [IDL de IPC](ipc_idl.md)
 - [Sintaxe Shell](shell_syntax.md)
 - [Operador Pipeline](pipeline_operator.md)
 - [Pipeline Lazy de Streams](stream_pipeline.md)

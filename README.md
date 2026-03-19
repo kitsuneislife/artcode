@@ -58,6 +58,7 @@ Principais recursos
 - Result-like enums e operador `?` para propagação de erros
 - Blocos `performant {}` com arenas experimentais e análise conservadora de escape
 - APIs de arena reutilizavel no stdlib (`arena_new`, `arena_with`, `arena_release`) para workloads de baixo nivel
+- IDL de IPC via structs com introspecao/validacao runtime (`idl_schema`, `idl_validate`)
 - Sintaxe shell via statement `$` e chamada estilo função para executáveis no PATH, com retorno `Result` em `shell_result` e bloqueio automático em `--pure`
 - Operador `|>` para pipeline de expressoes (transformado para chamada com insercao do argumento a esquerda)
 - Streams lazy para pipelines de dados (`stream/map/filter/collect/count`) em passe unico na etapa terminal
@@ -131,6 +132,9 @@ art run examples/39_shell_function_call.art
 # Arenas reutilizáveis via stdlib
 art run examples/40_reusable_arena.art
 
+# IDL de IPC via structs
+art run examples/41_idl_ipc.art
+
 # Pipeline de expressoes
 art run examples/36_pipeline_operator.art
 
@@ -190,6 +194,7 @@ Links rápidos para os principais documentos:
 - [Error Handling](docs/error_handling.md)
 - [Modo Pure](docs/pure_mode.md)
 - [DAG de Dependências](docs/dependency_dag.md)
+- [IDL de IPC](docs/ipc_idl.md)
 - [Sintaxe Shell](docs/shell_syntax.md)
 - [Operador Pipeline](docs/pipeline_operator.md)
 - [Pipeline Lazy de Streams](docs/stream_pipeline.md)

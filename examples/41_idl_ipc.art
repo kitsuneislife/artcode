@@ -1,0 +1,18 @@
+// Exemplo 41 - IDL para IPC via structs
+// Execute com: art run examples/41_idl_ipc.art
+
+struct BootMsg {
+    service: String,
+    retries: Int
+}
+
+let msg = BootMsg { service: "nexus", retries: 3 }
+let schema = idl_schema("BootMsg")
+println(f"schema={schema}")
+
+let ok = idl_validate(msg, "BootMsg")
+println(f"ok={ok}")
+
+let bad = BootMsg { service: "nexus", retries: "oops" }
+let nok = idl_validate(bad, "BootMsg")
+println(f"nok={nok}")

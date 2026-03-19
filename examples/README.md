@@ -47,6 +47,7 @@ Current examples (ordered):
 - `38_custom_iterators.art` — Iteradores customizados com protocolo `next()` e açúcar `yield`
 - `39_shell_function_call.art` — Execução shell em chamada de função (`echo("...")`) com retorno `Result`
 - `40_reusable_arena.art` — APIs de arena reutilizável (`arena_new`, `arena_with`, `arena_release`)
+- `41_idl_ipc.art` — IDL de IPC via `struct` com `idl_schema` e `idl_validate`
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 
