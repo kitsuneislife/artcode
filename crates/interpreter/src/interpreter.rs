@@ -71,6 +71,7 @@ pub struct Interpreter {
     pub executed_statements: usize,
     heap_objects: HashMap<u64, crate::heap::HeapObject>,
     next_heap_id: u64,
+    next_capability_id: u64,
     // Métricas de memória (protótipo)
     pub weak_created: usize,
     pub weak_upgrades: usize,
@@ -379,6 +380,8 @@ impl Interpreter {
             ("arena_with", core::ast::BuiltinFn::ArenaWith),
             ("idl_schema", core::ast::BuiltinFn::IdlSchema),
             ("idl_validate", core::ast::BuiltinFn::IdlValidate),
+            ("capability_acquire", core::ast::BuiltinFn::CapabilityAcquire),
+            ("capability_kind", core::ast::BuiltinFn::CapabilityKind),
             ("map_new", core::ast::BuiltinFn::MapNew),
             ("map_set", core::ast::BuiltinFn::MapSet),
             ("map_get", core::ast::BuiltinFn::MapGet),
@@ -423,6 +426,7 @@ impl Interpreter {
             executed_statements: 0,
             heap_objects: HashMap::new(),
             next_heap_id: 1,
+            next_capability_id: 1,
             weak_created: 0,
             weak_upgrades: 0,
             weak_dangling: 0,
@@ -525,6 +529,8 @@ impl Interpreter {
             ArtValue::Actor(_) => "Actor".to_string(),
             ArtValue::Map(_) => "Map".to_string(),
             ArtValue::Set(_) => "Set".to_string(),
+            ArtValue::Capability { kind, .. } => format!("Capability[{}]", kind),
+            ArtValue::MovedCapability => "MovedCapability".to_string(),
             ArtValue::HeapComposite(_) => "Composite".to_string(),
         }
     }
@@ -577,6 +583,21 @@ impl Interpreter {
                         ArtValue::Array(items) => items
                             .iter()
                             .all(|item| self.value_matches_declared_type(item, inner)),
+                        _ => false,
+                    };
+                }
+
+                if expected.starts_with("Capability[") && expected.ends_with(']') {
+                    let inner = &expected[11..expected.len() - 1];
+                    return match resolved {
+                        ArtValue::Capability { kind, .. } => kind.as_ref() == inner,
+                        _ => false,
+                    };
+                }
+                if expected.starts_with("Capability<") && expected.ends_with('>') {
+                    let inner = &expected[11..expected.len() - 1];
+                    return match resolved {
+                        ArtValue::Capability { kind, .. } => kind.as_ref() == inner,
                         _ => false,
                     };
                 }
@@ -2808,8 +2829,19 @@ impl Interpreter {
                         return Ok(ArtValue::Array(values.clone()));
                     }
                 }
-                match self.environment.borrow().get(&name_str) {
-                    Some(v) => Ok(v.clone()),
+                match self.environment.borrow_mut().read_for_eval(&name_str) {
+                    Some(ArtValue::MovedCapability) => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            format!(
+                                "Capability '{}' was already moved/consumed and cannot be reused",
+                                name_str
+                            ),
+                            Span::new(name.start, name.end, name.line, name.col),
+                        ));
+                        Ok(ArtValue::none())
+                    }
+                    Some(v) => Ok(v),
                     None => {
                         let env_borrow = self.environment.borrow();
                         let candidates = env_borrow.values.keys().copied();
@@ -4222,6 +4254,8 @@ impl Interpreter {
                         ArtValue::Atomic(_) => "Atomic",
                         ArtValue::Mutex(_) => "Mutex",
                         ArtValue::Actor(_) => "Actor",
+                        ArtValue::Capability { .. } => "Capability",
+                        ArtValue::MovedCapability => "MovedCapability",
                     };
                     Ok(ArtValue::String(core::intern_arc(t)))
                 } else {
@@ -5016,6 +5050,60 @@ impl Interpreter {
                 }
 
                 Ok(ArtValue::Bool(true))
+            }
+            core::ast::BuiltinFn::CapabilityAcquire => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "capability_acquire expects exactly one capability kind argument"
+                            .to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+
+                let kind = self.evaluate(arguments[0].clone())?;
+                let kind_name = match kind {
+                    ArtValue::String(s) => s,
+                    _ => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "capability_acquire expects capability kind as String".to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        return Ok(ArtValue::none());
+                    }
+                };
+
+                let id = self.next_capability_id;
+                self.next_capability_id = self.next_capability_id.saturating_add(1);
+                Ok(ArtValue::Capability {
+                    kind: kind_name,
+                    id,
+                })
+            }
+            core::ast::BuiltinFn::CapabilityKind => {
+                if arguments.len() != 1 {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "capability_kind expects exactly one capability argument".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return Ok(ArtValue::none());
+                }
+
+                let cap = self.evaluate(arguments[0].clone())?;
+                match cap {
+                    ArtValue::Capability { kind, .. } => Ok(ArtValue::String(kind)),
+                    _ => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Runtime,
+                            "capability_kind expects a Capability token".to_string(),
+                            Span::new(0, 0, 0, 0),
+                        ));
+                        Ok(ArtValue::none())
+                    }
+                }
             }
         }
     }

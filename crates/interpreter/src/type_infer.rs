@@ -51,6 +51,8 @@ pub struct TypeInfer<'a> {
         ),
     >,
     visiting_functions: HashSet<String>,
+    moved_capability_vars: HashMap<String, bool>,
+    moved_capability_bindings: Vec<Vec<(String, Option<bool>)>>,
 }
 
 impl<'a> TypeInfer<'a> {
@@ -63,12 +65,15 @@ impl<'a> TypeInfer<'a> {
             var_bindings: vec![Vec::new()],
             functions: HashMap::new(),
             visiting_functions: HashSet::new(),
+            moved_capability_vars: HashMap::new(),
+            moved_capability_bindings: vec![Vec::new()],
         }
     }
 
     fn push_scope(&mut self) {
         self.scopes.push(HashSet::new());
         self.var_bindings.push(Vec::new());
+        self.moved_capability_bindings.push(Vec::new());
     }
 
     fn pop_scope(&mut self) {
@@ -81,6 +86,18 @@ impl<'a> TypeInfer<'a> {
                     }
                     None => {
                         self.tenv.vars.remove(&name);
+                    }
+                }
+            }
+        }
+        if let Some(bindings) = self.moved_capability_bindings.pop() {
+            for (name, prev) in bindings.into_iter().rev() {
+                match prev {
+                    Some(v) => {
+                        self.moved_capability_vars.insert(name, v);
+                    }
+                    None => {
+                        self.moved_capability_vars.remove(&name);
                     }
                 }
             }
@@ -99,6 +116,22 @@ impl<'a> TypeInfer<'a> {
         if let Some(bindings) = self.var_bindings.last_mut() {
             bindings.push((name.to_string(), prev));
         }
+    }
+
+    fn record_capability_move_binding(&mut self, name: &str) {
+        let prev = self.moved_capability_vars.get(name).copied();
+        if let Some(bindings) = self.moved_capability_bindings.last_mut() {
+            bindings.push((name.to_string(), prev));
+        }
+    }
+
+    fn set_capability_moved(&mut self, name: &str, moved: bool) {
+        self.record_capability_move_binding(name);
+        self.moved_capability_vars.insert(name.to_string(), moved);
+    }
+
+    fn is_capability_type(ty: &Type) -> bool {
+        matches!(ty, Type::Struct(s) if s.starts_with("Capability[") || s.starts_with("Capability<"))
     }
 
     fn visible_vars(&self) -> HashSet<String> {
@@ -146,6 +179,25 @@ impl<'a> TypeInfer<'a> {
                 let t = match initializer {
                     Expr::Variable { name: src } => {
                         if let Some(ty) = self.tenv.get_var(&src.lexeme).cloned() {
+                            if Self::is_capability_type(&ty) {
+                                if self
+                                    .moved_capability_vars
+                                    .get(&src.lexeme)
+                                    .copied()
+                                    .unwrap_or(false)
+                                {
+                                    self.diags.push(Diagnostic::new(
+                                        DiagnosticKind::Type,
+                                        format!(
+                                            "Capability variable '{}' was already moved and cannot be reused",
+                                            src.lexeme
+                                        ),
+                                        Span::new(src.start, src.end, src.line, src.col),
+                                    ));
+                                } else {
+                                    self.set_capability_moved(&src.lexeme, true);
+                                }
+                            }
                             ty
                         } else {
                             self.infer_expr(initializer)
@@ -281,6 +333,7 @@ impl<'a> TypeInfer<'a> {
             core::ast::MatchPattern::Variable(name) => {
                 self.record_var_binding(&name.lexeme);
                 self.tenv.set_var(&name.lexeme, ty.clone());
+                self.set_capability_moved(&name.lexeme, false);
                 self.declare_var(&name.lexeme);
             }
             core::ast::MatchPattern::Tuple(patterns) => {
@@ -696,11 +749,33 @@ impl<'a> TypeInfer<'a> {
                 self.infer_expr(right);
                 Type::Bool
             }
-            Variable { name } => self
-                .tenv
-                .get_var(&name.lexeme)
-                .cloned()
-                .unwrap_or(Type::Unknown),
+            Variable { name } => {
+                let ty = self
+                    .tenv
+                    .get_var(&name.lexeme)
+                    .cloned()
+                    .unwrap_or(Type::Unknown);
+                if Self::is_capability_type(&ty) {
+                    if self
+                        .moved_capability_vars
+                        .get(&name.lexeme)
+                        .copied()
+                        .unwrap_or(false)
+                    {
+                        self.diags.push(Diagnostic::new(
+                            DiagnosticKind::Type,
+                            format!(
+                                "Capability variable '{}' was already moved and cannot be reused",
+                                name.lexeme
+                            ),
+                            Span::new(name.start, name.end, name.line, name.col),
+                        ));
+                    } else {
+                        self.set_capability_moved(&name.lexeme, true);
+                    }
+                }
+                ty
+            }
             Call {
                 callee,
                 type_args,
@@ -736,6 +811,15 @@ impl<'a> TypeInfer<'a> {
                                 ));
                             }
                         }
+                    } else if name.lexeme == "capability_acquire" {
+                        if let Some(first) = arguments.first() {
+                            if let Expr::Literal(ArtValue::String(kind)) = first {
+                                return Type::Struct(format!("Capability[{}]", kind));
+                            }
+                        }
+                        return Type::Struct("Capability[Any]".to_string());
+                    } else if name.lexeme == "capability_kind" {
+                        return Type::String;
                     }
                 }
                 // Simple callsite propagation: if the callee is a known top-level function,
@@ -961,6 +1045,8 @@ fn value_type(v: &ArtValue) -> Type {
         ArtValue::Actor(_) => Type::Unknown,
         ArtValue::Map(_) => Type::Unknown,
         ArtValue::Set(_) => Type::Unknown,
+        ArtValue::Capability { kind, .. } => Type::Struct(format!("Capability[{}]", kind)),
+        ArtValue::MovedCapability => Type::Unknown,
         ArtValue::HeapComposite(_) => Type::Unknown, // resolução ocorre em nível de interpretador; para inferência simplificada tratamos como Unknown
     }
 }

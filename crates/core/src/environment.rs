@@ -49,4 +49,22 @@ impl Environment {
         }
         None
     }
+
+    pub fn read_for_eval(&mut self, name: &str) -> Option<ArtValue> {
+        if let Some(value) = self.values.get_mut(name) {
+            return match value {
+                ArtValue::Capability { .. } => {
+                    let moved = value.clone();
+                    *value = ArtValue::MovedCapability;
+                    Some(moved)
+                }
+                ArtValue::MovedCapability => Some(ArtValue::MovedCapability),
+                _ => Some(value.clone()),
+            };
+        }
+        if let Some(enclosing) = &self.enclosing {
+            return enclosing.borrow_mut().read_for_eval(name);
+        }
+        None
+    }
 }

@@ -9,6 +9,7 @@ O formato segue Keep a Changelog e SemVer adaptado para a trilha 0.2.x.
 ### Added
 - Politica publica de versionamento em docs/versioning.md.
 - Exemplo 29 sobre metadados de release e compatibilidade (examples/29_versioning_policy.art).
+- **Capability Tokens com Move-Semantics:** `ArtValue::Capability` e `ArtValue::MovedCapability` no AST; builtins `capability_acquire(kind)` e `capability_kind(cap)` na stdlib; enforcement de reuso (uma capability não pode ser usada após ser movida) tanto no type checker (TypeInfer) quanto no runtime (Environment::read_for_eval); suporte no parser para o tipo `Capability[Kind]`; docs no `art doc std`; exemplo `examples/42_capability_tokens.art` e suite de testes `tests/capability_tokens.rs`.
 
 ### Changed
 - Documentacao de contribuicao e roadmap atualizada para referenciar versao e compatibilidade da serie 0.2.x.

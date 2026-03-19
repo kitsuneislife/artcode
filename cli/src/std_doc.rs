@@ -148,6 +148,17 @@ fn std_doc_meta(name: &str) -> Option<StdDocMeta> {
             signature: "idl_validate(message: Any, struct_name: String)",
             description: "Valida mensagem runtime contra schema de struct para uso em IPC.",
         }),
+        "capability_acquire" => Some(StdDocMeta {
+            category: "IPC & Types",
+            signature: "capability_acquire(kind: String)",
+            description:
+                "Cria token de capability nao forjavel. O valor e move-only e nao pode ser reutilizado apos consumo.",
+        }),
+        "capability_kind" => Some(StdDocMeta {
+            category: "IPC & Types",
+            signature: "capability_kind(capability: Capability)",
+            description: "Retorna a categoria declarativa da capability (ex.: NetBind).",
+        }),
         "map_new" => Some(StdDocMeta {
             category: "Collections",
             signature: "map_new()",

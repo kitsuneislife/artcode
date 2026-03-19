@@ -239,6 +239,8 @@ pub enum ArtValue {
     // Fase 15 (Stdlib expansions)
     Map(MapRef),
     Set(SetRef),
+    Capability { kind: Arc<str>, id: u64 },
+    MovedCapability,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -275,6 +277,8 @@ pub enum BuiltinFn {
     ArenaWith,   // arena_with(arena_id:Int, callback: Fn0) -> Any
     IdlSchema,   // idl_schema(struct_name:String) -> Map<String, String>
     IdlValidate, // idl_validate(value:Any, struct_name:String) -> Bool
+    CapabilityAcquire, // capability_acquire(kind:String) -> Capability[kind]
+    CapabilityKind,    // capability_kind(capability) -> String
     // Fase 15 Stdlib
     MapNew,
     MapSet,
@@ -337,6 +341,8 @@ impl fmt::Debug for BuiltinFn {
             BuiltinFn::ArenaWith => write!(f, "<builtin arena_with>"),
             BuiltinFn::IdlSchema => write!(f, "<builtin idl_schema>"),
             BuiltinFn::IdlValidate => write!(f, "<builtin idl_validate>"),
+            BuiltinFn::CapabilityAcquire => write!(f, "<builtin capability_acquire>"),
+            BuiltinFn::CapabilityKind => write!(f, "<builtin capability_kind>"),
             BuiltinFn::MapNew => write!(f, "<builtin map_new>"),
             BuiltinFn::MapSet => write!(f, "<builtin map_set>"),
             BuiltinFn::MapGet => write!(f, "<builtin map_get>"),
@@ -449,6 +455,8 @@ impl fmt::Display for ArtValue {
                 BuiltinFn::ArenaWith => write!(f, "<builtin arena_with>"),
                 BuiltinFn::IdlSchema => write!(f, "<builtin idl_schema>"),
                 BuiltinFn::IdlValidate => write!(f, "<builtin idl_validate>"),
+                BuiltinFn::CapabilityAcquire => write!(f, "<builtin capability_acquire>"),
+                BuiltinFn::CapabilityKind => write!(f, "<builtin capability_kind>"),
                 BuiltinFn::MapNew => write!(f, "<builtin map_new>"),
                 BuiltinFn::MapSet => write!(f, "<builtin map_set>"),
                 BuiltinFn::MapGet => write!(f, "<builtin map_get>"),
@@ -495,6 +503,8 @@ impl fmt::Display for ArtValue {
                 let elems: Vec<String> = set.iter().map(|item| item.to_string()).collect();
                 write!(f, "Set {{ {} }}", elems.join(", "))
             }
+            ArtValue::Capability { kind, id } => write!(f, "Capability[{}]#{}", kind, id),
+            ArtValue::MovedCapability => write!(f, "<moved capability>"),
         }
     }
 }

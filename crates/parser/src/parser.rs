@@ -410,6 +410,15 @@ impl Parser {
         } else {
             let type_name = self.consume(TokenType::Identifier, "Expect type name.");
             type_str.push_str(&type_name.lexeme);
+            if self.match_token(TokenType::LeftBracket) {
+                type_str.push('[');
+                type_str.push_str(&self.parse_type());
+                self.consume(
+                    TokenType::RightBracket,
+                    "Expect ']' after bracketed type parameter.",
+                );
+                type_str.push(']');
+            }
             if self.match_token(TokenType::Less) {
                 type_str.push('<');
                 loop {
