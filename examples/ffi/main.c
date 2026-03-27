@@ -1,30 +1,35 @@
 #include <stdint.h>
 #include <stdio.h>
 
-// Forward declarations das funcoes exportadas pela FFI do Artcode (core)
-extern void* art_create_i64(int64_t val);
-extern int64_t art_extract_i64(void* ptr);
-extern void art_value_retain(void* ptr);
-extern void art_value_release(void* ptr);
+// Forward declarations das funcoes exportadas pela FFI segura do Artcode (core)
+extern uint64_t art_handle_create_i64(int64_t val);
+extern uint8_t art_handle_retain(uint64_t handle);
+extern uint8_t art_handle_release(uint64_t handle);
+extern int32_t art_handle_extract_i64(uint64_t handle, int64_t* out_value);
 
 int main() {
-    printf("--- Exemplo Artcode FFI (C) ---\n");
+    printf("--- Exemplo Artcode FFI seguro (C) ---\n");
 
-    // O C chama a maquina virtual para criar uma variavel Artcode Heap-based
-    void* meu_valor = art_create_i64(420);
-    printf("1. Construido novo ArtValue nativo no heap: %p\n", meu_valor);
-    
-    // Podemos emular o borrowing caso outra funcao C va reutilizar
-    art_value_retain(meu_valor); // Simulando outro scope
+    // O C cria um handle opaco no registry da VM.
+    uint64_t handle = art_handle_create_i64(420);
+    printf("1. Handle criado: %llu\n", (unsigned long long)handle);
 
-    // Extrair de volta o payload nativo de i64
-    int64_t result = art_extract_i64(meu_valor);
-    printf("2. Valor processado pelo Core: %lld\n", (long long)result);
-    
-    // Libera heap: release do retain fake e depois a criacao em si
-    art_value_release(meu_valor);
-    art_value_release(meu_valor);
-    
-    printf("3. Memoria do Core desalocada.\n");
+    // Simula compartilhamento entre escopos nativos
+    art_handle_retain(handle);
+
+    // Extrai payload i64 com codigo de erro explicito
+    int64_t result = 0;
+    int32_t rc = art_handle_extract_i64(handle, &result);
+    if (rc == 0) {
+        printf("2. Valor processado pelo Core: %lld\n", (long long)result);
+    } else {
+        printf("2. Falha no extract, codigo=%d\n", rc);
+    }
+
+    // Libera refs do handle
+    art_handle_release(handle);
+    art_handle_release(handle);
+
+    printf("3. Handle liberado sem double-free.\n");
     return 0;
 }

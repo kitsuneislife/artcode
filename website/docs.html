@@ -1286,6 +1286,12 @@ else_:
                 <article id="ffi" class="doc-article">
                     <h1>FFI (Interoperabilidade)</h1>
                     <p>Artcode foi projetada para interoperar com C, Rust e WebAssembly.</p>
+                    <h2>Baseline Entregue (v0.2)</h2>
+                    <ul>
+                        <li>Call-gate seguro por handles opacos: <code>art_handle_create_i64</code>, <code>art_handle_retain</code>, <code>art_handle_release</code>, <code>art_handle_extract_i64</code></li>
+                        <li>Export de string por handle com cache controlado: <code>art_handle_string_to_cstr</code> + <code>art_free_cstr_cache</code></li>
+                        <li>Gateway de syscall por registradores (uso unsafe): <code>art_syscall_unsafe</code></li>
+                    </ul>
                     <h2>FFI com C</h2>
                     <p>Interface direta com marcação explícita de transferência de ownership para dados gerenciados por
                         ARC.</p>

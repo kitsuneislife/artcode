@@ -15,4 +15,4 @@ cargo build --release --target wasm32-unknown-unknown
 
 Isto ira gerar o artefato `core.wasm` no diretório alvo do `cargo`.
 
-As funções do FFI que mapeamos como `art_create_i64` ou `art_extract_i64` serão exportadas e disponíveis sem *name-mangling* para quem integrar esse WebAssembly, permitindo uso idêntico ao exemplo nativo em C.
+As funções do FFI seguro que mapeamos como `art_handle_create_i64` e `art_handle_extract_i64` serão exportadas e disponíveis sem *name-mangling* para quem integrar esse WebAssembly, mantendo o mesmo contrato do exemplo nativo em C.

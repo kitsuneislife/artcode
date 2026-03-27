@@ -1,4 +1,4 @@
-# FFI (Foreign Function Interface) - Draft
+# FFI (Foreign Function Interface)
 
 Objetivo: estabelecer diretrizes para integração de código Art com bibliotecas C, Rust e futuramente WASM, respeitando filosofia de controle explícito de memória e ownership.
 
@@ -25,12 +25,36 @@ Objetivo: estabelecer diretrizes para integração de código Art com biblioteca
 | Enum (tagged) | Planejado | Tag + union simplificado |
 
 ## Memory Model
-Usar ARC internamente; na fronteira FFI expor contadores explicitamente ou funções de retain/release:
+Usar ARC internamente; na fronteira FFI expor contadores explicitamente ou funções de retain/release.
+
+### Call-gate seguro implementado (baseline)
+
+Em vez de compartilhar ponteiros crus como API principal, o runtime exporta handles opacos (`u64`):
+
 ```
-art_value_retain(ptr)
-art_value_release(ptr)
+art_handle_create_i64(val) -> handle
+art_handle_retain(handle) -> bool
+art_handle_release(handle) -> bool
+art_handle_extract_i64(handle, out_ptr) -> code
 ```
+
+Isso evita double-free e facilita auditoria de ownership no lado C/Rust.
+
+> APIs legadas baseadas em ponteiro ainda existem para compatibilidade, mas o fluxo recomendado e seguro e por handle.
+
 Ciclos não são coletados automaticamente; ferramentas de debug podem detectar.
+
+## Syscalls unsafe por registradores
+
+Para wrappers de kernel em Ring 3, existe o gateway:
+
+```
+art_syscall_unsafe(num, a0, a1, a2, a3, a4, a5, out_errno)
+```
+
+- Linux: chama `syscall(2)` diretamente e retorna valor bruto.
+- Outras plataformas: retorna `-1` e errno de indisponibilidade.
+- Uso recomendado apenas em camada de baixo nivel, com contratos explícitos.
 
 ## Ownership Patterns
 | Padrão | Descrição | Exemplo |
@@ -49,10 +73,10 @@ Ciclos não são coletados automaticamente; ferramentas de debug podem detectar.
 - Marcar funções `unsafe` quando invariantes do runtime forem exigidas.
 
 ## Próximos Passos
-- Definir módulo `ffi` no crate core com tipos de ponte.
-- Especificar representação binária de `ArtValue` mínima exportável.
-- Prototipar função `art_len(value)` exportada.
-- Documentar macro de ajuda para declarar builtins FFI.
+- Expandir cobertura de handles para outros tipos além de `i64`.
+- Adicionar wrappers seguros de alto nivel para syscalls comuns (open/read/write/close).
+- Especificar representação binária mínima de `ArtValue` exportável.
+- Evoluir integração AOT/LLVM para exportações C-ABI automáticas.
 
 ## Estado
-Draft inicial; sujeito a RFC antes de implementação completa.
+Baseline funcional implementado para call-gate seguro e syscall gateway unsafe.

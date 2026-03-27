@@ -64,6 +64,7 @@ Principais recursos
 - Sintaxe shell via statement `$` e chamada estilo função para executáveis no PATH, com retorno `Result` em `shell_result` e bloqueio automático em `--pure`
 - Operador `|>` para pipeline de expressoes (transformado para chamada com insercao do argumento a esquerda)
 - Streams lazy para pipelines de dados (`stream/map/filter/collect/count`) em passe unico na etapa terminal
+- FFI baseline para C-ABI com call-gate seguro por handles opacos (`art_handle_*`) e gateway `unsafe` de syscall por registradores (`art_syscall_unsafe`)
 
 Status do projeto
 - Código modular em crates: `core`, `lexer`, `parser`, `interpreter`, `diagnostics`, `cli`.
