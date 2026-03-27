@@ -1,0 +1,16 @@
+// 45_release_changelog.art
+// Exemplo de metadados de release e resumo de novidades.
+
+let version = "0.2.0"
+let highlights = [
+  "time-travel keyframes",
+  "ffi call-gate seguro",
+  "capabilities move-only",
+  "ipc serialization"
+]
+
+println(f"release={version}")
+println("highlights=")
+for item in highlights {
+  println(f"- {item}")
+}

@@ -22,6 +22,7 @@
                 <a href="why.html">Por que Artcode?</a>
                 <a href="docs.html">Docs</a>
                 <a href="examples.html" class="active">Exemplos</a>
+                <a href="changelog.html">Changelog</a>
                 <a href="https://github.com/kitsuneislife/artcode" class="nav__cta" target="_blank">GitHub →</a>
             </div>
             <button class="nav__mobile-toggle" id="navToggle" aria-label="Menu">☰</button>
@@ -33,7 +34,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>44 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>46 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -204,6 +205,12 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-43">
                             <span class="examples-sidebar__num">43</span> IPC Serialization
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-44">
+                            <span class="examples-sidebar__num">44</span> TTD Keyframes
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-45">
+                            <span class="examples-sidebar__num">45</span> Release Changelog
                         </button>
                     </div>
 
@@ -1645,6 +1652,55 @@ $ <span class="fn">echo</span> shell_pipeline_ok <span class="op">|&gt;</span> <
                         <div class="example-run-hint">$ <span>art run examples/43_ipc_serialization.art</span></div>
                     </div>
 
+                    <!-- 44: TTD Keyframes -->
+                    <div class="example-entry" id="ex-44">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">44</span>
+                            <span class="example-entry__title">TTD Keyframes</span>
+                            <span class="example-tag">Debugging</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Exemplo de gravacao/reproducao deterministica com checkpoints
+                            no trace de time-travel.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">44_ttd_keyframes.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> t1 = <span class="fn">time_now</span>()
+<span class="kw">let</span> r1 = <span class="fn">rand_next</span>()
+<span class="fn">println</span>(<span class="str">f"t1={t1} r1={r1}"</span>)</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run --record examples/44_ttd_keyframes.artlog examples/44_ttd_keyframes.art</span></div>
+                    </div>
+
+                    <!-- 45: Release Changelog -->
+                    <div class="example-entry" id="ex-45">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">45</span>
+                            <span class="example-entry__title">Release Changelog</span>
+                            <span class="example-tag">Release</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Exemplo simples para comunicar highlights de versao
+                            e reforcar o workflow de release.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">45_release_changelog.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> version = <span class="str">"0.2.0"</span>
+<span class="fn">println</span>(<span class="str">f"release={version}"</span>)</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/45_release_changelog.art</span></div>
+                    </div>
+
                 </div><!-- /examples-panel -->
             </div>
 
@@ -1659,6 +1715,7 @@ $ <span class="fn">echo</span> shell_pipeline_ok <span class="op">|&gt;</span> <
                 <a href="docs.html">Documentação</a>
                 <a href="index.html">Início</a>
                 <a href="why.html">Por que Artcode?</a>
+                <a href="changelog.html">Changelog</a>
             </div>
             <p>Artcode v0.1.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
                     target="_blank">kitsuneislife</a></p>

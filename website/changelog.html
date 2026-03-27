@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Changelog - Artcode</title>
+    <meta name="description" content="Novidades e historico de versoes do Artcode com destaques tecnicos por release.">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <nav class="nav">
+        <div class="nav__inner">
+            <a href="index.html" class="nav__logo"><img src="assets/logo_stripped.png" alt="Artcode"
+                    style="height: 28px; width: auto;"></a>
+            <div class="nav__links" id="navLinks">
+                <a href="index.html">Inicio</a>
+                <a href="why.html">Por que Artcode?</a>
+                <a href="docs.html">Docs</a>
+                <a href="examples.html">Exemplos</a>
+                <a href="changelog.html" class="active">Changelog</a>
+                <a href="https://github.com/kitsuneislife/artcode" class="nav__cta" target="_blank">GitHub -></a>
+            </div>
+            <button class="nav__mobile-toggle" id="navToggle" aria-label="Menu">☰</button>
+        </div>
+    </nav>
+
+    <main class="section" style="padding-top: 100px;">
+        <div class="container">
+            <div style="text-align: center; margin-bottom: 40px;" class="fade-in">
+                <p class="label">Historico de Versoes</p>
+                <h1>Changelog <span class="gradient-text">Artcode</span></h1>
+                <p class="subtitle" style="margin: 12px auto 0;">Resumo tecnico das versoes com foco em runtime, linguagem e tooling.</p>
+            </div>
+
+            <section class="glass" style="padding: 24px; margin-bottom: 24px;">
+                <h2 style="margin-bottom: 10px;">v0.2.0</h2>
+                <p style="margin-bottom: 12px;">Entrega focada em robustez de runtime, IPC e time-travel.</p>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1);">
+                    <li>Capabilities move-only com validacao de reuse.</li>
+                    <li>Serializacao binaria para IPC com restricoes de tipos opacos.</li>
+                    <li>FFI call-gate seguro com handles opacos e syscall unsafe controlada.</li>
+                    <li>Time-travel com checkpoints/keyframes para replay deterministico.</li>
+                </ul>
+            </section>
+
+            <section class="glass" style="padding: 24px; margin-bottom: 24px;">
+                <h2 style="margin-bottom: 10px;">v0.1.x</h2>
+                <p style="margin-bottom: 12px;">Base da linguagem e ergonomia de desenvolvimento.</p>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1);">
+                    <li>Structs, enums, pattern matching com guards.</li>
+                    <li>Loops nativos, tuplas e tratamento de erro explicito.</li>
+                    <li>LSP com autocomplete, goto-definition e rename multi-arquivo.</li>
+                    <li>Sintaxe shell e stream pipelines.</li>
+                </ul>
+            </section>
+
+            <section class="glass" style="padding: 24px; margin-bottom: 24px;">
+                <h2 style="margin-bottom: 10px;">Como contribuir no changelog</h2>
+                <div class="code-block" style="max-width:100%">
+                    <div class="code-block__header">
+                        <span class="code-block__dot code-block__dot--red"></span>
+                        <span class="code-block__dot code-block__dot--yellow"></span>
+                        <span class="code-block__dot code-block__dot--green"></span>
+                        <span class="code-block__title">workflow</span>
+                    </div>
+                    <pre>1. Atualize CHANGELOG.md com secoes Added/Changed/Fixed/Docs
+2. Referencie exemplos e docs impactados
+3. Rode testes e scripts de smoke
+4. Atualize esta pagina com os highlights da release</pre>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer__links">
+                <a href="https://github.com/kitsuneislife/artcode" target="_blank">GitHub</a>
+                <a href="docs.html">Documentacao</a>
+                <a href="examples.html">Exemplos</a>
+                <a href="changelog.html">Changelog</a>
+            </div>
+            <p>Artcode v0.2.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife" target="_blank">kitsuneislife</a></p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

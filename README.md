@@ -145,6 +145,12 @@ art run examples/42_capability_tokens.art
 # Serializacao binaria para IPC
 art run examples/43_ipc_serialization.art
 
+# Time-travel com keyframes/checkpoints
+art run --record examples/44_ttd_keyframes.artlog examples/44_ttd_keyframes.art
+
+# Exemplo de highlights de release/changelog
+art run examples/45_release_changelog.art
+
 # Pipeline de expressoes
 art run examples/36_pipeline_operator.art
 
@@ -216,6 +222,7 @@ Links rápidos para os principais documentos:
 - [Versionamento Público](docs/versioning.md)
 - [Guia de Migração](docs/migration.md)
 - [Changelog](CHANGELOG.md)
+- [Website Changelog](website/changelog.html)
 - [Concorrência (Atores)](docs/concurrency.md)
 - [Sumário / Índice](docs/SUMMARY.md)
 

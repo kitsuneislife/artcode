@@ -50,6 +50,8 @@ Current examples (ordered):
 - `41_idl_ipc.art` — IDL de IPC via `struct` com `idl_schema` e `idl_validate`
 - `42_capability_tokens.art` — Capabilities move-only (`capability_acquire`, `capability_kind`) com consumo em runtime
 - `43_ipc_serialization.art` — Serialização binária (`serialize`, `deserialize`, `buffer_new`) e restrições para tipos opacos
+- `44_ttd_keyframes.art` — Time-travel com keyframes/checkpoints (`--record`/`--replay`)
+- `45_release_changelog.art` — Highlights de release e estrutura semântica de changelog
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 
