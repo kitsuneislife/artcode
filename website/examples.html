@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="44 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas, Shell Syntax, IDL de IPC, Capabilities move-only, Serializacao IPC, Iteradores Customizados, Pipelines de Expressoes/Streams e Microkernels, passando por Pattern Matching, Atores e Arenas.">
+        content="47 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas, Shell Syntax, IDL de IPC, Capabilities move-only, Serializacao IPC, TTD keyframes e comparacao warmup vs PGO.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -34,7 +34,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>46 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>47 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -211,6 +211,9 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-45">
                             <span class="examples-sidebar__num">45</span> Release Changelog
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-46">
+                            <span class="examples-sidebar__num">46</span> Perf Compare Workflow
                         </button>
                     </div>
 
@@ -1699,6 +1702,31 @@ $ <span class="fn">echo</span> shell_pipeline_ok <span class="op">|&gt;</span> <
 <span class="fn">println</span>(<span class="str">f"release={version}"</span>)</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/45_release_changelog.art</span></div>
+                    </div>
+
+                    <!-- 46: Perf Compare Workflow -->
+                    <div class="example-entry" id="ex-46">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">46</span>
+                            <span class="example-entry__title">Perf Compare Workflow</span>
+                            <span class="example-tag">Tooling</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Fluxo de comparacao automatica de performance entre build warmup e build PGO,
+                            com geracao de relatorio em <code>perf.md</code>.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">46_perf_compare_workflow.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> report = <span class="str">"perf.md"</span>
+<span class="fn">println</span>(<span class="str">f"report={report}"</span>)
+<span class="fn">println</span>(<span class="str">"run: bash scripts/perf_compare.sh"</span>)</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>bash scripts/perf_compare.sh</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->

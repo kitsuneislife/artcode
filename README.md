@@ -151,6 +151,9 @@ art run --record examples/44_ttd_keyframes.artlog examples/44_ttd_keyframes.art
 # Exemplo de highlights de release/changelog
 art run examples/45_release_changelog.art
 
+# Comparacao automatica warmup vs PGO com geracao de perf.md
+bash scripts/perf_compare.sh
+
 # Pipeline de expressoes
 art run examples/36_pipeline_operator.art
 
@@ -221,6 +224,7 @@ Links rápidos para os principais documentos:
 - [Roadmap](docs/roadmap.md)
 - [Versionamento Público](docs/versioning.md)
 - [Guia de Migração](docs/migration.md)
+- [Comparacao Warmup vs PGO](docs/perf_compare.md)
 - [Changelog](CHANGELOG.md)
 - [Website Changelog](website/changelog.html)
 - [Concorrência (Atores)](docs/concurrency.md)

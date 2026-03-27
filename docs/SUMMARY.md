@@ -22,4 +22,5 @@
 - [Roadmap](roadmap.md)
 - [Versionamento Publico](versioning.md)
 - [Guia de Migracao](migration.md)
+- [Comparacao Warmup vs PGO](perf_compare.md)
 - [Contribuindo](contributing.md)
