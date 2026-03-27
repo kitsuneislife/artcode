@@ -3,13 +3,12 @@
 
 // --- Aquisição de capability ---
 let net_cap = capability_acquire("NetBind")
-print("Capability adquirida: " + to_string(net_cap))
-print("Kind: " + capability_kind(net_cap))
+println(f"Kind inicial: {capability_kind(net_cap)}")
 
 // --- Passagem como argumento (move) ---
-fn bind_port(cap, port) {
+func bind_port(cap, port) {
     let k = capability_kind(cap)
-    print("Usando capability " + k + " para porta " + to_string(port))
+    println(f"Usando capability {k} para porta {port}")
     // cap foi consumida - MovedCapability a partir daqui
 }
 
@@ -18,12 +17,12 @@ bind_port(port_cap, 8080)
 
 // --- Inspeção do tipo ---
 let fs_cap = capability_acquire("FileSystem")
-print("type_of: " + type_of(fs_cap))
+println(f"type_of: {type_of(fs_cap)}")
 
 // --- Duas capabilities distintas ---
 let cap_a = capability_acquire("NetBind")
 let cap_b = capability_acquire("FileSystem")
-print("A kind: " + capability_kind(cap_a))
-print("B kind: " + capability_kind(cap_b))
+println(f"A kind: {capability_kind(cap_a)}")
+println(f"B kind: {capability_kind(cap_b)}")
 
-print("done")
+println("done")

@@ -71,7 +71,7 @@ fn capability_acquire_produces_capability_value() {
 
 #[test]
 fn capability_type_of_returns_capability_string() {
-    let mut interp = run_and_interpret(r#"
+    let interp = run_and_interpret(r#"
         let cap = capability_acquire("FileSystem")
         let t = type_of(cap)
     "#);
@@ -86,7 +86,7 @@ fn capability_type_of_returns_capability_string() {
 
 #[test]
 fn capability_arbitrary_kind() {
-    let mut interp = run_and_interpret(r#"
+    let interp = run_and_interpret(r#"
         let cap = capability_acquire("CustomCap")
         let k = capability_kind(cap)
     "#);

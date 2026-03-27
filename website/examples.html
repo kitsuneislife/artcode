@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="42 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas, Shell Syntax, IDL de IPC, Iteradores Customizados, Pipelines de Expressoes/Streams e Microkernels, passando por Pattern Matching, Atores e Arenas.">
+        content="44 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas, Shell Syntax, IDL de IPC, Capabilities move-only, Serializacao IPC, Iteradores Customizados, Pipelines de Expressoes/Streams e Microkernels, passando por Pattern Matching, Atores e Arenas.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -33,7 +33,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>42 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>44 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -198,6 +198,12 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-41">
                             <span class="examples-sidebar__num">41</span> IDL IPC
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-42">
+                            <span class="examples-sidebar__num">42</span> Capability Tokens
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-43">
+                            <span class="examples-sidebar__num">43</span> IPC Serialization
                         </button>
                     </div>
 
@@ -1585,6 +1591,58 @@ $ <span class="fn">echo</span> shell_pipeline_ok <span class="op">|&gt;</span> <
 <span class="fn">println</span>(<span class="str">f"ok={ok}"</span>)</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/41_idl_ipc.art</span></div>
+                    </div>
+
+                    <!-- 42: Capability Tokens -->
+                    <div class="example-entry" id="ex-42">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">42</span>
+                            <span class="example-entry__title">Capability Tokens</span>
+                            <span class="example-tag">IPC &amp; Tipos</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Capability tokens move-only para cenarios de autorizacao no IPC,
+                            com <code>capability_acquire</code> e <code>capability_kind</code>.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">42_capability_tokens.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> cap = <span class="fn">capability_acquire</span>(<span class="str">"NetBind"</span>)
+<span class="kw">let</span> kind = <span class="fn">capability_kind</span>(cap)
+<span class="fn">println</span>(<span class="str">f"kind={kind}"</span>)</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/42_capability_tokens.art</span></div>
+                    </div>
+
+                    <!-- 43: IPC Serialization -->
+                    <div class="example-entry" id="ex-43">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">43</span>
+                            <span class="example-entry__title">IPC Serialization</span>
+                            <span class="example-tag">IPC &amp; Tipos</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Serializacao binaria baseline com <code>buffer_new</code>,
+                            <code>serialize</code> e <code>deserialize</code>.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">43_ipc_serialization.art</span>
+                            </div>
+                            <pre><span class="kw">let</span> payload = <span class="fn">map_new</span>()
+<span class="fn">map_set</span>(payload, <span class="str">"id"</span>, <span class="num">101</span>)
+<span class="kw">let</span> buf = <span class="fn">serialize</span>(payload)
+<span class="kw">let</span> decoded = <span class="fn">deserialize</span>(buf)
+<span class="fn">println</span>(decoded)</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/43_ipc_serialization.art</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->

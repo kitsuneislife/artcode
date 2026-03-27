@@ -48,6 +48,8 @@ Current examples (ordered):
 - `39_shell_function_call.art` — Execução shell em chamada de função (`echo("...")`) com retorno `Result`
 - `40_reusable_arena.art` — APIs de arena reutilizável (`arena_new`, `arena_with`, `arena_release`)
 - `41_idl_ipc.art` — IDL de IPC via `struct` com `idl_schema` e `idl_validate`
+- `42_capability_tokens.art` — Capabilities move-only (`capability_acquire`, `capability_kind`) com consumo em runtime
+- `43_ipc_serialization.art` — Serialização binária (`serialize`, `deserialize`, `buffer_new`) e restrições para tipos opacos
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 

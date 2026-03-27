@@ -11,6 +11,8 @@
 - [Modo Pure](pure_mode.md)
 - [DAG de Dependências](dependency_dag.md)
 - [IDL de IPC](ipc_idl.md)
+- [Capabilities](capabilities.md)
+- [Serializacao IPC](ipc_serialization.md)
 - [Sintaxe Shell](shell_syntax.md)
 - [Operador Pipeline](pipeline_operator.md)
 - [Pipeline Lazy de Streams](stream_pipeline.md)

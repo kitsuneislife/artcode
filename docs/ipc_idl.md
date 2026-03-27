@@ -39,4 +39,5 @@ let nok = idl_validate(bad, "BootMsg") // false + diagnostico
 
 - Checklist v0.2, secao "Tipagem e IPC":
   - IDL: concluido neste MVP.
-  - Capabilities e serializacao zero-copy: permanecem pendentes.
+  - Capabilities: baseline concluido com token move-only (`capability_acquire`, `capability_kind`).
+  - Serializacao zero-copy: baseline concluido com `Buffer`, `serialize` e `deserialize`.

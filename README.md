@@ -59,6 +59,8 @@ Principais recursos
 - Blocos `performant {}` com arenas experimentais e análise conservadora de escape
 - APIs de arena reutilizavel no stdlib (`arena_new`, `arena_with`, `arena_release`) para workloads de baixo nivel
 - IDL de IPC via structs com introspecao/validacao runtime (`idl_schema`, `idl_validate`)
+- Capabilities move-only para IPC/autorizacao (`capability_acquire`, `capability_kind`)
+- Serializacao binaria de IPC (`buffer_new`, `serialize`, `deserialize`) com restricoes para tipos opacos
 - Sintaxe shell via statement `$` e chamada estilo função para executáveis no PATH, com retorno `Result` em `shell_result` e bloqueio automático em `--pure`
 - Operador `|>` para pipeline de expressoes (transformado para chamada com insercao do argumento a esquerda)
 - Streams lazy para pipelines de dados (`stream/map/filter/collect/count`) em passe unico na etapa terminal
@@ -135,6 +137,12 @@ art run examples/40_reusable_arena.art
 # IDL de IPC via structs
 art run examples/41_idl_ipc.art
 
+# Capabilities move-only
+art run examples/42_capability_tokens.art
+
+# Serializacao binaria para IPC
+art run examples/43_ipc_serialization.art
+
 # Pipeline de expressoes
 art run examples/36_pipeline_operator.art
 
@@ -195,6 +203,8 @@ Links rápidos para os principais documentos:
 - [Modo Pure](docs/pure_mode.md)
 - [DAG de Dependências](docs/dependency_dag.md)
 - [IDL de IPC](docs/ipc_idl.md)
+- [Capabilities](docs/capabilities.md)
+- [Serializacao IPC](docs/ipc_serialization.md)
 - [Sintaxe Shell](docs/shell_syntax.md)
 - [Operador Pipeline](docs/pipeline_operator.md)
 - [Pipeline Lazy de Streams](docs/stream_pipeline.md)

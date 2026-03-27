@@ -46,13 +46,15 @@ fn test_serialize_complex() {
         let s_arr = serialize(arr)
         let o_arr = deserialize(s_arr)
 
-        let map = {"key": 99}
+        let map = map_new()
+        map_set(map, "key", 99)
         let s_map = serialize(map)
         let o_map = deserialize(s_map)
     "#;
     let inter = run_and_interpret(code);
     
-    let arr_val = inter.debug_get_global("o_arr").unwrap();
+    let arr_val_ref = inter.debug_get_global("o_arr").unwrap();
+    let arr_val = inter.resolve_composite(&arr_val_ref).clone();
     if let ArtValue::Array(items) = arr_val {
         assert_eq!(items.len(), 3);
         assert_eq!(items[0], ArtValue::Int(1));
@@ -60,7 +62,8 @@ fn test_serialize_complex() {
         panic!("Expected Array");
     }
 
-    let map_val = inter.debug_get_global("o_map").unwrap();
+    let map_val_ref = inter.debug_get_global("o_map").unwrap();
+    let map_val = inter.resolve_composite(&map_val_ref).clone();
     if let ArtValue::Map(map_ref) = map_val {
         let m = map_ref.0.lock().unwrap();
         assert_eq!(m.get("key"), Some(&ArtValue::Int(99)));

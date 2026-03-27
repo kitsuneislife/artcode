@@ -1409,6 +1409,68 @@ impl Interpreter {
         }
     }
 
+    fn normalize_for_serialization(&self, v: &ArtValue) -> ArtValue {
+        let resolved = self.resolve_composite(v);
+        match resolved {
+            ArtValue::Optional(opt) => ArtValue::Optional(Box::new(
+                opt.as_ref()
+                    .as_ref()
+                    .map(|inner| self.normalize_for_serialization(inner)),
+            )),
+            ArtValue::Array(items) => ArtValue::Array(
+                items
+                    .iter()
+                    .map(|item| self.normalize_for_serialization(item))
+                    .collect(),
+            ),
+            ArtValue::Tuple(items) => ArtValue::Tuple(
+                items
+                    .iter()
+                    .map(|item| self.normalize_for_serialization(item))
+                    .collect(),
+            ),
+            ArtValue::StructInstance { struct_name, fields } => {
+                let mut out = std::collections::HashMap::new();
+                for (k, v) in fields {
+                    out.insert(k.clone(), self.normalize_for_serialization(v));
+                }
+                ArtValue::StructInstance {
+                    struct_name: struct_name.clone(),
+                    fields: out,
+                }
+            }
+            ArtValue::EnumInstance {
+                enum_name,
+                variant,
+                values,
+            } => ArtValue::EnumInstance {
+                enum_name: enum_name.clone(),
+                variant: variant.clone(),
+                values: values
+                    .iter()
+                    .map(|v| self.normalize_for_serialization(v))
+                    .collect(),
+            },
+            ArtValue::Map(map_ref) => {
+                let map = map_ref.0.lock().unwrap_or_else(|e| e.into_inner());
+                let mut out = std::collections::HashMap::new();
+                for (k, v) in map.iter() {
+                    out.insert(k.clone(), self.normalize_for_serialization(v));
+                }
+                ArtValue::Map(core::ast::MapRef(std::sync::Arc::new(std::sync::Mutex::new(out))))
+            }
+            ArtValue::Set(set_ref) => {
+                let set = set_ref.0.lock().unwrap_or_else(|e| e.into_inner());
+                let out: Vec<ArtValue> = set
+                    .iter()
+                    .map(|v| self.normalize_for_serialization(v))
+                    .collect();
+                ArtValue::Set(core::ast::SetRef(std::sync::Arc::new(std::sync::Mutex::new(out))))
+            }
+            _ => resolved.clone(),
+        }
+    }
+
     fn drop_scope_heap_objects(&mut self, env: &Rc<RefCell<Environment>>) {
         let handles = env.borrow().strong_handles.clone();
         for h in handles {
@@ -5378,8 +5440,9 @@ impl Interpreter {
                     return Ok(ArtValue::none());
                 }
                 let val = self.evaluate(arguments[0].clone())?;
+                let normalized = self.normalize_for_serialization(&val);
                 let mut out = Vec::new();
-                match crate::interpreter::encode_val(&val, &mut out) {
+                match crate::interpreter::encode_val(&normalized, &mut out) {
                     Ok(_) => Ok(ArtValue::Buffer(out.into())),
                     Err(e) => {
                         self.diagnostics.push(Diagnostic::new(

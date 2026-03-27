@@ -11,39 +11,36 @@ let s_num = serialize(num)
 println("Serialized Int Buffer:")
 println(s_num)
 let d_num = deserialize(s_num)
-println("Deserialized Int: {d_num}")
+println(f"Deserialized Int: {d_num}")
 
 // 2. Complex data
-let payload = {
-    "user": "Alice",
-    "id": 101,
-    "active": true,
-    "scores": [99, 85, 100]
-}
+let payload = map_new()
+map_set(payload, "user", "Alice")
+map_set(payload, "id", 101)
+map_set(payload, "active", true)
+map_set(payload, "scores", [99, 85, 100])
 
 let buf = serialize(payload)
-println("\nSerialized Map into Buffer of size {len(buf)} bytes:")
+println("")
+println("Serialized Map into Buffer:")
 println(buf)
 
 let restored = deserialize(buf)
-println("\nRestored Payload:")
+println("")
+println("Restored Payload:")
 println(restored)
 
 // 3. Nested Buffers
 let raw = buffer_new(5)
 let msg = ["header", raw]
 let s_msg = serialize(msg)
-println("\nSerialized Array containing a Buffer:")
+println("")
+println("Serialized Array containing a Buffer:")
 println(s_msg)
 let d_msg = deserialize(s_msg)
 println(d_msg)
 
 // 4. Invalid Serialization (Opaque runtime types)
-println("\n--- Attempting to serialize a capability ---")
-let cap = capability_acquire("NetBind")
-try {
-    let bad = serialize(cap)
-    println("Should not reach here")
-} catch e {
-    println("Caught error as expected: {e}")
-}
+println("")
+println("--- Restricao: Capability nao e serializavel ---")
+println("Veja o teste crates/interpreter/tests/serialization.rs para o caso negativo.")
