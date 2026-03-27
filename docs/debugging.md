@@ -25,9 +25,18 @@ Se você precisar varrer, ler, ou criar um programa que interprete as falhas do 
 
 1. **Header (8 Bytes):** `ARTLOG01` (ASCII).
 2. Sequência de serialização pura de instâncias de `Map` descrevendo:
-  - `"type"`: Tag do nome de onde a interceptação ocorreu (e.g., `time_now`).
+  - `"type"`: Tag do nome de onde a interceptação ocorreu (e.g., `time_now`, `checkpoint`).
   - `"tick"`: Statements decorridos no código-fonte até este exato momento.
   - `"payload"`: O valor *retornado* do Evento.
+
+### Checkpoints / Keyframe Events
+
+Para reduzir o overhead em replays longos e facilitar buscas por posições nos logs de execução, o tracer agora emite um evento adicional:
+
+- `type = "checkpoint"`
+- `payload` contem `rng_state` (o seed do gerador pseudo-aleatório) e potencialmente outros metadados do estado do runtime.
+
+Estes eventos são compactos e incrementais, e servem para validação/fast-path do replay (Fase 2).
 
 ---
 ## Modo Reprodução (Replay \& Debug CLI)

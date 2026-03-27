@@ -1,0 +1,16 @@
+// 44_ttd_keyframes.art
+
+// Mostra uma execução determinística usando time_now + rand_next
+// e permite reprodução com checkpoint/keyframe.
+
+let t1 = time_now()
+let r1 = rand_next()
+println("t1=", t1, " r1=", r1)
+
+let t2 = time_now()
+let r2 = rand_next()
+println("t2=", t2, " r2=", r2)
+
+// A cada 10 statements o tracer vai gravar um checkpoint/keyframe.
+// Use: art run --record 44_ttd_keyframes.artlog examples/44_ttd_keyframes.art
+//      art debug --replay 44_ttd_keyframes.artlog examples/44_ttd_keyframes.art

@@ -11,6 +11,7 @@
 - [Modo Pure](pure_mode.md)
 - [DAG de Dependências](dependency_dag.md)
 - [IDL de IPC](ipc_idl.md)
+- [Time-Travel Debugging](debugging.md)
 - [Capabilities](capabilities.md)
 - [Serializacao IPC](ipc_serialization.md)
 - [Sintaxe Shell](shell_syntax.md)

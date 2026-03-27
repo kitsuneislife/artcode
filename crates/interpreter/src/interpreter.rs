@@ -2033,6 +2033,19 @@ impl Interpreter {
         self.debug_mode = d;
     }
 
+    fn maybe_record_checkpoint(&mut self) {
+        const CHECKPOINT_INTERVAL: usize = 10;
+        if self.tracer.is_none() {
+            return;
+        }
+        if self.executed_statements % CHECKPOINT_INTERVAL != 0 {
+            return;
+        }
+        if let Some(tracer) = &mut self.tracer {
+            let _ = tracer.record_checkpoint(self.executed_statements, self.rng_state);
+        }
+    }
+
     pub fn env_ref(&self) -> Rc<RefCell<Environment>> {
         self.environment.clone()
     }
@@ -2322,7 +2335,7 @@ impl Interpreter {
             }
         }
         self.executed_statements += 1;
-        match stmt {
+        let result = match stmt {
             Stmt::Expression(expr) => {
                 let val = self.evaluate(expr)?;
                 self.last_value = Some(val.clone());
@@ -2948,7 +2961,13 @@ impl Interpreter {
                 self.last_value = Some(ArtValue::Actor(aid));
                 Ok(())
             }
+        };
+
+        if result.is_ok() {
+            self.maybe_record_checkpoint();
         }
+
+        result
     }
 
     fn pattern_matches(

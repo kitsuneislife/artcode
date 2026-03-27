@@ -74,6 +74,69 @@ fn test_replayer_reads_artlog_and_provides_events() {
 }
 
 #[test]
+fn test_tracer_writes_checkpoint_event() {
+    let trace_path = "test_trace_checkpoint.artlog";
+    let _ = fs::remove_file(trace_path);
+
+    let src = r#"
+ let t = time_now()
+ let u = time_now()
+ let v = time_now()
+ let w = time_now()
+ let x = time_now()
+ let y = time_now()
+ let z = time_now()
+ let a = time_now()
+ let b = time_now()
+ let c = time_now()
+"#;
+
+    let _ = run_and_interpret_with_tracer(src, trace_path);
+    let replayer = interpreter::replayer::Replayer::new(trace_path).expect("replayer");
+    let checkpoint = replayer.find_checkpoint_before(10);
+    assert!(checkpoint.is_some(), "deve encontrar checkpoint no trace");
+    let (tick, payload) = checkpoint.unwrap();
+    assert!(tick <= 10);
+    if let core::ast::ArtValue::Map(m) = payload {
+        let map = m.0.lock().unwrap();
+        assert!(map.get("rng_state").is_some(), "checkpoint deve armazenar rng_state");
+    } else {
+        panic!("payload checkpoint deve ser Map");
+    }
+
+    let _ = fs::remove_file(trace_path);
+}
+
+#[test]
+fn test_replayer_skips_checkpoint_event() {
+    let trace_path = "test_replayer_checkpoint_skip.artlog";
+    let _ = fs::remove_file(trace_path);
+
+    let src = r#"
+ let t = time_now()
+ let u = time_now()
+ let v = time_now()
+ let w = time_now()
+ let x = time_now()
+ let y = time_now()
+ let z = time_now()
+ let a = time_now()
+ let b = time_now()
+ let c = time_now()
+"#;
+
+    let _ = run_and_interpret_with_tracer(src, trace_path);
+    let mut replayer = interpreter::replayer::Replayer::new(trace_path).expect("replayer");
+
+    let first = replayer.consume_intercept("time_now", 1).expect("should work");
+    assert!(first.is_some());
+    let second = replayer.consume_intercept("time_now", 2).expect("should work");
+    assert!(second.is_some());
+
+    let _ = fs::remove_file(trace_path);
+}
+
+#[test]
 fn test_replayer_returns_none_for_wrong_tick() {
     let trace_path = "test_replayer_wrong_tick.artlog";
     let _ = fs::remove_file(trace_path);

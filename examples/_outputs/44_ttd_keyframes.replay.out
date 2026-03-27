@@ -1,0 +1,17 @@
+>>> ARTCODE TIME-TRAVEL DEBUGGER <<<
+Type 'help' for commands. File loaded: /home/lukas/Documentos/Projects/artcode/examples/44_ttd_keyframes.art (Trace: /home/lukas/Documentos/Projects/artcode/examples/44_ttd_keyframes.artlog)
+
+[Tick 0] Let { pattern: Variable(Token { token_type: Identifier, lexeme: "t1", symbol: Some("t1"), line: 6, col: 5, start: 145, end: 147 }), ty: None, initializer: Call { callee: Variable { name: Token { token_type: Identifier, lexeme: "time_now", symbol: Some("time_now"), line: 6, col: 10, start: 150, end: 158 } }, type_args: None, arguments: [] } }
+(art-debug) > 
+[Tick 1] Let { pattern: Variable(Token { token_type: Identifier, lexeme: "r1", symbol: Some("r1"), line: 7, col: 5, start: 165, end: 167 }), ty: None, initializer: Call { callee: Variable { name: Token { token_type: Identifier, lexeme: "rand_next", symbol: Some("rand_next"), line: 7, col: 10, start: 170, end: 179 } }, type_args: None, arguments: [] } }
+(art-debug) > 
+[Tick 2] Expression(Call { callee: Variable { name: Token { token_type: Identifier, lexeme: "println", symbol: Some("println"), line: 8, col: 1, start: 182, end: 189 } }, type_args: None, arguments: [Literal(String("t1=")), Variable { name: Token { token_type: Identifier, lexeme: "t1", symbol: Some("t1"), line: 8, col: 16, start: 197, end: 199 } }, Literal(String(" r1=")), Variable { name: Token { token_type: Identifier, lexeme: "r1", symbol: Some("r1"), line: 8, col: 28, start: 209, end: 211 } }] })
+(art-debug) > t1=
+
+[Tick 3] Let { pattern: Variable(Token { token_type: Identifier, lexeme: "t2", symbol: Some("t2"), line: 10, col: 5, start: 218, end: 220 }), ty: None, initializer: Call { callee: Variable { name: Token { token_type: Identifier, lexeme: "time_now", symbol: Some("time_now"), line: 10, col: 10, start: 223, end: 231 } }, type_args: None, arguments: [] } }
+(art-debug) > 
+[Tick 4] Let { pattern: Variable(Token { token_type: Identifier, lexeme: "r2", symbol: Some("r2"), line: 11, col: 5, start: 238, end: 240 }), ty: None, initializer: Call { callee: Variable { name: Token { token_type: Identifier, lexeme: "rand_next", symbol: Some("rand_next"), line: 11, col: 10, start: 243, end: 252 } }, type_args: None, arguments: [] } }
+(art-debug) > 
+[Tick 5] Expression(Call { callee: Variable { name: Token { token_type: Identifier, lexeme: "println", symbol: Some("println"), line: 12, col: 1, start: 255, end: 262 } }, type_args: None, arguments: [Literal(String("t2=")), Variable { name: Token { token_type: Identifier, lexeme: "t2", symbol: Some("t2"), line: 12, col: 16, start: 270, end: 272 } }, Literal(String(" r2=")), Variable { name: Token { token_type: Identifier, lexeme: "r2", symbol: Some("r2"), line: 12, col: 28, start: 282, end: 284 } }] })
+(art-debug) > t2=
+Program exited normally.

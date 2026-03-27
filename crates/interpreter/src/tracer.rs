@@ -1,11 +1,11 @@
 use core::ast::{ArtValue, MapRef};
 use std::fs::File;
 use std::io::Write;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use crate::interpreter::encode_val;
 
 // Format: 8-byte magic header 
-// Events: Delta stream
+// Events: Delta stream + optional checkpoint markers (keyframes)
 pub struct Tracer {
     file: File,
 }
@@ -41,5 +41,13 @@ impl Tracer {
         
         let _ = self.file.flush();
         Ok(())
+    }
+
+    pub fn record_checkpoint(&mut self, tick: usize, rng_state: u64) -> Result<(), String> {
+        let mut payload = std::collections::HashMap::new();
+        payload.insert("rng_state".to_string(), ArtValue::String(rng_state.to_string().into()));
+
+        let checkpoint_payload = ArtValue::Map(MapRef(Arc::new(Mutex::new(payload))));
+        self.record_event("checkpoint", tick, checkpoint_payload)
     }
 }

@@ -46,10 +46,9 @@ impl Replayer {
     /// Consome o próximo evento de Replay, checando o Tick e Event Type.
     /// Retorna `Some(payload)` se o checkpoint bater, consumindo da fila.
     pub fn consume_intercept(&mut self, expected_type: &str, current_tick: usize) -> Result<Option<ArtValue>, String> {
-        if let Some(event) = self.events.front() {
+        while let Some(event) = self.events.front() {
             if let ArtValue::Map(mapref) = event {
                 let map = mapref.0.lock().unwrap();
-                
                 let e_type = match map.get("type") {
                     Some(ArtValue::String(s)) => s.as_ref(),
                     _ => "",
@@ -58,19 +57,46 @@ impl Replayer {
                     Some(ArtValue::Int(t)) => *t as usize,
                     _ => 0,
                 };
-                
-                // Verificacao rigida de consistencia: se o programa tentou abrir um evento que não é
-                // o próximo da lista de gravação, então o fluxo do script divirgiu do logado.
-                // Mas permitiremos ler apenas se o tick exato chegou e o evento é da mesma origem.
+
+                if e_type == "checkpoint" && e_tick <= current_tick {
+                    // Checkpoint/log metadata can be skipped during direct event replay.
+                    drop(map);
+                    self.events.pop_front();
+                    continue;
+                }
+
                 if e_tick == current_tick && e_type == expected_type {
                     let payload = map.get("payload").cloned().unwrap_or_else(ArtValue::none);
-                    // Drop mutex e pop the event from queue
                     drop(map);
                     self.events.pop_front();
                     return Ok(Some(payload));
                 }
             }
+            break;
         }
         Ok(None)
+    }
+
+    pub fn find_checkpoint_before(&self, tick: usize) -> Option<(usize, ArtValue)> {
+        let mut candidate: Option<(usize, ArtValue)> = None;
+        for event in self.events.iter() {
+            if let ArtValue::Map(mapref) = event {
+                let map = mapref.0.lock().unwrap();
+                let e_type = match map.get("type") {
+                    Some(ArtValue::String(s)) => s.as_ref(),
+                    _ => "",
+                };
+                let e_tick = match map.get("tick") {
+                    Some(ArtValue::Int(t)) => *t as usize,
+                    _ => 0,
+                };
+                if e_type == "checkpoint" && e_tick <= tick {
+                    if let Some(payload) = map.get("payload") {
+                        candidate = Some((e_tick, payload.clone()));
+                    }
+                }
+            }
+        }
+        candidate
     }
 }

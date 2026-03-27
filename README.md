@@ -23,6 +23,7 @@ Implementação experimental de uma linguagem interpretada em Rust com suporte a
 - Result-like enums e operador `?` (propagação inicial)
 - Arrays com builtins (`sum`, `count`)
 - Standard Library embutida: Collections (Map, Set), Math (abs, pow, clamp), Time & Rand, File IO (sandboxed).
+- Time-Travel Debugging com trace determinístico e keyframes/checkpoints em arquivo `.artlog` (`--record` / `--replay` no modo debug)
 - Sintaxe shell com statement `$ comando args...`, pipeline `|>`, retorno tipado em `shell_result` e chamada estilo função (`echo("...")`)
 - Operador de pipeline para expressoes (`valor |> fn(...)`) com encadeamento funcional
 - Pipeline lazy de streams com `stream |> map |> filter |> collect/count` sem arrays intermediarios entre etapas

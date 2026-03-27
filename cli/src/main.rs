@@ -445,6 +445,13 @@ fn run_debug_repl(script_path: &str, replay_path: &str) {
         if target_tick > 0 {
             interpreter.set_debug_mode(false);
             interpreter.fast_forward_until = Some(target_tick);
+            if let Some((ck_tick, _payload)) = interpreter
+                .replayer
+                .as_ref()
+                .and_then(|r| r.find_checkpoint_before(target_tick))
+            {
+                println!("=> checkpoint heuristic: nearest keyframe tick={}", ck_tick);
+            }
         } else {
             interpreter.set_debug_mode(true);
         }
