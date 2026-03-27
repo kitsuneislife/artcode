@@ -28,3 +28,23 @@ Se você precisar varrer, ler, ou criar um programa que interprete as falhas do 
   - `"type"`: Tag do nome de onde a interceptação ocorreu (e.g., `time_now`).
   - `"tick"`: Statements decorridos no código-fonte até este exato momento.
   - `"payload"`: O valor *retornado* do Evento.
+
+---
+## Modo Reprodução (Replay \& Debug CLI)
+
+Com um arquivo `.artlog` salvo, você pode reproduzir aquela exata execução sob um shell de debug interativo, passo-a-passo. O *Replayer* nativo assumirá o controle das invocações de I/O bloqueadas garantindo que a execução atinja rigorosamente os mesmos estados lógicos do momento em que o bug ocorreu.
+
+```bash
+art debug --replay my_bug_trace.artlog src/main.art
+```
+
+Um prompt será iniciado (`(art-debug) >`) paussado imediatamente no início do run-loop (Tick 0).
+
+### Comandos da Debug Shell
+
+- **`step`** (ou `s` / apenas `<Enter>`): Avança exatamente 1 linha (statement).
+- **`back`** (ou `b`): Retrocede 1 linha no tempo. O engine de *Time-Travel* usa a técnica de injetar checkpoints para rebobinar estados transparentemente.
+- **`inspect <var>`**: Imprime o tipo interno e o dado armazenado na variável local ou global naquele instante da execução da VM.
+- **`env`**: Despeja a tabela completa de variáveis de escopo.
+
+*(Ainda sob Fase 2 de testes, o repl não possui parser de multi-linhas).*

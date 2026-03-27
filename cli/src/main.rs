@@ -420,6 +420,53 @@ fn run_prompt(emit_ir: Option<&str>, pure_mode: bool) {
     }
 }
 
+fn run_debug_repl(script_path: &str, replay_path: &str) {
+    let source = match fs::read_to_string(script_path) {
+        Ok(s) => s,
+        Err(e) => { eprintln!("Erro ao carregar script base: {}", e); return; }
+    };
+    
+    let mut target_tick = 0;
+    println!(">>> ARTCODE TIME-TRAVEL DEBUGGER <<<");
+    println!("Type 'help' for commands. File loaded: {} (Trace: {})", script_path, replay_path);
+
+    loop {
+        let mut lexer = Lexer::new(source.clone());
+        let tokens = lexer.scan_tokens().unwrap();
+        let mut parser = Parser::new(tokens);
+        let (program, _) = parser.parse();
+        
+        let mut interpreter = Interpreter::with_prelude();
+        if let Err(e) = interpreter.enable_replayer(replay_path) {
+            eprintln!("Falha grave ao criar motor de replay: {}", e);
+            return;
+        }
+
+        if target_tick > 0 {
+            interpreter.set_debug_mode(false);
+            interpreter.fast_forward_until = Some(target_tick);
+        } else {
+            interpreter.set_debug_mode(true);
+        }
+
+        match interpreter.interpret(program) {
+            Err(e) if e.to_string().contains("DEBUG_STEP_BACK") => {
+                target_tick = interpreter.executed_statements.saturating_sub(1);
+                println!("<< Time-Traveling to tick {}...", target_tick);
+                continue;
+            }
+            Err(e) => {
+                eprintln!("Erro fatal do debugger: {}", e);
+                break;
+            }
+            Ok(_) => {
+                println!("Program exited normally.");
+                break;
+            }
+        }
+    }
+}
+
 fn run_upgrade(args: &[String]) {
     let mut from = "0.1.x".to_string();
     let mut to = "0.2.x".to_string();
@@ -623,6 +670,33 @@ fn main() {
             process::exit(64);
         }
     }
+    
+    if args[1] == "debug" {
+        let mut replay_file: Option<String> = None;
+        let mut script_file: Option<String> = None;
+        
+        let mut j = 2usize;
+        while j < args.len() {
+            let a = &args[j];
+            if a == "--replay" && j + 1 < args.len() {
+                replay_file = Some(args[j + 1].clone());
+                j += 2;
+            } else if script_file.is_none() {
+                script_file = Some(a.clone());
+                j += 1;
+            } else {
+                eprintln!("Usage: art debug --replay <trace.artlog> <script>");
+                process::exit(64);
+            }
+        }
+        let (Some(script), Some(replay)) = (script_file, replay_file) else {
+            eprintln!("Usage: art debug --replay <trace.artlog> <script>");
+            process::exit(64);
+        };
+        
+        return run_debug_repl(&script, &replay);
+    }
+
     if args[1] == "run" {
         let mut pure_mode = false;
         let mut file: Option<String> = None;

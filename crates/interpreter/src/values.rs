@@ -5,6 +5,7 @@ use std::fmt;
 pub enum RuntimeError {
     Return(ArtValue),
     TypeError(String),
+    DebugStepBack,
 }
 
 impl fmt::Display for RuntimeError {
@@ -12,6 +13,7 @@ impl fmt::Display for RuntimeError {
         match self {
             RuntimeError::Return(val) => write!(f, "Function returned: {}", val),
             RuntimeError::TypeError(msg) => write!(f, "Type error: {}", msg),
+            RuntimeError::DebugStepBack => write!(f, "Debug step back requested"),
         }
     }
 }

@@ -1,0 +1,21 @@
+// Demo de Time-Travel Debugging (Fase 2)
+// Como reproduzir:
+// 1. Grave o comportamento do programa com:
+// art run --record trace.artlog examples/44_time_travel_demo.art
+//
+// 2. Reproduza a gravação para debug interativo com:
+// art debug --replay trace.artlog examples/44_time_travel_demo.art
+//
+// 3. Digite 'step', 'inspect r' ou 'back' para depurar!
+
+println("Iniciando demonstracao Time-Travel...")
+
+// Funcoes nao-deterministicas sao interceptadas e gravadas
+let t = time_now()
+println(t)
+
+let r = rand_next()
+println(r)
+
+// Se voce encontrar um bug, pode usar o 'art debug'
+// voltar no tempo tick a tick ate o ponto exato!

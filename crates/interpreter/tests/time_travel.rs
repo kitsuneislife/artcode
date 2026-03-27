@@ -1,4 +1,3 @@
-use core::ast::ArtValue;
 use interpreter::Interpreter;
 use lexer::Lexer;
 use parser::Parser;
@@ -10,7 +9,7 @@ fn run_and_interpret_with_tracer(src: &str, trace_path: &str) -> Interpreter {
     let mut parser = Parser::new(tokens);
     let (program, diags) = parser.parse();
     assert!(diags.is_empty(), "parser errs: {:?}", diags);
-    
+
     let mut interp = Interpreter::with_prelude();
     interp.enable_tracer(trace_path).expect("enable tracer");
     interp.interpret(program).expect("interpret");
@@ -20,24 +19,76 @@ fn run_and_interpret_with_tracer(src: &str, trace_path: &str) -> Interpreter {
 #[test]
 fn test_tracer_generates_artlog_on_nondeterministic_calls() {
     let trace_path = "test_trace_rand_time.artlog";
-    // Limpa se existir
     let _ = fs::remove_file(trace_path);
 
     let src = r#"
-        let n = time_now()
-        let r = rand_next()
-    "#;
+ let n = time_now()
+ let r = rand_next()
+ "#;
 
     let _interp = run_and_interpret_with_tracer(src, trace_path);
 
-    // Verifica se o arquivo log foi gerado
     assert!(std::path::Path::new(trace_path).exists(), "Tracer devera criar o log");
-    
+
     let content = fs::read(trace_path).expect("read trace");
-    // Magic header verification
     assert!(content.starts_with(b"ARTLOG01"), "Deve ter o header ARTLOG01");
-    
-    // Opcionalmente podemos ler o conteúdo, 
-    // mas o mero fato de ser gravado já prova o fluxo
-    let _ = fs::remove_file(trace_path); // limpa depois do test
+
+    let _ = fs::remove_file(trace_path);
+}
+
+#[test]
+fn test_replayer_reads_artlog_and_provides_events() {
+    let trace_path = "test_replayer.artlog";
+    let _ = fs::remove_file(trace_path);
+
+    let src = r#"
+ let t = time_now()
+ let r = rand_next()
+ "#;
+
+    let interp = run_and_interpret_with_tracer(src, trace_path);
+    let t_val = interp.get_global("t").expect("t deve existir");
+    let r_val = interp.get_global("r").expect("r deve existir");
+
+    let mut replayer = interpreter::replayer::Replayer::new(trace_path).expect("replayer deve abrir arquivo");
+
+    // Primeiro evento: time_now no tick 1
+    let event = replayer.consume_intercept("time_now", 1);
+    assert!(event.is_ok(), "consume_intercept deve retornar Ok");
+    let payload = event.unwrap();
+    assert!(payload.is_some(), "deve ter payload para time_now");
+    if let core::ast::ArtValue::Int(recorded) = payload.unwrap() {
+        if let core::ast::ArtValue::Int(original) = t_val {
+            assert_eq!(recorded, original, "valor gravado deve ser igual ao executado");
+        }
+    } else {
+        panic!("payload deveria ser Int");
+    }
+
+    // Segundo evento: rand_next no tick 2
+    let event2 = replayer.consume_intercept("rand_next", 2);
+    assert!(event2.is_ok());
+    assert!(event2.unwrap().is_some());
+
+    let _ = fs::remove_file(trace_path);
+}
+
+#[test]
+fn test_replayer_returns_none_for_wrong_tick() {
+    let trace_path = "test_replayer_wrong_tick.artlog";
+    let _ = fs::remove_file(trace_path);
+
+    let src = r#"
+ let t = time_now()
+ "#;
+    let _interp = run_and_interpret_with_tracer(src, trace_path);
+
+    let mut replayer = interpreter::replayer::Replayer::new(trace_path).expect("replayer");
+
+    // Tick errado: time_now foi gravado no tick 1, pedimos no tick 99
+    let event = replayer.consume_intercept("time_now", 99);
+    assert!(event.is_ok());
+    assert!(event.unwrap().is_none(), "tick errado deve retornar None");
+
+    let _ = fs::remove_file(trace_path);
 }

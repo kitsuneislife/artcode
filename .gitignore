@@ -23,3 +23,5 @@ test_output.txt
 #kit
 /.kit
 *.pdf
+CLAUDE.mdtrace.artlog
+*.artlog

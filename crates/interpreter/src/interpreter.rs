@@ -100,6 +100,9 @@ pub struct Interpreter {
     // transient: currently finalizing arena id to attribute promotions
     pub current_finalizing_arena: Option<u32>,
     pub tracer: Option<crate::tracer::Tracer>,
+    pub replayer: Option<crate::replayer::Replayer>,
+    pub debug_mode: bool,
+    pub fast_forward_until: Option<usize>,
     pub invariant_checks: bool,
     finalizers: HashMap<u64, Rc<Function>>, // finalizers por objeto composto
     // Arena support
@@ -606,6 +609,9 @@ impl Interpreter {
             finalizer_promotions_per_arena: std::collections::HashMap::new(),
             current_finalizing_arena: None,
             tracer: None,
+            replayer: None,
+            debug_mode: false,
+            fast_forward_until: None,
             arena_alloc_count: std::collections::HashMap::new(),
             objects_finalized_per_arena: std::collections::HashMap::new(),
             invariant_checks: false,
@@ -1955,6 +1961,16 @@ impl Interpreter {
         Ok(())
     }
 
+    pub fn enable_replayer(&mut self, path: &str) -> std::io::Result<()> {
+        let replayer = crate::replayer::Replayer::new(path)?;
+        self.replayer = Some(replayer);
+        Ok(())
+    }
+
+    pub fn set_debug_mode(&mut self, d: bool) {
+        self.debug_mode = d;
+    }
+
     pub fn env_ref(&self) -> Rc<RefCell<Environment>> {
         self.environment.clone()
     }
@@ -2187,7 +2203,62 @@ impl Interpreter {
         }
     }
 
+    fn debug_prompt(&mut self, stmt: &core::ast::Stmt) -> Result<bool> {
+        use std::io::{self, Write};
+        loop {
+            println!("\n[Tick {}] {:?}", self.executed_statements, stmt);
+            print!("(art-debug) > ");
+            let _ = io::stdout().flush();
+            
+            let mut input = String::new();
+            if io::stdin().read_line(&mut input).is_err() { break; }
+            let input = input.trim();
+            
+            match input {
+                "" | "step" | "s" => return Ok(false),
+                "back" | "b" => return Ok(true),
+                "env" => {
+                    println!("Environment bindings:");
+                    for (k, _) in self.environment.borrow().values.iter() {
+                        println!(" - {}", k);
+                    }
+                }
+                "help" => {
+                    println!("Commands:");
+                    println!("  step (s)      - Avança 1 statement (Default)");
+                    println!("  back (b)      - Volta 1 statement no tempo via snapshotting rápido");
+                    println!("  inspect <var> - Avalia nome da variável no contexto local ou global");
+                    println!("  env           - Lista escopo");
+                    println!("  help          - Mostra essa ajuda");
+                }
+                other if other.starts_with("inspect ") => {
+                    let var = &other[8..];
+                    if let Some(val) = self.get_global(var) {
+                        println!("{} = {:?}", var, val);
+                    } else {
+                        println!("Variable '{}' not found.", var);
+                    }
+                }
+                _ => println!("Unknown command. Type 'help'."),
+            }
+        }
+        Ok(false)
+    }
+
     fn execute(&mut self, stmt: Stmt) -> Result<()> {
+        if self.debug_mode || self.fast_forward_until.is_some() {
+            let should_prompt = match self.fast_forward_until {
+                Some(target) => self.executed_statements >= target,
+                None => self.debug_mode,
+            };
+            if should_prompt {
+                self.fast_forward_until = None;
+                self.debug_mode = true;
+                if self.debug_prompt(&stmt)? {
+                    return Err(crate::values::RuntimeError::DebugStepBack);
+                }
+            }
+        }
         self.executed_statements += 1;
         match stmt {
             Stmt::Expression(expr) => {
@@ -2310,6 +2381,7 @@ impl Interpreter {
             } => match self.execute(*try_branch) {
                 Ok(()) => Ok(()),
                 Err(RuntimeError::Return(v)) => Err(RuntimeError::Return(v)),
+                Err(RuntimeError::DebugStepBack) => Err(RuntimeError::DebugStepBack),
                 Err(RuntimeError::TypeError(msg)) => {
                     let previous_env = self.environment.clone();
                     let catch_env =
@@ -3625,6 +3697,7 @@ impl Interpreter {
             Ok(()) => ArtValue::none(),
             Err(RuntimeError::Return(val)) => val,
             Err(e @ RuntimeError::TypeError(_)) => return Err(e),
+            Err(RuntimeError::DebugStepBack) => return Err(RuntimeError::DebugStepBack),
         };
         if let ArtValue::Function(f) = &return_val
             && f.retained_env.is_none()
@@ -4233,6 +4306,20 @@ impl Interpreter {
                 if !self.ensure_pure_allowed("time_now") {
                     return Ok(ArtValue::none());
                 }
+
+                // TTD Replay intercept: Se estamos re-reproduzindo uma fita de eventos,
+                // devemos retornar O MESMO valor gravado no instante real
+                if let Some(replayer) = &mut self.replayer {
+                    match replayer.consume_intercept("time_now", self.executed_statements) {
+                        Ok(Some(payload)) => return Ok(payload),
+                        Ok(None) => {}, // ignora, not unexpected match 
+                        Err(e) => {
+                            self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, e, Span::new(0,0,0,0)));
+                            return Ok(ArtValue::none());
+                        }
+                    }
+                }
+
                 let now = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
@@ -4367,6 +4454,18 @@ impl Interpreter {
                 if !self.ensure_pure_allowed("rand_next") {
                     return Ok(ArtValue::none());
                 }
+            // TTD Replay intercept: se estamos re-reproduzindo, usar valor gravado
+            if let Some(replayer) = &mut self.replayer {
+                match replayer.consume_intercept("rand_next", self.executed_statements) {
+                    Ok(Some(payload)) => return Ok(payload),
+                    Ok(None) => {},
+                    Err(e) => {
+                        self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, e, Span::new(0,0,0,0)));
+                        return Ok(ArtValue::none());
+                    }
+                }
+            }
+
                 // Simple LCG
                 self.rng_state = self
                     .rng_state
