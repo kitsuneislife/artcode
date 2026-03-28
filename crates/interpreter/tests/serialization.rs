@@ -35,7 +35,10 @@ fn test_serialize_primitives() {
     "#;
     let inter = run_and_interpret(code);
     assert_eq!(inter.debug_get_global("n2"), Some(ArtValue::Int(42)));
-    assert_eq!(inter.debug_get_global("s2"), Some(ArtValue::String("hello".into())));
+    assert_eq!(
+        inter.debug_get_global("s2"),
+        Some(ArtValue::String("hello".into()))
+    );
     assert_eq!(inter.debug_get_global("b2"), Some(ArtValue::Bool(true)));
 }
 
@@ -52,7 +55,7 @@ fn test_serialize_complex() {
         let o_map = deserialize(s_map)
     "#;
     let inter = run_and_interpret(code);
-    
+
     let arr_val_ref = inter.debug_get_global("o_arr").unwrap();
     let arr_val = inter.resolve_composite(&arr_val_ref).clone();
     if let ArtValue::Array(items) = arr_val {
@@ -81,6 +84,10 @@ fn test_serialize_opaque_types_fails() {
     let mut inter = run_and_interpret(code);
     let diags = inter.take_diagnostics();
     assert!(!diags.is_empty());
-    assert!(diags[0].message.contains("Cannot serialize type Capability"));
+    assert!(
+        diags[0]
+            .message
+            .contains("Cannot serialize type Capability")
+    );
     assert_eq!(inter.debug_get_global("result"), Some(ArtValue::none()));
 }

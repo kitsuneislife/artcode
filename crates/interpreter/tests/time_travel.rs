@@ -28,10 +28,16 @@ fn test_tracer_generates_artlog_on_nondeterministic_calls() {
 
     let _interp = run_and_interpret_with_tracer(src, trace_path);
 
-    assert!(std::path::Path::new(trace_path).exists(), "Tracer devera criar o log");
+    assert!(
+        std::path::Path::new(trace_path).exists(),
+        "Tracer devera criar o log"
+    );
 
     let content = fs::read(trace_path).expect("read trace");
-    assert!(content.starts_with(b"ARTLOG01"), "Deve ter o header ARTLOG01");
+    assert!(
+        content.starts_with(b"ARTLOG01"),
+        "Deve ter o header ARTLOG01"
+    );
 
     let _ = fs::remove_file(trace_path);
 }
@@ -50,7 +56,8 @@ fn test_replayer_reads_artlog_and_provides_events() {
     let t_val = interp.get_global("t").expect("t deve existir");
     let r_val = interp.get_global("r").expect("r deve existir");
 
-    let mut replayer = interpreter::replayer::Replayer::new(trace_path).expect("replayer deve abrir arquivo");
+    let mut replayer =
+        interpreter::replayer::Replayer::new(trace_path).expect("replayer deve abrir arquivo");
 
     // Primeiro evento: time_now no tick 1
     let event = replayer.consume_intercept("time_now", 1);
@@ -59,7 +66,10 @@ fn test_replayer_reads_artlog_and_provides_events() {
     assert!(payload.is_some(), "deve ter payload para time_now");
     if let core::ast::ArtValue::Int(recorded) = payload.unwrap() {
         if let core::ast::ArtValue::Int(original) = t_val {
-            assert_eq!(recorded, original, "valor gravado deve ser igual ao executado");
+            assert_eq!(
+                recorded, original,
+                "valor gravado deve ser igual ao executado"
+            );
         }
     } else {
         panic!("payload deveria ser Int");
@@ -99,7 +109,10 @@ fn test_tracer_writes_checkpoint_event() {
     assert!(tick <= 10);
     if let core::ast::ArtValue::Map(m) = payload {
         let map = m.0.lock().unwrap();
-        assert!(map.get("rng_state").is_some(), "checkpoint deve armazenar rng_state");
+        assert!(
+            map.get("rng_state").is_some(),
+            "checkpoint deve armazenar rng_state"
+        );
     } else {
         panic!("payload checkpoint deve ser Map");
     }
@@ -128,9 +141,13 @@ fn test_replayer_skips_checkpoint_event() {
     let _ = run_and_interpret_with_tracer(src, trace_path);
     let mut replayer = interpreter::replayer::Replayer::new(trace_path).expect("replayer");
 
-    let first = replayer.consume_intercept("time_now", 1).expect("should work");
+    let first = replayer
+        .consume_intercept("time_now", 1)
+        .expect("should work");
     assert!(first.is_some());
-    let second = replayer.consume_intercept("time_now", 2).expect("should work");
+    let second = replayer
+        .consume_intercept("time_now", 2)
+        .expect("should work");
     assert!(second.is_some());
 
     let _ = fs::remove_file(trace_path);

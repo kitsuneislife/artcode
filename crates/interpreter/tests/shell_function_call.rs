@@ -17,10 +17,21 @@ r
     assert!(diags.is_empty(), "parse diagnostics: {:?}", diags);
 
     let mut interp = Interpreter::with_prelude();
-    assert!(interp.interpret(program).is_ok(), "interpreter should not fail");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpreter should not fail"
+    );
 
-    match interp.last_value.clone().expect("call should produce value") {
-        ArtValue::EnumInstance { enum_name, variant, values } => {
+    match interp
+        .last_value
+        .clone()
+        .expect("call should produce value")
+    {
+        ArtValue::EnumInstance {
+            enum_name,
+            variant,
+            values,
+        } => {
             assert_eq!(enum_name, "Result");
             assert_eq!(variant, "Ok");
             assert_eq!(values.len(), 1);
@@ -47,10 +58,19 @@ r
     assert!(diags.is_empty(), "parse diagnostics: {:?}", diags);
 
     let mut interp = Interpreter::with_prelude();
-    assert!(interp.interpret(program).is_ok(), "interpreter should not fail");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpreter should not fail"
+    );
 
-    match interp.last_value.clone().expect("call should produce value") {
-        ArtValue::EnumInstance { variant, values, .. } => {
+    match interp
+        .last_value
+        .clone()
+        .expect("call should produce value")
+    {
+        ArtValue::EnumInstance {
+            variant, values, ..
+        } => {
             assert_eq!(variant, "Err");
             assert_eq!(values.len(), 1);
             match &values[0] {
@@ -74,10 +94,19 @@ fn unresolved_call_is_blocked_in_pure_mode() {
 
     let mut interp = Interpreter::with_prelude();
     interp.set_pure_mode(true);
-    assert!(interp.interpret(program).is_ok(), "interpreter should not fail");
+    assert!(
+        interp.interpret(program).is_ok(),
+        "interpreter should not fail"
+    );
 
-    match interp.last_value.clone().expect("call should produce value") {
-        ArtValue::EnumInstance { variant, values, .. } => {
+    match interp
+        .last_value
+        .clone()
+        .expect("call should produce value")
+    {
+        ArtValue::EnumInstance {
+            variant, values, ..
+        } => {
             assert_eq!(variant, "Err");
             assert_eq!(values.len(), 1);
             match &values[0] {

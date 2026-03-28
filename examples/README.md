@@ -52,7 +52,7 @@ Current examples (ordered):
 - `43_ipc_serialization.art` — Serialização binária (`serialize`, `deserialize`, `buffer_new`) e restrições para tipos opacos
 - `44_ttd_keyframes.art` — Time-travel com keyframes/checkpoints (`--record`/`--replay`)
 - `45_release_changelog.art` — Highlights de release e estrutura semântica de changelog
-- `46_perf_compare_workflow.art` — Rotina de comparação warmup vs PGO com geração de `perf.md`
+- `46_perf_compare_workflow.art` — Rotina de comparação warmup vs PGO com geração de `artifacts/perf.md`
 
 Module/package examples live in `examples/modules/<name>/` and should include `Art.toml` and a `main.art` entrypoint.
 

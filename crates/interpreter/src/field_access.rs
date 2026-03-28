@@ -29,7 +29,11 @@ pub fn struct_field_or_method(
             Some(e) => e,
             None => Rc::new(RefCell::new(Environment::new(None, 0, None))),
         };
-        let bound_env = Rc::new(RefCell::new(Environment::new(Some(base_env.clone()), base_env.borrow().depth + 1, None)));
+        let bound_env = Rc::new(RefCell::new(Environment::new(
+            Some(base_env.clone()),
+            base_env.borrow().depth + 1,
+            None,
+        )));
         bound_env.borrow_mut().define(
             "self",
             ArtValue::StructInstance {
@@ -108,7 +112,11 @@ pub fn enum_method(
             let b = base_env.borrow();
             (b.depth, b.associated_arena)
         };
-        let bound_env = Rc::new(RefCell::new(Environment::new(Some(base_env), base_depth + 1, base_arena)));
+        let bound_env = Rc::new(RefCell::new(Environment::new(
+            Some(base_env),
+            base_depth + 1,
+            base_arena,
+        )));
         bound_env.borrow_mut().define(
             "self",
             ArtValue::EnumInstance {

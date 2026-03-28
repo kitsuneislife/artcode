@@ -37,24 +37,86 @@
 
             <section class="glass" style="padding: 24px; margin-bottom: 24px;">
                 <h2 style="margin-bottom: 10px;">v0.2.0</h2>
-                <p style="margin-bottom: 12px;">Entrega focada em robustez de runtime, IPC e time-travel.</p>
-                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1);">
-                    <li>Capabilities move-only com validacao de reuse.</li>
-                    <li>Serializacao binaria para IPC com restricoes de tipos opacos.</li>
-                    <li>FFI call-gate seguro com handles opacos e syscall unsafe controlada.</li>
-                    <li>Time-travel com checkpoints/keyframes para replay deterministico.</li>
-                    <li>Comparacao automatica de performance (warmup vs PGO) com geracao de <code>perf.md</code>.</li>
+                <p style="margin-bottom: 12px;">Versão consolidada com runtime multicamada, segurança de memória e infraestrutura de perfil.</p>
+
+                <h3>1. Concorrência / Atores (RPC local)</h3>
+                <p style="margin: 0 0 12px;">O core do modelo de atores foi estabilizado com semântica clara para envio e recebimento de mensagens.</p>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li><code>spawn</code> cria ator isolado e retorna handle seguro.</li>
+                    <li><code>actor_send(actor, payload)</code>: não-bloqueante, retorna <code>true</code>/<code>false</code> por limite de mailbox.</li>
+                    <li><code>actor_receive()</code> e <code>actor_receive_envelope()</code>: padrões de consumo sem polling ativo.</li>
+                    <li>Agendamento cooperativo round-robin com yield implícito entre atores.</li>
+                    <li>Resiliência ativada: backpressure + diagnóstico de limit/overflow.</li>
+                </ul>
+
+                <h3>2. Performant & Arenas</h3>
+                <p style="margin: 0 0 12px;">Consumo controlado de memória para workloads intensivos.</p>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li><code>performant { ... }</code> ativa a arena temporária de curta duração.</li>
+                    <li><code>arena_new(size)</code>, <code>arena_with(size, fn)</code> e <code>arena_release</code> expõem ciclo de vida.</li>
+                    <li>Escape analysis identifica atribuições que violam arena scope (retorno, var externa, store global).</li>
+                    <li>Finalizers de arena promovem objetos para heap quando necessário, com métricas de <code>finalizer_promotions_per_arena</code>.</li>
+                </ul>
+
+                <h3>3. IPC + Serialização</h3>
+                <p style="margin: 0 0 12px;">Transmissão binária entre processos com tipos opacos e checagens contra corrupção.</p>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li>Schema de mensagem binária para IPC (payload + meta) em <code>idl_schema</code>.</li>
+                    <li>Capability tokens move-only: evita reuso indevido e uso após free.</li>
+                    <li>Extensão de mailbox para <code>actor_set_mailbox_limit</code> e retorno de status sem crash.</li>
+                </ul>
+
+                <h3>4. FFI seguro</h3>
+                <p style="margin: 0 0 12px;">Gateway exposto para C/Rust/WASM, com clareza de ownership.</p>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li><code>art_handle_create_i64</code>, <code>art_handle_retain</code>, <code>art_handle_release</code>.</li>
+                    <li><code>art_handle_string_to_cstr</code> + cache/release para strings sem leaks.</li>
+                    <li><code>art_syscall_unsafe</code> continua existindo mas com doc explicando restrições de sandbox e safety.</li>
+                </ul>
+
+                <h3>5. Time-Travel + PGO</h3>
+                <p style="margin: 0 0 12px;">Depuração determinística + fluxo de build otimizado.</p>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li><code>art run --record</code> captura checkpoints/keyframes.</li>
+                    <li><code>art run --replay</code> reproduz exatamente o estado, útil para regressão e tuning.</li>
+                    <li><code>art run --gen-profile</code> gera dados PGO; <code>art build --release --use-profile</code> aplica otimizações.</li>
+                    <li>Pipeline de comparação warmup vs PGO documentada em <code>artifacts/perf.md</code>.</li>
+                </ul>
+
+                <h3>6. Atualizações de documentação e qualidade</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 0;">
+                        <li>Todos exemplos sincronizados em <code>website/examples.html</code> (49 casos principais, com variantes de histórico no repositório).</li>
+                    <li>Checklist v0.2.0 alinhada e marcada como concluída, incluindo testes <code>cargo test --all</code>.</li>
+                        <li>Correções de robustez: <code>actor_http_runtime</code> e escapes de <code>performant</code> que causavam panics resolvidos.</li>
                 </ul>
             </section>
 
             <section class="glass" style="padding: 24px; margin-bottom: 24px;">
+                <h2 style="margin-bottom: 10px;">Checklist rápida de validação</h2>
+                <p style="margin-bottom: 12px;">Antes de publicar uma release, valide localmente estes comandos para manter o changelog confiável.</p>
+                <div class="code-block" style="max-width:100%">
+                    <div class="code-block__header">
+                        <span class="code-block__dot code-block__dot--red"></span>
+                        <span class="code-block__dot code-block__dot--yellow"></span>
+                        <span class="code-block__dot code-block__dot--green"></span>
+                        <span class="code-block__title">release-check</span>
+                    </div>
+                    <pre>cargo test --all
+bash scripts/devcheck.sh
+bash scripts/perf_compare.sh
+art run --record examples/44_ttd_keyframes.artlog examples/44_ttd_keyframes.art</pre>
+                </div>
+            </section>
+
+            <section class="glass" style="padding: 24px; margin-bottom: 24px;">
                 <h2 style="margin-bottom: 10px;">v0.1.x</h2>
-                <p style="margin-bottom: 12px;">Base da linguagem e ergonomia de desenvolvimento.</p>
+                <p style="margin-bottom: 12px;">Fundação da linguagem com sintaxe, semântica e tooling básico.</p>
                 <ul style="list-style: disc; padding-left: 20px; color: var(--text-1);">
                     <li>Structs, enums, pattern matching com guards.</li>
-                    <li>Loops nativos, tuplas e tratamento de erro explicito.</li>
-                    <li>LSP com autocomplete, goto-definition e rename multi-arquivo.</li>
-                    <li>Sintaxe shell e stream pipelines.</li>
+                    <li>Loops nativos, tuplas e tratamento de erro explícito com Result e Option.</li>
+                    <li>LSP base: autocomplete, goto-definition e rename multi-arquivo.</li>
+                    <li>Sintaxe shell e stream pipelines integrados.</li>
+                    <li>Prelúdio e stdlib iniciais: println, len, type_of, map/set, math e IO sandboxed.</li>
                 </ul>
             </section>
 

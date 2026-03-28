@@ -31,7 +31,7 @@ fi
 total_current=0
 
 echo "Running benchmarks..."
-for bench in benches/*.art; do
+for bench in bench/cases/*.art; do
     bench_name=$(basename "$bench")
     echo "  Running $bench_name..."
     

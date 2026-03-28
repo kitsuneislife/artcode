@@ -64,9 +64,9 @@ fn idl_validate_checks_runtime_field_types() {
 
     let diags = interp.take_diagnostics();
     assert!(
-        diags
-            .iter()
-            .any(|d| d.message.contains("idl_validate: field 'retries' expected 'Int'")),
+        diags.iter().any(|d| d
+            .message
+            .contains("idl_validate: field 'retries' expected 'Int'")),
         "expected type mismatch diagnostic, got {:?}",
         diags.iter().map(|d| d.message.clone()).collect::<Vec<_>>()
     );

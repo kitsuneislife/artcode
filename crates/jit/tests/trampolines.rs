@@ -3,15 +3,21 @@ use jit::{call_jit_fn, Sig};
 // helper: get function pointer as usize for a known function type
 
 extern "C" fn zero(out: *mut i64) -> i64 {
-    unsafe { *out = 42; }
+    unsafe {
+        *out = 42;
+    }
     0
 }
 extern "C" fn one(out: *mut i64, x: i64) -> i64 {
-    unsafe { *out = x + 1; }
+    unsafe {
+        *out = x + 1;
+    }
     0
 }
 extern "C" fn two(out: *mut i64, a: i64, b: i64) -> i64 {
-    unsafe { *out = a + b; }
+    unsafe {
+        *out = a + b;
+    }
     0
 }
 

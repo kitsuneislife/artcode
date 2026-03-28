@@ -4,7 +4,7 @@ use interpreter::interpreter::Interpreter;
 use interpreter::type_infer::{TypeEnv, TypeInfer};
 use lexer::lexer::Lexer;
 use parser::parser::Parser;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json;
 use toml::Value as TomlValue;
 mod aot;
@@ -15,7 +15,7 @@ mod lsp;
 mod std_doc;
 use std::env;
 use std::fs;
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::process;
 
 fn run_with_source(
@@ -419,9 +419,12 @@ fn run_aot(path: &str, out: Option<&str>, wasm: bool) {
                 }
                 return;
             }
-            
+
             let mut found: Vec<&core::ast::Stmt> = Vec::new();
-            fn collect_functions<'a>(stmt: &'a core::ast::Stmt, out: &mut Vec<&'a core::ast::Stmt>) {
+            fn collect_functions<'a>(
+                stmt: &'a core::ast::Stmt,
+                out: &mut Vec<&'a core::ast::Stmt>,
+            ) {
                 match stmt {
                     core::ast::Stmt::Function { body, .. } => {
                         out.push(stmt);
@@ -438,13 +441,15 @@ fn run_aot(path: &str, out: Option<&str>, wasm: bool) {
             for s in &program {
                 collect_functions(s, &mut found);
             }
-            
+
             let mut funcs = Vec::new();
             for fs in found {
                 if let Some(irfn) = ir::lower_stmt(fs) {
                     funcs.push(irfn);
                 } else {
-                    eprintln!("Aviso: A função não suporta Pure Lowering MVP e foi ignorada no AOT.");
+                    eprintln!(
+                        "Aviso: A função não suporta Pure Lowering MVP e foi ignorada no AOT."
+                    );
                 }
             }
 
@@ -454,8 +459,8 @@ fn run_aot(path: &str, out: Option<&str>, wasm: bool) {
             }
 
             let c_code = ir::c_emitter::emit_c_program(&funcs, "main");
-            
-            use sha2::{Sha256, Digest};
+
+            use sha2::{Digest, Sha256};
             let mut hasher = Sha256::new();
             hasher.update(c_code.as_bytes());
             let hash_hex = hex::encode(hasher.finalize());
@@ -463,10 +468,10 @@ fn run_aot(path: &str, out: Option<&str>, wasm: bool) {
             let temp_dir = std::env::temp_dir().join(".artcache");
             let _ = fs::create_dir_all(&temp_dir);
             let c_path = temp_dir.join(format!("art_aot_{}.c", hash_hex));
-            
+
             let compiler = if wasm { "emcc" } else { "gcc" };
             let out_bin = out.unwrap_or(if wasm { "a.out.html" } else { "a.out" });
-            
+
             let final_bin_in_cache = temp_dir.join(format!("{}_{}.bin", compiler, hash_hex));
 
             if final_bin_in_cache.exists() {
@@ -475,7 +480,10 @@ fn run_aot(path: &str, out: Option<&str>, wasm: bool) {
                     eprintln!("[AOT] Falha ao mover objeto do cache: {}", e);
                     process::exit(1);
                 }
-                eprintln!("[AOT] Compilação finalizada (Instantânea) para: {}", out_bin);
+                eprintln!(
+                    "[AOT] Compilação finalizada (Instantânea) para: {}",
+                    out_bin
+                );
                 return;
             }
 
@@ -484,7 +492,10 @@ fn run_aot(path: &str, out: Option<&str>, wasm: bool) {
                 process::exit(1);
             }
 
-            eprintln!("[AOT] Acionando transpiler backend ({}) com O3 otimizations...", compiler);
+            eprintln!(
+                "[AOT] Acionando transpiler backend ({}) com O3 otimizations...",
+                compiler
+            );
             let status = std::process::Command::new(compiler)
                 .arg("-O3")
                 .arg(&c_path)
@@ -495,13 +506,18 @@ fn run_aot(path: &str, out: Option<&str>, wasm: bool) {
             match status {
                 Ok(s) => {
                     if s.success() {
-                        eprintln!("[AOT] Compilação finalizada! Nativo e otimizado exportado para: {}", out_bin);
+                        eprintln!(
+                            "[AOT] Compilação finalizada! Nativo e otimizado exportado para: {}",
+                            out_bin
+                        );
                         if let Err(e) = fs::copy(out_bin, &final_bin_in_cache) {
                             eprintln!("[AOT/Cache] Aviso: Não foi possível injetar o binário no cache: {}", e);
                         }
                     } else {
                         eprintln!("[AOT] Ocorreu um erro ao compilar com {}", compiler);
-                        eprintln!("[AOT] Dica: Verifique se você possui gcc/clang (ou emcc) no PATH.");
+                        eprintln!(
+                            "[AOT] Dica: Verifique se você possui gcc/clang (ou emcc) no PATH."
+                        );
                         process::exit(1);
                     }
                 }
@@ -510,7 +526,7 @@ fn run_aot(path: &str, out: Option<&str>, wasm: bool) {
                     process::exit(1);
                 }
             }
-            
+
             let _ = fs::remove_file(&c_path);
         }
         Err(diags) => {
@@ -537,19 +553,25 @@ fn run_prompt(emit_ir: Option<&str>, pure_mode: bool) {
 fn run_debug_repl(script_path: &str, replay_path: &str) {
     let source = match fs::read_to_string(script_path) {
         Ok(s) => s,
-        Err(e) => { eprintln!("Erro ao carregar script base: {}", e); return; }
+        Err(e) => {
+            eprintln!("Erro ao carregar script base: {}", e);
+            return;
+        }
     };
-    
+
     let mut target_tick = 0;
     println!(">>> ARTCODE TIME-TRAVEL DEBUGGER <<<");
-    println!("Type 'help' for commands. File loaded: {} (Trace: {})", script_path, replay_path);
+    println!(
+        "Type 'help' for commands. File loaded: {} (Trace: {})",
+        script_path, replay_path
+    );
 
     loop {
         let mut lexer = Lexer::new(source.clone());
         let tokens = lexer.scan_tokens().unwrap();
         let mut parser = Parser::new(tokens);
         let (program, _) = parser.parse();
-        
+
         let mut interpreter = Interpreter::with_prelude();
         if let Err(e) = interpreter.enable_replayer(replay_path) {
             eprintln!("Falha grave ao criar motor de replay: {}", e);
@@ -690,6 +712,181 @@ fn run_upgrade(args: &[String]) {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct UpdateCheckCache {
+    checked_at: u64,
+    latest_tag: String,
+}
+
+fn update_cache_path() -> Option<std::path::PathBuf> {
+    dirs::home_dir().map(|h| h.join(".artcode").join("update_check.json"))
+}
+
+fn parse_semver3(v: &str) -> Option<(u64, u64, u64)> {
+    let core = v.trim().trim_start_matches('v').split('-').next()?;
+    let mut it = core.split('.');
+    let major = it.next()?.parse::<u64>().ok()?;
+    let minor = it.next()?.parse::<u64>().ok()?;
+    let patch = it.next().unwrap_or("0").parse::<u64>().ok()?;
+    Some((major, minor, patch))
+}
+
+fn is_newer_version(latest: &str, current: &str) -> bool {
+    match (parse_semver3(latest), parse_semver3(current)) {
+        (Some(l), Some(c)) => l > c,
+        _ => false,
+    }
+}
+
+fn fetch_latest_release_tag() -> Option<String> {
+    let output = process::Command::new("curl")
+        .arg("-fsSL")
+        .arg("-H")
+        .arg("User-Agent: art-cli")
+        .arg("https://api.github.com/repos/kitsuneislife/artcode/releases/latest")
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8(output.stdout).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
+    v.get("tag_name")
+        .and_then(|s| s.as_str())
+        .map(|s| s.to_string())
+}
+
+fn load_cached_tag(max_age_secs: u64) -> Option<String> {
+    let p = update_cache_path()?;
+    let s = std::fs::read_to_string(p).ok()?;
+    let cache: UpdateCheckCache = serde_json::from_str(&s).ok()?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_secs();
+    if now.saturating_sub(cache.checked_at) <= max_age_secs {
+        Some(cache.latest_tag)
+    } else {
+        None
+    }
+}
+
+fn save_cached_tag(tag: &str) {
+    let Some(path) = update_cache_path() else {
+        return;
+    };
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let now = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+        Ok(d) => d.as_secs(),
+        Err(_) => 0,
+    };
+    let cache = UpdateCheckCache {
+        checked_at: now,
+        latest_tag: tag.to_string(),
+    };
+    if let Ok(json) = serde_json::to_string(&cache) {
+        let _ = std::fs::write(path, json);
+    }
+}
+
+fn latest_tag_with_cache(force_refresh: bool) -> Option<String> {
+    if !force_refresh {
+        if let Some(tag) = load_cached_tag(24 * 60 * 60) {
+            return Some(tag);
+        }
+    }
+    let tag = fetch_latest_release_tag()?;
+    save_cached_tag(&tag);
+    Some(tag)
+}
+
+fn run_update(args: &[String]) {
+    let mut check_only = true;
+    let mut self_update = false;
+    for a in &args[2..] {
+        match a.as_str() {
+            "--check" => check_only = true,
+            "--self" => {
+                self_update = true;
+                check_only = false;
+            }
+            _ => {
+                eprintln!("Usage: art update [--check|--self]");
+                process::exit(64);
+            }
+        }
+    }
+
+    let current = env!("CARGO_PKG_VERSION");
+    let latest = latest_tag_with_cache(true);
+    let Some(latest_tag) = latest else {
+        eprintln!("Could not check updates now (network/curl unavailable).");
+        process::exit(69);
+    };
+
+    if check_only {
+        println!("current={} latest={}", current, latest_tag);
+        if is_newer_version(&latest_tag, current) {
+            println!("Update available. Run: curl -fsSL https://raw.githubusercontent.com/kitsuneislife/artcode/main/install.sh | bash");
+        } else {
+            println!("You are on the latest version.");
+        }
+        return;
+    }
+
+    if self_update {
+        if !is_newer_version(&latest_tag, current) {
+            println!(
+                "Already up to date (current={} latest={}).",
+                current, latest_tag
+            );
+            return;
+        }
+        let status = process::Command::new("sh")
+            .arg("-c")
+            .arg("curl -fsSL https://raw.githubusercontent.com/kitsuneislife/artcode/main/install.sh | bash")
+            .status();
+        match status {
+            Ok(s) if s.success() => println!(
+                "Updated successfully to latest release candidate {}.",
+                latest_tag
+            ),
+            Ok(s) => {
+                eprintln!("Self-update failed with status: {}", s);
+                process::exit(70);
+            }
+            Err(e) => {
+                eprintln!("Failed to start self-update: {}", e);
+                process::exit(70);
+            }
+        }
+    }
+}
+
+fn maybe_warn_new_release(args: &[String]) {
+    if std::env::var("ART_DISABLE_UPDATE_CHECK").ok().as_deref() == Some("1") {
+        return;
+    }
+    if !std::io::stderr().is_terminal() {
+        return;
+    }
+    if args.get(1).map(|s| s.as_str()) == Some("update") {
+        return;
+    }
+
+    let current = env!("CARGO_PKG_VERSION");
+    if let Some(latest) = latest_tag_with_cache(false) {
+        if is_newer_version(&latest, current) {
+            eprintln!(
+                "[update] New release available: {} (current {}). Run `art update --check`.",
+                latest, current
+            );
+        }
+    }
+}
+
 fn main() {
     // Capture process start time immediately for --startup-bench measurements.
     let process_start = std::time::Instant::now();
@@ -732,6 +929,8 @@ fn main() {
         );
     }
 
+    maybe_warn_new_release(&args);
+
     if args.len() == 1 {
         return run_prompt(emit_ir.as_deref(), false);
     }
@@ -744,7 +943,7 @@ fn main() {
         let mut file: Option<String> = None;
         let mut out: Option<String> = None;
         let mut wasm = false;
-        
+
         let mut j = 2usize;
         while j < args.len() {
             let a = &args[j];
@@ -772,6 +971,11 @@ fn main() {
 
     if args[1] == "upgrade" {
         run_upgrade(&args);
+        return;
+    }
+
+    if args[1] == "update" {
+        run_update(&args);
         return;
     }
 
@@ -821,9 +1025,10 @@ fn main() {
                             p.with_file_name("aot_artifact.json")
                         }
                     };
-                    if let Err(e) =
-                        aot::write_minimal_aot_artifact(std::path::Path::new(&out_path), art_path.as_path())
-                    {
+                    if let Err(e) = aot::write_minimal_aot_artifact(
+                        std::path::Path::new(&out_path),
+                        art_path.as_path(),
+                    ) {
                         eprintln!("failed to write aot artifact: {}", e);
                     } else {
                         println!("wrote AOT artifact to {}", art_path.display());
@@ -840,11 +1045,11 @@ fn main() {
             process::exit(64);
         }
     }
-    
+
     if args[1] == "debug" {
         let mut replay_file: Option<String> = None;
         let mut script_file: Option<String> = None;
-        
+
         let mut j = 2usize;
         while j < args.len() {
             let a = &args[j];
@@ -863,7 +1068,7 @@ fn main() {
             eprintln!("Usage: art debug --replay <trace.artlog> <script>");
             process::exit(64);
         };
-        
+
         return run_debug_repl(&script, &replay);
     }
 
@@ -892,7 +1097,13 @@ fn main() {
             eprintln!("Usage: art run [--pure] [--record <file>] <script>");
             process::exit(64);
         };
-        run_file(&file, gen_profile.as_deref(), emit_ir.as_deref(), pure_mode, record_file.as_deref());
+        run_file(
+            &file,
+            gen_profile.as_deref(),
+            emit_ir.as_deref(),
+            pure_mode,
+            record_file.as_deref(),
+        );
         if startup_bench {
             let elapsed = process_start.elapsed();
             eprintln!(
@@ -1443,6 +1654,6 @@ fn main() {
         lsp::start_server();
         return;
     }
-    println!("Usage: art [run|detect-cycles|fmt|lint|doc|upgrade|lsp] [--json] <script>");
+    println!("Usage: art [run|detect-cycles|fmt|lint|doc|upgrade|update|lsp] [--json] <script>");
     process::exit(64);
 }

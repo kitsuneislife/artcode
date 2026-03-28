@@ -1,6 +1,6 @@
 use core::ast::ArtValue;
-use interpreter::type_infer::{TypeEnv, TypeInfer};
 use interpreter::Interpreter;
+use interpreter::type_infer::{TypeEnv, TypeInfer};
 use lexer::Lexer;
 use parser::Parser;
 
@@ -34,10 +34,12 @@ fn run_and_interpret(src: &str) -> Interpreter {
 
 #[test]
 fn capability_kind_returns_correct_string() {
-    let mut interp = run_and_interpret(r#"
+    let mut interp = run_and_interpret(
+        r#"
         let cap = capability_acquire("NetBind")
         let k = capability_kind(cap)
-    "#);
+    "#,
+    );
 
     let k_val = interp.debug_get_global("k").expect("k global");
     assert_eq!(
@@ -56,9 +58,11 @@ fn capability_kind_returns_correct_string() {
 
 #[test]
 fn capability_acquire_produces_capability_value() {
-    let mut interp = run_and_interpret(r#"
+    let mut interp = run_and_interpret(
+        r#"
         let cap = capability_acquire("FileSystem")
-    "#);
+    "#,
+    );
 
     let cap_val = interp.debug_get_global("cap").expect("cap global");
     assert!(
@@ -71,10 +75,12 @@ fn capability_acquire_produces_capability_value() {
 
 #[test]
 fn capability_type_of_returns_capability_string() {
-    let interp = run_and_interpret(r#"
+    let interp = run_and_interpret(
+        r#"
         let cap = capability_acquire("FileSystem")
         let t = type_of(cap)
-    "#);
+    "#,
+    );
 
     let t_val = interp.debug_get_global("t").expect("t global");
     assert_eq!(
@@ -86,10 +92,12 @@ fn capability_type_of_returns_capability_string() {
 
 #[test]
 fn capability_arbitrary_kind() {
-    let interp = run_and_interpret(r#"
+    let interp = run_and_interpret(
+        r#"
         let cap = capability_acquire("CustomCap")
         let k = capability_kind(cap)
-    "#);
+    "#,
+    );
 
     assert_eq!(
         interp.debug_get_global("k"),
@@ -105,11 +113,13 @@ fn capability_arbitrary_kind() {
 fn capability_double_use_emits_moved_diagnostic() {
     // Após ser consumida (let cap2 = cap), cap fica como MovedCapability.
     // A segunda leitura (let cap3 = cap) deve emitir diagnóstico de runtime.
-    let mut interp = run_and_interpret(r#"
+    let mut interp = run_and_interpret(
+        r#"
         let cap = capability_acquire("NetBind")
         let cap2 = cap
         let cap3 = cap
-    "#);
+    "#,
+    );
 
     let diags = interp.take_diagnostics();
     assert!(
@@ -123,14 +133,16 @@ fn capability_double_use_emits_moved_diagnostic() {
 
 #[test]
 fn capability_consumed_in_function_arg_becomes_moved() {
-    let mut interp = run_and_interpret(r#"
+    let mut interp = run_and_interpret(
+        r#"
         func consume(cap) {
             let _k = capability_kind(cap)
         }
         let c = capability_acquire("NetBind")
         consume(c)
         let k2 = capability_kind(c)
-    "#);
+    "#,
+    );
 
     let diags = interp.take_diagnostics();
     assert!(
@@ -148,12 +160,14 @@ fn capability_consumed_in_function_arg_becomes_moved() {
 
 #[test]
 fn multiple_capabilities_are_independent() {
-    let mut interp = run_and_interpret(r#"
+    let mut interp = run_and_interpret(
+        r#"
         let net = capability_acquire("NetBind")
         let fs  = capability_acquire("FileSystem")
         let kn = capability_kind(net)
         let kf = capability_kind(fs)
-    "#);
+    "#,
+    );
 
     assert_eq!(
         interp.debug_get_global("kn"),

@@ -7,7 +7,7 @@
 	<a href="https://github.com/kitsuneislife/artcode"><img alt="stars - artcode" src="https://img.shields.io/github/stars/kitsuneislife/artcode?style=social" /></a>
 </p>
 
-Implementação experimental de uma linguagem interpretada em Rust com suporte a:
+Implementação experimental de uma linguagem interpretada em Rust com suporte a (versão 0.2.0 - lançamento 2026-03-18):
 
 - Structs
 - Enums (variantes com payload) + shorthand `.Variant` com detecção de ambiguidade
@@ -88,6 +88,25 @@ Isso baixa o binário da [última release](https://github.com/kitsuneislife/artc
 
 **Windows:** baixe o `.exe` direto na [página de releases](https://github.com/kitsuneislife/artcode/releases).
 
+### Atualizando para a versão mais recente
+
+```bash
+# de um clone já existente
+cd /caminho/para/artcode
+git pull --rebase origin main
+cargo test --all
+cargo build -p cli --release
+sudo cp target/release/art /usr/local/bin/
+
+# ou via script (mais simples)
+curl -fsSL https://raw.githubusercontent.com/kitsuneislife/artcode/main/install.sh | bash
+
+# confirme versão
+art --version
+```
+
+Dica: sempre rode `cargo test --all` antes de substituir o binário em produção para evitar regressões.
+
 ### Compilar a partir do fonte
 
 Prerequisitos: Rust stable toolchain (`curl https://sh.rustup.rs -sSf | sh`).
@@ -117,6 +136,12 @@ art doc std
 
 # Checagem de migração entre versões
 art upgrade --check examples/31_upgrade_migration.art
+
+# Checar se existe release nova
+art update --check
+
+# Atualizar via script oficial (self-update assistido)
+art update --self
 
 # Lint com heurística de hotspot de alocação em loops
 art lint examples/23_linter_tests.art
@@ -155,7 +180,7 @@ art run --record examples/44_ttd_keyframes.artlog examples/44_ttd_keyframes.art
 # Exemplo de highlights de release/changelog
 art run examples/45_release_changelog.art
 
-# Comparacao automatica warmup vs PGO com geracao de perf.md
+# Comparacao automatica warmup vs PGO com geracao de artifacts/perf.md
 bash scripts/perf_compare.sh
 
 # Pipeline de expressoes
@@ -171,6 +196,8 @@ art lsp
 # Build e testes (desenvolvimento)
 cargo test --all
 ```
+
+Nota: o CLI pode avisar sobre novas releases em terminal interativo. Para desativar esse aviso, use a variavel ART_DISABLE_UPDATE_CHECK=1.
 
 
 Design e diferenciais (curto)

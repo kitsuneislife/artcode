@@ -239,7 +239,10 @@ pub enum ArtValue {
     Map(MapRef),
     Set(SetRef),
     Buffer(Arc<[u8]>),
-    Capability { kind: Arc<str>, id: u64 },
+    Capability {
+        kind: Arc<str>,
+        id: u64,
+    },
     MovedCapability,
 }
 
@@ -265,21 +268,21 @@ pub enum BuiltinFn {
     ActorSetMailboxLimit, // actor_set_mailbox_limit(actor, limit)
     RunActors,            // run_actors([max_steps]) -> drive scheduler until idle or max_steps
     // Concurrency primitives (prototype): Mutex and AtomicInt
-    AtomicNew,   // atomic_new(initial:Int)
-    AtomicLoad,  // atomic_load(atomic)
-    AtomicStore, // atomic_store(atomic, value:Int)
-    AtomicAdd,   // atomic_add(atomic, delta:Int) -> returns new value
-    MutexNew,    // mutex_new(value)
-    MutexLock,   // mutex_lock(mutex) -> Bool
-    MutexUnlock, // mutex_unlock(mutex) -> Bool
-    ArenaNew,    // arena_new() -> Int (arena id)
-    ArenaRelease, // arena_release(arena_id:Int) -> Bool
-    ArenaWith,   // arena_with(arena_id:Int, callback: Fn0) -> Any
-    IdlSchema,   // idl_schema(struct_name:String) -> Map<String, String>
-    IdlValidate, // idl_validate(value:Any, struct_name:String) -> Bool
-    BufferNew,   // buffer_new(size:Int) -> Buffer
-    Serialize,   // serialize(value:Any) -> Buffer
-    Deserialize, // deserialize(buffer:Buffer) -> Any
+    AtomicNew,         // atomic_new(initial:Int)
+    AtomicLoad,        // atomic_load(atomic)
+    AtomicStore,       // atomic_store(atomic, value:Int)
+    AtomicAdd,         // atomic_add(atomic, delta:Int) -> returns new value
+    MutexNew,          // mutex_new(value)
+    MutexLock,         // mutex_lock(mutex) -> Bool
+    MutexUnlock,       // mutex_unlock(mutex) -> Bool
+    ArenaNew,          // arena_new() -> Int (arena id)
+    ArenaRelease,      // arena_release(arena_id:Int) -> Bool
+    ArenaWith,         // arena_with(arena_id:Int, callback: Fn0) -> Any
+    IdlSchema,         // idl_schema(struct_name:String) -> Map<String, String>
+    IdlValidate,       // idl_validate(value:Any, struct_name:String) -> Bool
+    BufferNew,         // buffer_new(size:Int) -> Buffer
+    Serialize,         // serialize(value:Any) -> Buffer
+    Deserialize,       // deserialize(buffer:Buffer) -> Any
     CapabilityAcquire, // capability_acquire(kind:String) -> Capability[kind]
     CapabilityKind,    // capability_kind(capability) -> String
     // Fase 15 Stdlib

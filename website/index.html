@@ -121,17 +121,22 @@
         </div>
         <div class="hero__content container">
             <!--div class="hero__badge">
-                <span class="dot"></span> v0.1.0 — Release Oficial
+                <span class="dot"></span> v0.2.0 — Release Oficial
             </div-->
             <h1>Comece simples.<br><span class="gradient-text">Escale sem limites.</span></h1>
             <p class="subtitle" style="color: #ddd">Artcode é a linguagem que não te força a escolher entre
                 produtividade e performance.
                 Complexidade Progressiva: você sobe a escada quando precisar.</p>
             <div class="hero__actions">
-                <a href="https://github.com/kitsuneislife/artcode" class="btn btn--primary" target="_blank">⚡ Começar
+                <a href="#quickstart" class="btn btn--primary">⚡ Começar
                     Agora</a>
                 <a href="why.html" class="btn btn--ghost" style="background: #00000088;">Entenda o porquê →</a>
             </div>
+
+            <!--div class="hero__install" id="install-cmd" style="margin-top: 14px; padding: 8px; border-radius: 9px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); display: flex; align-items: center; gap: 8px; max-width: 760px;">
+                <code class="hero__install-code" style="flex: 1; background: transparent; padding: 4px 8px; border-radius: 6px; font-size: 0.86rem; color: #f1f3f5; overflow-x: auto; white-space: nowrap;">curl -fsSL https://raw.githubusercontent.com/kitsuneislife/artcode/main/install.sh | bash</code>
+                <button class="hero__install-copy" onclick="copyInstall()" style="font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 6px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.24); background: transparent; color: #f1f3f5; cursor: pointer;">Copy</button>
+            </div-->
 
             <!--div class="hero__install" id="install-cmd">
                 <span class="hero__install-label">Linux / macOS</span>
@@ -213,12 +218,10 @@
                 <div class="feature-card fade-in">
                     <div class="feature-card__icon">🔧</div>
                     <h3>Ferramentas Integradas</h3>
-                    <p>CLI unificada: <code>art run</code>, <code>art fmt</code>, <code>art lint</code>,
-                        <code>art lsp</code>. Language Server Protocol com diagnósticos, autocomplete,
-                        goto-definition/rename multi-arquivo com indexação recursiva de imports e semantic tokens na sua IDE.
-                        O lint também valida semântica de memória para <code>weak</code>/<code>unowned</code> e operadores postfix.
-                        A linguagem já inclui sintaxe shell com <code>$ comando args...</code>, pipeline <code>|></code>, retorno tipado em <code>shell_result</code>, chamada estilo função para executáveis no PATH, APIs de arena reutilizável (<code>arena_new/arena_with/arena_release</code>), IDL de IPC via structs (<code>idl_schema/idl_validate</code>), pipeline de expressões com <code>valor |> fn(...)</code> e streams lazy com <code>stream/map/filter/collect</code>.
-                    </p>
+                    <p>CLI unificada: <code>art run</code>, <code>art fmt</code>, <code>art lint</code> e
+                        <code>art lsp</code>. Diagnósticos em tempo real, autocomplete e refactors multi-arquivo,
+                        com validações semânticas de memória e pipeline no lint. Ferramental completo sem depender
+                        de plugins externos para o fluxo principal.</p>
                 </div>
             </div>
         </div>
@@ -292,7 +295,7 @@
                 <h2>Rodando em <span class="gradient-text">30 segundos</span></h2>
             </div>
 
-            <div class="code-block fade-in" style="max-width: 580px;">
+            <div class="code-block fade-in" style="max-width: 800px;">
                 <div class="code-block__header">
                     <span class="code-block__dot code-block__dot--red"></span>
                     <span class="code-block__dot code-block__dot--yellow"></span>
@@ -306,11 +309,20 @@
 <span class="fn">art</span> run examples/00_hello.art
 
 <span class="cm"># Inicie o Language Server para sua IDE</span>
-<span class="fn">art</span> lsp</pre>
+<span class="fn">art</span> lsp
+
+<span class="cm"># Atualizar para a versão mais recente</span>
+<span class="fn">curl</span> -fsSL https://raw.githubusercontent.com/kitsuneislife/artcode/main/install.sh | bash
+
+<span class="cm"># Verificar se existe atualização</span>
+<span class="fn">art</span> update --check</pre>
             </div>
             <p class="fade-in" style="margin-top: 16px; color: var(--text-3); font-size: 0.85rem;">
                 Prefere compilar do fonte?
                 <a href="docs.html#installation" style="color: var(--text-2);">Veja o guia completo →</a>
+            </p>
+            <p class="fade-in" style="margin-top: 8px; color: var(--text-3); font-size: 0.85rem;">
+                Dica: em terminal interativo, o CLI pode avisar quando houver release nova.
             </p>
 
 
@@ -329,7 +341,7 @@
                 <a href="examples.html">Exemplos</a>
                 <a href="why.html">Por que Artcode?</a>
             </div>
-            <p>Artcode v0.1.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
+            <p>Artcode v0.2.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
                     target="_blank">kitsuneislife</a></p>
         </div>
     </footer>

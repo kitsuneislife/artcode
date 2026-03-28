@@ -353,22 +353,42 @@ impl Mailbox {
 
 pub fn encode_val(val: &ArtValue, out: &mut Vec<u8>) -> std::result::Result<(), String> {
     match val {
-        ArtValue::Int(n) => { out.push(1); out.extend_from_slice(&n.to_le_bytes()); }
-        ArtValue::Float(f) => { out.push(2); out.extend_from_slice(&f.to_le_bytes()); }
-        ArtValue::String(s) => { out.push(3); out.extend_from_slice(&(s.len() as u32).to_le_bytes()); out.extend_from_slice(s.as_bytes()); }
-        ArtValue::Bool(b) => { out.push(4); out.push(if *b { 1 } else { 0 }); }
+        ArtValue::Int(n) => {
+            out.push(1);
+            out.extend_from_slice(&n.to_le_bytes());
+        }
+        ArtValue::Float(f) => {
+            out.push(2);
+            out.extend_from_slice(&f.to_le_bytes());
+        }
+        ArtValue::String(s) => {
+            out.push(3);
+            out.extend_from_slice(&(s.len() as u32).to_le_bytes());
+            out.extend_from_slice(s.as_bytes());
+        }
+        ArtValue::Bool(b) => {
+            out.push(4);
+            out.push(if *b { 1 } else { 0 });
+        }
         ArtValue::Optional(opt) => {
             if let Some(inner) = &**opt {
-                out.push(5); encode_val(inner, out)?;
-            } else { out.push(6); }
+                out.push(5);
+                encode_val(inner, out)?;
+            } else {
+                out.push(6);
+            }
         }
         ArtValue::Array(arr) => {
-            out.push(7); out.extend_from_slice(&(arr.len() as u32).to_le_bytes());
-            for item in arr { encode_val(item, out)?; }
+            out.push(7);
+            out.extend_from_slice(&(arr.len() as u32).to_le_bytes());
+            for item in arr {
+                encode_val(item, out)?;
+            }
         }
         ArtValue::Map(m) => {
             let map = m.0.lock().unwrap_or_else(|e| e.into_inner());
-            out.push(8); out.extend_from_slice(&(map.len() as u32).to_le_bytes());
+            out.push(8);
+            out.extend_from_slice(&(map.len() as u32).to_le_bytes());
             for (k, v) in map.iter() {
                 let k_bytes = k.as_bytes();
                 out.extend_from_slice(&(k_bytes.len() as u32).to_le_bytes());
@@ -378,14 +398,21 @@ pub fn encode_val(val: &ArtValue, out: &mut Vec<u8>) -> std::result::Result<(), 
         }
         ArtValue::Set(s) => {
             let set = s.0.lock().unwrap_or_else(|e| e.into_inner());
-            out.push(9); out.extend_from_slice(&(set.len() as u32).to_le_bytes());
-            for item in set.iter() { encode_val(item, out)?; }
+            out.push(9);
+            out.extend_from_slice(&(set.len() as u32).to_le_bytes());
+            for item in set.iter() {
+                encode_val(item, out)?;
+            }
         }
         ArtValue::Buffer(buf) => {
-            out.push(10); out.extend_from_slice(&(buf.len() as u32).to_le_bytes());
+            out.push(10);
+            out.extend_from_slice(&(buf.len() as u32).to_le_bytes());
             out.extend_from_slice(buf);
         }
-        ArtValue::StructInstance { struct_name, fields } => {
+        ArtValue::StructInstance {
+            struct_name,
+            fields,
+        } => {
             out.push(11);
             let n_bytes = struct_name.as_bytes();
             out.extend_from_slice(&(n_bytes.len() as u32).to_le_bytes());
@@ -398,7 +425,11 @@ pub fn encode_val(val: &ArtValue, out: &mut Vec<u8>) -> std::result::Result<(), 
                 encode_val(v, out)?;
             }
         }
-        ArtValue::EnumInstance { enum_name, variant, values } => {
+        ArtValue::EnumInstance {
+            enum_name,
+            variant,
+            values,
+        } => {
             out.push(12);
             let n_bytes = enum_name.as_bytes();
             out.extend_from_slice(&(n_bytes.len() as u32).to_le_bytes());
@@ -407,11 +438,16 @@ pub fn encode_val(val: &ArtValue, out: &mut Vec<u8>) -> std::result::Result<(), 
             out.extend_from_slice(&(v_bytes.len() as u32).to_le_bytes());
             out.extend_from_slice(v_bytes);
             out.extend_from_slice(&(values.len() as u32).to_le_bytes());
-            for v in values { encode_val(v, out)?; }
+            for v in values {
+                encode_val(v, out)?;
+            }
         }
         ArtValue::Tuple(tup) => {
-            out.push(13); out.extend_from_slice(&(tup.len() as u32).to_le_bytes());
-            for item in tup { encode_val(item, out)?; }
+            out.push(13);
+            out.extend_from_slice(&(tup.len() as u32).to_le_bytes());
+            for item in tup {
+                encode_val(item, out)?;
+            }
         }
         _ => return Err(format!("Cannot serialize type {}", val)),
     }
@@ -423,89 +459,135 @@ pub fn decode_val(cur: &mut std::io::Cursor<&[u8]>) -> std::result::Result<ArtVa
     let mut tag = [0u8; 1];
     cur.read_exact(&mut tag).map_err(|_| "EOF reading tag")?;
     match tag[0] {
-        1 => { let mut b = [0u8; 8]; cur.read_exact(&mut b).map_err(|_| "EOF reading int")?; Ok(ArtValue::Int(i64::from_le_bytes(b))) }
-        2 => { let mut b = [0u8; 8]; cur.read_exact(&mut b).map_err(|_| "EOF reading float")?; Ok(ArtValue::Float(f64::from_le_bytes(b))) }
+        1 => {
+            let mut b = [0u8; 8];
+            cur.read_exact(&mut b).map_err(|_| "EOF reading int")?;
+            Ok(ArtValue::Int(i64::from_le_bytes(b)))
+        }
+        2 => {
+            let mut b = [0u8; 8];
+            cur.read_exact(&mut b).map_err(|_| "EOF reading float")?;
+            Ok(ArtValue::Float(f64::from_le_bytes(b)))
+        }
         3 => {
-            let mut b = [0u8; 4]; cur.read_exact(&mut b).map_err(|_| "EOF str len")?;
+            let mut b = [0u8; 4];
+            cur.read_exact(&mut b).map_err(|_| "EOF str len")?;
             let mut str_b = vec![0u8; u32::from_le_bytes(b) as usize];
             cur.read_exact(&mut str_b).map_err(|_| "EOF str")?;
-            Ok(ArtValue::String(String::from_utf8(str_b).map_err(|_| "UTF8 error")?.into()))
+            Ok(ArtValue::String(
+                String::from_utf8(str_b).map_err(|_| "UTF8 error")?.into(),
+            ))
         }
-        4 => { let mut b = [0u8; 1]; cur.read_exact(&mut b).map_err(|_| "EOF bool")?; Ok(ArtValue::Bool(b[0] != 0)) }
+        4 => {
+            let mut b = [0u8; 1];
+            cur.read_exact(&mut b).map_err(|_| "EOF bool")?;
+            Ok(ArtValue::Bool(b[0] != 0))
+        }
         5 => Ok(ArtValue::Optional(Box::new(Some(decode_val(cur)?)))),
         6 => Ok(ArtValue::none()),
         7 => {
-            let mut b = [0u8; 4]; cur.read_exact(&mut b).map_err(|_| "EOF array len")?;
+            let mut b = [0u8; 4];
+            cur.read_exact(&mut b).map_err(|_| "EOF array len")?;
             let len = u32::from_le_bytes(b) as usize;
             let mut arr = Vec::with_capacity(len);
-            for _ in 0..len { arr.push(decode_val(cur)?); }
+            for _ in 0..len {
+                arr.push(decode_val(cur)?);
+            }
             Ok(ArtValue::Array(arr))
         }
         8 => {
-            let mut b = [0u8; 4]; cur.read_exact(&mut b).map_err(|_| "EOF map len")?;
+            let mut b = [0u8; 4];
+            cur.read_exact(&mut b).map_err(|_| "EOF map len")?;
             let len = u32::from_le_bytes(b) as usize;
             let mut map = std::collections::HashMap::with_capacity(len);
             for _ in 0..len {
-                let mut lb = [0u8; 4]; cur.read_exact(&mut lb).map_err(|_| "EOF map k len")?;
+                let mut lb = [0u8; 4];
+                cur.read_exact(&mut lb).map_err(|_| "EOF map k len")?;
                 let mut k_b = vec![0u8; u32::from_le_bytes(lb) as usize];
                 cur.read_exact(&mut k_b).map_err(|_| "EOF map k")?;
                 let k_str = String::from_utf8(k_b).map_err(|_| "UTF8 error")?;
                 map.insert(k_str, decode_val(cur)?);
             }
-            Ok(ArtValue::Map(core::ast::MapRef(std::sync::Arc::new(std::sync::Mutex::new(map)))))
+            Ok(ArtValue::Map(core::ast::MapRef(std::sync::Arc::new(
+                std::sync::Mutex::new(map),
+            ))))
         }
         9 => {
-             let mut b = [0u8; 4]; cur.read_exact(&mut b).map_err(|_| "EOF set len")?;
-             let len = u32::from_le_bytes(b) as usize;
-             let mut set = Vec::with_capacity(len);
-             for _ in 0..len { set.push(decode_val(cur)?); }
-             Ok(ArtValue::Set(core::ast::SetRef(std::sync::Arc::new(std::sync::Mutex::new(set)))))
+            let mut b = [0u8; 4];
+            cur.read_exact(&mut b).map_err(|_| "EOF set len")?;
+            let len = u32::from_le_bytes(b) as usize;
+            let mut set = Vec::with_capacity(len);
+            for _ in 0..len {
+                set.push(decode_val(cur)?);
+            }
+            Ok(ArtValue::Set(core::ast::SetRef(std::sync::Arc::new(
+                std::sync::Mutex::new(set),
+            ))))
         }
         10 => {
-             let mut b = [0u8; 4]; cur.read_exact(&mut b).map_err(|_| "EOF buffer len")?;
-             let mut buf = vec![0u8; u32::from_le_bytes(b) as usize];
-             cur.read_exact(&mut buf).map_err(|_| "EOF buf")?;
-             Ok(ArtValue::Buffer(buf.into()))
+            let mut b = [0u8; 4];
+            cur.read_exact(&mut b).map_err(|_| "EOF buffer len")?;
+            let mut buf = vec![0u8; u32::from_le_bytes(b) as usize];
+            cur.read_exact(&mut buf).map_err(|_| "EOF buf")?;
+            Ok(ArtValue::Buffer(buf.into()))
         }
         11 => {
-             let mut lb = [0u8; 4]; cur.read_exact(&mut lb).map_err(|_| "EOF struct name len")?;
-             let mut sn_b = vec![0u8; u32::from_le_bytes(lb) as usize];
-             cur.read_exact(&mut sn_b).map_err(|_| "EOF struct name")?;
-             let struct_name = String::from_utf8(sn_b).map_err(|_| "UTF8 error")?;
-             let mut fb = [0u8; 4]; cur.read_exact(&mut fb).map_err(|_| "EOF fields len")?;
-             let f_len = u32::from_le_bytes(fb) as usize;
-             let mut fields = std::collections::HashMap::with_capacity(f_len);
-             for _ in 0..f_len {
-                 let mut klb = [0u8; 4]; cur.read_exact(&mut klb).map_err(|_| "EOF field k len")?;
-                 let mut k_b = vec![0u8; u32::from_le_bytes(klb) as usize];
-                 cur.read_exact(&mut k_b).map_err(|_| "EOF field name")?;
-                 let fname = String::from_utf8(k_b).map_err(|_| "UTF8 error")?;
-                 fields.insert(fname, decode_val(cur)?);
-             }
-             Ok(ArtValue::StructInstance { struct_name, fields })
+            let mut lb = [0u8; 4];
+            cur.read_exact(&mut lb).map_err(|_| "EOF struct name len")?;
+            let mut sn_b = vec![0u8; u32::from_le_bytes(lb) as usize];
+            cur.read_exact(&mut sn_b).map_err(|_| "EOF struct name")?;
+            let struct_name = String::from_utf8(sn_b).map_err(|_| "UTF8 error")?;
+            let mut fb = [0u8; 4];
+            cur.read_exact(&mut fb).map_err(|_| "EOF fields len")?;
+            let f_len = u32::from_le_bytes(fb) as usize;
+            let mut fields = std::collections::HashMap::with_capacity(f_len);
+            for _ in 0..f_len {
+                let mut klb = [0u8; 4];
+                cur.read_exact(&mut klb).map_err(|_| "EOF field k len")?;
+                let mut k_b = vec![0u8; u32::from_le_bytes(klb) as usize];
+                cur.read_exact(&mut k_b).map_err(|_| "EOF field name")?;
+                let fname = String::from_utf8(k_b).map_err(|_| "UTF8 error")?;
+                fields.insert(fname, decode_val(cur)?);
+            }
+            Ok(ArtValue::StructInstance {
+                struct_name,
+                fields,
+            })
         }
         12 => {
-            let mut lb = [0u8; 4]; cur.read_exact(&mut lb).map_err(|_| "EOF enum name len")?;
+            let mut lb = [0u8; 4];
+            cur.read_exact(&mut lb).map_err(|_| "EOF enum name len")?;
             let mut n_b = vec![0u8; u32::from_le_bytes(lb) as usize];
             cur.read_exact(&mut n_b).map_err(|_| "EOF enum name")?;
             let enum_name = String::from_utf8(n_b).map_err(|_| "UTF8 err")?;
 
-            let mut vb = [0u8; 4]; cur.read_exact(&mut vb).map_err(|_| "EOF variant len")?;
+            let mut vb = [0u8; 4];
+            cur.read_exact(&mut vb).map_err(|_| "EOF variant len")?;
             let mut v_b = vec![0u8; u32::from_le_bytes(vb) as usize];
             cur.read_exact(&mut v_b).map_err(|_| "EOF variant")?;
             let variant = String::from_utf8(v_b).map_err(|_| "UTF8 err")?;
 
-            let mut ab = [0u8; 4]; cur.read_exact(&mut ab).map_err(|_| "EOF arr len")?;
+            let mut ab = [0u8; 4];
+            cur.read_exact(&mut ab).map_err(|_| "EOF arr len")?;
             let arr_len = u32::from_le_bytes(ab) as usize;
             let mut values = Vec::with_capacity(arr_len);
-            for _ in 0..arr_len { values.push(decode_val(cur)?); }
-            Ok(ArtValue::EnumInstance { enum_name, variant, values })
+            for _ in 0..arr_len {
+                values.push(decode_val(cur)?);
+            }
+            Ok(ArtValue::EnumInstance {
+                enum_name,
+                variant,
+                values,
+            })
         }
         13 => {
-            let mut b = [0u8; 4]; cur.read_exact(&mut b).map_err(|_| "EOF tuple len")?;
+            let mut b = [0u8; 4];
+            cur.read_exact(&mut b).map_err(|_| "EOF tuple len")?;
             let len = u32::from_le_bytes(b) as usize;
             let mut tup = Vec::with_capacity(len);
-            for _ in 0..len { tup.push(decode_val(cur)?); }
+            for _ in 0..len {
+                tup.push(decode_val(cur)?);
+            }
             Ok(ArtValue::Tuple(tup))
         }
         t => Err(format!("Unknown tag {}", t)),
@@ -550,17 +632,62 @@ thread_local! {
 
 impl Interpreter {
     pub const PRELUDE_NAMES: &'static [&'static str] = &[
-        "println", "len", "type_of", "weak", "weak_get", "unowned", "unowned_get",
-        "on_finalize", "actor_send", "actor_receive", "actor_receive_envelope",
-        "actor_yield", "actor_set_mailbox_limit", "envelope", "make_envelope",
-        "run_actors", "atomic_new", "atomic_load", "atomic_store", "atomic_add",
-        "mutex_new", "mutex_lock", "mutex_unlock", "arena_new", "arena_release",
-        "arena_with", "idl_schema", "idl_validate", "buffer_new", "serialize",
-        "deserialize", "capability_acquire", "capability_kind", "map_new",
-        "map_set", "map_get", "map_has", "set_new", "set_add", "set_has",
-        "math_abs", "math_pow", "math_clamp", "dag_topo_sort", "time_now",
-        "io_read_text", "io_write_text", "http_get_text", "rand_seed",
-        "rand_next", "stream", "map", "filter", "collect", "count", "gc_stats",
+        "println",
+        "len",
+        "type_of",
+        "weak",
+        "weak_get",
+        "unowned",
+        "unowned_get",
+        "on_finalize",
+        "actor_send",
+        "actor_receive",
+        "actor_receive_envelope",
+        "actor_yield",
+        "actor_set_mailbox_limit",
+        "envelope",
+        "make_envelope",
+        "run_actors",
+        "atomic_new",
+        "atomic_load",
+        "atomic_store",
+        "atomic_add",
+        "mutex_new",
+        "mutex_lock",
+        "mutex_unlock",
+        "arena_new",
+        "arena_release",
+        "arena_with",
+        "idl_schema",
+        "idl_validate",
+        "buffer_new",
+        "serialize",
+        "deserialize",
+        "capability_acquire",
+        "capability_kind",
+        "map_new",
+        "map_set",
+        "map_get",
+        "map_has",
+        "set_new",
+        "set_add",
+        "set_has",
+        "math_abs",
+        "math_pow",
+        "math_clamp",
+        "dag_topo_sort",
+        "time_now",
+        "io_read_text",
+        "io_write_text",
+        "http_get_text",
+        "rand_seed",
+        "rand_next",
+        "stream",
+        "map",
+        "filter",
+        "collect",
+        "count",
+        "gc_stats",
     ];
 
     #[inline]
@@ -1158,7 +1285,7 @@ impl Interpreter {
                 if let Some(obj) = self.heap_objects.get(&h.0) {
                     if let Some(obj_aid) = obj.arena_id {
                         needs_promotion = match target_aid {
-                            None => true, // escapando para o global
+                            None => true,                              // escapando para o global
                             Some(ta) => obj_aid != ta && obj_aid > ta, // escapando para pai/global
                         };
                         if needs_promotion {
@@ -1170,14 +1297,14 @@ impl Interpreter {
                 if let Some(mut iv) = inner_val {
                     // Deep recursion: promote children first
                     self.promote_if_escaping(target_aid, &mut iv);
-                    
+
                     // Register the promoted object in the target arena
                     let new_id = if let Some(ta) = target_aid {
                         self.heap_register_in_arena(iv, ta)
                     } else {
                         self.heap_register(iv)
                     };
-                    
+
                     // Update current reference to the new promoted ID
                     h.0 = new_id;
                     self.finalizer_promotions += 1;
@@ -1537,7 +1664,10 @@ impl Interpreter {
                     .map(|item| self.normalize_for_serialization(item))
                     .collect(),
             ),
-            ArtValue::StructInstance { struct_name, fields } => {
+            ArtValue::StructInstance {
+                struct_name,
+                fields,
+            } => {
                 let mut out = std::collections::HashMap::new();
                 for (k, v) in fields {
                     out.insert(k.clone(), self.normalize_for_serialization(v));
@@ -1565,7 +1695,9 @@ impl Interpreter {
                 for (k, v) in map.iter() {
                     out.insert(k.clone(), self.normalize_for_serialization(v));
                 }
-                ArtValue::Map(core::ast::MapRef(std::sync::Arc::new(std::sync::Mutex::new(out))))
+                ArtValue::Map(core::ast::MapRef(std::sync::Arc::new(
+                    std::sync::Mutex::new(out),
+                )))
             }
             ArtValue::Set(set_ref) => {
                 let set = set_ref.0.lock().unwrap_or_else(|e| e.into_inner());
@@ -1573,7 +1705,9 @@ impl Interpreter {
                     .iter()
                     .map(|v| self.normalize_for_serialization(v))
                     .collect();
-                ArtValue::Set(core::ast::SetRef(std::sync::Arc::new(std::sync::Mutex::new(out))))
+                ArtValue::Set(core::ast::SetRef(std::sync::Arc::new(
+                    std::sync::Mutex::new(out),
+                )))
             }
             _ => resolved.clone(),
         }
@@ -2392,11 +2526,13 @@ impl Interpreter {
             println!("\n[Tick {}] {:?}", self.executed_statements, stmt);
             print!("(art-debug) > ");
             let _ = io::stdout().flush();
-            
+
             let mut input = String::new();
-            if io::stdin().read_line(&mut input).is_err() { break; }
+            if io::stdin().read_line(&mut input).is_err() {
+                break;
+            }
             let input = input.trim();
-            
+
             match input {
                 "" | "step" | "s" => return Ok(false),
                 "back" | "b" => return Ok(true),
@@ -2409,8 +2545,12 @@ impl Interpreter {
                 "help" => {
                     println!("Commands:");
                     println!("  step (s)      - Avança 1 statement (Default)");
-                    println!("  back (b)      - Volta 1 statement no tempo via snapshotting rápido");
-                    println!("  inspect <var> - Avalia nome da variável no contexto local ou global");
+                    println!(
+                        "  back (b)      - Volta 1 statement no tempo via snapshotting rápido"
+                    );
+                    println!(
+                        "  inspect <var> - Avalia nome da variável no contexto local ou global"
+                    );
                     println!("  env           - Lista escopo");
                     println!("  help          - Mostra essa ajuda");
                 }
@@ -2459,7 +2599,12 @@ impl Interpreter {
                 // CRITICAL: If the actor was parked during evaluation (e.g. by actor_receive),
                 // do NOT bind the pattern yet. The statement will be retried when unparked.
                 // Reinsertion is handled by the round-robin scheduler (run_actors_round_robin).
-                if self.executing_actor.as_ref().map(|a| a.parked).unwrap_or(false) {
+                if self
+                    .executing_actor
+                    .as_ref()
+                    .map(|a| a.parked)
+                    .unwrap_or(false)
+                {
                     return Ok(());
                 }
 
@@ -2528,7 +2673,11 @@ impl Interpreter {
                         let b = self.environment.borrow();
                         (b.depth, b.associated_arena)
                     };
-                    let mut new_env = Environment::new(Some(self.environment.clone()), parent_depth + 1, parent_arena);
+                    let mut new_env = Environment::new(
+                        Some(self.environment.clone()),
+                        parent_depth + 1,
+                        parent_arena,
+                    );
                     for (k, mut v) in bindings {
                         let target_aid = new_env.associated_arena;
                         self.promote_if_escaping(target_aid, &mut v);
@@ -2588,7 +2737,8 @@ impl Interpreter {
                             let b = self.environment.borrow();
                             (b.depth, b.associated_arena)
                         };
-                        let new_env_struct = Environment::new(Some(self.environment.clone()), p_depth + 1, p_arena);
+                        let new_env_struct =
+                            Environment::new(Some(self.environment.clone()), p_depth + 1, p_arena);
                         let new_env = Rc::new(RefCell::new(new_env_struct));
                         let previous = self.environment.clone();
                         self.environment = new_env.clone();
@@ -2631,7 +2781,11 @@ impl Interpreter {
                         let b = previous_env.borrow();
                         (b.depth, b.associated_arena)
                     };
-                    let catch_env = Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()), p_depth + 1, p_arena)));
+                    let catch_env = Rc::new(RefCell::new(Environment::new(
+                        Some(previous_env.clone()),
+                        p_depth + 1,
+                        p_arena,
+                    )));
                     self.environment = catch_env.clone();
 
                     self.environment
@@ -2729,10 +2883,14 @@ impl Interpreter {
                     let b = previous.borrow();
                     (b.depth, b.associated_arena)
                 };
-                
-                self.environment = Rc::new(RefCell::new(Environment::new(Some(previous.clone()), p_depth + 1, Some(aid))));
+
+                self.environment = Rc::new(RefCell::new(Environment::new(
+                    Some(previous.clone()),
+                    p_depth + 1,
+                    Some(aid),
+                )));
                 let scope_env = self.environment.clone();
-                
+
                 // Executar statements
                 for s in statements {
                     if let Err(e) = self.execute(s) {
@@ -2744,7 +2902,7 @@ impl Interpreter {
                         return Err(e);
                     }
                 }
-                
+
                 // Cleanup
                 self.drop_scope_heap_objects(&scope_env);
                 self.finalize_arena(aid);
@@ -3048,15 +3206,16 @@ impl Interpreter {
                                 let b = previous_env.borrow();
                                 (b.depth, b.associated_arena)
                             };
-                            let loop_env =
-                                Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()), p_depth + 1, p_arena)));
+                            let loop_env = Rc::new(RefCell::new(Environment::new(
+                                Some(previous_env.clone()),
+                                p_depth + 1,
+                                p_arena,
+                            )));
                             self.environment = loop_env.clone();
 
                             let target_aid = loop_env.borrow().associated_arena;
                             self.promote_if_escaping(target_aid, &mut val);
-                            self.environment
-                                .borrow_mut()
-                                .define(&element.lexeme, val);
+                            self.environment.borrow_mut().define(&element.lexeme, val);
 
                             let result = self.execute(*body.clone());
 
@@ -3115,15 +3274,16 @@ impl Interpreter {
                             };
                             // Iniciamos uma arena para o corpo do loop
                             let _aid = self.push_implicit_arena();
-                            let loop_env =
-                                Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()), p_depth + 1, Some(_aid))));
+                            let loop_env = Rc::new(RefCell::new(Environment::new(
+                                Some(previous_env.clone()),
+                                p_depth + 1,
+                                Some(_aid),
+                            )));
                             self.environment = loop_env.clone();
 
                             let target_aid = loop_env.borrow().associated_arena;
                             self.promote_if_escaping(target_aid, &mut item);
-                            self.environment
-                                .borrow_mut()
-                                .define(&element.lexeme, item);
+                            self.environment.borrow_mut().define(&element.lexeme, item);
 
                             let result = self.execute(*body.clone());
 
@@ -3272,10 +3432,19 @@ impl Interpreter {
             (0, None)
         };
         let previous = self.environment.clone();
-        self.environment = Rc::new(RefCell::new(Environment::new(enclosing, p_depth + 1, p_arena)));
+        self.environment = Rc::new(RefCell::new(Environment::new(
+            enclosing,
+            p_depth + 1,
+            p_arena,
+        )));
         let scope_env = self.environment.clone();
         for statement in statements {
-            if self.executing_actor.as_ref().map(|a| a.parked).unwrap_or(false) {
+            if self
+                .executing_actor
+                .as_ref()
+                .map(|a| a.parked)
+                .unwrap_or(false)
+            {
                 break;
             }
             if let Err(e) = self.execute(statement) {
@@ -3387,7 +3556,7 @@ impl Interpreter {
                     // Mas espera! Se houver uma variável local com esse nome, ela deve ter precedência.
                     // Fazemos um borrow imutável rápido para verificar.
                     if !self.environment.borrow().has_locally(&name_str) {
-                         return Ok(builtin);
+                        return Ok(builtin);
                     }
                 }
 
@@ -3955,13 +4124,19 @@ impl Interpreter {
         // record call counter by function name (if present)
         let callee_name_opt = func.name.clone();
         if let Some(name) = &callee_name_opt {
-            self.call_counters.entry(name.clone()).and_modify(|c| *c += 1).or_insert(1);
+            self.call_counters
+                .entry(name.clone())
+                .and_modify(|c| *c += 1)
+                .or_insert(1);
         }
         // record edge from caller -> callee
         if let Some(caller) = self.fn_stack.last().and_then(|opt| opt.clone()) {
             if let Some(callee) = &callee_name_opt {
                 let edge = format!("{}->{}", caller, callee);
-                self.edge_counters.entry(edge).and_modify(|c| *c += 1).or_insert(1);
+                self.edge_counters
+                    .entry(edge)
+                    .and_modify(|c| *c += 1)
+                    .or_insert(1);
             }
         }
         self.fn_stack.push(callee_name_opt.clone());
@@ -4017,7 +4192,9 @@ impl Interpreter {
         for (param, mut value) in func.params.iter().zip(evaluated_args.into_iter()) {
             let target_aid = call_env.borrow().associated_arena;
             self.promote_if_escaping(target_aid, &mut value);
-            self.environment.borrow_mut().define(&param.name.lexeme, value);
+            self.environment
+                .borrow_mut()
+                .define(&param.name.lexeme, value);
         }
 
         let result = self.execute(Rc::as_ref(&func.body).clone());
@@ -4638,9 +4815,13 @@ impl Interpreter {
                 if let Some(replayer) = &mut self.replayer {
                     match replayer.consume_intercept("time_now", self.executed_statements) {
                         Ok(Some(payload)) => return Ok(payload),
-                        Ok(None) => {}, // ignora, not unexpected match 
+                        Ok(None) => {} // ignora, not unexpected match
                         Err(e) => {
-                            self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, e, Span::new(0,0,0,0)));
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                e,
+                                Span::new(0, 0, 0, 0),
+                            ));
                             return Ok(ArtValue::none());
                         }
                     }
@@ -4650,24 +4831,39 @@ impl Interpreter {
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_millis() as i64;
-                
+
                 if let Some(tracer) = &mut self.tracer {
-                    let _ = tracer.record_event("time_now", self.executed_statements, ArtValue::Int(now));
+                    let _ = tracer.record_event(
+                        "time_now",
+                        self.executed_statements,
+                        ArtValue::Int(now),
+                    );
                 }
 
                 Ok(ArtValue::Int(now))
             }
             core::ast::BuiltinFn::GCStats => {
                 let mut stats = std::collections::HashMap::new();
-                stats.insert("promotions".to_string(), ArtValue::Int(self.finalizer_promotions as i64));
-                stats.insert("heap_objects".to_string(), ArtValue::Int(self.heap_objects.len() as i64));
-                stats.insert("next_arena_id".to_string(), ArtValue::Int(self.next_arena_id as i64));
+                stats.insert(
+                    "promotions".to_string(),
+                    ArtValue::Int(self.finalizer_promotions as i64),
+                );
+                stats.insert(
+                    "heap_objects".to_string(),
+                    ArtValue::Int(self.heap_objects.len() as i64),
+                );
+                stats.insert(
+                    "next_arena_id".to_string(),
+                    ArtValue::Int(self.next_arena_id as i64),
+                );
                 Ok(ArtValue::StructInstance {
                     struct_name: "GCStats".to_string(),
                     fields: stats,
                 })
             }
-            core::ast::BuiltinFn::RuntimeVersion => Ok(ArtValue::String(std::sync::Arc::from("0.2.0-adaptive-arc"))),
+            core::ast::BuiltinFn::RuntimeVersion => {
+                Ok(ArtValue::String(std::sync::Arc::from("0.2.0-adaptive-arc")))
+            }
             core::ast::BuiltinFn::IOReadText => {
                 if !self.ensure_pure_allowed("io_read_text") {
                     return Ok(ArtValue::none());
@@ -4769,9 +4965,7 @@ impl Interpreter {
                             Ok(ArtValue::String(Arc::from(response)))
                         }
                     }
-                    Err(_) => {
-                        Ok(ArtValue::none())
-                    }
+                    Err(_) => Ok(ArtValue::none()),
                 }
             }
             core::ast::BuiltinFn::RandomSeed => {
@@ -4793,17 +4987,21 @@ impl Interpreter {
                 if !self.ensure_pure_allowed("rand_next") {
                     return Ok(ArtValue::none());
                 }
-            // TTD Replay intercept: se estamos re-reproduzindo, usar valor gravado
-            if let Some(replayer) = &mut self.replayer {
-                match replayer.consume_intercept("rand_next", self.executed_statements) {
-                    Ok(Some(payload)) => return Ok(payload),
-                    Ok(None) => {},
-                    Err(e) => {
-                        self.diagnostics.push(Diagnostic::new(DiagnosticKind::Runtime, e, Span::new(0,0,0,0)));
-                        return Ok(ArtValue::none());
+                // TTD Replay intercept: se estamos re-reproduzindo, usar valor gravado
+                if let Some(replayer) = &mut self.replayer {
+                    match replayer.consume_intercept("rand_next", self.executed_statements) {
+                        Ok(Some(payload)) => return Ok(payload),
+                        Ok(None) => {}
+                        Err(e) => {
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                e,
+                                Span::new(0, 0, 0, 0),
+                            ));
+                            return Ok(ArtValue::none());
+                        }
                     }
                 }
-            }
 
                 // Simple LCG
                 self.rng_state = self
@@ -4811,9 +5009,13 @@ impl Interpreter {
                     .wrapping_mul(6364136223846793005)
                     .wrapping_add(1442695040888963407);
                 let rand_val = (self.rng_state >> 32) as i64;
-                
+
                 if let Some(tracer) = &mut self.tracer {
-                    let _ = tracer.record_event("rand_next", self.executed_statements, ArtValue::Int(rand_val));
+                    let _ = tracer.record_event(
+                        "rand_next",
+                        self.executed_statements,
+                        ArtValue::Int(rand_val),
+                    );
                 }
 
                 Ok(ArtValue::Int(

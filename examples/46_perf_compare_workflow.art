@@ -1,7 +1,7 @@
 // 46_perf_compare_workflow.art
 // Exemplo de metadados para rotina de comparacao warmup vs PGO.
 
-let report = "perf.md"
+let report = "artifacts/perf.md"
 let mode_a = "warmup"
 let mode_b = "pgo"
 

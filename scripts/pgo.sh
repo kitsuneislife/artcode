@@ -18,7 +18,7 @@ if [ ! -f "$CLI_BIN" ]; then
 fi
 
 echo "[2/4] Running benchmarks to gather profile data..."
-for bench in benches/*.art; do
+for bench in bench/cases/*.art; do
     echo "  Profiling $bench..."
     "$CLI_BIN" run "$bench" >/dev/null
 done

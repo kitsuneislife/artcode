@@ -15,7 +15,10 @@ fn run_idl_ipc_schema_and_validation() {
     cmd.arg("run").arg(path);
 
     let output = cmd.output().expect("run art run");
-    assert!(output.status.success(), "run command should exit successfully");
+    assert!(
+        output.status.success(),
+        "run command should exit successfully"
+    );
 
     let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
     assert!(stdout.contains("ok=true"));
@@ -35,7 +38,10 @@ fn run_idl_ipc_detects_invalid_payload_type() {
     cmd.arg("run").arg(path);
 
     let output = cmd.output().expect("run art run");
-    assert!(output.status.success(), "run command should exit successfully");
+    assert!(
+        output.status.success(),
+        "run command should exit successfully"
+    );
 
     let stdout = String::from_utf8(output.stdout).expect("utf8 stdout");
     assert!(stdout.contains("ok=false"));

@@ -153,7 +153,7 @@ cargo run -p xtask -- devcheck
 # Executa benchmarks configurados (criterion)
 cargo bench
 
-# Executar bench específico (se definido nas benches/ do crate interpreter)
+# Executar bench específico (se definido em bench/cases/)
 cargo bench -p interpreter
 ```
 
@@ -187,6 +187,21 @@ cargo run --bin art -- run examples/00_hello.art
 # Rodar testes com saída mais verbosa
 cargo test --all -- --nocapture
 ```
+
+9) Atualização de versão (CLI)
+
+```bash
+# verificar se há release nova
+art update --check
+
+# atualizar automaticamente usando o instalador oficial
+art update --self
+```
+
+Notas:
+- O comando de update usa cache local de checagem para evitar consultas frequentes.
+- Em terminal interativo, o CLI pode exibir aviso de nova release disponível.
+- Para desativar o aviso automático: ART_DISABLE_UPDATE_CHECK=1
 
 Notas rápidas
 - Muitos testes dependem do workspace estar compilado (`cargo build --all`) e do binário `art` estar disponível em `target/debug/art`.

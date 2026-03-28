@@ -1,5 +1,5 @@
-use core::ast::ArtValue;
 use crate::interpreter::decode_val;
+use core::ast::ArtValue;
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Read;
@@ -13,7 +13,7 @@ pub struct Replayer {
 impl Replayer {
     pub fn new(path: &str) -> std::io::Result<Self> {
         let mut file = File::open(path)?;
-        
+
         let mut magic = [0u8; 8];
         file.read_exact(&mut magic)?;
         if &magic != b"ARTLOG01" {
@@ -30,22 +30,26 @@ impl Replayer {
                 break; // EOF
             }
             let size = u32::from_le_bytes(p_size);
-            
+
             let mut buffer = vec![0u8; size as usize];
             file.read_exact(&mut buffer)?;
-            
+
             let mut cur = std::io::Cursor::new(buffer.as_slice());
             if let Ok(val) = decode_val(&mut cur) {
                 events.push_back(val);
             }
         }
-        
+
         Ok(Self { events })
     }
 
     /// Consome o próximo evento de Replay, checando o Tick e Event Type.
     /// Retorna `Some(payload)` se o checkpoint bater, consumindo da fila.
-    pub fn consume_intercept(&mut self, expected_type: &str, current_tick: usize) -> Result<Option<ArtValue>, String> {
+    pub fn consume_intercept(
+        &mut self,
+        expected_type: &str,
+        current_tick: usize,
+    ) -> Result<Option<ArtValue>, String> {
         while let Some(event) = self.events.front() {
             if let ArtValue::Map(mapref) = event {
                 let map = mapref.0.lock().unwrap();

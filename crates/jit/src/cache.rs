@@ -35,7 +35,7 @@ impl ArtCache {
         let path = self.base_dir.join(&file_name);
         let _ = fs::write(path, content);
     }
-    
+
     pub fn check_binary(&self, prefix: &str, hash: &str, ext: &str) -> Option<PathBuf> {
         let file_name = format!("{}_{}.{}", prefix, hash, ext);
         let path = self.base_dir.join(&file_name);

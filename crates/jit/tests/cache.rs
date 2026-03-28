@@ -32,7 +32,9 @@ fn cache_roundtrip() {
     cache.set(&prefix, &hash, "ll", content);
 
     // Read back
-    let got = cache.get(&prefix, &hash, "ll").expect("cache should return entry after set");
+    let got = cache
+        .get(&prefix, &hash, "ll")
+        .expect("cache should return entry after set");
     assert_eq!(got, content, "roundtrip value must match");
 }
 

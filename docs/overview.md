@@ -47,7 +47,7 @@ As metas de longo prazo, como compilação JIT/AOT nativa, _Time-Travel Debuggin
 | Métricas | `handled_errors`, `executed_statements`, `crash_free%` | Observabilidade e qualidade contínua |
 | Qualidade | CI (fmt, clippy -D warnings, testes, coverage badge) | Reforça saúde do projeto e confiança |
 
-## Estado Atual & Limitações
+## Estado Atual & Limitações (v0.2.0)
 - Parser e lexer não panica em entradas malformadas; erros viram diagnostics acumulados.
 - Estrutura de métodos existe, mas ainda não há bloco `impl` agrupador (definição via `func Tipo.metodo(self) {}`).
 - Sistema de tipos ainda básico (sem generics, sem checagem de campo em tempo de parse para struct init além de aridade/nome runtime).

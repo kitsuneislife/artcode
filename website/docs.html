@@ -247,6 +247,21 @@
 <span class="cm"># Olá, Artcode! 🚀</span></pre>
                     </div>
 
+                    <h2>Atualizando para nova versão</h2>
+                    <p>Para atualizar a instalação existente para a versão mais recente (ou para a versão de desenvolvimento do branch <code>main</code>), use:</p>
+                    <div class="code-block" style="max-width:100%">
+                        <div class="code-block__header"><span class="code-block__dot code-block__dot--red"></span><span
+                                class="code-block__dot code-block__dot--yellow"></span><span
+                                class="code-block__dot code-block__dot--green"></span><span
+                                class="code-block__title">terminal</span></div>
+                        <pre><span class="fn">curl</span> -fsSL https://raw.githubusercontent.com/kitsuneislife/artcode/main/install.sh | bash
+
+<span class="fn">art</span> --version
+<span class="fn">cargo</span> test --all</pre>
+                    </div>
+
+                    <p style="margin-top: 10px;">Nota de compatibilidade: a trilha principal de exemplos no site segue os IDs <code>00..48</code>. No repositório podem existir variantes com o mesmo prefixo numérico (ex.: <code>44_time_travel_demo.art</code> e <code>44_ttd_keyframes.art</code>) para preservar histórico e comparar abordagens.</p>
+
                     <h2>Compilar a partir do fonte</h2>
                     <p>Se preferir compilar você mesmo (ou contribuir com o projeto), siga os passos abaixo.</p>
 
@@ -1408,14 +1423,15 @@ else_:
                     </p>
                     <p>A política de versionamento público e compatibilidade da série <code>0.2.x</code> está em <code>docs/versioning.md</code>.</p>
                     <p>O histórico semântico de releases é mantido em <code>CHANGELOG.md</code> com apoio de <code>scripts/changelog_from_git.sh</code>.</p>
-                    <p>A comparação de performance warmup vs PGO pode ser gerada automaticamente em <code>perf.md</code> via <code>scripts/perf_compare.sh</code>.</p>
+                    <p>A comparação de performance warmup vs PGO pode ser gerada automaticamente em <code>artifacts/perf.md</code> via <code>scripts/perf_compare.sh</code>.</p>
                     <p>Para migração entre versões, use o guia <code>docs/migration.md</code> e o utilitário <code>art upgrade --check</code>.</p>
-                    <h2>v0.1.0 (atual)</h2>
+                    <h2>v0.2.0 (atual)</h2>
                     <ul>
                         <li>✅ Lexer, Parser, Interpreter e Type Checker completos</li>
                         <li>✅ Enums, Pattern Matching, Closures, f-Strings, Result</li>
                         <li>✅ ARC, weak/unowned, Arenas, Finalizers</li>
                         <li>✅ Modelo de Atores, CLI unificada, LSP com diagnósticos e base de refactoring</li>
+                        <li>✅ JIT/AOT (Jano) com PGO, IPC/FFI e time-travel</li>
                     </ul>
                     <h2>v0.2+ (planejado)</h2>
                     <ul>
@@ -1572,7 +1588,7 @@ else_:
                 <a href="why.html">Por que Artcode?</a>
                 <a href="examples.html">Exemplos</a>
             </div>
-            <p>Artcode v0.1.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
+            <p>Artcode v0.2.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
                     target="_blank">kitsuneislife</a></p>
         </div>
     </footer>

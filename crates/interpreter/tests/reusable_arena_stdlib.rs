@@ -55,7 +55,11 @@ fn reusable_arena_with_tracks_allocations_and_finalize_counts() {
         alloc_count
     );
 
-    let finalized_count = interp.objects_finalized_per_arena.get(&aid).copied().unwrap_or(0);
+    let finalized_count = interp
+        .objects_finalized_per_arena
+        .get(&aid)
+        .copied()
+        .unwrap_or(0);
     assert!(
         finalized_count > 0,
         "expected finalized objects in reusable arena, got {}",

@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
-OUT_MD="${1:-perf.md}"
+OUT_MD="${1:-artifacts/perf.md}"
 PGO_DATA_DIR="${TMPDIR:-/tmp}/artcode-pgo-data-$$"
 WARMUP_BIN="$ROOT/target/release/art-warmup"
 PGO_BIN="$ROOT/target/release/art-pgo"
@@ -21,9 +21,9 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 1
 fi
 
-BENCHES=(benches/*.art)
+BENCHES=(bench/cases/*.art)
 if [ ! -e "${BENCHES[0]}" ]; then
-  echo "No benchmark files found in benches/*.art" >&2
+  echo "No benchmark files found in bench/cases/*.art" >&2
   exit 1
 fi
 

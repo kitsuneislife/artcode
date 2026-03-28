@@ -1,35 +1,34 @@
 /src
 /target
-/ .github/*
-!.github/banner.png
 
-# Coverage
+# Coverage and profiling
 lcov.info
-
-# Profiling and JSON artifacts
 *.json
 !calibration_suggestion.json
 !profile.json
 
-# Tooling artifacts
+# Generated artifacts and plans
 /artifacts/
-
-# AOT compilation plans
 aot_plan*.json
 
-# Dynamic Test Outputs
+# Dynamic outputs / traces / local binaries
 test_output.txt
-
-#kit
-/.kit
-*.pdf
-CLAUDE.mdtrace.artlog
+trace.artlog
 *.artlog
-.claude
 testbin
-perf.md.artcache
-aot_cached_bin
 demo47
-crates/jit/artcache
+aot_cached_bin
+perf.md
+
+# Local cache
 .artcache/
 */.artcache/
+crates/jit/artcache
+
+# Local working notes/tools
+/.kit
+*.pdf
+.claude
+
+# Temporary workspace files
+tmp/

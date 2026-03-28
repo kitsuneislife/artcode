@@ -1,11 +1,11 @@
 # Comparacao de Performance: Warmup vs PGO
 
-Este fluxo executa a suite de benchmarks (`benches/*.art`) em duas condicoes:
+Este fluxo executa a suite de benchmarks (`bench/cases/*.art`) em duas condicoes:
 
 1. **Warmup baseline**: build release padrao.
 2. **PGO**: build instrumentado + merge de perfil + build otimizado com `profile-use`.
 
-Ao final, um relatorio Markdown e gerado em `perf.md` com:
+Ao final, um relatorio Markdown e gerado em `artifacts/perf.md` com:
 
 - tabela por benchmark
 - totais agregados

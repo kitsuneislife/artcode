@@ -14,7 +14,11 @@ pub struct Environment {
 }
 
 impl Environment {
-    pub fn new(enclosing: Option<Rc<RefCell<Environment>>>, depth: usize, associated_arena: Option<u32>) -> Self {
+    pub fn new(
+        enclosing: Option<Rc<RefCell<Environment>>>,
+        depth: usize,
+        associated_arena: Option<u32>,
+    ) -> Self {
         Environment {
             enclosing,
             values: HashMap::new(),

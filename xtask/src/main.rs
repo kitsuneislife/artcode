@@ -336,12 +336,14 @@ fn main() {
             }
         }
         Commands::Scan => scan_panics(),
-        Commands::BenchStartup { script, threshold_ms } => {
+        Commands::BenchStartup {
+            script,
+            threshold_ms,
+        } => {
             // Ensure we have a release binary to measure
             println!("[bench-startup] Building release binary...");
-            let build_status = run(
-                Command::new("cargo").args(["build", "--bin", "art", "--release", "--quiet"])
-            );
+            let build_status =
+                run(Command::new("cargo").args(["build", "--bin", "art", "--release", "--quiet"]));
             if !build_status.success() {
                 eprintln!("[bench-startup] Release build failed");
                 std::process::exit(1);

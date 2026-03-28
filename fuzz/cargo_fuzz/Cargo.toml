@@ -9,9 +9,9 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-lexer = { path = "../crates/lexer" }
-parser = { path = "../crates/parser" }
-interpreter = { path = "../crates/interpreter" }
+lexer = { path = "../../crates/lexer" }
+parser = { path = "../../crates/parser" }
+interpreter = { path = "../../crates/interpreter" }
 
 [[bin]]
 name = "parser_loops"

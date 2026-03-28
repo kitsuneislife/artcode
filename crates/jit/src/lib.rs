@@ -104,7 +104,8 @@ where
                     Ok(addr) => {
                         // SAFETY: assume compiled function has signature extern "C" fn(*mut i64) -> i64
                         let mut out = 0i64;
-                        let f: extern "C" fn(*mut i64) -> i64 = unsafe { std::mem::transmute(addr) };
+                        let f: extern "C" fn(*mut i64) -> i64 =
+                            unsafe { std::mem::transmute(addr) };
                         // Call the compiled code and return result. If it faults, so be it.
                         let status = unsafe { f(&mut out) };
                         if status == 0 {
@@ -168,13 +169,13 @@ pub use llvm_builder::DummyLlvmBuilder as LlvmBuilder;
 pub use llvm_builder::LlvmBuilderImpl as LlvmBuilder;
 
 // expose the analyzer/loader to callers and tests
+pub mod cache;
 pub mod ir_analyzer;
 pub mod ir_loader;
 pub mod trampolines;
-pub mod cache;
 
-pub use trampolines::{call_jit_fn, Sig};
 pub use cache::ArtCache;
+pub use trampolines::{call_jit_fn, Sig};
 
 /// Convenience: compile textual IR and return a raw function pointer (usize) when
 /// the JIT feature is enabled. Returns Err when not available or compilation fails.

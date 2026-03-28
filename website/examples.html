@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exemplos — Artcode</title>
     <meta name="description"
-        content="47 exemplos progressivos da linguagem Artcode: do Hello World a Try/Catch, Pure Mode, DAG de Dependências, Loops/Tuplas, Shell Syntax, IDL de IPC, Capabilities move-only, Serializacao IPC, TTD keyframes e comparacao warmup vs PGO.">
+        content="49 exemplos progressivos da linguagem Artcode: de Hello World a IPC/FFI, time-travel, cache incremental e ARC adaptativo, com foco em aprendizado por prática.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -34,7 +34,7 @@
 
             <div style="text-align: center; margin-bottom: 48px;" class="fade-in">
                 <p class="label">Aprenda Fazendo</p>
-                <h1>47 Exemplos <span class="gradient-text">Progressivos</span></h1>
+                <h1>49 Exemplos <span class="gradient-text">Progressivos</span></h1>
                 <p class="subtitle" style="margin: 12px auto 0;">Do Hello World a Microkernels — cada exemplo ensina um
                     conceito novo.</p>
             </div>
@@ -214,6 +214,12 @@
                         </button>
                         <button class="examples-sidebar__item" data-ex="ex-46">
                             <span class="examples-sidebar__num">46</span> Perf Compare Workflow
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-47">
+                            <span class="examples-sidebar__num">47</span> Incremental Cache
+                        </button>
+                        <button class="examples-sidebar__item" data-ex="ex-48">
+                            <span class="examples-sidebar__num">48</span> Adaptive ARC
                         </button>
                     </div>
 
@@ -1673,7 +1679,9 @@ $ <span class="fn">echo</span> shell_pipeline_ok <span class="op">|&gt;</span> <
                                 <span class="code-block__dot code-block__dot--green"></span>
                                 <span class="code-block__title">44_ttd_keyframes.art</span>
                             </div>
-                            <pre><span class="kw">let</span> t1 = <span class="fn">time_now</span>()
+                            <pre><span class="cm">// Mostra execução determinística com time-travel</span>
+<span class="cm">// Use --record para gravar e --replay para reproduzir</span>
+<span class="kw">let</span> t1 = <span class="fn">time_now</span>()
 <span class="kw">let</span> r1 = <span class="fn">rand_next</span>()
 <span class="fn">println</span>(<span class="str">f"t1={t1} r1={r1}"</span>)</pre>
                         </div>
@@ -1698,8 +1706,20 @@ $ <span class="fn">echo</span> shell_pipeline_ok <span class="op">|&gt;</span> <
                                 <span class="code-block__dot code-block__dot--green"></span>
                                 <span class="code-block__title">45_release_changelog.art</span>
                             </div>
-                            <pre><span class="kw">let</span> version = <span class="str">"0.2.0"</span>
-<span class="fn">println</span>(<span class="str">f"release={version}"</span>)</pre>
+                                                        <pre><span class="cm">// Metadados de release + highlights da versão</span>
+<span class="kw">let</span> version = <span class="str">"0.2.0"</span>
+<span class="kw">let</span> highlights = [
+    <span class="str">"time-travel keyframes"</span>,
+    <span class="str">"ffi call-gate seguro"</span>,
+    <span class="str">"capabilities move-only"</span>,
+    <span class="str">"ipc serialization"</span>
+]
+
+<span class="fn">println</span>(<span class="str">f"release={version}"</span>)
+<span class="fn">println</span>(<span class="str">"highlights="</span>)
+<span class="kw">for</span> item <span class="kw">in</span> highlights {
+    <span class="fn">println</span>(<span class="str">f"- {item}"</span>)
+}</pre>
                         </div>
                         <div class="example-run-hint">$ <span>art run examples/45_release_changelog.art</span></div>
                     </div>
@@ -1713,7 +1733,7 @@ $ <span class="fn">echo</span> shell_pipeline_ok <span class="op">|&gt;</span> <
                         </div>
                         <p class="example-entry__desc">
                             Fluxo de comparacao automatica de performance entre build warmup e build PGO,
-                            com geracao de relatorio em <code>perf.md</code>.
+                            com geracao de relatorio em <code>artifacts/perf.md</code>.
                         </p>
                         <div class="code-block example-panel__code">
                             <div class="code-block__header">
@@ -1722,11 +1742,78 @@ $ <span class="fn">echo</span> shell_pipeline_ok <span class="op">|&gt;</span> <
                                 <span class="code-block__dot code-block__dot--green"></span>
                                 <span class="code-block__title">46_perf_compare_workflow.art</span>
                             </div>
-                            <pre><span class="kw">let</span> report = <span class="str">"perf.md"</span>
+                            <pre><span class="cm">// Metadados para rotina de comparação warmup vs PGO</span>
+<span class="kw">let</span> report = <span class="str">"artifacts/perf.md"</span>
 <span class="fn">println</span>(<span class="str">f"report={report}"</span>)
 <span class="fn">println</span>(<span class="str">"run: bash scripts/perf_compare.sh"</span>)</pre>
                         </div>
                         <div class="example-run-hint">$ <span>bash scripts/perf_compare.sh</span></div>
+                    </div>
+
+                    <!-- 47: Incremental Cache -->
+                    <div class="example-entry" id="ex-47">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">47</span>
+                            <span class="example-entry__title">Incremental Cache</span>
+                            <span class="example-tag">Tooling</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Exemplo de cache incremental que torna rebuilds mais rápidos ao evitar recompilar
+                            partes não modificadas do pipeline.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">47_incremental_cache.art</span>
+                            </div>
+                            <pre><span class="cm">// Cache incremental AOT: primeira compilação gera artefato</span>
+<span class="cm">// Rebuilds seguintes reaproveitam binário cacheado por hash</span>
+<span class="kw">func</span> <span class="fn">duplicate</span>(x) {
+    <span class="kw">return</span> x + x;
+}
+
+<span class="kw">func</span> <span class="fn">main</span>() {
+    <span class="kw">return</span> <span class="fn">duplicate</span>(<span class="num">42</span>);
+}</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/47_incremental_cache.art</span></div>
+                    </div>
+
+                    <!-- 48: Adaptive ARC -->
+                    <div class="example-entry" id="ex-48">
+                        <div class="example-entry__header">
+                            <span class="example-entry__num">48</span>
+                            <span class="example-entry__title">Adaptive ARC</span>
+                            <span class="example-tag">Memory</span>
+                        </div>
+                        <p class="example-entry__desc">
+                            Demonstração do modelo ARC adaptativo: alocações mais curtas são gerenciadas em arenas,
+                            enquanto escapes são promovidos ao heap global.
+                        </p>
+                        <div class="code-block example-panel__code">
+                            <div class="code-block__header">
+                                <span class="code-block__dot code-block__dot--red"></span>
+                                <span class="code-block__dot code-block__dot--yellow"></span>
+                                <span class="code-block__dot code-block__dot--green"></span>
+                                <span class="code-block__title">48_adaptive_arc.art</span>
+                            </div>
+                            <pre><span class="cm">// ARC adaptativo: temporários ficam em arena e escapes são promovidos</span>
+<span class="kw">struct</span> <span class="type">Data</span> {
+    id: <span class="type">Int</span>,
+    payload: <span class="type">String</span>
+}
+
+<span class="kw">func</span> <span class="fn">create_and_return_data</span>() {
+    <span class="kw">let</span> d = <span class="type">Data</span> { id: <span class="num">999</span>, payload: <span class="str">"survivor"</span> }
+    <span class="kw">return</span> d <span class="cm">// promoção por escape</span>
+}
+
+<span class="kw">let</span> survivor = <span class="fn">create_and_return_data</span>()
+<span class="fn">println</span>(<span class="str">f"Objeto sobrevivente: ID {survivor.id}"</span>)</pre>
+                        </div>
+                        <div class="example-run-hint">$ <span>art run examples/48_adaptive_arc.art</span></div>
                     </div>
 
                 </div><!-- /examples-panel -->
@@ -1745,7 +1832,7 @@ $ <span class="fn">echo</span> shell_pipeline_ok <span class="op">|&gt;</span> <
                 <a href="why.html">Por que Artcode?</a>
                 <a href="changelog.html">Changelog</a>
             </div>
-            <p>Artcode v0.1.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
+            <p>Artcode v0.2.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
                     target="_blank">kitsuneislife</a></p>
         </div>
     </footer>

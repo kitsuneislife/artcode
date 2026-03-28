@@ -31,7 +31,7 @@ Próximos passos:
 O projeto mantém um worker dedicado de fuzzing para parser/loops em:
 
 - `.github/workflows/fuzz-ci.yml`
-- `fuzzing/fuzz_targets/parser_loops.rs`
+- `fuzz/cargo_fuzz/fuzz_targets/parser_loops.rs`
 
 Execução local (janela curta):
 
