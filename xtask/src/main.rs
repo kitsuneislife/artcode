@@ -75,6 +75,15 @@ enum Commands {
         #[arg(long)]
         ir_dir: Option<PathBuf>,
     },
+    /// Benchmark cold-start of the `art run` command (50 samples, fails if median > 10ms)
+    BenchStartup {
+        /// Script to run for each sample (default: examples/00_hello.art)
+        #[arg(long, default_value = "examples/00_hello.art")]
+        script: String,
+        /// Threshold in milliseconds — fails if median exceeds this value (default: 10)
+        #[arg(long, default_value_t = 10u64)]
+        threshold_ms: u64,
+    },
 }
 
 fn run(cmd: &mut Command) -> ExitStatus {
@@ -327,6 +336,64 @@ fn main() {
             }
         }
         Commands::Scan => scan_panics(),
+        Commands::BenchStartup { script, threshold_ms } => {
+            // Ensure we have a release binary to measure
+            println!("[bench-startup] Building release binary...");
+            let build_status = run(
+                Command::new("cargo").args(["build", "--bin", "art", "--release", "--quiet"])
+            );
+            if !build_status.success() {
+                eprintln!("[bench-startup] Release build failed");
+                std::process::exit(1);
+            }
+
+            let samples = 50usize;
+            let mut times_us: Vec<u128> = Vec::with_capacity(samples);
+            println!("[bench-startup] Running '{}' {} times...", script, samples);
+
+            for _ in 0..samples {
+                let start = std::time::Instant::now();
+                let status = std::process::Command::new("target/release/art")
+                    .args(["run", &script])
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .status();
+                let elapsed = start.elapsed();
+                match status {
+                    Ok(s) if s.success() => times_us.push(elapsed.as_micros()),
+                    _ => {
+                        eprintln!("[bench-startup] Sample run failed for {}", script);
+                        std::process::exit(1);
+                    }
+                }
+            }
+
+            times_us.sort_unstable();
+            let min_ms = *times_us.first().unwrap() as f64 / 1000.0;
+            let max_ms = *times_us.last().unwrap() as f64 / 1000.0;
+            let median_ms = times_us[samples / 2] as f64 / 1000.0;
+            let mean_ms = times_us.iter().sum::<u128>() as f64 / samples as f64 / 1000.0;
+
+            println!("[bench-startup] Results ({} samples):", samples);
+            println!("  min   : {:.3}ms", min_ms);
+            println!("  median: {:.3}ms", median_ms);
+            println!("  mean  : {:.3}ms", mean_ms);
+            println!("  max   : {:.3}ms", max_ms);
+            println!("  threshold: {}ms", threshold_ms);
+
+            if median_ms > threshold_ms as f64 {
+                eprintln!(
+                    "[bench-startup] FAIL: median {:.3}ms exceeds threshold {}ms",
+                    median_ms, threshold_ms
+                );
+                std::process::exit(1);
+            } else {
+                println!(
+                    "[bench-startup] OK: median {:.3}ms is within {}ms threshold ✓",
+                    median_ms, threshold_ms
+                );
+            }
+        }
         Commands::Coverage { html } => {
             // Detect cargo-llvm-cov
             let tool = Command::new("bash")

@@ -509,80 +509,92 @@ pub fn decode_val(cur: &mut std::io::Cursor<&[u8]>) -> std::result::Result<ArtVa
 }
 
 impl Interpreter {
-    pub fn prelude_builtin_bindings() -> Vec<(&'static str, core::ast::BuiltinFn)> {
-        vec![
-            ("println", core::ast::BuiltinFn::Println),
-            ("len", core::ast::BuiltinFn::Len),
-            ("type_of", core::ast::BuiltinFn::TypeOf),
-            ("weak", core::ast::BuiltinFn::WeakNew),
-            ("weak_get", core::ast::BuiltinFn::WeakGet),
-            ("unowned", core::ast::BuiltinFn::UnownedNew),
-            ("unowned_get", core::ast::BuiltinFn::UnownedGet),
-            ("on_finalize", core::ast::BuiltinFn::OnFinalize),
-            ("actor_send", core::ast::BuiltinFn::ActorSend),
-            ("actor_receive", core::ast::BuiltinFn::ActorReceive),
-            (
-                "actor_receive_envelope",
-                core::ast::BuiltinFn::ActorReceiveEnvelope,
-            ),
-            ("actor_yield", core::ast::BuiltinFn::ActorYield),
-            (
-                "actor_set_mailbox_limit",
-                core::ast::BuiltinFn::ActorSetMailboxLimit,
-            ),
-            ("envelope", core::ast::BuiltinFn::EnvelopeNew),
-            ("make_envelope", core::ast::BuiltinFn::MakeEnvelope),
-            ("run_actors", core::ast::BuiltinFn::RunActors),
-            ("atomic_new", core::ast::BuiltinFn::AtomicNew),
-            ("atomic_load", core::ast::BuiltinFn::AtomicLoad),
-            ("atomic_store", core::ast::BuiltinFn::AtomicStore),
-            ("atomic_add", core::ast::BuiltinFn::AtomicAdd),
-            ("mutex_new", core::ast::BuiltinFn::MutexNew),
-            ("mutex_lock", core::ast::BuiltinFn::MutexLock),
-            ("mutex_unlock", core::ast::BuiltinFn::MutexUnlock),
-            ("arena_new", core::ast::BuiltinFn::ArenaNew),
-            ("arena_release", core::ast::BuiltinFn::ArenaRelease),
-            ("arena_with", core::ast::BuiltinFn::ArenaWith),
-            ("idl_schema", core::ast::BuiltinFn::IdlSchema),
-            ("idl_validate", core::ast::BuiltinFn::IdlValidate),
-            ("buffer_new", core::ast::BuiltinFn::BufferNew),
-            ("serialize", core::ast::BuiltinFn::Serialize),
-            ("deserialize", core::ast::BuiltinFn::Deserialize),
-            ("capability_acquire", core::ast::BuiltinFn::CapabilityAcquire),
-            ("capability_kind", core::ast::BuiltinFn::CapabilityKind),
-            ("map_new", core::ast::BuiltinFn::MapNew),
-            ("map_set", core::ast::BuiltinFn::MapSet),
-            ("map_get", core::ast::BuiltinFn::MapGet),
-            ("map_has", core::ast::BuiltinFn::MapHas),
-            ("set_new", core::ast::BuiltinFn::SetNew),
-            ("set_add", core::ast::BuiltinFn::SetAdd),
-            ("set_has", core::ast::BuiltinFn::SetHas),
-            ("math_abs", core::ast::BuiltinFn::MathAbs),
-            ("math_pow", core::ast::BuiltinFn::MathPow),
-            ("math_clamp", core::ast::BuiltinFn::MathClamp),
-            ("dag_topo_sort", core::ast::BuiltinFn::DagTopoSort),
-            ("time_now", core::ast::BuiltinFn::TimeNow),
-            ("io_read_text", core::ast::BuiltinFn::IOReadText),
-            ("io_write_text", core::ast::BuiltinFn::IOWriteText),
-            ("http_get_text", core::ast::BuiltinFn::HttpGetText),
-            ("rand_seed", core::ast::BuiltinFn::RandomSeed),
-            ("rand_next", core::ast::BuiltinFn::RandomNext),
-            ("stream", core::ast::BuiltinFn::StreamNew),
-            ("map", core::ast::BuiltinFn::StreamMap),
-            ("filter", core::ast::BuiltinFn::StreamFilter),
-            ("collect", core::ast::BuiltinFn::StreamCollect),
-            ("count", core::ast::BuiltinFn::StreamCount),
-        ]
+    pub const PRELUDE_NAMES: &'static [&'static str] = &[
+        "println", "len", "type_of", "weak", "weak_get", "unowned", "unowned_get",
+        "on_finalize", "actor_send", "actor_receive", "actor_receive_envelope",
+        "actor_yield", "actor_set_mailbox_limit", "envelope", "make_envelope",
+        "run_actors", "atomic_new", "atomic_load", "atomic_store", "atomic_add",
+        "mutex_new", "mutex_lock", "mutex_unlock", "arena_new", "arena_release",
+        "arena_with", "idl_schema", "idl_validate", "buffer_new", "serialize",
+        "deserialize", "capability_acquire", "capability_kind", "map_new",
+        "map_set", "map_get", "map_has", "set_new", "set_add", "set_has",
+        "math_abs", "math_pow", "math_clamp", "dag_topo_sort", "time_now",
+        "io_read_text", "io_write_text", "http_get_text", "rand_seed",
+        "rand_next", "stream", "map", "filter", "collect", "count",
+    ];
+
+    #[inline]
+    fn name_to_builtin(name: &str) -> core::ast::BuiltinFn {
+        use core::ast::BuiltinFn;
+        match name {
+            "println" => BuiltinFn::Println,
+            "len" => BuiltinFn::Len,
+            "type_of" => BuiltinFn::TypeOf,
+            "weak" => BuiltinFn::WeakNew,
+            "weak_get" => BuiltinFn::WeakGet,
+            "unowned" => BuiltinFn::UnownedNew,
+            "unowned_get" => BuiltinFn::UnownedGet,
+            "on_finalize" => BuiltinFn::OnFinalize,
+            "actor_send" => BuiltinFn::ActorSend,
+            "actor_receive" => BuiltinFn::ActorReceive,
+            "actor_receive_envelope" => BuiltinFn::ActorReceiveEnvelope,
+            "actor_yield" => BuiltinFn::ActorYield,
+            "actor_set_mailbox_limit" => BuiltinFn::ActorSetMailboxLimit,
+            "envelope" => BuiltinFn::EnvelopeNew,
+            "make_envelope" => BuiltinFn::MakeEnvelope,
+            "run_actors" => BuiltinFn::RunActors,
+            "atomic_new" => BuiltinFn::AtomicNew,
+            "atomic_load" => BuiltinFn::AtomicLoad,
+            "atomic_store" => BuiltinFn::AtomicStore,
+            "atomic_add" => BuiltinFn::AtomicAdd,
+            "mutex_new" => BuiltinFn::MutexNew,
+            "mutex_lock" => BuiltinFn::MutexLock,
+            "mutex_unlock" => BuiltinFn::MutexUnlock,
+            "arena_new" => BuiltinFn::ArenaNew,
+            "arena_release" => BuiltinFn::ArenaRelease,
+            "arena_with" => BuiltinFn::ArenaWith,
+            "idl_schema" => BuiltinFn::IdlSchema,
+            "idl_validate" => BuiltinFn::IdlValidate,
+            "buffer_new" => BuiltinFn::BufferNew,
+            "serialize" => BuiltinFn::Serialize,
+            "deserialize" => BuiltinFn::Deserialize,
+            "capability_acquire" => BuiltinFn::CapabilityAcquire,
+            "capability_kind" => BuiltinFn::CapabilityKind,
+            "map_new" => BuiltinFn::MapNew,
+            "map_set" => BuiltinFn::MapSet,
+            "map_get" => BuiltinFn::MapGet,
+            "map_has" => BuiltinFn::MapHas,
+            "set_new" => BuiltinFn::SetNew,
+            "set_add" => BuiltinFn::SetAdd,
+            "set_has" => BuiltinFn::SetHas,
+            "math_abs" => BuiltinFn::MathAbs,
+            "math_pow" => BuiltinFn::MathPow,
+            "math_clamp" => BuiltinFn::MathClamp,
+            "dag_topo_sort" => BuiltinFn::DagTopoSort,
+            "time_now" => BuiltinFn::TimeNow,
+            "io_read_text" => BuiltinFn::IOReadText,
+            "io_write_text" => BuiltinFn::IOWriteText,
+            "http_get_text" => BuiltinFn::HttpGetText,
+            "rand_seed" => BuiltinFn::RandomSeed,
+            "rand_next" => BuiltinFn::RandomNext,
+            "stream" => BuiltinFn::StreamNew,
+            "map" => BuiltinFn::StreamMap,
+            "filter" => BuiltinFn::StreamFilter,
+            "collect" => BuiltinFn::StreamCollect,
+            "count" => BuiltinFn::StreamCount,
+            _ => unreachable!("Unknown builtin name: {}", name),
+        }
     }
 
     pub fn new() -> Self {
-        let global_env = Rc::new(RefCell::new(Environment::new(None)));
+        // Pre-allocate environment with enough capacity for builtins
+        let mut env = Environment::new(None);
+        env.values.reserve(Self::PRELUDE_NAMES.len());
 
-        for (name, builtin) in Self::prelude_builtin_bindings() {
-            global_env
-                .borrow_mut()
-                .define(name, ArtValue::Builtin(builtin));
+        for &name in Self::PRELUDE_NAMES {
+            env.define(name, ArtValue::Builtin(Self::name_to_builtin(name)));
         }
+        let global_env = Rc::new(RefCell::new(env));
 
         Interpreter {
             environment: global_env,

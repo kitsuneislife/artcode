@@ -273,7 +273,7 @@ fn fallback_doc(name: &str) -> StdDocMeta {
 }
 
 pub fn print_std_docs() {
-    let builtins = Interpreter::prelude_builtin_bindings();
+    let builtins = Interpreter::PRELUDE_NAMES;
 
     println!("Artcode Standard Library Documentation");
     println!("====================================");
@@ -283,7 +283,7 @@ pub fn print_std_docs() {
     );
 
     let mut current_category = "";
-    for (name, _) in builtins {
+    for &name in builtins {
         let meta = std_doc_meta(name).unwrap_or_else(|| fallback_doc(name));
         if current_category != meta.category {
             current_category = meta.category;

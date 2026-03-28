@@ -561,6 +561,7 @@ dependencies = [
  "criterion",
  "diagnostics",
  "lexer",
+ "once_cell",
  "parser",
  "serde_json",
 ]

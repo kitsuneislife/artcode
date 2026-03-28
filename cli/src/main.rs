@@ -691,10 +691,14 @@ fn run_upgrade(args: &[String]) {
 }
 
 fn main() {
+    // Capture process start time immediately for --startup-bench measurements.
+    let process_start = std::time::Instant::now();
+
     let mut args: Vec<String> = env::args().collect();
-    // global: support --gen-profile <path> and --emit-ir <path|->
+    // global: support --gen-profile <path>, --emit-ir <path|->, and --startup-bench
     let mut gen_profile: Option<String> = None;
     let mut emit_ir: Option<String> = None;
+    let mut startup_bench = false;
     let mut i = 1usize;
     while i < args.len() {
         if args[i] == "--gen-profile" && i + 1 < args.len() {
@@ -710,8 +714,24 @@ fn main() {
             args.remove(i);
             continue;
         }
+        if args[i] == "--startup-bench" {
+            startup_bench = true;
+            args.remove(i);
+            continue;
+        }
         i += 1;
     }
+
+    if startup_bench {
+        // Print startup time immediately after arg parsing (before lexer/interpreter init).
+        let elapsed = process_start.elapsed();
+        eprintln!(
+            "[startup-bench] arg-parse done in {}µs ({}ms)",
+            elapsed.as_micros(),
+            elapsed.as_millis()
+        );
+    }
+
     if args.len() == 1 {
         return run_prompt(emit_ir.as_deref(), false);
     }
@@ -872,7 +892,16 @@ fn main() {
             eprintln!("Usage: art run [--pure] [--record <file>] <script>");
             process::exit(64);
         };
-        return run_file(&file, gen_profile.as_deref(), emit_ir.as_deref(), pure_mode, record_file.as_deref());
+        run_file(&file, gen_profile.as_deref(), emit_ir.as_deref(), pure_mode, record_file.as_deref());
+        if startup_bench {
+            let elapsed = process_start.elapsed();
+            eprintln!(
+                "[startup-bench] total (parse+typecheck+exec) in {}µs ({}ms)",
+                elapsed.as_micros(),
+                elapsed.as_millis()
+            );
+        }
+        return;
     }
     if args[1] == "metrics" {
         if args.len() < 3 {
