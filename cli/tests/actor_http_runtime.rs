@@ -22,7 +22,7 @@ fn actor_runtime_http_flow_returns_response_body() {
     });
 
     let script = format!(
-        "let worker = spawn actor {{\n    let req = actor_receive_envelope();\n    let body = http_get_text(req.payload);\n    actor_send(req.sender, body);\n}};\n\nlet client = spawn actor {{\n    actor_send(worker, \"http://127.0.0.1:{}/health\");\n    let response = actor_receive();\n    println(response);\n}};\n\nrun_actors(20);\n",
+        "let worker = spawn actor {{\n    let req = actor_receive_envelope();\n    let body = http_get_text(req.payload);\n    actor_send(req.sender, body);\n}};\n\nlet client = spawn actor {{\n    actor_send(worker, \"http://127.0.0.1:{}/health\");\n    let response = actor_receive();\n    println(response);\n}};\n\nrun_actors(100);\n",
         port
     );
 

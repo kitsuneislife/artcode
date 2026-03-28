@@ -510,6 +510,42 @@ pub fn decode_val(cur: &mut std::io::Cursor<&[u8]>) -> std::result::Result<ArtVa
     }
 }
 
+thread_local! {
+    pub(crate) static PRELUDE_VALUES: HashMap<&'static str, ArtValue> = {
+        let mut m = HashMap::with_capacity(Interpreter::PRELUDE_NAMES.len());
+        for &name in Interpreter::PRELUDE_NAMES {
+            m.insert(name, ArtValue::Builtin(Interpreter::name_to_builtin(name)));
+        }
+        m
+    };
+
+    static PRELUDE_TYPES: TypeRegistry = {
+        let mut registry = TypeRegistry::new();
+        use core::Token;
+        let name = Token::dummy("Result");
+        let variants = vec![
+            (Token::dummy("Ok"), Some(vec!["T".to_string()])),
+            (Token::dummy("Err"), Some(vec!["E".to_string()])),
+        ];
+        registry.register_enum(name, variants);
+        let opt_name = Token::dummy("Option");
+        let opt_variants = vec![
+            (Token::dummy("Some"), Some(vec!["T".to_string()])),
+            (Token::dummy("None"), None),
+        ];
+        registry.register_enum(opt_name, opt_variants);
+        registry.register_struct(
+            Token::dummy("Envelope"),
+            vec![
+                (Token::dummy("sender"), "Optional<Int>".to_string()),
+                (Token::dummy("payload"), "Any".to_string()),
+                (Token::dummy("priority"), "Int".to_string()),
+            ],
+        );
+        registry
+    };
+}
+
 impl Interpreter {
     pub const PRELUDE_NAMES: &'static [&'static str] = &[
         "println", "len", "type_of", "weak", "weak_get", "unowned", "unowned_get",
@@ -588,18 +624,7 @@ impl Interpreter {
             _ => unreachable!("Unknown builtin name: {}", name),
         }
     }
-
     pub fn new() -> Self {
-        thread_local! {
-            static PRELUDE_VALUES: HashMap<&'static str, ArtValue> = {
-                let mut m = HashMap::with_capacity(Interpreter::PRELUDE_NAMES.len());
-                for &name in Interpreter::PRELUDE_NAMES {
-                    m.insert(name, ArtValue::Builtin(Interpreter::name_to_builtin(name)));
-                }
-                m
-            };
-        }
-
         let global_env = PRELUDE_VALUES.with(|prelude| {
             Rc::new(RefCell::new(Environment::with_values(
                 None,
@@ -659,34 +684,6 @@ impl Interpreter {
     }
 
     pub fn with_prelude() -> Self {
-        thread_local! {
-            static PRELUDE_TYPES: TypeRegistry = {
-                let mut registry = TypeRegistry::new();
-                use core::Token;
-                let name = Token::dummy("Result");
-                let variants = vec![
-                    (Token::dummy("Ok"), Some(vec!["T".to_string()])),
-                    (Token::dummy("Err"), Some(vec!["E".to_string()])),
-                ];
-                registry.register_enum(name, variants);
-                let opt_name = Token::dummy("Option");
-                let opt_variants = vec![
-                    (Token::dummy("Some"), Some(vec!["T".to_string()])),
-                    (Token::dummy("None"), None),
-                ];
-                registry.register_enum(opt_name, opt_variants);
-                registry.register_struct(
-                    Token::dummy("Envelope"),
-                    vec![
-                        (Token::dummy("sender"), "Optional<Int>".to_string()),
-                        (Token::dummy("payload"), "Any".to_string()),
-                        (Token::dummy("priority"), "Int".to_string()),
-                    ],
-                );
-                registry
-            };
-        }
-
         let mut interp = Self::new();
         interp.type_registry = PRELUDE_TYPES.with(|types| types.clone());
         interp
@@ -1148,27 +1145,66 @@ impl Interpreter {
         }
     }
 
-    fn promote_if_escaping(&mut self, target_env: &Environment, value: &ArtValue) {
-        if let ArtValue::HeapComposite(h) = value {
-            if let Some(obj) = self.heap_objects.get_mut(&h.0) {
-                // Se o objeto estiver em uma arena, e o ambiente de destino não estiver associado
-                // a nenhuma arena (global) ou estiver em uma arena "menos profunda" (nível superior),
-                // promovemos o objeto para que ele sobreviva à finalização da arena atual.
-                if let Some(obj_aid) = obj.arena_id {
-                    let should_promote = match target_env.associated_arena {
-                        None => true, // escapando para o global
-                        Some(target_aid) => obj_aid != target_aid, // escapando para outra arena (geralmente pai)
-                    };
+    fn promote_if_escaping(&mut self, target_aid: Option<u32>, value: &mut ArtValue) {
+        match value {
+            ArtValue::HeapComposite(h) => {
+                let mut inner_val = None;
+                let mut needs_promotion = false;
 
-                    if should_promote {
-                        obj.arena_id = target_env.associated_arena;
-                        self.finalizer_promotions += 1;
-                        if let Some(aid) = obj.arena_id {
-                            *self.finalizer_promotions_per_arena.entry(aid).or_insert(0) += 1;
+                if let Some(obj) = self.heap_objects.get(&h.0) {
+                    if let Some(obj_aid) = obj.arena_id {
+                        needs_promotion = match target_aid {
+                            None => true, // escapando para o global
+                            Some(ta) => obj_aid != ta && obj_aid > ta, // escapando para pai/global
+                        };
+                        if needs_promotion {
+                            inner_val = Some(obj.value.clone());
                         }
                     }
                 }
+
+                if let Some(mut iv) = inner_val {
+                    // Deep recursion: promote children first
+                    self.promote_if_escaping(target_aid, &mut iv);
+                    
+                    // Register the promoted object in the target arena
+                    let new_id = if let Some(ta) = target_aid {
+                        self.heap_register_in_arena(iv, ta)
+                    } else {
+                        self.heap_register(iv)
+                    };
+                    
+                    // Update current reference to the new promoted ID
+                    h.0 = new_id;
+                    self.finalizer_promotions += 1;
+                }
             }
+            ArtValue::Array(arr) => {
+                for item in arr.iter_mut() {
+                    self.promote_if_escaping(target_aid, item);
+                }
+            }
+            ArtValue::StructInstance { fields, .. } => {
+                for item in fields.values_mut() {
+                    self.promote_if_escaping(target_aid, item);
+                }
+            }
+            ArtValue::Tuple(tup) => {
+                for item in tup.iter_mut() {
+                    self.promote_if_escaping(target_aid, item);
+                }
+            }
+            ArtValue::EnumInstance { values, .. } => {
+                for item in values.iter_mut() {
+                    self.promote_if_escaping(target_aid, item);
+                }
+            }
+            ArtValue::Optional(inner) => {
+                if let Some(iv) = inner.as_mut() {
+                    self.promote_if_escaping(target_aid, iv);
+                }
+            }
+            _ => {}
         }
     }
 
@@ -2415,7 +2451,20 @@ impl Interpreter {
                 initializer,
             } => {
                 let value = self.evaluate(initializer)?;
-                self.bind_value_to_pattern(&pattern, value)?;
+
+                // CRITICAL: If the actor was parked during evaluation (e.g. by actor_receive),
+                // do NOT bind the pattern yet. The statement will be retried when unparked.
+                // Reinsertion is handled by the round-robin scheduler (run_actors_round_robin).
+                if self.executing_actor.as_ref().map(|a| a.parked).unwrap_or(false) {
+                    return Ok(());
+                }
+
+                // Promoção se necessário
+                let aid = self.environment.borrow().associated_arena;
+                let mut promoted_value = value;
+                self.promote_if_escaping(aid, &mut promoted_value);
+                
+                self.bind_value_to_pattern(&pattern, promoted_value)?;
                 Ok(())
             }
             Stmt::Block { statements } => {
@@ -2448,8 +2497,9 @@ impl Interpreter {
                         (b.depth, b.associated_arena)
                     };
                     let mut new_env = Environment::new(Some(self.environment.clone()), parent_depth + 1, parent_arena);
-                    for (k, v) in bindings {
-                        self.promote_if_escaping(&new_env, &v);
+                    for (k, mut v) in bindings {
+                        let target_aid = new_env.associated_arena;
+                        self.promote_if_escaping(target_aid, &mut v);
                         new_env.define(&k, v);
                     }
                     let previous = self.environment.clone();
@@ -2510,8 +2560,9 @@ impl Interpreter {
                         let new_env = Rc::new(RefCell::new(new_env_struct));
                         let previous = self.environment.clone();
                         self.environment = new_env.clone();
-                        for (name, value) in bindings {
-                            self.promote_if_escaping(&new_env.borrow(), &value);
+                        for (name, mut value) in bindings {
+                            let target_aid = new_env.borrow().associated_arena;
+                            self.promote_if_escaping(target_aid, &mut value);
                             new_env.borrow_mut().define(&name, value);
                         }
                         // Executar o corpo e garantir que mesmo em erro o escopo temporário seja limpo
@@ -2609,7 +2660,7 @@ impl Interpreter {
                 Ok(())
             }
             Stmt::Return { value } => {
-                let return_value = match value {
+                let mut return_value = match value {
                     Some(expr) => self.evaluate(expr)?,
                     None => ArtValue::none(),
                 };
@@ -2955,7 +3006,7 @@ impl Interpreter {
 
                 match iter_source {
                     IterSource::Array(array_elements) => {
-                        for val in array_elements {
+                        for mut val in array_elements {
                             let previous_env = self.environment.clone();
                             let (p_depth, p_arena) = {
                                 let b = previous_env.borrow();
@@ -2965,9 +3016,11 @@ impl Interpreter {
                                 Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()), p_depth + 1, p_arena)));
                             self.environment = loop_env.clone();
 
+                            let target_aid = loop_env.borrow().associated_arena;
+                            self.promote_if_escaping(target_aid, &mut val);
                             self.environment
                                 .borrow_mut()
-                                .define(&element.lexeme, val.clone());
+                                .define(&element.lexeme, val);
 
                             let result = self.execute(*body.clone());
 
@@ -2985,7 +3038,7 @@ impl Interpreter {
                         loop {
                             let next_val = call_next(self, &iter_val)?;
                             let next_val = self.resolve_composite(&next_val).clone();
-                            let item = match next_val {
+                            let mut item = match next_val {
                                 ArtValue::Optional(boxed) => match *boxed {
                                     Some(v) => v,
                                     None => break,
@@ -3030,10 +3083,11 @@ impl Interpreter {
                                 Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()), p_depth + 1, Some(_aid))));
                             self.environment = loop_env.clone();
 
-                            self.promote_if_escaping(&loop_env.borrow(), &item);
+                            let target_aid = loop_env.borrow().associated_arena;
+                            self.promote_if_escaping(target_aid, &mut item);
                             self.environment
                                 .borrow_mut()
-                                .define(&element.lexeme, item.clone());
+                                .define(&element.lexeme, item);
 
                             let result = self.execute(*body.clone());
 
@@ -3191,7 +3245,8 @@ impl Interpreter {
                 let transformed = match e {
                     RuntimeError::Return(mut rv) => {
                         // Promoção Adaptativa ao retornar valores
-                        self.promote_if_escaping(&previous.borrow(), &rv);
+                        let target_aid = previous.borrow().associated_arena;
+                        self.promote_if_escaping(target_aid, &mut rv);
                         if let ArtValue::HeapComposite(ref h) = rv {
                             // Keep heap composite alive across scope teardown.
                             self.inc_heap_strong(h.0);
@@ -3207,7 +3262,10 @@ impl Interpreter {
                                     closure: f.closure.clone(),
                                     retained_env: Some(scope_env.clone()),
                                 };
-                                rv = ArtValue::Function(Rc::new(escaped));
+                                let mut rv = ArtValue::Function(Rc::new(escaped));
+                                let aid = previous.borrow().associated_arena;
+                                self.promote_if_escaping(aid, &mut rv);
+                                return Err(RuntimeError::Return(rv));
                             }
                         }
                         RuntimeError::Return(rv)
@@ -3282,8 +3340,21 @@ impl Interpreter {
                         return Ok(ArtValue::Array(values.clone()));
                     }
                 }
-                match self.environment.borrow_mut().read_for_eval(&name_str) {
-                    Some(ArtValue::MovedCapability) => {
+                // Fallback para builtins: checamos ANTES para evitar empréstimos mutáveis desnecessários
+                // do ambiente global (evita pânicos de RefCell em atores).
+                // Nota: Shadowing ainda funciona se o usuário definir explicitamente a variável,
+                // pois o ambiente local será checado em seguida.
+                if let Some(builtin) = PRELUDE_VALUES.with(|p| p.get(name_str.as_str()).cloned()) {
+                    // Mas espera! Se houver uma variável local com esse nome, ela deve ter precedência.
+                    // Fazemos um borrow imutável rápido para verificar.
+                    if !self.environment.borrow().has_locally(&name_str) {
+                         return Ok(builtin);
+                    }
+                }
+
+                let val = self.environment.borrow_mut().read_for_eval(&name_str);
+                if let Some(v) = val {
+                    if let ArtValue::MovedCapability = v {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             format!(
@@ -3292,26 +3363,26 @@ impl Interpreter {
                             ),
                             Span::new(name.start, name.end, name.line, name.col),
                         ));
-                        Ok(ArtValue::none())
+                        return Ok(ArtValue::none());
                     }
-                    Some(v) => Ok(v),
-                    None => {
-                        let env_borrow = self.environment.borrow();
-                        let candidates = env_borrow.values.keys().copied();
-                        let suggestion = if let Some(best) = did_you_mean(&name_str, candidates) {
-                            format!(" Did you mean '{}'?", best)
-                        } else {
-                            String::new()
-                        };
-
-                        self.diagnostics.push(Diagnostic::new(
-                            DiagnosticKind::Runtime,
-                            format!("Undefined variable '{}'.{}", name_str, suggestion),
-                            Span::new(name.start, name.end, name.line, name.col),
-                        ));
-                        Ok(ArtValue::none())
-                    }
+                    return Ok(v);
                 }
+
+                // Não encontrado nem no ambiente léxico nem nos builtins
+                let env_borrow = self.environment.borrow();
+                let candidates = env_borrow.values.keys().copied();
+                let suggestion = if let Some(best) = did_you_mean(&name_str, candidates) {
+                    format!(" Did you mean '{}'?", best)
+                } else {
+                    String::new()
+                };
+
+                self.diagnostics.push(Diagnostic::new(
+                    DiagnosticKind::Runtime,
+                    format!("Undefined variable '{}'.{}", name_str, suggestion),
+                    Span::new(name.start, name.end, name.line, name.col),
+                ));
+                Ok(ArtValue::none())
             }
             Expr::Unary { operator, right } => {
                 let right_val = self.evaluate(*right)?;
@@ -3812,7 +3883,13 @@ impl Interpreter {
         if let Expr::Variable { name } = &callee {
             let is_defined = self.environment.borrow().get(&name.lexeme).is_some();
             if !is_defined {
-                return self.run_shell_function_call(&name.lexeme, arguments);
+                // Também checamos nos builtins antes de cair para o shell.
+                // Como não estão mais no environment (otimização de cold-start),
+                // precisamos verificar o registro global aqui.
+                let is_builtin = PRELUDE_VALUES.with(|p| p.contains_key(name.lexeme.as_str()));
+                if !is_builtin {
+                    return self.run_shell_function_call(&name.lexeme, arguments);
+                }
             }
         }
 
@@ -3890,8 +3967,9 @@ impl Interpreter {
         self.environment = call_env.clone();
 
         // Bind parâmetros
-        for (param, value) in func.params.iter().zip(evaluated_args.into_iter()) {
-            self.promote_if_escaping(&call_env.borrow(), &value);
+        for (param, mut value) in func.params.iter().zip(evaluated_args.into_iter()) {
+            let target_aid = call_env.borrow().associated_arena;
+            self.promote_if_escaping(target_aid, &mut value);
             self.environment.borrow_mut().define(&param.name.lexeme, value);
         }
 
@@ -3899,7 +3977,12 @@ impl Interpreter {
 
         let mut return_val = match result {
             Ok(()) => ArtValue::none(),
-            Err(RuntimeError::Return(val)) => val,
+            Err(RuntimeError::Return(mut rv)) => {
+                // Ao retornar de uma função, se estiver saindo de uma arena para uma externa, promovemos.
+                let target_aid = previous_env.borrow().associated_arena;
+                self.promote_if_escaping(target_aid, &mut rv);
+                rv
+            }
             Err(e) => {
                 self.pop_implicit_arena();
                 self.environment = previous_env;
@@ -3907,9 +3990,6 @@ impl Interpreter {
                 return Err(e);
             }
         };
-
-        // Promoção Adaptativa do retorno
-        self.promote_if_escaping(&previous_env.borrow(), &return_val);
 
         // Escape analysis para closures
         if let ArtValue::Function(f) = &return_val {
@@ -4640,7 +4720,9 @@ impl Interpreter {
                             Ok(ArtValue::String(Arc::from(response)))
                         }
                     }
-                    Err(_) => Ok(ArtValue::none()),
+                    Err(_) => {
+                        Ok(ArtValue::none())
+                    }
                 }
             }
             core::ast::BuiltinFn::RandomSeed => {
@@ -4925,7 +5007,7 @@ impl Interpreter {
                     return Ok(ArtValue::none());
                 }
                 let aid_val = self.evaluate(arguments[0].clone())?;
-                let msg_val = self.evaluate(arguments[1].clone())?;
+                let mut msg_val = self.evaluate(arguments[1].clone())?;
                 let priority = if arguments.len() == 3 {
                     match self.evaluate(arguments[2].clone())? {
                         ArtValue::Int(n) => n as i32,
@@ -4934,26 +5016,40 @@ impl Interpreter {
                 } else {
                     0
                 };
-                // accept Actor handle variant or Int for backward compatibility
+                // accept Actor handle variant, Int, or Optional(Actor/Int) for backward compatibility
                 let aid_opt = match aid_val {
                     ArtValue::Actor(id) => Some(id),
                     ArtValue::Int(n) => Some(n as u32),
+                    ArtValue::Optional(inner) => {
+                        if let Some(actual) = inner.as_ref() {
+                            match actual {
+                                ArtValue::Actor(id) => Some(*id),
+                                ArtValue::Int(n) => Some(*n as u32),
+                                _ => None,
+                            }
+                        } else {
+                            None
+                        }
+                    }
                     _ => None,
                 };
                 if let Some(aid) = aid_opt {
+                    // Promoção antecipada: o payload escapa para outro ator (global heap)
+                    self.promote_if_escaping(None, &mut msg_val);
+
                     if let Some(actor) = self.actors.get_mut(&aid) {
                         let limit = actor.mailbox_limit;
                         if actor.mailbox.len() >= limit {
                             // mailbox full: signal backpressure (return false)
                             return Ok(ArtValue::Bool(false));
                         }
+
                         let env = core::ast::ValueEnvelope {
                             sender: self.current_actor,
                             payload: msg_val,
                             priority,
                         };
                         actor.mailbox.insert(env);
-                        // If actor was parked waiting for messages, unpark it
                         if actor.parked {
                             actor.parked = false;
                         }
@@ -4992,15 +5088,17 @@ impl Interpreter {
                 Ok(ArtValue::none())
             }
             core::ast::BuiltinFn::ActorReceive => {
-                // actor_receive reads from the current actor's mailbox
+                if let Some(actor) = &mut self.executing_actor {
+                    if let Some(env) = actor.mailbox.pop_front() {
+                        actor.parked = false;
+                        return Ok(env.payload);
+                    }
+                }
                 if let Some(aid) = self.current_actor {
-                    // First try to get the actor from actors map
                     if let Some(actor) = self.actors.get_mut(&aid) {
                         if let Some(env) = actor.mailbox.pop_front() {
                             return Ok(env.payload);
                         } else {
-                            // Park the actor: scheduler should skip it until a message arrives
-                            actor.parked = true;
                             return Ok(ArtValue::Optional(Box::new(None)));
                         }
                     }
@@ -5785,9 +5883,6 @@ impl Interpreter {
 
                     // Mark that we made progress this rotation (executed a statement)
                     rotation_progress = true;
-                    // Drop handles created in actor frame to avoid leaking into global
-                    let env_for_drop = self.environment.clone();
-                    self.drop_scope_heap_objects(&env_for_drop);
                     // restore env
                     if let Some(act) = &mut self.executing_actor {
                         act.env = self.environment.clone();

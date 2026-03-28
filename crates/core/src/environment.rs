@@ -59,6 +59,10 @@ impl Environment {
         self.values.insert(sym, value);
     }
 
+    pub fn has_locally(&self, name: &str) -> bool {
+        self.values.contains_key(name)
+    }
+
     pub fn get(&self, name: &str) -> Option<ArtValue> {
         if let Some(value) = self.values.get(name) {
             return Some(value.clone());

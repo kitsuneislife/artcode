@@ -1,0 +1,23 @@
+let worker = spawn actor {
+    let req = actor_receive_envelope(); 
+    if let Some(r) = req {
+        println("Worker received: " + r.payload);
+        let body = http_get_text(r.payload);
+        println("Worker fetched: " + body);
+        actor_send(r.sender, body);
+    }
+};
+
+let client = spawn actor {
+    println("Client starting...");
+    actor_send(worker, "http://www.google.com"); // Use a real URL or local server
+    let response = actor_receive();
+    if let Some(res) = response {
+        println("Client received: " + res);
+    } else {
+        println("Client received NOTHING (None)");
+    }
+};
+
+run_actors(50);
+gc_stats();
