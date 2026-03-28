@@ -1,0 +1,17 @@
+/// Exemplo 46 - Compilação Ahead-of-Time (AOT) Nativa Pura
+/// 
+/// O sistema de backend experimental do Artcode agora permite
+/// "baixar" e transpilar funcões em IR diretamente para código 
+/// C altamente otimizado por compiladores de sistema (GCC/Clang/emcc).
+///
+/// Uso:
+///   cargo run -- build-aot examples/46_aot_compilation.art --out a.out
+///   ./a.out
+
+func pure_math() {
+    return 10 + 32;
+}
+
+func main() {
+    return pure_math();
+}

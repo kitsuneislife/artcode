@@ -26,3 +26,5 @@ test_output.txt
 CLAUDE.mdtrace.artlog
 *.artlog
 .claude
+testbin
+perf.md

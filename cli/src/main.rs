@@ -408,6 +408,99 @@ fn run_file(
     }
 }
 
+fn run_aot(path: &str, out: Option<&str>, wasm: bool) {
+    match crate::resolver::resolve(path) {
+        Ok((program, main_source)) => {
+            let mut tenv = TypeEnv::new();
+            let mut tinf = TypeInfer::new(&mut tenv);
+            if let Err(type_diags) = tinf.run(&program) {
+                for d in &type_diags {
+                    eprintln!("{}", format_diagnostic(&main_source, d));
+                }
+                return;
+            }
+            
+            let mut found: Vec<&core::ast::Stmt> = Vec::new();
+            fn collect_functions<'a>(stmt: &'a core::ast::Stmt, out: &mut Vec<&'a core::ast::Stmt>) {
+                match stmt {
+                    core::ast::Stmt::Function { body, .. } => {
+                        out.push(stmt);
+                        collect_functions(&*body, out);
+                    }
+                    core::ast::Stmt::Block { statements } => {
+                        for s in statements {
+                            collect_functions(s, out);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            for s in &program {
+                collect_functions(s, &mut found);
+            }
+            
+            let mut funcs = Vec::new();
+            for fs in found {
+                if let Some(irfn) = ir::lower_stmt(fs) {
+                    funcs.push(irfn);
+                } else {
+                    eprintln!("Aviso: A função não suporta Pure Lowering MVP e foi ignorada no AOT.");
+                }
+            }
+
+            if funcs.is_empty() {
+                eprintln!("Nenhuma função compativel com o MVP AOT (Pura Númerica) encontrada.");
+                process::exit(1);
+            }
+
+            let c_code = ir::c_emitter::emit_c_program(&funcs, "main");
+            
+            let temp_dir = std::env::temp_dir();
+            let c_path = temp_dir.join(format!("art_aot_{}.c", process::id()));
+            
+            if let Err(e) = fs::write(&c_path, &c_code) {
+                eprintln!("Falha ao salvar C Intermediario: {}", e);
+                process::exit(1);
+            }
+
+            let compiler = if wasm { "emcc" } else { "gcc" };
+            let out_bin = out.unwrap_or(if wasm { "a.out.html" } else { "a.out" });
+            
+            eprintln!("[AOT] Acionando transpiler backend ({}) com O3 otimizations...", compiler);
+            let status = std::process::Command::new(compiler)
+                .arg("-O3")
+                .arg(&c_path)
+                .arg("-o")
+                .arg(out_bin)
+                .status();
+
+            match status {
+                Ok(s) => {
+                    if s.success() {
+                        eprintln!("[AOT] Compilação finalizada! Nativo e otimizado exportado para: {}", out_bin);
+                    } else {
+                        eprintln!("[AOT] Ocorreu um erro ao compilar com {}", compiler);
+                        eprintln!("[AOT] Dica: Verifique se você possui gcc/clang (ou emcc) no PATH.");
+                        process::exit(1);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("[AOT] Falha ao invocar compilação nativa. Processo '{}' indisponível localmente: {}", compiler, e);
+                    process::exit(1);
+                }
+            }
+            
+            let _ = fs::remove_file(&c_path);
+        }
+        Err(diags) => {
+            for (src, d) in diags {
+                eprintln!("{}", format_diagnostic(&src, &d));
+            }
+            process::exit(65);
+        }
+    }
+}
+
 fn run_prompt(emit_ir: Option<&str>, pure_mode: bool) {
     loop {
         print!("> ");
@@ -601,9 +694,38 @@ fn main() {
     if args.len() == 1 {
         return run_prompt(emit_ir.as_deref(), false);
     }
-    // simple build command: art build --with-profile <profile> [--out <path>]
     if args[1] == "doc" && args.get(2).map(|s| s.as_str()) == Some("std") {
         std_doc::print_std_docs();
+        return;
+    }
+
+    if args[1] == "build-aot" {
+        let mut file: Option<String> = None;
+        let mut out: Option<String> = None;
+        let mut wasm = false;
+        
+        let mut j = 2usize;
+        while j < args.len() {
+            let a = &args[j];
+            if a == "--wasm" {
+                wasm = true;
+                j += 1;
+            } else if a == "--out" && j + 1 < args.len() {
+                out = Some(args[j + 1].clone());
+                j += 2;
+            } else if file.is_none() {
+                file = Some(a.clone());
+                j += 1;
+            } else {
+                eprintln!("Usage: art build-aot <script.art> [--out <binary>] [--wasm]");
+                process::exit(64);
+            }
+        }
+        let Some(file) = file else {
+            eprintln!("Usage: art build-aot <script.art> [--out <binary>] [--wasm]");
+            process::exit(64);
+        };
+        run_aot(&file, out.as_deref(), wasm);
         return;
     }
 
