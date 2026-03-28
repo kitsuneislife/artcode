@@ -9,14 +9,33 @@ pub struct Environment {
     pub enclosing: Option<Rc<RefCell<Environment>>>,
     pub values: HashMap<&'static str, ArtValue>,
     pub strong_handles: Vec<ObjHandle>, // rastreia HeapComposite definidos neste escopo
+    pub depth: usize,
+    pub associated_arena: Option<u32>,
 }
 
 impl Environment {
-    pub fn new(enclosing: Option<Rc<RefCell<Environment>>>) -> Self {
+    pub fn new(enclosing: Option<Rc<RefCell<Environment>>>, depth: usize, associated_arena: Option<u32>) -> Self {
         Environment {
             enclosing,
             values: HashMap::new(),
             strong_handles: Vec::new(),
+            depth,
+            associated_arena,
+        }
+    }
+
+    pub fn with_values(
+        enclosing: Option<Rc<RefCell<Environment>>>,
+        values: HashMap<&'static str, ArtValue>,
+        depth: usize,
+        associated_arena: Option<u32>,
+    ) -> Self {
+        Environment {
+            enclosing,
+            values,
+            strong_handles: Vec::new(),
+            depth,
+            associated_arena,
         }
     }
 

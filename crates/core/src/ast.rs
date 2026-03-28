@@ -305,6 +305,8 @@ pub enum BuiltinFn {
     StreamFilter,
     StreamCollect,
     StreamCount,
+    GCStats,
+    RuntimeVersion,
 
     // Built-in methods internally bound to Enum structs
     EnumIsOk(Box<ArtValue>),
@@ -371,6 +373,8 @@ impl fmt::Debug for BuiltinFn {
             BuiltinFn::StreamFilter => write!(f, "<builtin filter>"),
             BuiltinFn::StreamCollect => write!(f, "<builtin collect>"),
             BuiltinFn::StreamCount => write!(f, "<builtin count>"),
+            BuiltinFn::GCStats => write!(f, "<builtin gc_stats>"),
+            BuiltinFn::RuntimeVersion => write!(f, "<builtin runtime_version>"),
             BuiltinFn::EnumIsOk(_)
             | BuiltinFn::EnumIsErr(_)
             | BuiltinFn::EnumUnwrap(_)
@@ -488,6 +492,8 @@ impl fmt::Display for ArtValue {
                 BuiltinFn::StreamFilter => write!(f, "<builtin filter>"),
                 BuiltinFn::StreamCollect => write!(f, "<builtin collect>"),
                 BuiltinFn::StreamCount => write!(f, "<builtin count>"),
+                BuiltinFn::GCStats => write!(f, "<builtin gc_stats>"),
+                BuiltinFn::RuntimeVersion => write!(f, "<builtin runtime_version>"),
                 BuiltinFn::EnumIsOk(_)
                 | BuiltinFn::EnumIsErr(_)
                 | BuiltinFn::EnumUnwrap(_)

@@ -1,0 +1,51 @@
+// 48_adaptive_arc.art
+// Demonstração do Gerenciamento de Memória Adaptativo (Implicit Adaptive ARC)
+// O Artcode v0.2.0 usa arenas implícitas para funções e loops.
+
+struct Data {
+    id: Int,
+    payload: String
+}
+
+func create_temporary_data(items) {
+    println("--- Criando objetos temporários em uma arena de função ---")
+    for i in items {
+        // Estes objetos são alocados na arena da função/loop
+        let d = Data { id: i, payload: "temp" }
+    }
+    // Ao final desta função, todos os objetos 'd' são liberados instantaneamente
+}
+
+func create_and_return_data() {
+    println("--- Criando objeto que irá ESCAPAR (promoção) ---")
+    let d = Data { id: 999, payload: "survivor" }
+    // 'd' será promovido ao ser retornado
+    return d
+}
+
+func main() {
+    let stats_pre = gc_stats()
+    println(f"Stats inicial: {stats_pre.promotions} promoções, {stats_pre.heap_objects} objetos no heap")
+
+    // Teste 1: Objetos puramente locais
+    create_temporary_data([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    let stats_mid = gc_stats()
+    println(f"Após 10 temps: {stats_mid.promotions} promoções (deve ser 0 extras)")
+
+    // Teste 2: Promoção por retorno
+    let survivor = create_and_return_data()
+    let stats_post = gc_stats()
+    println(f"Objeto sobrevivente: ID {survivor.id}")
+    println(f"Após retorno: {stats_post.promotions} promoções (deve ter aumentado em 1)")
+
+    // Teste 3: Loop implícito
+    println("--- Teste de Loop Arena ---")
+    for j in [1, 2, 3, 4, 5] {
+        let loop_obj = Data { id: j, payload: "loop" }
+    }
+    let stats_final = gc_stats()
+    println(f"Final: {stats_final.promotions} promoções totais")
+    println(f"Objetos vivos no heap global: {stats_final.heap_objects}")
+}
+
+main()

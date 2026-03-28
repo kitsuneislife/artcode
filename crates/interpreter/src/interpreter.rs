@@ -124,6 +124,8 @@ pub struct Interpreter {
     pub rng_state: u64,
     // Recursion depth guard for evaluate() — prevents stack overflow on pathological AST inputs
     eval_depth: usize,
+    // Pilha de arenas para ARC Adaptativo Implícito
+    pub arena_stack: Vec<u32>,
 }
 
 #[cfg(test)]
@@ -520,7 +522,7 @@ impl Interpreter {
         "map_set", "map_get", "map_has", "set_new", "set_add", "set_has",
         "math_abs", "math_pow", "math_clamp", "dag_topo_sort", "time_now",
         "io_read_text", "io_write_text", "http_get_text", "rand_seed",
-        "rand_next", "stream", "map", "filter", "collect", "count",
+        "rand_next", "stream", "map", "filter", "collect", "count", "gc_stats",
     ];
 
     #[inline]
@@ -582,19 +584,30 @@ impl Interpreter {
             "filter" => BuiltinFn::StreamFilter,
             "collect" => BuiltinFn::StreamCollect,
             "count" => BuiltinFn::StreamCount,
+            "gc_stats" => BuiltinFn::GCStats,
             _ => unreachable!("Unknown builtin name: {}", name),
         }
     }
 
     pub fn new() -> Self {
-        // Pre-allocate environment with enough capacity for builtins
-        let mut env = Environment::new(None);
-        env.values.reserve(Self::PRELUDE_NAMES.len());
-
-        for &name in Self::PRELUDE_NAMES {
-            env.define(name, ArtValue::Builtin(Self::name_to_builtin(name)));
+        thread_local! {
+            static PRELUDE_VALUES: HashMap<&'static str, ArtValue> = {
+                let mut m = HashMap::with_capacity(Interpreter::PRELUDE_NAMES.len());
+                for &name in Interpreter::PRELUDE_NAMES {
+                    m.insert(name, ArtValue::Builtin(Interpreter::name_to_builtin(name)));
+                }
+                m
+            };
         }
-        let global_env = Rc::new(RefCell::new(env));
+
+        let global_env = PRELUDE_VALUES.with(|prelude| {
+            Rc::new(RefCell::new(Environment::with_values(
+                None,
+                prelude.clone(),
+                0,
+                None,
+            )))
+        });
 
         Interpreter {
             environment: global_env,
@@ -604,7 +617,7 @@ impl Interpreter {
             last_value: None,
             handled_errors: 0,
             executed_statements: 0,
-            heap_objects: HashMap::new(),
+            heap_objects: HashMap::with_capacity(512),
             next_heap_id: 1,
             next_capability_id: 1,
             weak_created: 0,
@@ -617,15 +630,18 @@ impl Interpreter {
             strong_increments: 0,
             strong_decrements: 0,
             objects_finalized: 0,
+            objects_finalized_per_arena: std::collections::HashMap::new(),
             finalizer_promotions: 0,
+            call_counters: std::collections::HashMap::new(),
+            edge_counters: std::collections::HashMap::new(),
+            fn_stack: Vec::new(),
+            arena_alloc_count: std::collections::HashMap::new(),
             finalizer_promotions_per_arena: std::collections::HashMap::new(),
             current_finalizing_arena: None,
             tracer: None,
             replayer: None,
             debug_mode: false,
             fast_forward_until: None,
-            arena_alloc_count: std::collections::HashMap::new(),
-            objects_finalized_per_arena: std::collections::HashMap::new(),
             invariant_checks: false,
             finalizers: HashMap::new(),
             current_arena: None,
@@ -634,44 +650,45 @@ impl Interpreter {
             actors: HashMap::new(),
             next_actor_id: 1,
             current_actor: None,
-            actor_mailbox_limit: 1024,
+            actor_mailbox_limit: 1000,
             executing_actor: None,
-            call_counters: std::collections::HashMap::new(),
-            edge_counters: std::collections::HashMap::new(),
-            fn_stack: Vec::new(),
-            rng_state: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
+            rng_state: 0x12345678, // deterministic for v0.2.0 testing
             eval_depth: 0,
+            arena_stack: Vec::new(),
         }
     }
 
     pub fn with_prelude() -> Self {
+        thread_local! {
+            static PRELUDE_TYPES: TypeRegistry = {
+                let mut registry = TypeRegistry::new();
+                use core::Token;
+                let name = Token::dummy("Result");
+                let variants = vec![
+                    (Token::dummy("Ok"), Some(vec!["T".to_string()])),
+                    (Token::dummy("Err"), Some(vec!["E".to_string()])),
+                ];
+                registry.register_enum(name, variants);
+                let opt_name = Token::dummy("Option");
+                let opt_variants = vec![
+                    (Token::dummy("Some"), Some(vec!["T".to_string()])),
+                    (Token::dummy("None"), None),
+                ];
+                registry.register_enum(opt_name, opt_variants);
+                registry.register_struct(
+                    Token::dummy("Envelope"),
+                    vec![
+                        (Token::dummy("sender"), "Optional<Int>".to_string()),
+                        (Token::dummy("payload"), "Any".to_string()),
+                        (Token::dummy("priority"), "Int".to_string()),
+                    ],
+                );
+                registry
+            };
+        }
+
         let mut interp = Self::new();
-        // Registrar enum Result simples (não genérica) com Ok, Err aceitando 1 valor
-        use core::Token;
-        let name = Token::dummy("Result");
-        let variants = vec![
-            (Token::dummy("Ok"), Some(vec!["T".to_string()])),
-            (Token::dummy("Err"), Some(vec!["E".to_string()])),
-        ];
-        interp.type_registry.register_enum(name, variants);
-        let opt_name = Token::dummy("Option");
-        let opt_variants = vec![
-            (Token::dummy("Some"), Some(vec!["T".to_string()])),
-            (Token::dummy("None"), None),
-        ];
-        interp.type_registry.register_enum(opt_name, opt_variants);
-        // Register Envelope struct type for actor messages (sender: Optional<Int>, payload: Any, priority: Int)
-        interp.type_registry.register_struct(
-            Token::dummy("Envelope"),
-            vec![
-                (Token::dummy("sender"), "Optional<Int>".to_string()),
-                (Token::dummy("payload"), "Any".to_string()),
-                (Token::dummy("priority"), "Int".to_string()),
-            ],
-        );
+        interp.type_registry = PRELUDE_TYPES.with(|types| types.clone());
         interp
     }
 
@@ -1114,6 +1131,45 @@ impl Interpreter {
     }
     pub fn debug_create_arena(&mut self) -> u32 {
         (self.next_heap_id as u32).wrapping_add(1)
+    }
+
+    fn push_implicit_arena(&mut self) -> u32 {
+        let aid = self.next_arena_id;
+        self.next_arena_id += 1;
+        self.arena_stack.push(aid);
+        self.current_arena = Some(aid);
+        aid
+    }
+
+    fn pop_implicit_arena(&mut self) {
+        if let Some(aid) = self.arena_stack.pop() {
+            self.finalize_arena(aid);
+            self.current_arena = self.arena_stack.last().cloned();
+        }
+    }
+
+    fn promote_if_escaping(&mut self, target_env: &Environment, value: &ArtValue) {
+        if let ArtValue::HeapComposite(h) = value {
+            if let Some(obj) = self.heap_objects.get_mut(&h.0) {
+                // Se o objeto estiver em uma arena, e o ambiente de destino não estiver associado
+                // a nenhuma arena (global) ou estiver em uma arena "menos profunda" (nível superior),
+                // promovemos o objeto para que ele sobreviva à finalização da arena atual.
+                if let Some(obj_aid) = obj.arena_id {
+                    let should_promote = match target_env.associated_arena {
+                        None => true, // escapando para o global
+                        Some(target_aid) => obj_aid != target_aid, // escapando para outra arena (geralmente pai)
+                    };
+
+                    if should_promote {
+                        obj.arena_id = target_env.associated_arena;
+                        self.finalizer_promotions += 1;
+                        if let Some(aid) = obj.arena_id {
+                            *self.finalizer_promotions_per_arena.entry(aid).or_insert(0) += 1;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn heap_upgrade_weak(&self, id: u64) -> Option<ArtValue> {
@@ -1653,7 +1709,7 @@ impl Interpreter {
                         }
                         // Criar um frame filho da raiz para evitar poluição direta caso finalizer crie variáveis temporárias
                         self.environment =
-                            Rc::new(RefCell::new(Environment::new(Some(root.clone()))));
+                            Rc::new(RefCell::new(Environment::new(Some(root.clone()), 1, None)));
                         // Executar corpo inline se for bloco para evitar criação de escopo interno que perderia variáveis
                         let body_stmt = Rc::as_ref(&func.body).clone();
                         if let Stmt::Block { statements } = body_stmt.clone() {
@@ -2387,8 +2443,13 @@ impl Interpreter {
             } => {
                 let eval_value = self.evaluate(value)?;
                 if let Some(bindings) = self.pattern_matches(&pattern, &eval_value) {
-                    let mut new_env = Environment::new(Some(self.environment.clone()));
+                    let (parent_depth, parent_arena) = {
+                        let b = self.environment.borrow();
+                        (b.depth, b.associated_arena)
+                    };
+                    let mut new_env = Environment::new(Some(self.environment.clone()), parent_depth + 1, parent_arena);
                     for (k, v) in bindings {
+                        self.promote_if_escaping(&new_env, &v);
                         new_env.define(&k, v);
                     }
                     let previous = self.environment.clone();
@@ -2414,11 +2475,18 @@ impl Interpreter {
                 let match_value = self.evaluate(expr)?;
                 for (pattern, guard, stmt) in cases {
                     if let Some(bindings) = self.pattern_matches(&pattern, &match_value) {
+                        let (p_depth, p_arena) = {
+                            let b = self.environment.borrow();
+                            (b.depth, b.associated_arena)
+                        };
                         // Avaliar guard (se existir) em ambiente com bindings temporário
                         if let Some(gexpr) = guard {
                             let previous_env = self.environment.clone();
-                            let temp_env =
-                                Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
+                            let temp_env = Rc::new(RefCell::new(Environment::new(
+                                Some(previous_env.clone()),
+                                p_depth + 1,
+                                p_arena,
+                            )));
                             self.environment = temp_env.clone();
                             for (name, value) in bindings.iter() {
                                 self.environment.borrow_mut().define(name, value.clone());
@@ -2434,18 +2502,23 @@ impl Interpreter {
                                 continue;
                             }
                         }
-                        let previous_env = self.environment.clone();
-                        let new_env =
-                            Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
+                        let (p_depth, p_arena) = {
+                            let b = self.environment.borrow();
+                            (b.depth, b.associated_arena)
+                        };
+                        let new_env_struct = Environment::new(Some(self.environment.clone()), p_depth + 1, p_arena);
+                        let new_env = Rc::new(RefCell::new(new_env_struct));
+                        let previous = self.environment.clone();
                         self.environment = new_env.clone();
                         for (name, value) in bindings {
-                            self.environment.borrow_mut().define(&name, value);
+                            self.promote_if_escaping(&new_env.borrow(), &value);
+                            new_env.borrow_mut().define(&name, value);
                         }
                         // Executar o corpo e garantir que mesmo em erro o escopo temporário seja limpo
                         let result = self.execute(stmt);
                         // Drop handles do env de bindings antes de restaurar
                         self.drop_scope_heap_objects(&new_env);
-                        self.environment = previous_env;
+                        self.environment = previous;
                         return result;
                     }
                 }
@@ -2471,8 +2544,11 @@ impl Interpreter {
                 Err(RuntimeError::DebugStepBack) => Err(RuntimeError::DebugStepBack),
                 Err(RuntimeError::TypeError(msg)) => {
                     let previous_env = self.environment.clone();
-                    let catch_env =
-                        Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
+                    let (p_depth, p_arena) = {
+                        let b = previous_env.borrow();
+                        (b.depth, b.associated_arena)
+                    };
+                    let catch_env = Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()), p_depth + 1, p_arena)));
                     self.environment = catch_env.clone();
 
                     self.environment
@@ -2557,27 +2633,33 @@ impl Interpreter {
                 Err(RuntimeError::Return(return_value))
             }
             Stmt::Performant { statements } => {
-                // criar arena id
+                // Criar arena ID e frame léxico
                 let aid = self.next_arena_id;
                 self.next_arena_id += 1;
                 let prev_arena = self.current_arena;
                 self.current_arena = Some(aid);
-                // Criar frame léxico para o bloco
+                
                 let previous = self.environment.clone();
-                self.environment = Rc::new(RefCell::new(Environment::new(Some(previous.clone()))));
+                let (p_depth, _) = {
+                    let b = previous.borrow();
+                    (b.depth, b.associated_arena)
+                };
+                
+                self.environment = Rc::new(RefCell::new(Environment::new(Some(previous.clone()), p_depth + 1, Some(aid))));
                 let scope_env = self.environment.clone();
+                
                 // Executar statements
                 for s in statements {
                     if let Err(e) = self.execute(s) {
                         self.drop_scope_heap_objects(&scope_env);
-                        // finalize arena (libera objetos da arena)
                         self.finalize_arena(aid);
                         self.current_arena = prev_arena;
                         self.environment = previous;
                         return Err(e);
                     }
                 }
-                // Limpar handles do escopo e finalizar arena
+                
+                // Cleanup
                 self.drop_scope_heap_objects(&scope_env);
                 self.finalize_arena(aid);
                 self.current_arena = prev_arena;
@@ -2640,7 +2722,10 @@ impl Interpreter {
                     if !self.is_truthy(&cond_val) {
                         break;
                     }
-                    if let Err(e) = self.execute(*body.clone()) {
+                    let _aid = self.push_implicit_arena();
+                    let res = self.execute(*body.clone());
+                    self.pop_implicit_arena();
+                    if let Err(e) = res {
                         return Err(e);
                     }
                 }
@@ -2872,8 +2957,12 @@ impl Interpreter {
                     IterSource::Array(array_elements) => {
                         for val in array_elements {
                             let previous_env = self.environment.clone();
+                            let (p_depth, p_arena) = {
+                                let b = previous_env.borrow();
+                                (b.depth, b.associated_arena)
+                            };
                             let loop_env =
-                                Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
+                                Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()), p_depth + 1, p_arena)));
                             self.environment = loop_env.clone();
 
                             self.environment
@@ -2931,10 +3020,17 @@ impl Interpreter {
                             };
 
                             let previous_env = self.environment.clone();
+                            let (p_depth, _p_arena) = {
+                                let b = previous_env.borrow();
+                                (b.depth, b.associated_arena)
+                            };
+                            // Iniciamos uma arena para o corpo do loop
+                            let _aid = self.push_implicit_arena();
                             let loop_env =
-                                Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()))));
+                                Rc::new(RefCell::new(Environment::new(Some(previous_env.clone()), p_depth + 1, Some(_aid))));
                             self.environment = loop_env.clone();
 
+                            self.promote_if_escaping(&loop_env.borrow(), &item);
                             self.environment
                                 .borrow_mut()
                                 .define(&element.lexeme, item.clone());
@@ -2942,6 +3038,7 @@ impl Interpreter {
                             let result = self.execute(*body.clone());
 
                             self.drop_scope_heap_objects(&loop_env);
+                            self.pop_implicit_arena();
                             self.environment = previous_env;
 
                             if let Err(e) = result {
@@ -2953,12 +3050,13 @@ impl Interpreter {
                 }
             }
             Stmt::SpawnActor { body } => {
-                // Create a new actor with its own lexical environment snapshot
                 let aid = self.next_actor_id;
                 self.next_actor_id += 1;
-                let actor_env = Rc::new(RefCell::new(Environment::new(Some(
-                    self.environment.clone(),
-                ))));
+                let actor_env = Rc::new(RefCell::new(Environment::new(
+                    Some(self.environment.clone()),
+                    0,    // Atores começam novo root de depth
+                    None, // e usam ARC global por padrão (Nexus isolation)
+                )));
                 let actor = ActorState {
                     id: aid,
                     mailbox: Mailbox::new(),
@@ -3077,8 +3175,14 @@ impl Interpreter {
         statements: Vec<Stmt>,
         enclosing: Option<Rc<RefCell<Environment>>>,
     ) -> Result<()> {
+        let (p_depth, p_arena) = if let Some(ref e) = enclosing {
+            let b = e.borrow();
+            (b.depth, b.associated_arena)
+        } else {
+            (0, None)
+        };
         let previous = self.environment.clone();
-        self.environment = Rc::new(RefCell::new(Environment::new(enclosing)));
+        self.environment = Rc::new(RefCell::new(Environment::new(enclosing, p_depth + 1, p_arena)));
         let scope_env = self.environment.clone();
         for statement in statements {
             if let Err(e) = self.execute(statement) {
@@ -3086,24 +3190,25 @@ impl Interpreter {
                 // preserve them BEFORE dropping the block environment.
                 let transformed = match e {
                     RuntimeError::Return(mut rv) => {
+                        // Promoção Adaptativa ao retornar valores
+                        self.promote_if_escaping(&previous.borrow(), &rv);
                         if let ArtValue::HeapComposite(ref h) = rv {
                             // Keep heap composite alive across scope teardown.
                             self.inc_heap_strong(h.0);
                         }
-                        if let ArtValue::Function(f) = &rv
-                            && f.retained_env.is_none()
-                        {
-                            // Returned closures can capture this block env.
-                            // Retain it strongly to avoid dangling closure env.
-                            let escaped = Function {
-                                name: f.name.clone(),
-                                type_params: f.type_params.clone(),
-                                params: f.params.clone(),
-                                body: f.body.clone(),
-                                closure: f.closure.clone(),
-                                retained_env: Some(scope_env.clone()),
-                            };
-                            rv = ArtValue::Function(Rc::new(escaped));
+                        if let ArtValue::Function(ref f) = rv {
+                            if f.retained_env.is_none() {
+                                // Returned closures can capture this block env.
+                                let escaped = Function {
+                                    name: f.name.clone(),
+                                    type_params: f.type_params.clone(),
+                                    params: f.params.clone(),
+                                    body: f.body.clone(),
+                                    closure: f.closure.clone(),
+                                    retained_env: Some(scope_env.clone()),
+                                };
+                                rv = ArtValue::Function(Rc::new(escaped));
+                            }
                         }
                         RuntimeError::Return(rv)
                     }
@@ -3678,9 +3783,11 @@ impl Interpreter {
                 // Create a new actor from an expression context and return its handle
                 let aid = self.next_actor_id;
                 self.next_actor_id += 1;
-                let actor_env = Rc::new(RefCell::new(Environment::new(Some(
-                    self.environment.clone(),
-                ))));
+                let actor_env = Rc::new(RefCell::new(Environment::new(
+                    None,
+                    0,
+                    None,
+                )));
                 let actor = ActorState {
                     id: aid,
                     mailbox: Mailbox::new(),
@@ -3732,22 +3839,17 @@ impl Interpreter {
         // record call counter by function name (if present)
         let callee_name_opt = func.name.clone();
         if let Some(name) = &callee_name_opt {
-            *self.call_counters.entry(name.clone()).or_insert(0) += 1;
+            self.call_counters.entry(name.clone()).and_modify(|c| *c += 1).or_insert(1);
         }
-        // record edge from caller -> callee using fn_stack top as caller if present
-        let caller_name_opt = match self.fn_stack.last() {
-            Some(opt) => opt.clone(),
-            None => None,
-        };
-        if let Some(callee) = &callee_name_opt {
-            let key = match &caller_name_opt {
-                Some(caller) => format!("{}->{}", caller, callee),
-                None => format!("<root>->{}", callee),
-            };
-            *self.edge_counters.entry(key).or_insert(0) += 1;
+        // record edge from caller -> callee
+        if let Some(caller) = self.fn_stack.last().and_then(|opt| opt.clone()) {
+            if let Some(callee) = &callee_name_opt {
+                let edge = format!("{}->{}", caller, callee);
+                self.edge_counters.entry(edge).and_modify(|c| *c += 1).or_insert(1);
+            }
         }
-        // push callee onto stack for nested call attribution
         self.fn_stack.push(callee_name_opt.clone());
+
         let argc = arguments.len();
         if func.params.len() != argc {
             self.diagnostics.push(Diagnostic::new(
@@ -3755,13 +3857,16 @@ impl Interpreter {
                 "Wrong number of arguments.".to_string(),
                 Span::new(0, 0, 0, 0),
             ));
+            self.fn_stack.pop();
             return Ok(ArtValue::none());
         }
-        // Avalia argumentos uma vez
+
+        // Avalia argumentos
         let mut evaluated_args = Vec::with_capacity(argc);
         for arg in arguments {
             evaluated_args.push(self.evaluate(arg)?);
         }
+
         let previous_env = self.environment.clone();
         let base_env = match func.closure.upgrade() {
             Some(env) => env,
@@ -3771,64 +3876,63 @@ impl Interpreter {
                     "Dangling closure environment".to_string(),
                     Span::new(0, 0, 0, 0),
                 ));
-                Rc::new(RefCell::new(Environment::new(None)))
+                Rc::new(RefCell::new(Environment::new(None, 0, None)))
             }
         };
-        self.environment = Rc::new(RefCell::new(Environment::new(Some(base_env))));
-        // Inserir valores movendo (sem clone) consumindo o vetor
+
+        // Arenas Implícitas para Funções (Adaptive ARC)
+        let aid = self.push_implicit_arena();
+        let call_env = Rc::new(RefCell::new(Environment::new(
+            Some(base_env.clone()),
+            base_env.borrow().depth + 1,
+            Some(aid),
+        )));
+        self.environment = call_env.clone();
+
+        // Bind parâmetros
         for (param, value) in func.params.iter().zip(evaluated_args.into_iter()) {
-            self.environment
-                .borrow_mut()
-                .define(&param.name.lexeme, value);
+            self.promote_if_escaping(&call_env.borrow(), &value);
+            self.environment.borrow_mut().define(&param.name.lexeme, value);
         }
+
         let result = self.execute(Rc::as_ref(&func.body).clone());
-        // Extract the return value BEFORE dropping the scope.
-        // If the value is a HeapComposite, we must temporarily pin it (inc strong)
-        // so that drop_scope_heap_objects does not GC the object before the caller
-        // can capture the reference.
+
         let mut return_val = match result {
             Ok(()) => ArtValue::none(),
             Err(RuntimeError::Return(val)) => val,
-            Err(e @ RuntimeError::TypeError(_)) => return Err(e),
-            Err(RuntimeError::DebugStepBack) => return Err(RuntimeError::DebugStepBack),
+            Err(e) => {
+                self.pop_implicit_arena();
+                self.environment = previous_env;
+                self.fn_stack.pop();
+                return Err(e);
+            }
         };
-        if let ArtValue::Function(f) = &return_val
-            && f.retained_env.is_none()
-            && let Some(captured_env) = f.closure.upgrade()
-        {
-            // A closure returned from this call can outlive the current scope.
-            // Keep a strong reference so future invocations do not observe a dangling env.
-            let escaped = Function {
-                name: f.name.clone(),
-                type_params: f.type_params.clone(),
-                params: f.params.clone(),
-                body: f.body.clone(),
-                closure: f.closure.clone(),
-                retained_env: Some(captured_env),
-            };
-            return_val = ArtValue::Function(Rc::new(escaped));
+
+        // Promoção Adaptativa do retorno
+        self.promote_if_escaping(&previous_env.borrow(), &return_val);
+
+        // Escape analysis para closures
+        if let ArtValue::Function(f) = &return_val {
+            if f.retained_env.is_none() {
+                if let Some(captured_env) = f.closure.upgrade() {
+                    let escaped = Function {
+                        name: f.name.clone(),
+                        type_params: f.type_params.clone(),
+                        params: f.params.clone(),
+                        body: f.body.clone(),
+                        closure: f.closure.clone(),
+                        retained_env: Some(captured_env),
+                    };
+                    return_val = ArtValue::Function(Rc::new(escaped));
+                }
+            }
         }
-        // Transfer ownership of returned HeapComposite to the CALLER's environment
-        // BEFORE we drop the function scope. This prevents the GC from collecting
-        // the returned object while it is temporarily unowned between method return
-        // and the caller binding the value to a variable.
-        //
-        // execute_block already did an inc_heap_strong when propagating the Return error
-        // through each nested block. We do NOT push into previous_env.strong_handles here
-        // because the CALLER's Stmt::Let will do that when it binds the return value.
-        // Pushing it here would create a double strong-ref that leaks.
-        //
-        // However, if execute_block didn't pin it (e.g. the function has no block scope),
-        // we still need one pin to survive our drop_scope_heap_objects call below.
-        // Since execute_block always runs for function bodies (they're always Block stmts),
-        // we rely on that pin and skip the extra one here.
-        // Garantir que handles fortes dos parâmetros (env criado acima) sejam decrementados.
-        let func_env = std::mem::replace(&mut self.environment, previous_env.clone());
-        self.drop_scope_heap_objects(&func_env);
-        // Restaurar ambiente anterior (usamos `previous_env` original)
+
+        self.drop_scope_heap_objects(&call_env);
+        self.pop_implicit_arena();
         self.environment = previous_env;
-        // pop fn stack
-        let _ = self.fn_stack.pop();
+        self.fn_stack.pop();
+
         Ok(return_val)
     }
 
@@ -4424,6 +4528,17 @@ impl Interpreter {
 
                 Ok(ArtValue::Int(now))
             }
+            core::ast::BuiltinFn::GCStats => {
+                let mut stats = std::collections::HashMap::new();
+                stats.insert("promotions".to_string(), ArtValue::Int(self.finalizer_promotions as i64));
+                stats.insert("heap_objects".to_string(), ArtValue::Int(self.heap_objects.len() as i64));
+                stats.insert("next_arena_id".to_string(), ArtValue::Int(self.next_arena_id as i64));
+                Ok(ArtValue::StructInstance {
+                    struct_name: "GCStats".to_string(),
+                    fields: stats,
+                })
+            }
+            core::ast::BuiltinFn::RuntimeVersion => Ok(ArtValue::String(std::sync::Arc::from("0.2.0-adaptive-arc"))),
             core::ast::BuiltinFn::IOReadText => {
                 if !self.ensure_pure_allowed("io_read_text") {
                     return Ok(ArtValue::none());
