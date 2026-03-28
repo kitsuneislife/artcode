@@ -30,3 +30,6 @@ testbin
 perf.md.artcache
 aot_cached_bin
 demo47
+crates/jit/artcache
+.artcache/
+*/.artcache/

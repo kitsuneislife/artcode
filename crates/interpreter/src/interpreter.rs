@@ -108,6 +108,8 @@ pub struct Interpreter {
     // Arena support
     pub current_arena: Option<u32>,
     pub next_arena_id: u32,
+    pub in_performant_block: bool,
+    pub arena_with_active: bool,
     pub reusable_arenas: std::collections::HashSet<u32>,
     // Actor support (Fase 9 MVP)
     pub actors: HashMap<u32, ActorState>,
@@ -671,6 +673,8 @@ impl Interpreter {
             finalizers: HashMap::new(),
             current_arena: None,
             next_arena_id: 1,
+            in_performant_block: false,
+            arena_with_active: false,
             reusable_arenas: std::collections::HashSet::new(),
             actors: HashMap::new(),
             next_actor_id: 1,
@@ -2459,11 +2463,39 @@ impl Interpreter {
                     return Ok(());
                 }
 
+                // Runtime check: evitar que valores alocados em arena escapem para fora do bloco performant.
+                if let ArtValue::HeapComposite(h) = &value
+                    && let Some(obj) = self.heap_objects.get(&h.0)
+                    && let Some(aid) = obj.arena_id
+                    && (self.in_performant_block || Some(aid) != self.current_arena)
+                {
+                    let msg = format!(
+                        "Attempt to bind arena object (arena={}) into scope outside of that arena (current_arena={:?}) for variable '{}'.",
+                        aid,
+                        self.current_arena,
+                        match &pattern {
+                            core::ast::MatchPattern::Variable(name) => name.lexeme.clone(),
+                            _ => "<pattern>".to_string(),
+                        }
+                    );
+                    debug_assert!(!msg.is_empty(), "{}", msg);
+                    let fn_name = if let core::ast::MatchPattern::Variable(name) = &pattern {
+                        name
+                    } else {
+                        &core::Token::dummy("_")
+                    };
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        msg,
+                        Span::new(fn_name.start, fn_name.end, fn_name.line, fn_name.col),
+                    ));
+                }
+
                 // Promoção se necessário
                 let aid = self.environment.borrow().associated_arena;
                 let mut promoted_value = value;
                 self.promote_if_escaping(aid, &mut promoted_value);
-                
+
                 self.bind_value_to_pattern(&pattern, promoted_value)?;
                 Ok(())
             }
@@ -2668,7 +2700,7 @@ impl Interpreter {
                 if let ArtValue::HeapComposite(h) = &return_value
                     && let Some(obj) = self.heap_objects.get(&h.0)
                     && let Some(aid) = obj.arena_id
-                    && Some(aid) != self.current_arena
+                    && (self.in_performant_block || Some(aid) != self.current_arena)
                 {
                     let msg = format!(
                         "Attempt to return arena object (arena={}) outside of its arena (current_arena={:?}).",
@@ -2689,7 +2721,9 @@ impl Interpreter {
                 self.next_arena_id += 1;
                 let prev_arena = self.current_arena;
                 self.current_arena = Some(aid);
-                
+                let prev_performant = self.in_performant_block;
+                self.in_performant_block = true;
+
                 let previous = self.environment.clone();
                 let (p_depth, _) = {
                     let b = previous.borrow();
@@ -2705,6 +2739,7 @@ impl Interpreter {
                         self.drop_scope_heap_objects(&scope_env);
                         self.finalize_arena(aid);
                         self.current_arena = prev_arena;
+                        self.in_performant_block = prev_performant;
                         self.environment = previous;
                         return Err(e);
                     }
@@ -2714,6 +2749,7 @@ impl Interpreter {
                 self.drop_scope_heap_objects(&scope_env);
                 self.finalize_arena(aid);
                 self.current_arena = prev_arena;
+                self.in_performant_block = prev_performant;
                 self.environment = previous;
                 Ok(())
             }
@@ -3239,6 +3275,9 @@ impl Interpreter {
         self.environment = Rc::new(RefCell::new(Environment::new(enclosing, p_depth + 1, p_arena)));
         let scope_env = self.environment.clone();
         for statement in statements {
+            if self.executing_actor.as_ref().map(|a| a.parked).unwrap_or(false) {
+                break;
+            }
             if let Err(e) = self.execute(statement) {
                 // If this is a Return carrying values that depend on the current scope,
                 // preserve them BEFORE dropping the block environment.
@@ -3855,7 +3894,7 @@ impl Interpreter {
                 let aid = self.next_actor_id;
                 self.next_actor_id += 1;
                 let actor_env = Rc::new(RefCell::new(Environment::new(
-                    None,
+                    Some(self.environment.clone()),
                     0,
                     None,
                 )));
@@ -3958,11 +3997,19 @@ impl Interpreter {
         };
 
         // Arenas Implícitas para Funções (Adaptive ARC)
-        let aid = self.push_implicit_arena();
+        let mut pushed_arena = false;
+        let call_arena = if self.arena_with_active {
+            self.current_arena
+        } else {
+            let aid = self.push_implicit_arena();
+            pushed_arena = true;
+            Some(aid)
+        };
+
         let call_env = Rc::new(RefCell::new(Environment::new(
             Some(base_env.clone()),
             base_env.borrow().depth + 1,
-            Some(aid),
+            call_arena,
         )));
         self.environment = call_env.clone();
 
@@ -4009,7 +4056,9 @@ impl Interpreter {
         }
 
         self.drop_scope_heap_objects(&call_env);
-        self.pop_implicit_arena();
+        if pushed_arena {
+            self.pop_implicit_arena();
+        }
         self.environment = previous_env;
         self.fn_stack.pop();
 
@@ -5093,12 +5142,15 @@ impl Interpreter {
                         actor.parked = false;
                         return Ok(env.payload);
                     }
+                    actor.parked = true;
+                    return Ok(ArtValue::Optional(Box::new(None)));
                 }
                 if let Some(aid) = self.current_actor {
                     if let Some(actor) = self.actors.get_mut(&aid) {
                         if let Some(env) = actor.mailbox.pop_front() {
                             return Ok(env.payload);
                         } else {
+                            actor.parked = true;
                             return Ok(ArtValue::Optional(Box::new(None)));
                         }
                     }
@@ -5500,6 +5552,8 @@ impl Interpreter {
 
                 let callback = self.evaluate(arguments[1].clone())?;
                 let previous_arena = self.current_arena;
+                let previous_arena_with_active = self.arena_with_active;
+                self.arena_with_active = true;
                 self.current_arena = Some(arena_id);
 
                 let callback_result = match callback {
@@ -5520,6 +5574,7 @@ impl Interpreter {
 
                 self.finalize_arena(arena_id);
                 self.current_arena = previous_arena;
+                self.arena_with_active = previous_arena_with_active;
                 callback_result
             }
             core::ast::BuiltinFn::IdlSchema => {
