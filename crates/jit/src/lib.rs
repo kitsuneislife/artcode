@@ -171,8 +171,10 @@ pub use llvm_builder::LlvmBuilderImpl as LlvmBuilder;
 pub mod ir_analyzer;
 pub mod ir_loader;
 pub mod trampolines;
+pub mod cache;
 
 pub use trampolines::{call_jit_fn, Sig};
+pub use cache::ArtCache;
 
 /// Convenience: compile textual IR and return a raw function pointer (usize) when
 /// the JIT feature is enabled. Returns Err when not available or compilation fails.

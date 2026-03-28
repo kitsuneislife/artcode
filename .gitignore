@@ -27,4 +27,6 @@ CLAUDE.mdtrace.artlog
 *.artlog
 .claude
 testbin
-perf.md
+perf.md.artcache
+aot_cached_bin
+demo47

@@ -1,5 +1,27 @@
 use crate::{Function, Instr};
 
+/// C keywords that must not be used as function names.
+const C_KEYWORDS: &[&str] = &[
+    "auto", "break", "case", "char", "const", "continue", "default", "do",
+    "double", "else", "enum", "extern", "float", "for", "goto", "if",
+    "inline", "int", "long", "register", "restrict", "return", "short",
+    "signed", "sizeof", "static", "struct", "switch", "typedef", "union",
+    "unsigned", "void", "volatile", "while", "_Bool", "_Complex", "_Imaginary",
+];
+
+fn sanitize_fname(raw: &str) -> String {
+    let name = raw.replace("@", "");
+    // Rename the Artcode `main` function to avoid collision with C entrypoint.
+    if name == "main" {
+        return "_art_main".to_string();
+    }
+    // Prefix any C keyword collision with `_art_`
+    if C_KEYWORDS.contains(&name.as_str()) {
+        return format!("_art_{}", name);
+    }
+    name
+}
+
 pub fn emit_c_program(funcs: &[Function], entry_func: &str) -> String {
     let mut out = String::new();
 
@@ -15,10 +37,7 @@ pub fn emit_c_program(funcs: &[Function], entry_func: &str) -> String {
             _ => "void",
         };
 
-        let mut fname = f.name.replace("@", "");
-        if fname == "main" {
-            fname = "_art_main".to_string();
-        }
+        let fname = sanitize_fname(&f.name);
         out.push_str(&format!("{} {}(", ret_type, fname));
         if f.params.is_empty() {
             out.push_str("void");
@@ -68,11 +87,7 @@ fn emit_c_function(f: &Function) -> String {
         _ => "void",
     };
 
-    let mut fname = f.name.replace("@", "");
-    if fname == "main" {
-        fname = "_art_main".to_string();
-    }
-    
+    let fname = sanitize_fname(&f.name);
     out.push_str(&format!("{} {}(", ret_type, fname));
 
     if f.params.is_empty() {
@@ -153,10 +168,7 @@ fn emit_c_function(f: &Function) -> String {
             }
             Instr::Call(dest, target, args) => {
                 let args_str = args.iter().map(|a| resolve(a)).collect::<Vec<_>>().join(", ");
-                let mut ct = target.replace("@", "");
-                if ct == "main" {
-                    ct = "_art_main".to_string();
-                }
+                let ct = sanitize_fname(target);
                 out.push_str(&format!("    {} = {}({});\n", resolve(dest), ct, args_str));
             }
             Instr::Br(target) => {

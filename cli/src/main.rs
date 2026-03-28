@@ -455,17 +455,35 @@ fn run_aot(path: &str, out: Option<&str>, wasm: bool) {
 
             let c_code = ir::c_emitter::emit_c_program(&funcs, "main");
             
-            let temp_dir = std::env::temp_dir();
-            let c_path = temp_dir.join(format!("art_aot_{}.c", process::id()));
+            use sha2::{Sha256, Digest};
+            let mut hasher = Sha256::new();
+            hasher.update(c_code.as_bytes());
+            let hash_hex = hex::encode(hasher.finalize());
+
+            let temp_dir = std::env::temp_dir().join(".artcache");
+            let _ = fs::create_dir_all(&temp_dir);
+            let c_path = temp_dir.join(format!("art_aot_{}.c", hash_hex));
             
+            let compiler = if wasm { "emcc" } else { "gcc" };
+            let out_bin = out.unwrap_or(if wasm { "a.out.html" } else { "a.out" });
+            
+            let final_bin_in_cache = temp_dir.join(format!("{}_{}.bin", compiler, hash_hex));
+
+            if final_bin_in_cache.exists() {
+                eprintln!("[AOT] 🔥 CACHE HIT! O binário para as funções já existe. Copiando...");
+                if let Err(e) = fs::copy(&final_bin_in_cache, out_bin) {
+                    eprintln!("[AOT] Falha ao mover objeto do cache: {}", e);
+                    process::exit(1);
+                }
+                eprintln!("[AOT] Compilação finalizada (Instantânea) para: {}", out_bin);
+                return;
+            }
+
             if let Err(e) = fs::write(&c_path, &c_code) {
                 eprintln!("Falha ao salvar C Intermediario: {}", e);
                 process::exit(1);
             }
 
-            let compiler = if wasm { "emcc" } else { "gcc" };
-            let out_bin = out.unwrap_or(if wasm { "a.out.html" } else { "a.out" });
-            
             eprintln!("[AOT] Acionando transpiler backend ({}) com O3 otimizations...", compiler);
             let status = std::process::Command::new(compiler)
                 .arg("-O3")
@@ -478,6 +496,9 @@ fn run_aot(path: &str, out: Option<&str>, wasm: bool) {
                 Ok(s) => {
                     if s.success() {
                         eprintln!("[AOT] Compilação finalizada! Nativo e otimizado exportado para: {}", out_bin);
+                        if let Err(e) = fs::copy(out_bin, &final_bin_in_cache) {
+                            eprintln!("[AOT/Cache] Aviso: Não foi possível injetar o binário no cache: {}", e);
+                        }
                     } else {
                         eprintln!("[AOT] Ocorreu um erro ao compilar com {}", compiler);
                         eprintln!("[AOT] Dica: Verifique se você possui gcc/clang (ou emcc) no PATH.");

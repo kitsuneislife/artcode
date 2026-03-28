@@ -254,9 +254,17 @@ mod enabled {
         }
 
         fn lower_ir_to_module(ir_text: &str) -> Result<String, String> {
+            let hash = crate::cache::ArtCache::compute_hash(ir_text);
+            let cache = crate::cache::ArtCache::new();
+            if let Some(cached) = cache.get("llvm", &hash, "ll") {
+                GLOBAL_JIT_REGISTRY.lock().unwrap().push(cached.clone());
+                return Ok(cached);
+            }
+
             let module = Self::build_module(ir_text)?;
             let s = module.print_to_string().to_string();
             GLOBAL_JIT_REGISTRY.lock().unwrap().push(s.clone());
+            cache.set("llvm", &hash, "ll", &s);
             Ok(s)
         }
 

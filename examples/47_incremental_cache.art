@@ -1,0 +1,29 @@
+/// Exemplo 47 - Cache Incremental de Compilação (AOT Cache)
+///
+/// O backend AOT do Artcode salva os binários já compilados em
+/// ~/.artcache/ (ou /tmp/.artcache/).
+///
+/// Na primeira execução, o GCC é invocado normalmente.
+/// Nas chamadas seguintes com o *mesmo* código-fonte, a compilação
+/// é ignorada e o binário é copiado instantaneamente do cache.
+///
+/// Isso é transparente para o usuário:
+///
+///   # Primeira execução – invoca o GCC (lento)
+///   cargo run --bin art -- build-aot examples/47_incremental_cache.art --out demo
+///   ./demo      # → 84
+///
+///   # Segunda execução – CACHE HIT (instantâneo)
+///   cargo run --bin art -- build-aot examples/47_incremental_cache.art --out demo
+///   ./demo      # → 84
+///
+/// O cache é controlado por hash SHA-256 do código C gerado, garantindo
+/// que qualquer alteração no fonte invalide automaticamente a entrada.
+
+func duplicate(x) {
+    return x + x;
+}
+
+func main() {
+    return duplicate(42);
+}
