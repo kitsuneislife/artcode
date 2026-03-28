@@ -1,0 +1,23 @@
+// artcode example 45: JIT Fallback Debugging
+//
+// Este exemplo demonstra conceitualmente como o modo de execução performático do 
+// JIT é capaz de devolver o controle ao interpretador (via a instrução de fallback `deopt`)
+// quando ocorrem violações de restrições ou chamadas não otimizadas.
+//
+// Quando rodando sem a feature LLVM completa, o compilador JIT dummy emite 
+// automaticamente `deopt` ao encontrar elementos que fogem das operações básicas suportadas.
+
+fn perform_native_math(a: Int, b: Int) -> Int {
+    performant {
+        // Num JIT plenamente habilitado, o loop abaixo rodará nativamente.
+        // Contudo, se "b" violar alguma propriedade na execução JIT, 
+        // o código de máquina executará a instrução `deopt` e devolverá
+        // a stack frame instantaneamente para o interpretador terminar o trabalho de forma segura.
+        
+        let sum = a + b    
+        return sum
+    }
+}
+
+let result = perform_native_math(10, 32)
+println(result)

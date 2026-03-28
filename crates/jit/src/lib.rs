@@ -102,11 +102,16 @@ where
             Ok(module_text) => {
                 match llvm_builder::LlvmBuilderImpl::compile_module_get_symbol(&module_text, name) {
                     Ok(addr) => {
-                        // SAFETY: assume compiled function has signature extern "C" fn() -> i64
-                        let f: extern "C" fn() -> i64 = unsafe { std::mem::transmute(addr) };
+                        // SAFETY: assume compiled function has signature extern "C" fn(*mut i64) -> i64
+                        let mut out = 0i64;
+                        let f: extern "C" fn(*mut i64) -> i64 = unsafe { std::mem::transmute(addr) };
                         // Call the compiled code and return result. If it faults, so be it.
-                        let res = unsafe { f() };
-                        return Ok(res);
+                        let status = unsafe { f(&mut out) };
+                        if status == 0 {
+                            return Ok(out);
+                        } else {
+                            return Ok(interpret());
+                        }
                     }
                     Err(_) => return Ok(interpret()),
                 }
@@ -118,6 +123,8 @@ where
     // If JIT feature not compiled in, always fallback to interpreter.
     #[cfg(not(feature = "jit"))]
     {
+        let _ = name;
+        let _ = ir_text;
         Ok(interpret())
     }
 }
@@ -235,6 +242,15 @@ mod tests {
         let ir = "func @f() -> i64 { entry: %c = const i64 7 br end\nend: ret %c }";
         let v = compile_and_run_or_interpret("f", ir, || 7).expect("should return 7");
         assert_eq!(v, 7);
+    }
+
+    #[test]
+    fn compile_and_run_falls_back_on_deopt() {
+        let ir = "func @f_deopt() -> i64 {\n  entry:\n    deopt\n}";
+        // JIT should compile this to a native bailout. The compilation will
+        // succeed, the native check returns status 1, and so it falls back to || 42.
+        let v = compile_and_run_or_interpret("f_deopt", ir, || 42).expect("should return 42");
+        assert_eq!(v, 42);
     }
 
     #[test]

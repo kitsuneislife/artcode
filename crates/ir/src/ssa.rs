@@ -97,6 +97,7 @@ pub fn rename_temps(func: &mut Function) {
                     *v = replace(v, &map);
                 }
             }
+            Instr::Deopt => {}
         }
     }
 }

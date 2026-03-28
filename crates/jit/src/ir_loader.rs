@@ -116,6 +116,12 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
             continue;
         }
 
+        // deopt
+        if line == "deopt" {
+            body.push(Instr::Deopt);
+            continue;
+        }
+
         // assignment-style instructions: dest = opcode ...
         if let Some(eq) = line.find('=') {
             let (lhs, rhs) = line.split_at(eq);
@@ -283,7 +289,8 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
             | Instr::Br(_)
             | Instr::BrCond(_, _, _)
             | Instr::Phi(_, _, _)
-            | Instr::Ret(_) => {
+            | Instr::Ret(_)
+            | Instr::Deopt => {
                 instr_count += 1;
             }
         }

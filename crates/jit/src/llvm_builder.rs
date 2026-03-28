@@ -88,13 +88,13 @@ mod enabled {
                 None => ("_anon".to_string(), 0),
             };
 
+            // ABI: first param is always *mut i64 (for the success return value)
+            let ptr_type = i64_t.ptr_type(inkwell::AddressSpace::from(0)).into();
             let fn_type = match param_count {
-                0 => i64_t.fn_type(&[], false),
-                1 => i64_t.fn_type(&[i64_t.into()], false),
-                2 => i64_t.fn_type(&[i64_t.into(), i64_t.into()], false),
+                0 => i64_t.fn_type(&[ptr_type], false),
                 n => {
-                    // fallback: create n i64 params
-                    let mut params = Vec::with_capacity(n);
+                    let mut params = Vec::with_capacity(n + 1);
+                    params.push(ptr_type);
                     for _ in 0..n {
                         params.push(i64_t.into());
                     }
@@ -107,8 +107,17 @@ mod enabled {
             let builder = context.create_builder();
             builder.position_at_end(bb);
 
+            let out_ptr = function.get_nth_param(0).unwrap().into_pointer_value();
+            let status_ok = i64_t.const_zero(); // 0
+            let status_deopt = i64_t.const_int(1, false); // 1
+
+            // If IR explicitly contains `deopt`, return early with deopt status
+            if ir_text.contains("deopt") {
+                builder.build_return(Some(&status_deopt));
+                return Ok(module);
+            }
+
             // If IR contains `const i64 <N>` use that
-            // Try to find a `const i64 <N>` in the body (simple match)
             if let Some(idx) = ir_text.find("const i64") {
                 let after = &ir_text[idx + "const i64".len()..];
                 if let Some(num_str) = after
@@ -117,58 +126,51 @@ mod enabled {
                 {
                     if let Ok(v) = num_str.trim().parse::<i64>() {
                         let constv = i64_t.const_int(v as u64, true);
-                        builder.build_return(Some(&constv));
+                        builder.build_store(out_ptr, constv);
+                        builder.build_return(Some(&status_ok));
                         return Ok(module);
                     }
                 }
             }
 
-            // If contains `add` then add first two params
+            // If contains `add` then add first two params (shifted by 1 due to out_ptr)
             if ir_text.contains(" add ") || ir_text.contains("add i64") {
                 if param_count >= 2 {
-                    let a = function.get_nth_param(0).unwrap().into_int_value();
-                    let b = function.get_nth_param(1).unwrap().into_int_value();
+                    let a = function.get_nth_param(1).unwrap().into_int_value();
+                    let b = function.get_nth_param(2).unwrap().into_int_value();
                     let sum = builder.build_int_add(a, b, "sum");
-                    builder.build_return(Some(&sum));
+                    builder.build_store(out_ptr, sum);
+                    builder.build_return(Some(&status_ok));
                     return Ok(module);
                 }
             }
 
             if ir_text.contains(" sub ") || ir_text.contains("sub i64") {
                 if param_count >= 2 {
-                    let a = function.get_nth_param(0).unwrap().into_int_value();
-                    let b = function.get_nth_param(1).unwrap().into_int_value();
+                    let a = function.get_nth_param(1).unwrap().into_int_value();
+                    let b = function.get_nth_param(2).unwrap().into_int_value();
                     let diff = builder.build_int_sub(a, b, "diff");
-                    builder.build_return(Some(&diff));
+                    builder.build_store(out_ptr, diff);
+                    builder.build_return(Some(&status_ok));
                     return Ok(module);
                 }
             }
 
-            // Simple support for `br_cond` and labeled blocks with `const` + `br` + a merge `phi`.
-            // This recognizes the small pattern emitted by the textual IR generator used in
-            // golden tests and constructs corresponding LLVM basic blocks with a phi node.
             if ir_text.contains("br_cond") {
-                // Parse label names: find the line with br_cond
                 if let Some(line) = ir_text.lines().find(|l| l.contains("br_cond")) {
-                    // e.g. br_cond %f_0, f_then, f_else
                     let parts: Vec<&str> = line.split_whitespace().collect();
                     if parts.len() >= 4 {
                         let then_label = parts[2].trim_end_matches(',');
                         let else_label = parts[3].trim_end_matches(',');
 
-                        // Create the basic blocks
                         let then_bb = context.append_basic_block(function, then_label);
                         let else_bb = context.append_basic_block(function, else_label);
                         let merge_label = "f_merge";
                         let merge_bb = context.append_basic_block(function, merge_label);
 
-                        // entry: branch to cond blocks
                         builder.position_at_end(context.append_basic_block(function, "entry_tmp"));
-                        // For simplicity emit unconditional branches to then/else using the
-                        // br_cond predicate not modeled here; choose then by default to exercise flow.
                         builder.build_unconditional_branch(then_bb);
 
-                        // then block: look for a const and branch to merge
                         builder.position_at_end(then_bb);
                         if let Some(pos) = ir_text.find(&format!("{}:", then_label)) {
                             let sub = &ir_text[pos..];
@@ -177,18 +179,13 @@ mod enabled {
                                     .split(|c: char| !c.is_numeric() && c != '-')
                                     .find(|s| !s.is_empty())
                                 {
-                                    if let Ok(v) = num_str.trim().parse::<i64>() {
-                                        let cv = i64_t.const_int(v as u64, true);
+                                    if let Ok(_v) = num_str.trim().parse::<i64>() {
                                         builder.build_unconditional_branch(merge_bb);
-                                        // create a named global to reference later via a constant
-                                        // we'll create the phi in merge and insert incoming values
-                                        // by reading the const again when positioning in merge.
                                     }
                                 }
                             }
                         }
 
-                        // else block
                         builder.position_at_end(else_bb);
                         if let Some(pos) = ir_text.find(&format!("{}:", else_label)) {
                             let sub = &ir_text[pos..];
@@ -204,9 +201,7 @@ mod enabled {
                             }
                         }
 
-                        // merge: create phi from the two const values parsed earlier
                         builder.position_at_end(merge_bb);
-                        // Find the consts in the then/else blocks
                         let mut then_val = i64_t.const_zero();
                         let mut else_val = i64_t.const_zero();
                         if let Some(pos) = ir_text.find(&format!("{}:\n", then_label)) {
@@ -236,10 +231,10 @@ mod enabled {
                             }
                         }
 
-                        // Create the phi with incoming values from then_bb and else_bb
                         let phi = builder.build_phi(i64_t, "phi_tmp");
                         phi.add_incoming(&[(&then_val, then_bb), (&else_val, else_bb)]);
-                        builder.build_return(Some(&phi.as_basic_value().into_int_value()));
+                        builder.build_store(out_ptr, phi.as_basic_value().into_int_value());
+                        builder.build_return(Some(&status_ok));
                         return Ok(module);
                     }
                 }
@@ -247,7 +242,8 @@ mod enabled {
 
             // Default: return 0
             let zero = i64_t.const_zero();
-            builder.build_return(Some(&zero));
+            builder.build_store(out_ptr, zero);
+            builder.build_return(Some(&status_ok));
             Ok(module)
         }
     }

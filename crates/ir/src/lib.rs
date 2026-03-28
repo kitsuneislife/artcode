@@ -23,6 +23,7 @@ pub enum Instr {
     BrCond(String, String, String), // pred, if_true, if_false
     Phi(String, Type, Vec<(String, String)>), // dest, type, [(val, bb)]
     Ret(Option<String>),
+    Deopt,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -101,6 +102,7 @@ impl Function {
                 }
                 Instr::Ret(Some(v)) => body.push_str(&format!("  ret {}\n", v)),
                 Instr::Ret(None) => body.push_str("  ret\n"),
+                Instr::Deopt => body.push_str("  deopt\n"),
             }
         }
 
