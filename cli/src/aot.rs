@@ -145,7 +145,7 @@ pub fn write_minimal_aot_artifact(plan_path: &Path, out_artifact: &Path) -> Resu
                     .arg("-czf")
                     .arg(&tar_name)
                     .arg("-C")
-                    .arg(pkg_dir.to_str().unwrap())
+                    .arg(&pkg_dir)
                     .arg(".")
                     .status();
                 match status {
