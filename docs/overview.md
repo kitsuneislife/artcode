@@ -34,7 +34,7 @@ cli  --> parser ----> core (AST + tokens + env)
 6. Pattern matching resolve variantes de enum e bindings
 
 ## Roadmap Completo
-As metas de longo prazo, como compilação JIT/AOT nativa, _Time-Travel Debugging_, blocos `impl` e a maturidade contínua do Language Server Protocol (LSP) estão mapeadas no documento oficial de Roadmap na raiz do projeto (`.kit/checklist.md`).
+As metas de longo prazo estão documentadas em `docs/roadmap.md`.
 
 ## Decisões de Design
 | Tema | Decisão | Racional |
