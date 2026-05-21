@@ -19,12 +19,13 @@ use std::io::{self, IsTerminal, Write};
 use std::process;
 
 fn run_with_source(
-    _name: &str,
+    name: &str,
     source: String,
     profile: Option<&str>,
     emit_ir: Option<&str>,
     pure_mode: bool,
 ) {
+    let repl_mode = name == "<repl>";
     let mut lexer = Lexer::new(source.clone());
     let tokens = match lexer.scan_tokens() {
         Ok(t) => t,
@@ -150,15 +151,17 @@ fn run_with_source(
     for d in interpreter.take_diagnostics() {
         eprintln!("{}", format_diagnostic(&source, &d));
     }
-    let total = interpreter.executed_statements.max(1);
-    let percent = 100.0 * (1.0 - (interpreter.handled_errors as f64 / total as f64));
-    eprintln!(
-        "[metrics] handled_errors={} executed_statements={} crash_free={:.1}%",
-        interpreter.handled_errors, interpreter.executed_statements, percent
-    );
-    eprintln!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
-        interpreter.weak_created, interpreter.weak_upgrades, interpreter.weak_dangling,
-        interpreter.unowned_created, interpreter.unowned_dangling, interpreter.cycle_reports_run.get());
+    if !repl_mode {
+        let total = interpreter.executed_statements.max(1);
+        let percent = 100.0 * (1.0 - (interpreter.handled_errors as f64 / total as f64));
+        eprintln!(
+            "[metrics] handled_errors={} executed_statements={} crash_free={:.1}%",
+            interpreter.handled_errors, interpreter.executed_statements, percent
+        );
+        eprintln!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
+            interpreter.weak_created, interpreter.weak_upgrades, interpreter.weak_dangling,
+            interpreter.unowned_created, interpreter.unowned_dangling, interpreter.cycle_reports_run.get());
+    }
     if !source.trim().ends_with(";") {
         if let Some(val) = interpreter.last_value {
             println!("=> {}", val);
