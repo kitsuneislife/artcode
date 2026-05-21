@@ -89,6 +89,10 @@ pub enum Stmt {
     Import {
         path: Vec<Token>,
     },
+    ImplBlock {
+        type_name: String,
+        methods: Vec<Stmt>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

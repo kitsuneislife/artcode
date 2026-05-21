@@ -251,6 +251,7 @@ impl Lexer {
             "in" => TokenType::In,
             "try" => TokenType::Try,
             "catch" => TokenType::Catch,
+            "impl" => TokenType::Impl,
             _ => TokenType::Identifier,
         };
         self.add_token(token_type);

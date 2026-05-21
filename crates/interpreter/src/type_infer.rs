@@ -322,6 +322,11 @@ impl<'a> TypeInfer<'a> {
                 self.visit_stmt(body);
                 self.pop_scope();
             }
+            Stmt::ImplBlock { methods, .. } => {
+                for method in methods {
+                    self.visit_stmt(method);
+                }
+            }
         }
     }
 
@@ -540,6 +545,13 @@ impl<'a> TypeInfer<'a> {
             | Expression(_)
             | Import { .. }
             | ShellCommand { .. } => { /* allowed */ }
+            ImplBlock { .. } => {
+                self.diags.push(diagnostics::Diagnostic::new(
+                    diagnostics::DiagnosticKind::Type,
+                    "impl block is not allowed inside `performant` blocks".to_string(),
+                    diagnostics::Span::new(0, 0, 0, 0),
+                ));
+            }
         }
     }
 

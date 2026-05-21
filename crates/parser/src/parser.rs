@@ -202,9 +202,35 @@ impl Parser {
             self.consume(TokenType::LeftBrace, "Expect '{' after performant.");
             let statements = self.block();
             Stmt::Performant { statements }
+        } else if self.match_token(TokenType::Impl) {
+            self.impl_block()
         } else {
             self.statement()
         }
+    }
+
+    fn impl_block(&mut self) -> Stmt {
+        let name_token = self.consume(TokenType::Identifier, "Expect type name after 'impl'.");
+        let type_name = name_token.lexeme.clone();
+        self.consume(TokenType::LeftBrace, "Expect '{' after impl type name.");
+        let mut methods = Vec::new();
+        while !self.is_at_end() && !self.check(&TokenType::RightBrace) {
+            if self.match_token(TokenType::Func) {
+                let mut method = self.function_declaration();
+                // Inject type_name as method_owner if not already set
+                if let Stmt::Function { ref mut method_owner, .. } = method {
+                    if method_owner.is_none() {
+                        *method_owner = Some(type_name.clone());
+                    }
+                }
+                methods.push(method);
+            } else {
+                // Skip unknown tokens inside impl to avoid hard parse failure
+                self.advance();
+            }
+        }
+        self.consume(TokenType::RightBrace, "Expect '}' after impl block.");
+        Stmt::ImplBlock { type_name, methods }
     }
 
     pub fn struct_declaration(&mut self) -> Stmt {

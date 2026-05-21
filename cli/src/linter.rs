@@ -218,6 +218,11 @@ fn lint_stmt(
         | Stmt::ShellCommand { .. }
         | Stmt::StructDecl { .. }
         | Stmt::EnumDecl { .. } => {}
+        Stmt::ImplBlock { methods, .. } => {
+            for method in methods {
+                lint_stmt(method, scopes, diagnostics, in_performant);
+            }
+        }
         Stmt::Match { expr, cases } => {
             lint_expr(expr, scopes, diagnostics);
             let mut irrefutable_found = false;
@@ -351,7 +356,8 @@ fn stmt_contains_allocation(stmt: &Stmt) -> bool {
         | Stmt::EnumDecl { .. }
         | Stmt::Function { .. }
         | Stmt::Import { .. }
-        | Stmt::ShellCommand { .. } => false,
+        | Stmt::ShellCommand { .. }
+        | Stmt::ImplBlock { .. } => false,
     }
 }
 

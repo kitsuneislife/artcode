@@ -2473,6 +2473,12 @@ impl Interpreter {
                 }
                 Ok(())
             }
+            Stmt::ImplBlock { methods, .. } => {
+                for method in methods {
+                    self.execute(method)?;
+                }
+                Ok(())
+            }
             Stmt::Return { value } => {
                 let mut return_value = match value {
                     Some(expr) => self.evaluate(expr)?,

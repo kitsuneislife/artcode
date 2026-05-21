@@ -53,6 +53,7 @@ pub enum TokenType {
     In,
     Try,
     Catch,
+    Impl,
     Weak,    // keyword 'weak' (açúcar)
     Unowned, // keyword 'unowned' (açúcar)
     Identifier,
