@@ -6086,8 +6086,8 @@ impl Interpreter {
                 self.executing_actor = Some(actor_entry);
 
                 // If parked (waiting for message) skip until unparked (actor_send will unpark)
-                if self.executing_actor.as_ref().unwrap().parked {
-                    let actor = self.executing_actor.take().unwrap();
+                if self.executing_actor.as_ref().expect("set two lines above").parked {
+                    let actor = self.executing_actor.take().expect("set two lines above");
                     self.actors.insert(aid, actor);
                     idx += 1;
                     continue;
@@ -6095,13 +6095,13 @@ impl Interpreter {
 
                 // Determine if actor is runnable: has body statements or mailbox with content
                 let is_runnable = {
-                    let act = self.executing_actor.as_ref().unwrap();
+                    let act = self.executing_actor.as_ref().expect("set above");
                     !act.body.is_empty() || !act.mailbox.is_empty()
                 };
 
                 if !is_runnable {
                     // nothing to do for this actor; reinsert and skip
-                    let actor = self.executing_actor.take().unwrap();
+                    let actor = self.executing_actor.take().expect("set above");
                     self.actors.insert(aid, actor);
                     idx += 1;
                     continue;
@@ -6112,14 +6112,14 @@ impl Interpreter {
 
                 // Pop statement if available
                 let stmt_opt = {
-                    let act = self.executing_actor.as_mut().unwrap();
+                    let act = self.executing_actor.as_mut().expect("set above");
                     act.body.pop_front()
                 };
 
                 if let Some(stmt) = stmt_opt {
                     // Swap environment
                     let previous_env = self.environment.clone();
-                    self.environment = self.executing_actor.as_ref().unwrap().env.clone();
+                    self.environment = self.executing_actor.as_ref().expect("set above").env.clone();
                     let actor_env_before_stmt = self.environment.clone();
                     // Execute statement; ignore return errors for now
                     let _ = self.execute(stmt.clone());
