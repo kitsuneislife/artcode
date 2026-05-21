@@ -1,7 +1,7 @@
 use super::Interpreter;
 use crate::values::Result;
 use core::ast::{ArtValue, Expr, ObjHandle};
-use diagnostics::{Diagnostic, DiagnosticKind, Span};
+use diagnostics::{Diagnostic, DiagnosticKind};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -48,7 +48,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "Called `unwrap()` on an `Err` or `None` value.".to_string(),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         Ok(ArtValue::none())
                     }
@@ -94,7 +94,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "map_set: invalid arguments".to_string(),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         Ok(ArtValue::none())
                     }
@@ -144,7 +144,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "stream expects exactly one array argument".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -156,7 +156,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "stream expects an array argument".to_string(),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         Ok(ArtValue::none())
                     }
@@ -167,7 +167,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "map expects (stream, callable)".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -182,7 +182,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             msg,
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         Ok(ArtValue::none())
                     }
@@ -193,7 +193,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "filter expects (stream, callable)".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -208,7 +208,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             msg,
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         Ok(ArtValue::none())
                     }
@@ -219,7 +219,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "collect expects a stream argument".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -233,7 +233,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             msg,
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         Ok(ArtValue::none())
                     }
@@ -244,7 +244,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "count expects a stream argument".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -258,7 +258,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             msg,
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         Ok(ArtValue::none())
                     }
@@ -414,7 +414,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "dag_topo_sort: first argument must be an array of strings".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 };
@@ -423,7 +423,7 @@ impl Interpreter {
                         DiagnosticKind::Runtime,
                         "dag_topo_sort: second argument must be an array of tuples (node, depends_on)"
                             .to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 };
@@ -436,7 +436,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "dag_topo_sort: nodes array must contain only strings".to_string(),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         return Ok(ArtValue::none());
                     };
@@ -450,7 +450,7 @@ impl Interpreter {
                             DiagnosticKind::Runtime,
                             "dag_topo_sort: dependency entries must be tuples (node, depends_on)"
                                 .to_string(),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         return Ok(ArtValue::none());
                     };
@@ -459,7 +459,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "dag_topo_sort: dependency tuple values must be strings".to_string(),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         return Ok(ArtValue::none());
                     };
@@ -504,7 +504,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "dag_topo_sort: cycle detected in dependency graph".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -526,7 +526,7 @@ impl Interpreter {
                             self.diagnostics.push(Diagnostic::new(
                                 DiagnosticKind::Runtime,
                                 e,
-                                Span::new(0, 0, 0, 0),
+                                self.call_span,
                             ));
                             return Ok(ArtValue::none());
                         }
@@ -626,7 +626,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "http_get_text: only http:// URLs are supported".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 };
@@ -643,7 +643,7 @@ impl Interpreter {
                             self.diagnostics.push(Diagnostic::new(
                                 DiagnosticKind::Runtime,
                                 "http_get_text: invalid port in URL".to_string(),
-                                Span::new(0, 0, 0, 0),
+                                self.call_span,
                             ));
                             return Ok(ArtValue::none());
                         }
@@ -702,7 +702,7 @@ impl Interpreter {
                             self.diagnostics.push(Diagnostic::new(
                                 DiagnosticKind::Runtime,
                                 e,
-                                Span::new(0, 0, 0, 0),
+                                self.call_span,
                             ));
                             return Ok(ArtValue::none());
                         }
@@ -747,7 +747,7 @@ impl Interpreter {
                             self.diagnostics.push(Diagnostic::new(
                                 DiagnosticKind::Runtime,
                                 "len: unsupported type".to_string(),
-                                Span::new(0, 0, 0, 0),
+                                self.call_span,
                             ));
                             return Ok(ArtValue::none());
                         }
@@ -757,7 +757,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "len: missing argument".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     Ok(ArtValue::none())
                 }
@@ -802,7 +802,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "type_of: missing argument".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     Ok(ArtValue::none())
                 }
@@ -829,7 +829,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "__weak: missing arg",
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     Ok(ArtValue::none())
                 }
@@ -851,7 +851,7 @@ impl Interpreter {
                             self.diagnostics.push(Diagnostic::new(
                                 DiagnosticKind::Runtime,
                                 "__weak_get: expected WeakRef",
-                                Span::new(0, 0, 0, 0),
+                                self.call_span,
                             ));
                             Ok(ArtValue::none())
                         }
@@ -860,7 +860,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "__weak_get: missing arg",
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     Ok(ArtValue::none())
                 }
@@ -881,7 +881,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "__unowned: missing arg",
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     Ok(ArtValue::none())
                 }
@@ -896,7 +896,7 @@ impl Interpreter {
                                 self.diagnostics.push(Diagnostic::new(
                                     DiagnosticKind::Runtime,
                                     "dangling unowned reference",
-                                    Span::new(0, 0, 0, 0),
+                                    self.call_span,
                                 ));
                                 Ok(ArtValue::none())
                             }
@@ -905,7 +905,7 @@ impl Interpreter {
                             self.diagnostics.push(Diagnostic::new(
                                 DiagnosticKind::Runtime,
                                 "__unowned_get: expected UnownedRef",
-                                Span::new(0, 0, 0, 0),
+                                self.call_span,
                             ));
                             Ok(ArtValue::none())
                         }
@@ -914,7 +914,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "__unowned_get: missing arg",
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     Ok(ArtValue::none())
                 }
@@ -924,7 +924,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "on_finalize espera 2 args",
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -948,7 +948,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "on_finalize tipos inválidos",
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                 }
                 Ok(ArtValue::none())
@@ -959,7 +959,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "actor_send expects 2 or 3 args".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1032,14 +1032,14 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             format!("actor_send: unknown actor id {}", aid),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                     }
                 } else {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "actor_send: actor id must be Int".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                 }
                 Ok(ArtValue::none())
@@ -1078,7 +1078,7 @@ impl Interpreter {
                 self.diagnostics.push(Diagnostic::new(
                     DiagnosticKind::Runtime,
                     "actor_receive: no current actor context".to_string(),
-                    Span::new(0, 0, 0, 0),
+                    self.call_span,
                 ));
                 Ok(ArtValue::Optional(Box::new(None)))
             }
@@ -1136,7 +1136,7 @@ impl Interpreter {
                 self.diagnostics.push(Diagnostic::new(
                     DiagnosticKind::Runtime,
                     "actor_receive_envelope: no current actor context".to_string(),
-                    Span::new(0, 0, 0, 0),
+                    self.call_span,
                 ));
                 Ok(ArtValue::Optional(Box::new(None)))
             }
@@ -1145,7 +1145,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "actor_set_mailbox_limit expects 2 args".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1165,14 +1165,14 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             format!("actor_set_mailbox_limit: unknown actor id {}", aid),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                     }
                 } else {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "actor_set_mailbox_limit: invalid args".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                 }
                 Ok(ArtValue::none())
@@ -1188,7 +1188,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "envelope expects 3 args".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1224,7 +1224,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "make_envelope expects 1 or 2 args".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1261,7 +1261,7 @@ impl Interpreter {
                             self.diagnostics.push(Diagnostic::new(
                                 DiagnosticKind::Runtime,
                                 "run_actors: invalid max_steps argument".to_string(),
-                                Span::new(0, 0, 0, 0),
+                                self.call_span,
                             ));
                             return Ok(ArtValue::none());
                         }
@@ -1278,7 +1278,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "atomic_new expects 1 arg".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1290,7 +1290,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "atomic_load expects 1 arg".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1305,7 +1305,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "atomic_store expects 2 args".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1321,7 +1321,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "atomic_add expects 2 args".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1339,7 +1339,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "mutex_new expects 1 arg".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1351,7 +1351,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "mutex_lock expects 1 arg".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1366,7 +1366,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "mutex_unlock expects 1 arg".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1381,7 +1381,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "arena_new expects no arguments".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1395,7 +1395,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "arena_release expects exactly one arena id argument".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::Bool(false));
                 }
@@ -1407,7 +1407,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "arena_release expects a positive Int arena id".to_string(),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         return Ok(ArtValue::Bool(false));
                     }
@@ -1417,7 +1417,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         format!("arena_release: unknown reusable arena id {}", arena_id),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::Bool(false));
                 }
@@ -1430,7 +1430,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "arena_with expects (arena_id, callback)".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1443,7 +1443,7 @@ impl Interpreter {
                             DiagnosticKind::Runtime,
                             "arena_with expects a positive Int arena id as first argument"
                                 .to_string(),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         return Ok(ArtValue::none());
                     }
@@ -1453,7 +1453,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         format!("arena_with: unknown reusable arena id {}", arena_id),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1474,7 +1474,7 @@ impl Interpreter {
                                 "arena_with expects callback as function/builtin, got {:?}",
                                 other
                             ),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         Ok(ArtValue::none())
                     }
@@ -1490,7 +1490,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "idl_schema expects exactly one struct name argument".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1502,7 +1502,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "idl_schema expects struct name as String".to_string(),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         return Ok(ArtValue::none());
                     }
@@ -1514,7 +1514,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             format!("idl_schema: unknown struct '{}'", struct_name),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         Ok(ArtValue::none())
                     }
@@ -1525,7 +1525,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "idl_validate expects (value, struct_name)".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::Bool(false));
                 }
@@ -1538,7 +1538,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "idl_validate expects schema name as String".to_string(),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         return Ok(ArtValue::Bool(false));
                     }
@@ -1548,7 +1548,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         format!("idl_validate: unknown struct '{}'", struct_name),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::Bool(false));
                 };
@@ -1566,7 +1566,7 @@ impl Interpreter {
                             struct_name,
                             self.runtime_type_label(&value)
                         ),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::Bool(false));
                 };
@@ -1578,7 +1578,7 @@ impl Interpreter {
                             "idl_validate: expected struct '{}' but got '{}'",
                             struct_name, value_struct_name
                         ),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::Bool(false));
                 }
@@ -1591,7 +1591,7 @@ impl Interpreter {
                                 "idl_validate: missing field '{}' for schema '{}'",
                                 field_name, struct_name
                             ),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         return Ok(ArtValue::Bool(false));
                     };
@@ -1605,7 +1605,7 @@ impl Interpreter {
                                 expected_ty,
                                 self.runtime_type_label(field_val)
                             ),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         return Ok(ArtValue::Bool(false));
                     }
@@ -1618,7 +1618,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "buffer_new expects exactly one integer size argument".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1631,7 +1631,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "buffer_new argument must be a non-negative Int".to_string(),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         Ok(ArtValue::none())
                     }
@@ -1642,7 +1642,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "serialize expects exactly one argument".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1655,7 +1655,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             format!("serialize error: {}", e),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         Ok(ArtValue::none())
                     }
@@ -1666,7 +1666,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "deserialize expects exactly one Buffer argument".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1679,7 +1679,7 @@ impl Interpreter {
                                 self.diagnostics.push(Diagnostic::new(
                                     DiagnosticKind::Runtime,
                                     format!("deserialize error: {}", e),
-                                    Span::new(0, 0, 0, 0),
+                                    self.call_span,
                                 ));
                                 Ok(ArtValue::none())
                             }
@@ -1689,7 +1689,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "deserialize requires a Buffer".to_string(),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         Ok(ArtValue::none())
                     }
@@ -1701,7 +1701,7 @@ impl Interpreter {
                         DiagnosticKind::Runtime,
                         "capability_acquire expects exactly one capability kind argument"
                             .to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1713,7 +1713,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "capability_acquire expects capability kind as String".to_string(),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         return Ok(ArtValue::none());
                     }
@@ -1731,7 +1731,7 @@ impl Interpreter {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticKind::Runtime,
                         "capability_kind expects exactly one capability argument".to_string(),
-                        Span::new(0, 0, 0, 0),
+                        self.call_span,
                     ));
                     return Ok(ArtValue::none());
                 }
@@ -1743,7 +1743,7 @@ impl Interpreter {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
                             "capability_kind expects a Capability token".to_string(),
-                            Span::new(0, 0, 0, 0),
+                            self.call_span,
                         ));
                         Ok(ArtValue::none())
                     }

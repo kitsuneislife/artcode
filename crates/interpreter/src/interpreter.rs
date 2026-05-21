@@ -134,6 +134,8 @@ pub struct Interpreter {
     eval_depth: usize,
     // Pilha de arenas para ARC Adaptativo Implícito
     pub arena_stack: Vec<u32>,
+    // Span of the most recent field-access call site, used by builtins for error reporting
+    pub call_span: Span,
 }
 
 #[cfg(test)]
@@ -439,6 +441,7 @@ impl Interpreter {
             rng_state: 0x12345678, // deterministic for v0.2.0 testing
             eval_depth: 0,
             arena_stack: Vec::new(),
+            call_span: Span::new(0, 0, 0, 0),
         }
     }
 
@@ -3735,6 +3738,10 @@ impl Interpreter {
             }
         }
 
+        if let Expr::FieldAccess { field, .. } = &callee {
+            self.call_span = Span::new(field.start, field.end, field.line, field.col);
+        }
+
         let original_expr = callee.clone();
         let value = self.evaluate(callee)?;
         match value {
@@ -3752,7 +3759,7 @@ impl Interpreter {
     fn call_function(
         &mut self,
         func: Rc<Function>,
-        _type_args: Option<Vec<String>>,
+        type_args: Option<Vec<String>>,
         arguments: Vec<Expr>,
     ) -> Result<ArtValue> {
         // record call counter by function name (if present)
@@ -3790,6 +3797,56 @@ impl Interpreter {
         let mut evaluated_args = Vec::with_capacity(argc);
         for arg in arguments {
             evaluated_args.push(self.evaluate(arg)?);
+        }
+
+        // Generic type parameter validation
+        if let Some(type_params) = &func.type_params {
+            if !type_params.is_empty() {
+                // Infer concrete types: explicit type_args take priority, else infer from values
+                let concrete: Vec<String> = if let Some(explicit) = &type_args {
+                    explicit.clone()
+                } else {
+                    // For each type param, find the first function param annotated with that name
+                    // and use the runtime type of the corresponding argument.
+                    type_params
+                        .iter()
+                        .map(|(tname, _)| {
+                            func.params
+                                .iter()
+                                .position(|p| p.ty.as_deref() == Some(tname.as_str()))
+                                .and_then(|idx| evaluated_args.get(idx))
+                                .map(|v| v.type_name())
+                                .unwrap_or_else(|| "Unknown".to_string())
+                        })
+                        .collect()
+                };
+                // Validate constraints
+                for (i, (tname, constraint)) in type_params.iter().enumerate() {
+                    if let Some(bound) = constraint {
+                        let concrete_ty = concrete.get(i).map(String::as_str).unwrap_or("Unknown");
+                        let ok = match bound.as_str() {
+                            "Numeric" => matches!(concrete_ty, "Int" | "Float"),
+                            "Eq" | "Hash" => {
+                                matches!(concrete_ty, "Int" | "Float" | "String" | "Bool")
+                            }
+                            "Comparable" => {
+                                matches!(concrete_ty, "Int" | "Float" | "String")
+                            }
+                            _ => true,
+                        };
+                        if !ok {
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                format!(
+                                    "Type '{}' does not satisfy constraint '{}' for type parameter '{}'",
+                                    concrete_ty, bound, tname
+                                ),
+                                self.call_span,
+                            ));
+                        }
+                    }
+                }
+            }
         }
 
         let previous_env = self.environment.clone();
