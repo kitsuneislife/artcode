@@ -1,60 +1,74 @@
 # Changelog
 
 Todas as mudancas relevantes deste projeto serao documentadas neste arquivo.
-
-O formato segue Keep a Changelog e SemVer adaptado para a trilha 0.2.x.
+O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-21
+
 ### Added
-- Politica publica de versionamento em docs/versioning.md.
-- Exemplo 29 sobre metadados de release e compatibilidade (examples/29_versioning_policy.art).
-- Comando de atualização no CLI: `art update --check` (consulta release mais recente com cache local) e `art update --self` (executa instalador oficial para autoatualização assistida).
-- Aviso automático de nova release em terminal interativo (desativável com `ART_DISABLE_UPDATE_CHECK=1`).
-- **Time-Travel Debugging (Fase 1: Tracer e Formato):** A infraestrutura base de trace determinístico por Event Sourcing foi estabelecida (RFC 0002). Adicionada flag no CLI `--record <arquivo>` permitindo salvar o log binário de fontes não-determinísticas nativas como `time_now` e `rand_next` para arquivo usando serialização zero-copy IPC. A API estendida para Time-Travel e log estruturado é o primeiro passo para a ferramenta de debug robusta que suporta IPC avançado. Detalhes documentados em `docs/debugging.md`.
-- **Native Serialization (Zero-copy IPC)**:
-  - Adicionado suporte a serialização binária recursiva focada em zero-copy no runtime e serializador binário DFS.
-  - Adicionado o tipo de dado `Buffer` e builtins: `buffer_new`, `serialize`, `deserialize`.
-  - Serialização rejeita e avisa em compilação handles em heap puramente opacos e vinculados à memória, como (Actors, Mutexes, Custom References e Capabilities).
-- **Capability Tokens com Move-Semantics:** `ArtValue::Capability` e `ArtValue::MovedCapability` no AST; builtins `capability_acquire(kind)` e `capability_kind(cap)` na stdlib; enforcement de reuso (uma capability não pode ser usada após ser movida) tanto no type checker (TypeInfer) quanto no runtime (Environment::read_for_eval); suporte no parser para o tipo `Capability[Kind]`; docs no `art doc std`; exemplo `examples/42_capability_tokens.art` e suite de testes `tests/capability_tokens.rs`.
+- **`impl Type { }` syntax:** blocos `impl` como açúcar para registrar métodos em tipos,
+  equivalente ao `func Type.method(self)` existente. Retrocompatível.
+- **Generics no runtime:** validação de constraints de tipo (`Numeric`, `Eq`, `Hash`,
+  `Comparable`) na chamada de funções genéricas; inferência do tipo concreto pelos
+  argumentos quando `type_args` não são explícitos.
+- **`ArtValue::type_name()`:** reflexão de tipo em runtime para todos os variants de valor.
+- Capability tokens com move-semantics: `ArtValue::Capability` / `ArtValue::MovedCapability`;
+  builtins `capability_acquire`, `capability_kind`; enforcement no type checker e runtime.
+- Time-Travel Debugging fase 1: tracer determinístico, flag `--record <arquivo>` no CLI,
+  serialização zero-copy de fontes não-determinísticas (`time_now`, `rand_next`).
+- Serialização nativa zero-copy: tipo `Buffer`, builtins `buffer_new`, `serialize`,
+  `deserialize`. Serialização rejeita handles opacos (actors, mutexes, capabilities).
+- APIs de arena: `arena_new`, `arena_with`, `arena_release`; métricas
+  `arena_alloc_count`, `objects_finalized_per_arena`, `finalizer_promotions_per_arena`.
+- Política pública de versionamento (`docs/guides/versioning.md`) e comando
+  `art update --check` / `art update --self`.
 
 ### Changed
-- Adoção de actor runtime com mailbox e builtins: `actor_send`, `actor_receive`, `actor_receive_envelope`, `actor_set_mailbox_limit`, `actor_yield`, `envelope`, `make_envelope` e `run_actors`. Testes de actor HTTP e IPC (exs. `examples/33_actor_http_runtime.art`, `cli/tests/actor_http_runtime.rs`).
-- Integração e hardening de builtin `http_get_text` com parsing de URL e corpo HTTP no runtime.
-- Refinamentos de planejamento de chamadas FFI e C-ABI: `art_extern!`, `art_handle_*`, e `art_syscall_unsafe`.
-- Implementado esquema de requisições de JIT/AOT com `irgen`, `jit`, e rotina `perf_compare` (scripts/perf_compare.sh, docs/perf_compare.md).
-- Novas APIs de arena: `arena_new`, `arena_with`, `arena_release`, e métricas `arena_alloc_count`, `objects_finalized_per_arena`, `finalizer_promotions_per_arena`.
-- Refatoração de CLI com `art lsp`, `art doc std`, `art format`, `art lint`, `art aot`, e `art run --pure`.
-- Resolução de complexidade de parse e `lexer` com suporte completo a `while`, `for`, `yield`, `if let`, tuplas, destructuring, `|>` stream pipeline.
-- Documentação de contribuição e roadmap atualizada para referenciar versão e compatibilidade da série 0.2.x.
+- **`interpreter.rs` reduzido de 6.734 → 1.715 linhas** por extração de sete módulos:
+  `builtins`, `actors`, `cycle_detection`, `gc`, `exec`, `eval`.
+- Diagnósticos de builtins agora reportam linha/coluna corretos: `call_span` propagado
+  do field-access call site para todos os 81 handlers de builtin (antes sempre `0:0`).
+- REPL suprime saída `[metrics]` e `[mem]` por linha; exibe `=> valor` sem ruído.
+- Actor runtime com mailbox e builtins: `actor_send`, `actor_receive`,
+  `actor_receive_envelope`, `actor_set_mailbox_limit`, `actor_yield`,
+  `envelope`, `make_envelope`, `run_actors`.
+- CLI reorganizado: `art lsp`, `art doc std`, `art format`, `art lint`, `art aot`,
+  `art run --pure`.
 
 ### Fixed
-- Reforço no fluxo de actor scheduler para `parked` e `actor_receive` rerun sem dropping incorreto de variáveis.
-- Correção de `performant` escape analysis (return/let arena object diagnostics) e `bind_value_to_pattern` para evitar leaks de arena.
-- Correção de `arena_with` e `call_function` para não gerar arena implícita dupla no contexto arena_reuse.
-- Ajustes no tracer/replayer de `time_now` e `rand_next` para replay determinístico em checkpoints.
+- 6 `unwrap()` encadeados no actor scheduler substituídos por `expect()` descritivo.
+- `aot.rs`: `.to_str().unwrap()` em path substituído por passagem direta de `OsStr`.
+- `lsp.rs`: `serde_json::to_string().unwrap()` substituído por early-return seguro.
+- `main.rs`: três pontos de `unwrap()` críticos corrigidos (debug repl, upgrade, copy).
+- Seções duplicadas `### Changed` e `### Docs` no [Unreleased] consolidadas.
+- Referência morta a `.kit/checklist.md` em `docs/overview.md` corrigida.
+- Reforço no fluxo de actor scheduler para `parked` / `actor_receive` rerun.
+- Escape analysis de `performant` e `bind_value_to_pattern` para evitar leaks de arena.
+- Replay determinístico de `time_now` e `rand_next` no tracer/replayer.
 
 ### Docs
-- Atualizada a página de changelog (`website/changelog.html`), navegação e exemplos 44/45/46.
-- `docs/memory.md`, `docs/debugging.md`, `docs/contributing.md`, `docs/ffi.md`, `docs/enums.md` e docs do website sincronizados.
-- `README.md` e `docs/overview.md` explicam a política de versionamento e upgrade (`art upgrade`).
-- Estrutura de governança, RFC/ADR e versionamento sincronizada entre docs, README e website.
+- `docs/` reorganizada em subpastas: `language/`, `internals/`, `guides/`, `rfcs/`.
+- Números de RFC duplicados corrigidos (0002×2, 0003×2, 0005×2 → 0006, 0007, 0008).
+- `docs/roadmap.md` reescrito refletindo o estado real de v0.2 e metas de v0.3/v0.4.
+- `docs/notes.md` expandido com limitações conhecidas (JIT, LSP, generics, diagnostics).
 
 ## [0.2.0] - 2026-03-18
 
 ### Added
 - Loop statements nativos (while/for), tuplas e destructuring.
 - Blocos explicitos de try/catch no parser e interpretador.
-- Modo de execucao puro via run flag --pure.
-- Builtin dag_topo_sort para ordenacao topologica de dependencias.
+- Modo de execucao puro via flag `--pure`.
+- Builtin `dag_topo_sort` para ordenacao topologica de dependencias.
 - Workflow de triagem automatica de issues com labels lang-design, runtime e tooling.
-- Autodoc de stdlib via comando art doc std.
+- Autodoc de stdlib via comando `art doc std`.
 - Politica de versionamento publico com promessas de compatibilidade para 0.2.x.
 
 ### Changed
 - GOVERNANCE.md formalizado com fluxo RFC -> ADR -> implementacao.
 - CONTRIBUTING.md atualizado com processo RFC, ADR e triagem automatica.
-- docs/decisions ganhou template ADR canonicamente referenciado.
+- `docs/decisions` ganhou template ADR canonicamente referenciado.
 
 ### Fixed
 - Ajustes de parser/lexer/runtime para loops, tuples e semantica de try/catch.
@@ -69,8 +83,3 @@ O formato segue Keep a Changelog e SemVer adaptado para a trilha 0.2.x.
 - Atualizar [Unreleased] a cada PR mergeado.
 - Em release, mover [Unreleased] para uma secao versionada datada.
 - Classificar entradas em Added, Changed, Deprecated, Removed, Fixed e Docs.
-
-## Geracao Semiautomatica
-
-Use scripts/changelog_from_git.sh para obter um rascunho por categorias semanticas a partir do git log.
-Revise manualmente antes de publicar release.
