@@ -24,9 +24,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz --locked
+        run: cargo install cargo-fuzz
 
       - name: Run parser/loops fuzz worker
         run: |
-          cd fuzzing
+          cd fuzz/cargo_fuzz
           cargo fuzz run parser_loops -- -max_total_time=60
