@@ -26,6 +26,7 @@ O formato segue Keep a Changelog e SemVer adaptado para a trilha 0.2.x.
 - Novas APIs de arena: `arena_new`, `arena_with`, `arena_release`, e métricas `arena_alloc_count`, `objects_finalized_per_arena`, `finalizer_promotions_per_arena`.
 - Refatoração de CLI com `art lsp`, `art doc std`, `art format`, `art lint`, `art aot`, e `art run --pure`.
 - Resolução de complexidade de parse e `lexer` com suporte completo a `while`, `for`, `yield`, `if let`, tuplas, destructuring, `|>` stream pipeline.
+- Documentação de contribuição e roadmap atualizada para referenciar versão e compatibilidade da série 0.2.x.
 
 ### Fixed
 - Reforço no fluxo de actor scheduler para `parked` e `actor_receive` rerun sem dropping incorreto de variáveis.
@@ -37,13 +38,7 @@ O formato segue Keep a Changelog e SemVer adaptado para a trilha 0.2.x.
 - Atualizada a página de changelog (`website/changelog.html`), navegação e exemplos 44/45/46.
 - `docs/memory.md`, `docs/debugging.md`, `docs/contributing.md`, `docs/ffi.md`, `docs/enums.md` e docs do website sincronizados.
 - `README.md` e `docs/overview.md` explicam a política de versionamento e upgrade (`art upgrade`).
-
-
-### Changed
-- Documentacao de contribuicao e roadmap atualizada para referenciar versao e compatibilidade da serie 0.2.x.
-
-### Docs
-- Estrutura de governanca, RFC/ADR e versionamento sincronizada entre docs, README e website.
+- Estrutura de governança, RFC/ADR e versionamento sincronizada entre docs, README e website.
 
 ## [0.2.0] - 2026-03-18
 
