@@ -555,6 +555,33 @@ impl ArtValue {
     pub fn none() -> ArtValue {
         ArtValue::Optional(Box::new(None))
     }
+
+    pub fn type_name(&self) -> String {
+        match self {
+            ArtValue::Int(_) => "Int".to_string(),
+            ArtValue::Float(_) => "Float".to_string(),
+            ArtValue::String(_) => "String".to_string(),
+            ArtValue::Bool(_) => "Bool".to_string(),
+            ArtValue::Optional(_) => "Optional".to_string(),
+            ArtValue::Array(_) => "Array".to_string(),
+            ArtValue::Tuple(_) => "Tuple".to_string(),
+            ArtValue::StructInstance { struct_name, .. } => struct_name.clone(),
+            ArtValue::EnumInstance { enum_name, .. } => enum_name.clone(),
+            ArtValue::HeapComposite(_) => "HeapComposite".to_string(),
+            ArtValue::Atomic(_) => "Atomic".to_string(),
+            ArtValue::Mutex(_) => "Mutex".to_string(),
+            ArtValue::Actor(_) => "Actor".to_string(),
+            ArtValue::Function(_) => "Function".to_string(),
+            ArtValue::Builtin(_) => "Builtin".to_string(),
+            ArtValue::WeakRef(_) => "Weak".to_string(),
+            ArtValue::UnownedRef(_) => "Unowned".to_string(),
+            ArtValue::Map(_) => "Map".to_string(),
+            ArtValue::Set(_) => "Set".to_string(),
+            ArtValue::Buffer(_) => "Buffer".to_string(),
+            ArtValue::Capability { .. } => "Capability".to_string(),
+            ArtValue::MovedCapability => "MovedCapability".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
