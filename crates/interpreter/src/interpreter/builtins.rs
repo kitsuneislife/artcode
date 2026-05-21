@@ -1,15 +1,8 @@
 use super::Interpreter;
-use super::encode_val;
-use crate::values::{Result, RuntimeError};
-use core::Token;
-use core::ast::{ArtValue, BuiltinFn, Expr, Function, MatchPattern, ObjHandle, Program, Stmt};
-use core::environment::Environment;
+use crate::values::Result;
+use core::ast::{ArtValue, Expr, ObjHandle};
 use diagnostics::{Diagnostic, DiagnosticKind, Span};
-use std::cell::{Cell, RefCell};
-use std::collections::{BTreeMap, HashMap, VecDeque};
-use std::io::Write;
-use std::process::{Command, Stdio};
-use std::rc::Rc;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 impl Interpreter {
