@@ -871,7 +871,9 @@ fn handle_message(
 }
 
 fn send_response(stdout: &mut io::Stdout, response: &Value) {
-    let msg = serde_json::to_string(response).unwrap();
+    let Ok(msg) = serde_json::to_string(response) else {
+        return;
+    };
     let payload = format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg);
     if let Ok(_) = stdout.write_all(payload.as_bytes()) {
         let _ = stdout.flush();
