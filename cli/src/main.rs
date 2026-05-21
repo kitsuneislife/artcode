@@ -568,7 +568,13 @@ fn run_debug_repl(script_path: &str, replay_path: &str) {
 
     loop {
         let mut lexer = Lexer::new(source.clone());
-        let tokens = lexer.scan_tokens().unwrap();
+        let tokens = match lexer.scan_tokens() {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("Lexer error in debug replay: {:?}", e);
+                continue;
+            }
+        };
         let mut parser = Parser::new(tokens);
         let (program, _) = parser.parse();
 
@@ -650,7 +656,7 @@ fn run_upgrade(args: &[String]) {
         process::exit(64);
     }
 
-    let file = file.unwrap();
+    let file = file.expect("checked above: process::exit if file.is_none()");
     let source = match fs::read_to_string(&file) {
         Ok(s) => s,
         Err(e) => {
@@ -1453,7 +1459,9 @@ fn main() {
             if let Err(e) = std::fs::create_dir_all(&dest) {
                 Err(e)
             } else {
-                let filename = working_src.file_name().unwrap();
+                let filename = working_src
+                    .file_name()
+                    .unwrap_or_else(|| std::ffi::OsStr::new("artifact"));
                 std::fs::copy(&working_src, dest.join(filename))
             }
         } else {
