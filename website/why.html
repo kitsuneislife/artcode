@@ -366,7 +366,7 @@
             <section class="section--sm fade-in" id="tradeoffs">
                 <div style="text-align:center; margin-bottom: 40px;">
                     <p class="label">Honestidade</p>
-                    <h2>Trade-offs da v0.2.0</h2>
+                    <h2>Trade-offs da v0.3.0</h2>
                     <p class="subtitle" style="margin: 12px auto 0;">Nenhum documento de marketing sério omite
                         limitações reais.</p>
                 </div>
@@ -379,7 +379,7 @@
                     </div>
                     <div class="tradeoff-card">
                         <h4>⏳ WASM e GPU</h4>
-                        <p>Compilação para WebAssembly e aceleração por GPU seguem no roadmap v0.3+.</p>
+                        <p>Compilação para WebAssembly e aceleração por GPU seguem no roadmap v0.4+.</p>
                     </div>
                     <div class="tradeoff-card">
                         <h4>⏳ LSP Avançado</h4>
@@ -394,14 +394,16 @@
                 </div>
 
                 <div style="margin-top: 40px;">
-                    <h3>O que entregamos sólido na v0.2.0</h3>
+                    <h3>O que entregamos sólido na v0.3.0</h3>
                     <ul style="padding-left: 20px; margin-top: 16px;">
                         <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Lexer, Parser,
                             Interpreter e Type Checker completos e testados</li>
                         <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Diagnósticos
-                            estruturados com spans e sugestões</li>
+                            com linha:coluna exatos em erros de runtime e builtins</li>
                         <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Atores, Pattern
                             Matching, Enums, Closures, f-Strings, ARC, weak/unowned, Arenas</li>
+                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> <code>impl Type { }</code>
+                            blocks e generics com validação de constraints em runtime</li>
                         <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Time-travel com
                             <code>--record</code>/<code>--replay</code> e keyframes determinísticos</li>
                         <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> IPC/FFI baseline:
@@ -409,8 +411,8 @@
                         <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> CLI unificada:
                             <code>art run</code>, <code>art fmt</code>, <code>art lint</code>, <code>art lsp</code>
                         </li>
-                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Suíte extensa de
-                            testes (golden, integração, unitários) validando runtime e tooling</li>
+                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Codebase modular:
+                            <code>interpreter.rs</code> reduzido de 6.734 para 1.715 linhas em 7 módulos</li>
                     </ul>
                 </div>
             </section>
@@ -441,7 +443,7 @@
                 <a href="examples.html">Exemplos</a>
                 <a href="index.html">Início</a>
             </div>
-            <p>Artcode v0.2.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
+            <p>Artcode v0.3.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
                     target="_blank">kitsuneislife</a></p>
         </div>
     </footer>

@@ -36,6 +36,45 @@
             </div>
 
             <section class="glass" style="padding: 24px; margin-bottom: 24px;">
+                <h2 style="margin-bottom: 10px;">v0.3.0 <span style="font-size: 0.75rem; background: var(--accent, #7c6af7); color: #fff; border-radius: 4px; padding: 2px 8px; vertical-align: middle; margin-left: 8px;">Atual</span></h2>
+                <p style="margin-bottom: 12px;">Maturidade do interpretador, novas features de linguagem e qualidade de diagnósticos.</p>
+
+                <h3>1. Novas features de linguagem</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li><code>impl Type { }</code> — syntax para agrupar métodos por tipo, equivalente ao <code>func Type.method(self)</code> existente. Totalmente retrocompatível.</li>
+                    <li><strong>Generics com constraints em runtime</strong> — <code>func foo&lt;T: Numeric&gt;(x: T)</code> valida o tipo do argumento na chamada e emite diagnóstico claro em caso de violação. Suporta <code>Numeric</code>, <code>Eq</code>, <code>Hash</code> e <code>Comparable</code>.</li>
+                    <li><code>ArtValue::type_name()</code> — reflexão de tipo em runtime disponível para todos os valores.</li>
+                </ul>
+
+                <h3>2. Diagnósticos com localização</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li>Erros de builtins agora reportam a linha e coluna exatas do call site — antes mostravam sempre <code>(0:0)</code>.</li>
+                    <li><code>call_span</code> propagado automaticamente a partir do token de field-access (<code>x.unwrap()</code>, <code>val.ok()</code>, etc.).</li>
+                    <li>81 handlers de builtin atualizados.</li>
+                </ul>
+
+                <h3>3. REPL melhorado</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li>Exibe <code>=> valor</code> para expressões avaliadas, sem ruído de métricas por linha.</li>
+                    <li>Saída <code>[metrics]</code> e <code>[mem]</code> movida para modo script apenas.</li>
+                </ul>
+
+                <h3>4. Saúde do código</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li><strong><code>interpreter.rs</code> reduzido de 6.734 → 1.715 linhas</strong> por extração de 7 módulos coesos: <code>builtins</code>, <code>actors</code>, <code>cycle_detection</code>, <code>gc</code>, <code>exec</code>, <code>eval</code>.</li>
+                    <li>6 <code>unwrap()</code> encadeados no actor scheduler substituídos por <code>expect()</code> descritivo.</li>
+                    <li>Panics em I/O (<code>aot.rs</code>, <code>lsp.rs</code>, <code>main.rs</code>) corrigidos.</li>
+                </ul>
+
+                <h3>5. Documentação reorganizada</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li><code>docs/</code> reorganizada em <code>language/</code>, <code>internals/</code>, <code>guides/</code> e <code>rfcs/</code>.</li>
+                    <li>Numeração de RFCs duplicadas corrigida (0006, 0007, 0008).</li>
+                    <li>Roadmap reescrito refletindo o estado real de v0.2 e metas de v0.3/v0.4.</li>
+                </ul>
+            </section>
+
+            <section class="glass" style="padding: 24px; margin-bottom: 24px;">
                 <h2 style="margin-bottom: 10px;">v0.2.0</h2>
                 <p style="margin-bottom: 12px;">Versão consolidada com runtime multicamada, segurança de memória e infraestrutura de perfil.</p>
 
@@ -146,7 +185,7 @@ art run --record examples/44_ttd_keyframes.artlog examples/44_ttd_keyframes.art<
                 <a href="examples.html">Exemplos</a>
                 <a href="changelog.html">Changelog</a>
             </div>
-            <p>Artcode v0.2.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife" target="_blank">kitsuneislife</a></p>
+            <p>Artcode v0.3.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife" target="_blank">kitsuneislife</a></p>
         </div>
     </footer>
 

@@ -1,80 +1,55 @@
 ![Banner](/banner.png)
 <p align="center">
 	<img alt="CI" src="https://github.com/kitsuneislife/artcode/actions/workflows/ci.yml/badge.svg" />
-	<a href="docs/coverage.md"><img alt="Coverage" src="https://img.shields.io/badge/Coverage-docs-blue.svg" /></a>
+	<a href="docs/internals/coverage.md"><img alt="Coverage" src="https://img.shields.io/badge/Coverage-docs-blue.svg" /></a>
 	<img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg" />
 	<a href="https://github.com/kitsuneislife/artcode/issues"><img alt="issues - artcode" src="https://img.shields.io/github/issues/kitsuneislife/artcode" /></a>
 	<a href="https://github.com/kitsuneislife/artcode"><img alt="stars - artcode" src="https://img.shields.io/github/stars/kitsuneislife/artcode?style=social" /></a>
 </p>
 
-Implementação experimental de uma linguagem interpretada em Rust com suporte a (versão 0.2.0 - lançamento 2026-03-18):
-
-- Structs
-- Enums (variantes com payload) + shorthand `.Variant` com detecção de ambiguidade
-- Pattern matching com guards (`case .X(v) if v > 10:`)
-- Loops nativos (`while`, `for`) e tuplas com destructuring (`let (a, b) = value`)
-- Tratamento explicito de erro com `try/catch` (alem do operador `?`)
-- Modo de execução `--pure` para bloquear operações de I/O e não-determinismo em configurações seguras
-- Ferramenta de DAG para resolver ordem topológica de dependências (`dag_topo_sort`)
-- Funções e closures (captura léxica)
-- Métodos em structs e enums com auto-binding de `self`
-- Introspecção em métodos de enum (`variant`, `values`)
-- f-Strings com format specs (`upper`, `lower`, `trim`, `hex`, `padN`, `debug` placeholder)
-- Result-like enums e operador `?` (propagação inicial)
-- Arrays com builtins (`sum`, `count`)
-- Standard Library embutida: Collections (Map, Set), Math (abs, pow, clamp), Time & Rand, File IO (sandboxed).
-- [x] **Implicit Adaptive ARC** (Memória baseada em escopo com promoção automática para o heap global)
-- [x] **Time-Travel Debugger** (Registro e replay determinístico)
-- [x] **Atores e Isolamento** (Actors com Nexus para comunicação segura)
-- [x] **Performant Blocks** (Arenas explicitas para loop hot paths)
-- [x] **JIT Fallback Stubs** (Performance híbrida com segurança nativa)
-- Sintaxe shell com statement `$ comando args...`, pipeline `|>`, retorno tipado em `shell_result` e chamada estilo função (`echo("...")`)
-- Operador de pipeline para expressoes (`valor |> fn(...)`) com encadeamento funcional
-- Pipeline lazy de streams com `stream |> map |> filter |> collect/count` sem arrays intermediarios entre etapas
-- Métricas de execução (handled_errors, executed_statements, crash_free%)
-- Language Server Protocol (LSP) com diagnósticos, autocomplete, goto-definition, rename e semantic tokens na IDE (`art lsp`)
+Implementação experimental de uma linguagem interpretada em Rust — **v0.3.0** (2026-05-21).
 
 # Complexidade Progressiva
 
-Artcode é uma linguagem experimental implementada em Rust que foca em ser
-fácil para iniciantes e potente para especialistas — "Complexidade Progressiva":
-comece com ARC simples e suba a escada para arenas, weak/unowned e blocos
-performant quando precisar de controle de memória e máxima performance.
+Artcode é projetada com um princípio central: **comece simples, escale quando precisar**.
+ARC implícito no nível padrão; weak/unowned e arenas explícitas quando você precisa de controle fino;
+generics com constraints, actors e capabilities para problemas avançados.
 
-Por que Artcode é relevante
-- Projeto modular, com lexer, parser, interpreter e runtime separados.
-- Diagnósticos estruturados: erros com spans e sugestões, sem panics em parsing.
-- Modelo de memória pragmático: ARC por padrão + weak/unowned explícitos;
-	ferramenta de detecção de ciclos para testes.
-- Plano de JIT/AOT com PGO: permite otimizações guiadas por perfil quando
-	chegar a etapa de compilação AOT.
+## Features da linguagem
 
-Principais recursos
-- Structs e Enums (variants com payloads e shorthand `.Variant` com checagem de ambiguidade)
-- Pattern matching com guards
-- Loops `while` e `for` com execução em runtime e inferência de tipos conservadora
-- Tuplas literais e destructuring por pattern (`let (a, b) = expr`)
-- Error handling explicito por statements `try/catch`
-- Modo `run --pure` para execução sem operações impuras (`println`, `io_*`, `time_now`, `rand_*`)
-- Ordenação topológica de dependências para cenários de boot/configuração
-- Funções, closures e métodos com auto-binding de `self`
-- f-Strings com format specs e re-lex/parsing das expressões internas
-- Standard Library Expansiva (Coleções Padrão de Map/Set, Manipulação de Matemática e IO Simples)
-- Result-like enums e operador `?` para propagação de erros
-- Blocos `performant {}` com arenas experimentais e análise conservadora de escape
-- APIs de arena reutilizavel no stdlib (`arena_new`, `arena_with`, `arena_release`) para workloads de baixo nivel
-- IDL de IPC via structs com introspecao/validacao runtime (`idl_schema`, `idl_validate`)
-- Capabilities move-only para IPC/autorizacao (`capability_acquire`, `capability_kind`)
-- Serializacao binaria de IPC (`buffer_new`, `serialize`, `deserialize`) com restricoes para tipos opacos
-- Sintaxe shell via statement `$` e chamada estilo função para executáveis no PATH, com retorno `Result` em `shell_result` e bloqueio automático em `--pure`
-- Operador `|>` para pipeline de expressoes (transformado para chamada com insercao do argumento a esquerda)
-- Streams lazy para pipelines de dados (`stream/map/filter/collect/count`) em passe unico na etapa terminal
-- FFI baseline para C-ABI com call-gate seguro por handles opacos (`art_handle_*`) e gateway `unsafe` de syscall por registradores (`art_syscall_unsafe`)
+- Structs, Enums (variantes com payload) e pattern matching com guards
+- Loops nativos (`while`, `for`), tuplas e destructuring (`let (a, b) = value`)
+- Funções, closures com captura léxica e métodos com auto-binding de `self`
+- **`impl Type { }` blocks** — syntax para agrupar métodos por tipo (novo em v0.3)
+- **Generics com constraints** — `func foo<T: Numeric>(x: T)` valida tipos em runtime (novo em v0.3)
+- f-Strings com format specs (`upper`, `lower`, `trim`, `hex`, `padN`, `debug`)
+- Error handling explícito: `try/catch` + operador `?` + enums `Result`/`Option`
+- Modo `--pure` para execução sem I/O e sem não-determinismo
+- Sintaxe shell: `$ comando args` e chamada estilo função (`echo("...")`)
+- Operador `|>` para pipeline de expressões
+- Streams lazy: `stream |> map |> filter |> collect` sem arrays intermediários
 
-Status do projeto
-- Código modular em crates: `core`, `lexer`, `parser`, `interpreter`, `diagnostics`, `cli`.
-- Testes: suíte unitária e de integração com exemplos em `examples`.
-- Ferramentas: `xtask` para cobertura e scripts para validar exemplos.
+## Memória e runtime
+
+- **Implicit Adaptive ARC** — escopo-automático com promoção para heap global
+- `weak` / `unowned` explícitos com validação e detecção de ciclos
+- `performant { }` — arenas temporárias para hot paths
+- APIs de arena: `arena_new`, `arena_with`, `arena_release`
+- Actors com mailbox, backpressure e agendamento cooperativo round-robin
+- Capability tokens move-only (`capability_acquire`, `capability_kind`)
+- Serialização binária IPC: `buffer_new`, `serialize`, `deserialize`
+
+## Tooling
+
+- LSP com diagnósticos, autocomplete e goto-definition (`art lsp`)
+- **Diagnósticos com linha:coluna** em erros de runtime (novo em v0.3)
+- **REPL limpo** — exibe `=> valor` sem ruído de métricas (novo em v0.3)
+- Time-Travel Debugging: `--record` / `--replay` determinístico
+- Linter com detecção de hotspot de alocação (`art lint`)
+- Formatter (`art format`), autodoc de stdlib (`art doc std`)
+- AOT experimental via C/LLVM (`art aot`)
+
+---
 
 ## Instalação
 
@@ -84,32 +59,9 @@ Status do projeto
 curl -fsSL https://raw.githubusercontent.com/kitsuneislife/artcode/main/install.sh | bash
 ```
 
-Isso baixa o binário da [última release](https://github.com/kitsuneislife/artcode/releases) e instala em `/usr/local/bin/art`.
+**Windows:** baixe o `.exe` na [página de releases](https://github.com/kitsuneislife/artcode/releases).
 
-**Windows:** baixe o `.exe` direto na [página de releases](https://github.com/kitsuneislife/artcode/releases).
-
-### Atualizando para a versão mais recente
-
-```bash
-# de um clone já existente
-cd /caminho/para/artcode
-git pull --rebase origin main
-cargo test --all
-cargo build -p cli --release
-sudo cp target/release/art /usr/local/bin/
-
-# ou via script (mais simples)
-curl -fsSL https://raw.githubusercontent.com/kitsuneislife/artcode/main/install.sh | bash
-
-# confirme versão
-art --version
-```
-
-Dica: sempre rode `cargo test --all` antes de substituir o binário em produção para evitar regressões.
-
-### Compilar a partir do fonte
-
-Prerequisitos: Rust stable toolchain (`curl https://sh.rustup.rs -sSf | sh`).
+### Compilar do fonte
 
 ```bash
 git clone https://github.com/kitsuneislife/artcode.git
@@ -118,161 +70,89 @@ cargo build -p cli --release
 sudo cp target/release/art /usr/local/bin/
 ```
 
-### Uso básico
+### Atualizar
 
 ```bash
-# Executar um script
-art run examples/00_hello.art
-
-# Executar em modo puro (sem I/O e sem fontes de não-determinismo)
-art run --pure examples/27_pure_mode.art
-
-# Métricas de execução
-art metrics --json meu_script.art
-# (inclui sumário de GC/ciclos em cycle_summary e cycle_leaks_detected)
-
-# Documentação da stdlib (autogerada a partir do prelude)
-art doc std
-
-# Checagem de migração entre versões
-art upgrade --check examples/31_upgrade_migration.art
-
-# Checar se existe release nova
-art update --check
-
-# Atualizar via script oficial (self-update assistido)
-art update --self
-
-# Lint com heurística de hotspot de alocação em loops
-art lint examples/23_linter_tests.art
-# (inclui validação semântica de weak/unowned e uso de postfix `?`/`!`)
-
-# Fuzzing contínuo (parser/loops)
-bash scripts/run_fuzz_ci.sh 60
-
-# Fluxo actor request/response com HTTP básico
-art run examples/33_actor_http_runtime.art
-
-# Closures retornadas e callbacks com captura de ambiente (ARC)
-art run examples/34_closure_callbacks_arc.art
-
-# Sintaxe shell com execução de processo externo
-art run examples/35_shell_syntax.art
-
-# Shell via chamada de função (mapeamento PATH)
-art run examples/39_shell_function_call.art
-
-# Arenas reutilizáveis via stdlib
-art run examples/40_reusable_arena.art
-
-# IDL de IPC via structs
-art run examples/41_idl_ipc.art
-
-# Capabilities move-only
-art run examples/42_capability_tokens.art
-
-# Serializacao binaria para IPC
-art run examples/43_ipc_serialization.art
-
-# Time-travel com keyframes/checkpoints
-art run --record examples/44_ttd_keyframes.artlog examples/44_ttd_keyframes.art
-
-# Exemplo de highlights de release/changelog
-art run examples/45_release_changelog.art
-
-# Comparacao automatica warmup vs PGO com geracao de artifacts/perf.md
-bash scripts/perf_compare.sh
-
-# Pipeline de expressoes
-art run examples/36_pipeline_operator.art
-
-# Pipeline lazy de streams
-art run examples/37_stream_pipeline.art
-
-# Language Server (LSP) para editores
-art lsp
-# (suporta diagnósticos, autocomplete, goto-definition/rename multi-arquivo com indexação recursiva de imports e semantic tokens)
-
-# Build e testes (desenvolvimento)
-cargo test --all
+art update --check   # verifica se há versão nova
+art update --self    # autoatualização via script oficial
 ```
-
-Nota: o CLI pode avisar sobre novas releases em terminal interativo. Para desativar esse aviso, use a variavel ART_DISABLE_UPDATE_CHECK=1.
-
-
-Design e diferenciais (curto)
-- Complexidade Progressiva: níveis de abstração claros (ARC default → weak/unowned → arenas/performant).
-- Diagnósticos de qualidade: `diagnostics` crate centraliza mensagens e spans para boa DX.
-- Parser/runtime com string interning (`intern` + `intern_arc`) para reduzir alocações repetidas em símbolos e literais.
-- Resolver de módulos com coleta paralela de dependências e emissão determinística do programa final.
-- Foco em interoperabilidade e PGO a médio prazo.
-
-Contribuindo
-- Leia `docs/` e as RFCs em `docs/rfcs/` antes de mudanças maiores.
-- Use o checklist operacional em `/.kit/checklist-v0.2.0.md` para priorizar trabalho.
-- Para mudanças de design: abra uma RFC (`docs/rfcs/0000-template.md` quando existir) e link no PR.
-
-Licença & contato
-- Projeto com licença MIT (ver `LICENSE`).
-- Para discussões de design: abra issues ou PRs no repositório.
 
 ---
 
-## Documentação (pasta `docs/`)
+## Uso básico
 
-A pasta `docs/` contém material técnico e de design — roteiros que explicam decisões
-arquiteturais e guias de contribuição:
+```bash
+# Executar script
+art run examples/00_hello.art
 
-- `overview.md` — visão geral da linguagem e arquitetura dos crates.
-- `parser_lexer.md` — como o lexer e o parser foram projetados, spans e diagnostics.
-- `interpreter.md` — runtime model, representações de valores e execução.
-- `memory.md` — especificação do modelo de memória (ARC, weak/unowned, arenas).
-- `fstrings.md`, `functions.md`, `enums.md` — guias de recursos e exemplos.
+# Modo puro (sem I/O)
+art run --pure examples/27_pure_mode.art
 
-Leia `docs/SUMMARY.md` para um índice rápido. Se você for contribuir com mudanças de linguagem,
-crie uma RFC em `docs/rfcs/` e referencie-a nas PRs.
+# REPL interativo
+art
 
-Links rápidos para os principais documentos:
+# Lint
+art lint meu_script.art
+
+# Autodoc da stdlib
+art doc std
+
+# Time-travel: gravar e reproduzir
+art run --record trace.artlog examples/44_ttd_keyframes.art
+art run --replay trace.artlog examples/44_ttd_keyframes.art
+
+# Build e testes
+cargo test --all
+```
+
+---
+
+## Documentação
+
+A pasta `docs/` está organizada em subpastas:
+
+| Pasta | Conteúdo |
+|---|---|
+| [`docs/language/`](docs/language/) | Features da linguagem (enums, funções, generics, memória…) |
+| [`docs/internals/`](docs/internals/) | Como o compilador funciona (interpreter, IR, parser…) |
+| [`docs/guides/`](docs/guides/) | Guias práticos (instalação, migração, contribuição…) |
+| [`docs/rfcs/`](docs/rfcs/) | RFCs de design (0001–0008) |
+
+Links rápidos:
 
 - [Visão geral](docs/overview.md)
-- [Lexer & Parser](docs/parser_lexer.md)
-- [Interpreter (runtime)](docs/interpreter.md)
-- [Memória (ARC / weak / arenas)](docs/memory.md)
-- [f-Strings (format specs)](docs/fstrings.md)
-- [Funções & Closures](docs/functions.md)
-- [Loops & Tuplas](docs/loops_tuples.md)
-- [Error Handling](docs/error_handling.md)
-- [Modo Pure](docs/pure_mode.md)
-- [DAG de Dependências](docs/dependency_dag.md)
-- [IDL de IPC](docs/ipc_idl.md)
-- [Capabilities](docs/capabilities.md)
-- [Serializacao IPC](docs/ipc_serialization.md)
-- [Sintaxe Shell](docs/shell_syntax.md)
-- [Operador Pipeline](docs/pipeline_operator.md)
-- [Pipeline Lazy de Streams](docs/stream_pipeline.md)
-- [Enums & Pattern Matching](docs/enums.md)
-- [Coverage & Métricas](docs/coverage.md)
 - [Roadmap](docs/roadmap.md)
-- [Versionamento Público](docs/versioning.md)
-- [Guia de Migração](docs/migration.md)
-- [Comparacao Warmup vs PGO](docs/perf_compare.md)
+- [Notas e limitações conhecidas](docs/notes.md)
+- [Memória (ARC / weak / arenas)](docs/language/memory.md)
+- [Generics](docs/rfcs/0007-generics.md)
+- [Concorrência e Actors](docs/language/concurrency.md)
+- [Capabilities](docs/language/capabilities.md)
+- [Time-Travel Debugging](docs/guides/debugging.md)
+- [Contribuindo](docs/guides/contributing.md)
 - [Changelog](CHANGELOG.md)
-- [Website Changelog](website/changelog.html)
-- [Concorrência (Atores)](docs/concurrency.md)
-- [Sumário / Índice](docs/SUMMARY.md)
 
-## Interoperabilidade / FFI (pasta `docs/`)
+---
 
-A pasta `docs/` contém esboços e diretrizes para integrar Artcode com C/Rust/WASM.
-Resumo rápido:
+## Estrutura do projeto
 
-- `docs/ffi.md` — visão geral e recomendações de ownership ao passar strings e buffers.
-- Convenções propostas:
-	- Strings: `Arc<str>` ↔︎ `*const c_char` com funções helper de conversão.
-	- Tipos primitivos: mapeamento direto (i64, f64, bool).
-	- Ownership: documentar claramente quando a posse é transferida (caller/callee).
-- PoC: exemplos simples devem viver em `examples/docs/` (C wrapper e macro `art_extern!{}` no futuro).
+```
+crates/
+  core/          AST, tokens, ambiente
+  lexer/         Tokenizer
+  parser/        Parser recursivo descendente
+  interpreter/   Runtime (eval, exec, gc, actors, builtins…)
+  diagnostics/   Erros com spans e sugestões
+  ir/            Representação intermediária
+  jit/           JIT stub (LLVM, opcional)
+cli/             Binário `art` com todos os subcomandos
+```
 
-Se você pretende usar Artcode em um projeto existente em Rust/C, veja `docs/ffi.md`
-para padrões recomendados e exemplos mínimos.
+---
 
+## Contribuindo
+
+- Leia `docs/guides/contributing.md` antes de mudanças maiores.
+- Para mudanças de design, abra uma RFC em `docs/rfcs/` usando `0000-template.md`.
+- Rode `cargo test --all` antes de submeter PR.
+
+Licença MIT — veja `LICENSE`.
