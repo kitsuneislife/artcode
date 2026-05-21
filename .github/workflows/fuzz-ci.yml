@@ -27,6 +27,4 @@ jobs:
         run: cargo install cargo-fuzz
 
       - name: Run parser/loops fuzz worker
-        run: |
-          cd fuzz/cargo_fuzz
-          cargo fuzz run parser_loops -- -max_total_time=60
+        run: cargo fuzz run parser_loops --fuzz-dir fuzz/cargo_fuzz -- -max_total_time=60
