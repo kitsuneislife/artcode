@@ -314,6 +314,15 @@ pub enum BuiltinFn {
     StreamCount,
     GCStats,
     RuntimeVersion,
+    // Fase 15 Stdlib: String operations
+    StrSplit,        // str_split(s, sep) -> Array<String>
+    StrJoin,         // str_join(arr, sep) -> String
+    StrContains,     // str_contains(s, sub) -> Bool
+    StrStartsWith,   // str_starts_with(s, prefix) -> Bool
+    StrReplace,      // str_replace(s, from, to) -> String
+    StrSlice,        // str_slice(s, start, end) -> String
+    StrToInt,        // str_to_int(s) -> Result<Int, String>
+    StrToFloat,      // str_to_float(s) -> Result<Float, String>
 
     // Built-in methods internally bound to Enum structs
     EnumIsOk(Box<ArtValue>),
@@ -382,6 +391,14 @@ impl fmt::Debug for BuiltinFn {
             BuiltinFn::StreamCount => write!(f, "<builtin count>"),
             BuiltinFn::GCStats => write!(f, "<builtin gc_stats>"),
             BuiltinFn::RuntimeVersion => write!(f, "<builtin runtime_version>"),
+            BuiltinFn::StrSplit => write!(f, "<builtin str_split>"),
+            BuiltinFn::StrJoin => write!(f, "<builtin str_join>"),
+            BuiltinFn::StrContains => write!(f, "<builtin str_contains>"),
+            BuiltinFn::StrStartsWith => write!(f, "<builtin str_starts_with>"),
+            BuiltinFn::StrReplace => write!(f, "<builtin str_replace>"),
+            BuiltinFn::StrSlice => write!(f, "<builtin str_slice>"),
+            BuiltinFn::StrToInt => write!(f, "<builtin str_to_int>"),
+            BuiltinFn::StrToFloat => write!(f, "<builtin str_to_float>"),
             BuiltinFn::EnumIsOk(_)
             | BuiltinFn::EnumIsErr(_)
             | BuiltinFn::EnumUnwrap(_)
@@ -501,6 +518,14 @@ impl fmt::Display for ArtValue {
                 BuiltinFn::StreamCount => write!(f, "<builtin count>"),
                 BuiltinFn::GCStats => write!(f, "<builtin gc_stats>"),
                 BuiltinFn::RuntimeVersion => write!(f, "<builtin runtime_version>"),
+                BuiltinFn::StrSplit => write!(f, "<builtin str_split>"),
+                BuiltinFn::StrJoin => write!(f, "<builtin str_join>"),
+                BuiltinFn::StrContains => write!(f, "<builtin str_contains>"),
+                BuiltinFn::StrStartsWith => write!(f, "<builtin str_starts_with>"),
+                BuiltinFn::StrReplace => write!(f, "<builtin str_replace>"),
+                BuiltinFn::StrSlice => write!(f, "<builtin str_slice>"),
+                BuiltinFn::StrToInt => write!(f, "<builtin str_to_int>"),
+                BuiltinFn::StrToFloat => write!(f, "<builtin str_to_float>"),
                 BuiltinFn::EnumIsOk(_)
                 | BuiltinFn::EnumIsErr(_)
                 | BuiltinFn::EnumUnwrap(_)

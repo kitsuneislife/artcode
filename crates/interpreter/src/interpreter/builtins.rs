@@ -1749,6 +1749,228 @@ impl Interpreter {
                     }
                 }
             }
+
+            // ── String builtins ──────────────────────────────────────────────
+
+            core::ast::BuiltinFn::StrSplit => {
+                let mut args = arguments.into_iter();
+                match (args.next(), args.next()) {
+                    (Some(s_expr), Some(sep_expr)) => {
+                        match (self.evaluate(s_expr)?, self.evaluate(sep_expr)?) {
+                            (ArtValue::String(s), ArtValue::String(sep)) => {
+                                let parts = s
+                                    .split(sep.as_ref())
+                                    .map(|p| ArtValue::String(Arc::from(p)))
+                                    .collect();
+                                Ok(ArtValue::Array(parts))
+                            }
+                            _ => {
+                                self.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Runtime,
+                                    "str_split expects (String, String)".to_string(),
+                                    self.call_span,
+                                ));
+                                Ok(ArtValue::none())
+                            }
+                        }
+                    }
+                    _ => Ok(ArtValue::none()),
+                }
+            }
+
+            core::ast::BuiltinFn::StrJoin => {
+                let mut args = arguments.into_iter();
+                match (args.next(), args.next()) {
+                    (Some(arr_expr), Some(sep_expr)) => {
+                        let arr_val = self.evaluate(arr_expr)?;
+                        let arr_val = self.resolve_composite(&arr_val).clone();
+                        match (arr_val, self.evaluate(sep_expr)?) {
+                            (ArtValue::Array(arr), ArtValue::String(sep)) => {
+                                let parts: Vec<String> =
+                                    arr.iter().map(|v| v.to_string()).collect();
+                                Ok(ArtValue::String(Arc::from(parts.join(sep.as_ref()))))
+                            }
+                            _ => {
+                                self.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Runtime,
+                                    "str_join expects (Array, String)".to_string(),
+                                    self.call_span,
+                                ));
+                                Ok(ArtValue::none())
+                            }
+                        }
+                    }
+                    _ => Ok(ArtValue::none()),
+                }
+            }
+
+            core::ast::BuiltinFn::StrContains => {
+                let mut args = arguments.into_iter();
+                match (args.next(), args.next()) {
+                    (Some(s_expr), Some(sub_expr)) => {
+                        match (self.evaluate(s_expr)?, self.evaluate(sub_expr)?) {
+                            (ArtValue::String(s), ArtValue::String(sub)) => {
+                                Ok(ArtValue::Bool(s.contains(sub.as_ref())))
+                            }
+                            _ => {
+                                self.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Runtime,
+                                    "str_contains expects (String, String)".to_string(),
+                                    self.call_span,
+                                ));
+                                Ok(ArtValue::none())
+                            }
+                        }
+                    }
+                    _ => Ok(ArtValue::none()),
+                }
+            }
+
+            core::ast::BuiltinFn::StrStartsWith => {
+                let mut args = arguments.into_iter();
+                match (args.next(), args.next()) {
+                    (Some(s_expr), Some(prefix_expr)) => {
+                        match (self.evaluate(s_expr)?, self.evaluate(prefix_expr)?) {
+                            (ArtValue::String(s), ArtValue::String(prefix)) => {
+                                Ok(ArtValue::Bool(s.starts_with(prefix.as_ref())))
+                            }
+                            _ => {
+                                self.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Runtime,
+                                    "str_starts_with expects (String, String)".to_string(),
+                                    self.call_span,
+                                ));
+                                Ok(ArtValue::none())
+                            }
+                        }
+                    }
+                    _ => Ok(ArtValue::none()),
+                }
+            }
+
+            core::ast::BuiltinFn::StrReplace => {
+                let mut args = arguments.into_iter();
+                match (args.next(), args.next(), args.next()) {
+                    (Some(s_expr), Some(from_expr), Some(to_expr)) => {
+                        match (
+                            self.evaluate(s_expr)?,
+                            self.evaluate(from_expr)?,
+                            self.evaluate(to_expr)?,
+                        ) {
+                            (
+                                ArtValue::String(s),
+                                ArtValue::String(from),
+                                ArtValue::String(to),
+                            ) => Ok(ArtValue::String(Arc::from(
+                                s.replace(from.as_ref(), to.as_ref()),
+                            ))),
+                            _ => {
+                                self.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Runtime,
+                                    "str_replace expects (String, String, String)".to_string(),
+                                    self.call_span,
+                                ));
+                                Ok(ArtValue::none())
+                            }
+                        }
+                    }
+                    _ => Ok(ArtValue::none()),
+                }
+            }
+
+            core::ast::BuiltinFn::StrSlice => {
+                let mut args = arguments.into_iter();
+                match (args.next(), args.next(), args.next()) {
+                    (Some(s_expr), Some(start_expr), Some(end_expr)) => {
+                        match (
+                            self.evaluate(s_expr)?,
+                            self.evaluate(start_expr)?,
+                            self.evaluate(end_expr)?,
+                        ) {
+                            (ArtValue::String(s), ArtValue::Int(start), ArtValue::Int(end)) => {
+                                let chars: Vec<char> = s.chars().collect();
+                                let len = chars.len() as i64;
+                                let start =
+                                    if start < 0 { (len + start).max(0) } else { start.min(len) }
+                                        as usize;
+                                let end =
+                                    if end < 0 { (len + end).max(0) } else { end.min(len) }
+                                        as usize;
+                                let end = end.max(start);
+                                let result: String = chars[start..end].iter().collect();
+                                Ok(ArtValue::String(Arc::from(result)))
+                            }
+                            _ => {
+                                self.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Runtime,
+                                    "str_slice expects (String, Int, Int)".to_string(),
+                                    self.call_span,
+                                ));
+                                Ok(ArtValue::none())
+                            }
+                        }
+                    }
+                    _ => Ok(ArtValue::none()),
+                }
+            }
+
+            core::ast::BuiltinFn::StrToInt => {
+                if let Some(s_expr) = arguments.into_iter().next() {
+                    match self.evaluate(s_expr)? {
+                        ArtValue::String(s) => match s.trim().parse::<i64>() {
+                            Ok(n) => Ok(ArtValue::EnumInstance {
+                                enum_name: "Result".to_string(),
+                                variant: "Ok".to_string(),
+                                values: vec![ArtValue::Int(n)],
+                            }),
+                            Err(e) => Ok(ArtValue::EnumInstance {
+                                enum_name: "Result".to_string(),
+                                variant: "Err".to_string(),
+                                values: vec![ArtValue::String(Arc::from(e.to_string()))],
+                            }),
+                        },
+                        _ => {
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                "str_to_int expects a String".to_string(),
+                                self.call_span,
+                            ));
+                            Ok(ArtValue::none())
+                        }
+                    }
+                } else {
+                    Ok(ArtValue::none())
+                }
+            }
+
+            core::ast::BuiltinFn::StrToFloat => {
+                if let Some(s_expr) = arguments.into_iter().next() {
+                    match self.evaluate(s_expr)? {
+                        ArtValue::String(s) => match s.trim().parse::<f64>() {
+                            Ok(n) => Ok(ArtValue::EnumInstance {
+                                enum_name: "Result".to_string(),
+                                variant: "Ok".to_string(),
+                                values: vec![ArtValue::Float(n)],
+                            }),
+                            Err(e) => Ok(ArtValue::EnumInstance {
+                                enum_name: "Result".to_string(),
+                                variant: "Err".to_string(),
+                                values: vec![ArtValue::String(Arc::from(e.to_string()))],
+                            }),
+                        },
+                        _ => {
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Runtime,
+                                "str_to_float expects a String".to_string(),
+                                self.call_span,
+                            ));
+                            Ok(ArtValue::none())
+                        }
+                    }
+                } else {
+                    Ok(ArtValue::none())
+                }
+            }
         }
     }
 }

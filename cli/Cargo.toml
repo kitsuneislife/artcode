@@ -15,6 +15,7 @@ interpreter = { path = "../crates/interpreter" }
 diagnostics = { path = "../crates/diagnostics" }
 core = { path = "../crates/core" }
 ir = { path = "../crates/ir" }
+codegen_js = { path = "../crates/codegen_js" }
 
 clap = { version = "4.5.4", features = ["derive"] }
 

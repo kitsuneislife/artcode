@@ -1,4 +1,5 @@
 use diagnostics::format_diagnostic;
+use codegen_js::{CodegenJs, CodegenOptions, ModuleFormat};
 mod resolver;
 use interpreter::interpreter::Interpreter;
 use interpreter::type_infer::{TypeEnv, TypeInfer};
@@ -985,6 +986,119 @@ fn main() {
 
     if args[1] == "update" {
         run_update(&args);
+        return;
+    }
+
+    // ── art build --target js [--out dist/] [--sourcemap] [--bundle] ─────────
+    if args[1] == "build" && args.iter().any(|a| a == "--target") {
+        let mut target = "js";
+        let mut source_file: Option<String> = None;
+        let mut out_dir = "dist".to_string();
+        let mut emit_sourcemap = false;
+        let mut bundle = false;
+        let mut i = 2usize;
+        while i < args.len() {
+            match args[i].as_str() {
+                "--target" if i + 1 < args.len() => {
+                    target = match args[i + 1].as_str() {
+                        "wasm" => "wasm",
+                        _ => "js",
+                    };
+                    i += 2;
+                }
+                "--out" if i + 1 < args.len() => {
+                    out_dir = args[i + 1].clone();
+                    i += 2;
+                }
+                "--sourcemap" => {
+                    emit_sourcemap = true;
+                    i += 1;
+                }
+                "--bundle" => {
+                    bundle = true;
+                    i += 1;
+                }
+                a if !a.starts_with('-') && source_file.is_none() => {
+                    source_file = Some(a.to_string());
+                    i += 1;
+                }
+                _ => {
+                    i += 1;
+                }
+            }
+        }
+
+        if target == "wasm" {
+            eprintln!("info: --target wasm is scaffolded; full implementation arrives in v0.5");
+            process::exit(0);
+        }
+
+        let input = match source_file {
+            Some(f) => f,
+            None => {
+                eprintln!("Usage: art build <file.art> --target js [--out dist/] [--sourcemap] [--bundle]");
+                process::exit(64);
+            }
+        };
+
+        let src = match std::fs::read_to_string(&input) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("error: cannot read '{}': {}", input, e);
+                process::exit(66);
+            }
+        };
+
+        let tokens = match Lexer::new(src.clone()).scan_tokens() {
+            Ok(t) => t,
+            Err(d) => {
+                eprintln!("{}", format_diagnostic(&src, &d));
+                process::exit(65);
+            }
+        };
+        let (program, diags) = Parser::new(tokens).parse();
+        if !diags.is_empty() {
+            for d in &diags {
+                eprintln!("{}", format_diagnostic(&src, d));
+            }
+            process::exit(65);
+        }
+
+        let opts = CodegenOptions {
+            source_file: Some(input.clone()),
+            emit_source_map: emit_sourcemap,
+            module_format: if bundle { ModuleFormat::Iife } else { ModuleFormat::Esm },
+        };
+        let output = CodegenJs::new(opts).emit_program(&program);
+
+        if let Err(e) = std::fs::create_dir_all(&out_dir) {
+            eprintln!("error: cannot create output directory '{}': {}", out_dir, e);
+            process::exit(73);
+        }
+
+        let stem = std::path::Path::new(&input)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("output");
+        let js_path = format!("{}/{}.js", out_dir, stem);
+        if let Err(e) = std::fs::write(&js_path, &output.code) {
+            eprintln!("error: cannot write '{}': {}", js_path, e);
+            process::exit(73);
+        }
+        println!("wrote {}", js_path);
+
+        if let Some(sm) = output.source_map {
+            let sm_path = format!("{}.map", js_path);
+            if let Err(e) = std::fs::write(&sm_path, &sm) {
+                eprintln!("error: cannot write source map '{}': {}", sm_path, e);
+            } else {
+                println!("wrote {}", sm_path);
+                // Append sourceMappingURL comment
+                let mut code = std::fs::read_to_string(&js_path).unwrap_or_default();
+                code.push_str(&format!("\n//# sourceMappingURL={}.map\n", stem));
+                let _ = std::fs::write(&js_path, code);
+            }
+        }
         return;
     }
 

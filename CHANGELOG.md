@@ -5,6 +5,20 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 
 ## [Unreleased]
 
+### Added
+- **Codegen JavaScript (`crates/codegen_js`):** novo crate que transpila AST Artcode para
+  JavaScript ES2022. Suporta `let`/`var`, funções, structs (→ `class`), enums (→ tagged union),
+  `match` (→ if-else com bindings), `for`/`while`, closures, f-strings (→ template literals),
+  `performant {}` (→ IIFE), `spawn actor {}` (→ Web Worker), `import` (→ ES modules).
+- **`art build --target js`:** comando CLI para compilar `.art` para JavaScript.
+  Flags: `--out <dir>` (padrão `dist/`), `--sourcemap` (source map V3 com VLQ encoding),
+  `--bundle`. Flag `--target wasm` scaffolded para v0.5.
+- **Source maps V3:** encoding VLQ completo; erros em runtime apontam para o `.art` original
+  no DevTools do browser.
+- **Stdlib de strings:** 8 novos builtins no prelude — `str_split`, `str_join`, `str_contains`,
+  `str_starts_with`, `str_replace`, `str_slice`, `str_to_int`, `str_to_float`. Todos com
+  diagnósticos de tipo corretos e 25 testes de cobertura.
+
 ## [0.3.0] - 2026-05-21
 
 ### Added

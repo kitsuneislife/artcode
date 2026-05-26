@@ -318,6 +318,14 @@ impl Interpreter {
         "collect",
         "count",
         "gc_stats",
+        "str_split",
+        "str_join",
+        "str_contains",
+        "str_starts_with",
+        "str_replace",
+        "str_slice",
+        "str_to_int",
+        "str_to_float",
     ];
 
     #[inline]
@@ -380,6 +388,14 @@ impl Interpreter {
             "collect" => BuiltinFn::StreamCollect,
             "count" => BuiltinFn::StreamCount,
             "gc_stats" => BuiltinFn::GCStats,
+            "str_split" => BuiltinFn::StrSplit,
+            "str_join" => BuiltinFn::StrJoin,
+            "str_contains" => BuiltinFn::StrContains,
+            "str_starts_with" => BuiltinFn::StrStartsWith,
+            "str_replace" => BuiltinFn::StrReplace,
+            "str_slice" => BuiltinFn::StrSlice,
+            "str_to_int" => BuiltinFn::StrToInt,
+            "str_to_float" => BuiltinFn::StrToFloat,
             _ => unreachable!("Unknown builtin name: {}", name),
         }
     }

@@ -36,7 +36,27 @@
             </div>
 
             <section class="glass" style="padding: 24px; margin-bottom: 24px;">
-                <h2 style="margin-bottom: 10px;">v0.3.0 <span style="font-size: 0.75rem; background: var(--accent, #7c6af7); color: #fff; border-radius: 4px; padding: 2px 8px; vertical-align: middle; margin-left: 8px;">Atual</span></h2>
+                <h2 style="margin-bottom: 10px;">v0.4.0-dev <span style="font-size: 0.75rem; background: var(--accent, #7c6af7); color: #fff; border-radius: 4px; padding: 2px 8px; vertical-align: middle; margin-left: 8px;">Em desenvolvimento</span></h2>
+                <p style="margin-bottom: 12px;">Primeiro passo para o ArtKit: compilação para JavaScript e stdlib de strings.</p>
+
+                <h3>1. Codegen JavaScript</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li>Novo crate <code>crates/codegen_js</code> — transpila AST Artcode para JavaScript ES2022.</li>
+                    <li>Mapeamentos: <code>let</code> → <code>const</code>, <code>func</code> → <code>function</code>, <code>struct</code> → <code>class</code>, <code>enum</code> → tagged union, <code>match</code> → if-else com bindings, <code>spawn actor</code> → Web Worker, <code>performant {}</code> → IIFE, <code>import</code> → ES modules.</li>
+                    <li>Comando <code>art build &lt;file.art&gt; --target js --out dist/ --sourcemap</code>.</li>
+                    <li>Source maps V3 com VLQ encoding — erros em runtime apontam para o <code>.art</code> original no DevTools.</li>
+                </ul>
+
+                <h3>2. Stdlib de Strings</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li>8 novos builtins: <code>str_split</code>, <code>str_join</code>, <code>str_contains</code>, <code>str_starts_with</code>, <code>str_replace</code>, <code>str_slice</code>, <code>str_to_int</code>, <code>str_to_float</code>.</li>
+                    <li><code>str_slice</code> suporta índices negativos (contagem do fim).</li>
+                    <li><code>str_to_int</code> e <code>str_to_float</code> retornam <code>Result&lt;T, String&gt;</code> — sem panics.</li>
+                </ul>
+            </section>
+
+            <section class="glass" style="padding: 24px; margin-bottom: 24px;">
+                <h2 style="margin-bottom: 10px;">v0.3.0</h2>
                 <p style="margin-bottom: 12px;">Maturidade do interpretador, novas features de linguagem e qualidade de diagnósticos.</p>
 
                 <h3>1. Novas features de linguagem</h3>
@@ -185,7 +205,7 @@ art run --record examples/44_ttd_keyframes.artlog examples/44_ttd_keyframes.art<
                 <a href="examples.html">Exemplos</a>
                 <a href="changelog.html">Changelog</a>
             </div>
-            <p>Artcode v0.3.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife" target="_blank">kitsuneislife</a></p>
+            <p>Artcode v0.4.0-dev · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife" target="_blank">kitsuneislife</a></p>
         </div>
     </footer>
 

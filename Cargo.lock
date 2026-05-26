@@ -243,6 +243,7 @@ version = "0.3.0"
 dependencies = [
  "assert_cmd",
  "clap",
+ "codegen_js",
  "core",
  "diagnostics",
  "dirs",
@@ -258,6 +259,13 @@ dependencies = [
  "sha2",
  "tempfile",
  "toml",
+]
+
+[[package]]
+name = "codegen_js"
+version = "0.3.0"
+dependencies = [
+ "core",
 ]
 
 [[package]]
