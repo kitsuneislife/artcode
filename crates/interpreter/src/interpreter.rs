@@ -927,15 +927,14 @@ impl Interpreter {
         match value {
             ArtValue::HeapComposite(h) => {
                 let mut inner_val = None;
-                let mut needs_promotion = false;
 
                 if let Some(obj) = self.heap_objects.get(&h.0) {
                     if let Some(obj_aid) = obj.arena_id {
-                        needs_promotion = match target_aid {
-                            None => true,                              // escapando para o global
-                            Some(ta) => obj_aid != ta && obj_aid > ta, // escapando para pai/global
+                        let should_promote = match target_aid {
+                            None => true,
+                            Some(ta) => obj_aid != ta && obj_aid > ta,
                         };
-                        if needs_promotion {
+                        if should_promote {
                             inner_val = Some(obj.value.clone());
                         }
                     }

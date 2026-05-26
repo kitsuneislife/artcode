@@ -53,6 +53,14 @@
                     <li><code>str_slice</code> suporta índices negativos (contagem do fim).</li>
                     <li><code>str_to_int</code> e <code>str_to_float</code> retornam <code>Result&lt;T, String&gt;</code> — sem panics.</li>
                 </ul>
+
+                <h3>3. Type Checker Estático</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li>Novo crate <code>crates/typeck</code> — verificação de tipos em compile time, integrado ao pipeline <code>art build --target js</code>.</li>
+                    <li>Inferência local: <code>let x = 42</code> → <code>x: Int</code> rastreado no escopo sem anotação explícita.</li>
+                    <li>Verificação de chamadas: <code>func f(x: Int)</code> rejeita argumento <code>String</code> com diagnóstico claro antes do codegen.</li>
+                    <li>Inferência paramétrica: <code>func identity&lt;T&gt;(x: T)</code> infere <code>T = Int</code> na chamada com inteiro; sem anotação manual.</li>
+                </ul>
             </section>
 
             <section class="glass" style="padding: 24px; margin-bottom: 24px;">

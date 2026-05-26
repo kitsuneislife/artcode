@@ -1,5 +1,6 @@
 use diagnostics::format_diagnostic;
 use codegen_js::{CodegenJs, CodegenOptions, ModuleFormat};
+use typeck::TypeChecker;
 mod resolver;
 use interpreter::interpreter::Interpreter;
 use interpreter::type_infer::{TypeEnv, TypeInfer};
@@ -1061,6 +1062,16 @@ fn main() {
             for d in &diags {
                 eprintln!("{}", format_diagnostic(&src, d));
             }
+            process::exit(65);
+        }
+
+        // Type checking pass
+        let type_diags = TypeChecker::new().check(&program).to_vec();
+        let has_type_errors = !type_diags.is_empty();
+        for d in &type_diags {
+            eprintln!("{}", format_diagnostic(&src, d));
+        }
+        if has_type_errors {
             process::exit(65);
         }
 

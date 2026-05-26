@@ -18,6 +18,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 - **Stdlib de strings:** 8 novos builtins no prelude — `str_split`, `str_join`, `str_contains`,
   `str_starts_with`, `str_replace`, `str_slice`, `str_to_int`, `str_to_float`. Todos com
   diagnósticos de tipo corretos e 25 testes de cobertura.
+- **Type checker (`crates/typeck`):** novo crate de verificação estática em compile time.
+  Inferência local (`let x = 42` → `x: Int`), verificação de anotações de funções
+  (`func f(x: Int)` rejeita argumento `String` na chamada) e inferência paramétrica
+  (`func identity<T>(x: T)` infere `T = Int` na chamada com inteiro). Integrado ao pipeline
+  `art build --target js` como pré-passo antes do codegen; 12 testes de cobertura.
 
 ## [0.3.0] - 2026-05-21
 

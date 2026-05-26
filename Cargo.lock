@@ -259,6 +259,7 @@ dependencies = [
  "sha2",
  "tempfile",
  "toml",
+ "typeck",
 ]
 
 [[package]]
@@ -1237,6 +1238,16 @@ dependencies = [
  "serde_spanned",
  "toml_datetime",
  "winnow",
+]
+
+[[package]]
+name = "typeck"
+version = "0.4.0"
+dependencies = [
+ "core",
+ "diagnostics",
+ "lexer",
+ "parser",
 ]
 
 [[package]]

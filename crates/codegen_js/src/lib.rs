@@ -85,6 +85,7 @@ impl CodegenJs {
         "    ".repeat(self.indent)
     }
 
+    #[allow(dead_code)]
     fn write_indent(&mut self) {
         let s = self.indent_str();
         self.write(&s);
