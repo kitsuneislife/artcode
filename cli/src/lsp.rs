@@ -148,8 +148,8 @@ fn collect_declarations(text: &str) -> HashMap<String, SymbolDecl> {
     while i < tokens.len() {
         let tok = &tokens[i];
         match tok.token_type {
-            TokenType::Let => {
-                if i + 1 < tokens.len() {
+            TokenType::Let
+                if i + 1 < tokens.len() => {
                     let id = &tokens[i + 1];
                     if matches!(id.token_type, TokenType::Identifier) {
                         map.entry(id.lexeme.clone()).or_insert(SymbolDecl {
@@ -159,7 +159,6 @@ fn collect_declarations(text: &str) -> HashMap<String, SymbolDecl> {
                         });
                     }
                 }
-            }
             TokenType::Func => {
                 // function name
                 if i + 1 < tokens.len() {
@@ -193,8 +192,8 @@ fn collect_declarations(text: &str) -> HashMap<String, SymbolDecl> {
                     }
                 }
             }
-            TokenType::For => {
-                if i + 1 < tokens.len() {
+            TokenType::For
+                if i + 1 < tokens.len() => {
                     let id = &tokens[i + 1];
                     if matches!(id.token_type, TokenType::Identifier) {
                         map.entry(id.lexeme.clone()).or_insert(SymbolDecl {
@@ -204,9 +203,8 @@ fn collect_declarations(text: &str) -> HashMap<String, SymbolDecl> {
                         });
                     }
                 }
-            }
-            TokenType::Struct | TokenType::Enum => {
-                if i + 1 < tokens.len() {
+            TokenType::Struct | TokenType::Enum
+                if i + 1 < tokens.len() => {
                     let id = &tokens[i + 1];
                     if matches!(id.token_type, TokenType::Identifier) {
                         map.entry(id.lexeme.clone()).or_insert(SymbolDecl {
@@ -216,7 +214,6 @@ fn collect_declarations(text: &str) -> HashMap<String, SymbolDecl> {
                         });
                     }
                 }
-            }
             _ => {}
         }
         i += 1;
@@ -260,26 +257,24 @@ fn collect_hover_info(text: &str) -> HashMap<String, HoverInfo> {
     let mut i = 0usize;
     while i < tokens.len() {
         match &tokens[i].token_type {
-            TokenType::Let => {
+            TokenType::Let
                 // let name [: type] = expr
-                if i + 1 < tokens.len() && matches!(tokens[i+1].token_type, TokenType::Identifier) {
+                if i + 1 < tokens.len() && matches!(tokens[i+1].token_type, TokenType::Identifier) => {
                     let name = tokens[i+1].lexeme.clone();
                     // Look for optional type annotation
                     let mut detail = format!("let {}", name);
-                    if i + 2 < tokens.len() && matches!(tokens[i+2].token_type, TokenType::Colon) {
-                        if i + 3 < tokens.len() && matches!(tokens[i+3].token_type, TokenType::Identifier) {
+                    if i + 2 < tokens.len() && matches!(tokens[i+2].token_type, TokenType::Colon)
+                        && i + 3 < tokens.len() && matches!(tokens[i+3].token_type, TokenType::Identifier) {
                             detail = format!("let {}: {}", name, tokens[i+3].lexeme);
                         }
-                    }
                     map.entry(name.clone()).or_insert(HoverInfo {
                         kind: HoverKind::Variable,
                         name,
                         detail,
                     });
                 }
-            }
-            TokenType::Func => {
-                if i + 1 < tokens.len() && matches!(tokens[i+1].token_type, TokenType::Identifier) {
+            TokenType::Func
+                if i + 1 < tokens.len() && matches!(tokens[i+1].token_type, TokenType::Identifier) => {
                     let fname = tokens[i+1].lexeme.clone();
                     // Collect params
                     let mut j = i + 2;
@@ -318,9 +313,8 @@ fn collect_hover_info(text: &str) -> HashMap<String, HoverInfo> {
                         detail,
                     });
                 }
-            }
-            TokenType::Struct => {
-                if i + 1 < tokens.len() && matches!(tokens[i+1].token_type, TokenType::Identifier) {
+            TokenType::Struct
+                if i + 1 < tokens.len() && matches!(tokens[i+1].token_type, TokenType::Identifier) => {
                     let sname = tokens[i+1].lexeme.clone();
                     // Collect fields
                     let mut j = i + 2;
@@ -350,9 +344,8 @@ fn collect_hover_info(text: &str) -> HashMap<String, HoverInfo> {
                         detail,
                     });
                 }
-            }
-            TokenType::Enum => {
-                if i + 1 < tokens.len() && matches!(tokens[i+1].token_type, TokenType::Identifier) {
+            TokenType::Enum
+                if i + 1 < tokens.len() && matches!(tokens[i+1].token_type, TokenType::Identifier) => {
                     let ename = tokens[i+1].lexeme.clone();
                     let detail = format!("enum {}", ename);
                     map.entry(ename.clone()).or_insert(HoverInfo {
@@ -361,7 +354,6 @@ fn collect_hover_info(text: &str) -> HashMap<String, HoverInfo> {
                         detail,
                     });
                 }
-            }
             _ => {}
         }
         i += 1;
@@ -1094,7 +1086,7 @@ fn send_response(stdout: &mut io::Stdout, response: &Value) {
         return;
     };
     let payload = format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg);
-    if let Ok(_) = stdout.write_all(payload.as_bytes()) {
+    if stdout.write_all(payload.as_bytes()).is_ok() {
         let _ = stdout.flush();
     }
 }

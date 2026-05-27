@@ -6,6 +6,12 @@ pub struct ArtCache {
     base_dir: PathBuf,
 }
 
+impl Default for ArtCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ArtCache {
     pub fn new() -> Self {
         let mut dir = std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir());

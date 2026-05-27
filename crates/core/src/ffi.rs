@@ -13,7 +13,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 /// Macro para facilitar a criação de bindings C-ABI (zero-cost) a partir do Rust.
-/// Gera a ponte segura garantindo `extern "C"` e no_mangle.
+/// Gera `unsafe extern "C"` com `no_mangle`.
+///
+/// # Safety
+/// O contrato de segurança é uniforme para todas as funções geradas por esta macro:
+/// o caller é responsável por fornecer ponteiros válidos e não-aliased.
 #[macro_export]
 macro_rules! art_extern {
     (
@@ -24,7 +28,8 @@ macro_rules! art_extern {
     ) => {
         $(#[$meta])*
         #[unsafe(no_mangle)]
-        $vis extern "C" fn $name($($arg: $arg_ty),*) -> $ret {
+        #[allow(clippy::missing_safety_doc)]
+        $vis unsafe extern "C" fn $name($($arg: $arg_ty),*) -> $ret {
             $($body)*
         }
     };
@@ -36,7 +41,8 @@ macro_rules! art_extern {
     ) => {
         $(#[$meta])*
         #[unsafe(no_mangle)]
-        $vis extern "C" fn $name($($arg: $arg_ty),*) {
+        #[allow(clippy::missing_safety_doc)]
+        $vis unsafe extern "C" fn $name($($arg: $arg_ty),*) {
             $($body)*
         }
     };
@@ -331,22 +337,24 @@ mod tests {
 
     #[test]
     fn safe_handle_retain_release_roundtrip() {
-        let h = art_handle_create_i64(123);
+        let h = unsafe { art_handle_create_i64(123) };
         assert!(h > 0);
-        assert_eq!(art_handle_retain(h), 1);
-        assert_eq!(art_handle_release(h), 1);
-        assert_eq!(art_handle_release(h), 1);
-        assert_eq!(art_handle_release(h), 0);
+        unsafe {
+            assert_eq!(art_handle_retain(h), 1);
+            assert_eq!(art_handle_release(h), 1);
+            assert_eq!(art_handle_release(h), 1);
+            assert_eq!(art_handle_release(h), 0);
+        }
     }
 
     #[test]
     fn safe_handle_extract_i64_ok() {
-        let h = art_handle_create_i64(987);
+        let h = unsafe { art_handle_create_i64(987) };
         let mut out = 0i64;
-        let code = art_handle_extract_i64(h, &mut out as *mut i64);
+        let code = unsafe { art_handle_extract_i64(h, &mut out as *mut i64) };
         assert_eq!(code, 0);
         assert_eq!(out, 987);
-        assert_eq!(art_handle_release(h), 1);
+        unsafe { assert_eq!(art_handle_release(h), 1) };
     }
 }
 

@@ -1,3 +1,7 @@
+// ArtValue is intentionally non-Send (contains Rc). Arc<Mutex<ArtValue>> is used
+// for shared ownership within a single thread; no cross-thread sharing occurs.
+#![allow(clippy::arc_with_non_send_sync)]
+
 pub mod field_access;
 pub mod fstring;
 pub mod heap;

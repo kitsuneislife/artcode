@@ -76,12 +76,7 @@ fn normalize_plan(mut plan: AotPlan, ir_dir: Option<&std::path::Path>) -> AotPla
         .inline_candidates
         .into_par_iter()
         .map(|mut c| {
-            if c.score < 1 {
-                c.score = 1;
-            }
-            if c.score > 1_000_000 {
-                c.score = 1_000_000;
-            }
+            c.score = c.score.clamp(1, 1_000_000);
             let mut map: HashMap<String, u64> = HashMap::new();
             for ex in c.caller_examples.drain(..) {
                 *map.entry(ex.caller).or_insert(0) += ex.count;

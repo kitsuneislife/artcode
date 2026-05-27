@@ -39,6 +39,12 @@ mod disabled {
 
     pub struct JitBuilder {}
 
+    impl Default for JitBuilder {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl JitBuilder {
         pub fn new() -> Self {
             JitBuilder {}

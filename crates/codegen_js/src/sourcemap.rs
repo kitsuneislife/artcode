@@ -2,7 +2,6 @@
 ///
 /// Produces a JSON source map with VLQ-encoded `mappings` field.
 /// Spec: https://docs.google.com/document/d/1U1RGAehQwRypUTovF1KRlpiOFze0b-_2gc6fAH0KY0k
-
 const BASE64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 fn encode_vlq(n: i32) -> String {

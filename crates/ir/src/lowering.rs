@@ -50,10 +50,7 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
             };
 
             // expect Some(Expr)
-            let expr = match ret_expr {
-                Some(e) => e,
-                None => return None,
-            };
+            let expr = ret_expr?;
 
             // Handle Binary ops (add/sub/mul/div) and produce appropriate Instrs.
             match expr {
@@ -69,10 +66,7 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
                     let extract = |e: Expr| -> Option<String> {
                         match e {
                             Expr::Variable { name } => Some(name.lexeme),
-                            Expr::Literal(v) => match v {
-                                core::ast::ArtValue::Int(n) => Some(format!("{}", n)),
-                                _ => None,
-                            },
+                            Expr::Literal(core::ast::ArtValue::Int(n)) => Some(n.to_string()),
                             _ => None,
                         }
                     };
@@ -108,10 +102,7 @@ pub fn lower_plain(stmt: &Stmt) -> Option<Function> {
                         let extract = |e: Expr| -> Option<String> {
                             match e {
                                 Expr::Variable { name } => Some(name.lexeme),
-                                Expr::Literal(v) => match v {
-                                    core::ast::ArtValue::Int(n) => Some(format!("{}", n)),
-                                    _ => None,
-                                },
+                                Expr::Literal(core::ast::ArtValue::Int(n)) => Some(n.to_string()),
                                 _ => None,
                             }
                         };
@@ -231,8 +222,7 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
                         // materialize a const bool as i64 (0/1) in temp; record into pre_body
                         let t = mktemp();
                         let v = if *b { 1 } else { 0 };
-                        let mut pb: Vec<Instr> = Vec::new();
-                        pb.push(Instr::ConstI64(t.clone(), v));
+                        let _pb = [Instr::ConstI64(t.clone(), v)];
                         // store pre_body in an option to be emitted later
                         // We'll set cond_name to the temp we created.
                         // Note: return cond_name as t and attach pre_body later.

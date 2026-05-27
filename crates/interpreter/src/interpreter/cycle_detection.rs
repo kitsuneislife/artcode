@@ -47,16 +47,14 @@ impl Interpreter {
             unowned_dangling: &mut Vec<u64>,
         ) {
             match v {
-                ArtValue::WeakRef(h) => {
-                    if !this.is_object_alive(h.0) {
+                ArtValue::WeakRef(h)
+                    if !this.is_object_alive(h.0) => {
                         weak_dead.push(h.0);
                     }
-                }
-                ArtValue::UnownedRef(h) => {
-                    if !this.is_object_alive(h.0) {
+                ArtValue::UnownedRef(h)
+                    if !this.is_object_alive(h.0) => {
                         unowned_dangling.push(h.0);
                     }
-                }
                 ArtValue::HeapComposite(h) => {
                     if let Some(obj) = this.heap_objects.get(&h.0) {
                         scan_ids(&obj.value, this, weak_dead, unowned_dangling);
@@ -315,7 +313,7 @@ impl Interpreter {
                     }
                 }
             }
-            ranked.sort_by(|a, b| b.2.cmp(&a.2));
+            ranked.sort_by_key(|x| std::cmp::Reverse(x.2));
             ranked.truncate(3);
             cycles_info.push(CycleInfo {
                 nodes: comp.iter().map(|n| id_vec[*n]).collect(),

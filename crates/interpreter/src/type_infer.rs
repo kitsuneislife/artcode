@@ -32,6 +32,8 @@ impl TypeEnv {
     }
 }
 
+type FuncEntry = (Vec<String>, std::rc::Rc<Stmt>, Option<Vec<(String, Option<String>)>>);
+
 pub struct TypeInfer<'a> {
     pub diags: Vec<Diagnostic>,
     pub tenv: &'a mut TypeEnv,
@@ -42,14 +44,7 @@ pub struct TypeInfer<'a> {
     // types when a scope is popped (shadowing must not permanently clobber outer vars)
     var_bindings: Vec<Vec<(String, Option<Type>)>>,
     // store top-level function declarations for simple callsite simulation
-    functions: HashMap<
-        String,
-        (
-            Vec<String>,
-            std::rc::Rc<Stmt>,
-            Option<Vec<(String, Option<String>)>>,
-        ),
-    >,
+    functions: HashMap<String, FuncEntry>,
     visiting_functions: HashSet<String>,
     moved_capability_vars: HashMap<String, bool>,
     moved_capability_bindings: Vec<Vec<(String, Option<bool>)>>,
@@ -814,7 +809,7 @@ impl<'a> TypeInfer<'a> {
                         }
                     } else if name.lexeme == "make_envelope" {
                         // make_envelope(payload [, priority])
-                        if arguments.len() >= 1 {
+                        if !arguments.is_empty() {
                             let payload_expr = &arguments[0];
                             if !self.is_send_safe_expr(payload_expr) {
                                 self.diags.push(Diagnostic::new(
@@ -826,11 +821,10 @@ impl<'a> TypeInfer<'a> {
                             }
                         }
                     } else if name.lexeme == "capability_acquire" {
-                        if let Some(first) = arguments.first() {
-                            if let Expr::Literal(ArtValue::String(kind)) = first {
+                        if let Some(first) = arguments.first()
+                            && let Expr::Literal(ArtValue::String(kind)) = first {
                                 return Type::Struct(format!("Capability[{}]", kind));
                             }
-                        }
                         return Type::Struct("Capability[Any]".to_string());
                     } else if name.lexeme == "capability_kind" {
                         return Type::String;
@@ -838,13 +832,13 @@ impl<'a> TypeInfer<'a> {
                 }
                 // Simple callsite propagation: if the callee is a known top-level function,
                 // bind parameter names to argument types (for literal or known-variable args)
-                if let Expr::Variable { name } = &**callee {
-                    if let Some(entry) = self.functions.get(&name.lexeme).cloned() {
+                if let Expr::Variable { name } = &**callee
+                    && let Some(entry) = self.functions.get(&name.lexeme).cloned() {
                         let (param_names, body, type_params) = entry;
 
                         // Check simple generic constraints
-                        if let (Some(t_args), Some(t_params)) = (type_args, &type_params) {
-                            if t_args.len() == t_params.len() {
+                        if let (Some(t_args), Some(t_params)) = (type_args, &type_params)
+                            && t_args.len() == t_params.len() {
                                 for (i, t_arg) in t_args.iter().enumerate() {
                                     if let Some(bound) = &t_params[i].1 {
                                         let ok = match bound.as_str() {
@@ -867,7 +861,6 @@ impl<'a> TypeInfer<'a> {
                                     }
                                 }
                             }
-                        }
 
                         // Avoid infinite recursion for recursive calls
                         if self.visiting_functions.insert(name.lexeme.clone()) {
@@ -883,12 +876,11 @@ impl<'a> TypeInfer<'a> {
                             }
                             // Optionally infer the body to propagate types inside function (cheap simulation)
                             // We don't attempt full signature/return inference here.
-                            self.visit_stmt(&*body);
+                            self.visit_stmt(&body);
                             self.pop_scope();
                             self.visiting_functions.remove(&name.lexeme);
                         }
                     }
-                }
                 for a in arguments {
                     self.infer_expr(a);
                 }

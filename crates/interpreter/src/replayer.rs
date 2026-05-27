@@ -94,11 +94,10 @@ impl Replayer {
                     Some(ArtValue::Int(t)) => *t as usize,
                     _ => 0,
                 };
-                if e_type == "checkpoint" && e_tick <= tick {
-                    if let Some(payload) = map.get("payload") {
+                if e_type == "checkpoint" && e_tick <= tick
+                    && let Some(payload) = map.get("payload") {
                         candidate = Some((e_tick, payload.clone()));
                     }
-                }
             }
         }
         candidate

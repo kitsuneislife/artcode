@@ -25,23 +25,21 @@ pub fn rename_temps(func: &mut Function) {
     let mut seen: HashSet<String> = HashSet::new();
     for instr in func.body.iter() {
         match instr {
-            Instr::ConstI64(name, _) => {
-                if is_candidate(name) && seen.insert(name.clone()) {
-                    defs.push(name.clone());
-                }
+            Instr::ConstI64(name, _) if is_candidate(name) && seen.insert(name.clone()) => {
+                defs.push(name.clone());
             }
             Instr::Add(dest, _, _)
             | Instr::Sub(dest, _, _)
             | Instr::Mul(dest, _, _)
-            | Instr::Div(dest, _, _) => {
-                if is_candidate(dest) && seen.insert(dest.clone()) {
-                    defs.push(dest.clone());
-                }
+            | Instr::Div(dest, _, _)
+                if is_candidate(dest) && seen.insert(dest.clone()) =>
+            {
+                defs.push(dest.clone());
             }
-            Instr::Call(dest, _, _) | Instr::Phi(dest, _, _) => {
-                if is_candidate(dest) && seen.insert(dest.clone()) {
-                    defs.push(dest.clone());
-                }
+            Instr::Call(dest, _, _) | Instr::Phi(dest, _, _)
+                if is_candidate(dest) && seen.insert(dest.clone()) =>
+            {
+                defs.push(dest.clone());
             }
             _ => {}
         }
@@ -281,10 +279,10 @@ pub fn insert_phi_nodes(func: &mut Function) {
                         }
                     }
                 }
-                Instr::BrCond(pred, _t, _f) => {
-                    if is_candidate(pred) && incoming.iter().any(|(v, _)| v == pred) {
-                        *pred = phi_dest.clone();
-                    }
+                Instr::BrCond(pred, _t, _f)
+                    if is_candidate(pred) && incoming.iter().any(|(v, _)| v == pred) =>
+                {
+                    *pred = phi_dest.clone();
                 }
                 _ => {}
             }

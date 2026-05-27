@@ -7,7 +7,6 @@ use interpreter::type_infer::{TypeEnv, TypeInfer};
 use lexer::lexer::Lexer;
 use parser::parser::Parser;
 use serde::{Deserialize, Serialize};
-use serde_json;
 use toml::Value as TomlValue;
 mod aot;
 mod bundler;
@@ -68,7 +67,7 @@ fn run_with_source(
                     // add this function
                     out.push(stmt);
                     // also recurse into its body to find nested functions
-                    collect_functions(&*body, out);
+                    collect_functions(body, out);
                 }
                 core::ast::Stmt::Block { statements } => {
                     for s in statements {
@@ -203,7 +202,7 @@ fn run_file(
                     match stmt {
                         core::ast::Stmt::Function { body, .. } => {
                             out.push(stmt);
-                            collect_functions(&*body, out);
+                            collect_functions(body, out);
                         }
                         core::ast::Stmt::Block { statements } => {
                             for s in statements {
@@ -234,10 +233,8 @@ fn run_file(
                                 core::ast::Stmt::Expression(expr) => {
                                     collect_calls_in_expr(expr, out);
                                 }
-                                core::ast::Stmt::Return { value } => {
-                                    if let Some(e) = value {
-                                        collect_calls_in_expr(e, out);
-                                    }
+                                core::ast::Stmt::Return { value: Some(e) } => {
+                                    collect_calls_in_expr(e, out);
                                 }
                                 core::ast::Stmt::If {
                                     condition,
@@ -322,7 +319,6 @@ fn run_file(
                         // build a minimal ir::Function
                         let mut body: Vec<ir::Instr> = Vec::new();
                         body.push(ir::Instr::Label("entry".to_string()));
-                        let mut next_temp: usize = 0;
                         // extract param names if this node is a function with params
                         let param_names: Vec<String> = match fs {
                             core::ast::Stmt::Function { params, .. } => {
@@ -330,9 +326,8 @@ fn run_file(
                             }
                             _ => Vec::new(),
                         };
-                        for (callee, argc) in calls {
+                        for (next_temp, (callee, argc)) in calls.into_iter().enumerate() {
                             let dest = format!("%{}_{}", fname.replace("@", ""), next_temp);
-                            next_temp += 1;
                             // produce a call with args: prefer param names when available, otherwise use %argN
                             let args: Vec<String> = if !param_names.is_empty() {
                                 (0..argc)
@@ -403,7 +398,6 @@ fn run_file(
             for d in interpreter.take_diagnostics() {
                 eprintln!("{}", format_diagnostic(&main_source, &d));
             }
-            return;
         }
         Err(diags) => {
             for (src, d) in diags {
@@ -434,7 +428,7 @@ fn run_aot(path: &str, out: Option<&str>, wasm: bool) {
                 match stmt {
                     core::ast::Stmt::Function { body, .. } => {
                         out.push(stmt);
-                        collect_functions(&*body, out);
+                        collect_functions(body, out);
                     }
                     core::ast::Stmt::Block { statements } => {
                         for s in statements {
@@ -1189,8 +1183,7 @@ fn main() {
                     let art_path = {
                         let p = std::path::Path::new(&out_path);
                         if let Some(s) = p.to_str() {
-                            if s.ends_with(".json") {
-                                let base = &s[..s.len() - 5];
+                            if let Some(base) = s.strip_suffix(".json") {
                                 std::path::PathBuf::from(format!("{}.artifact.json", base))
                             } else {
                                 std::path::PathBuf::from(format!("{}.artifact.json", s))
@@ -1390,7 +1383,7 @@ fn main() {
                                     .objects_finalized_per_arena
                                     .clone(),
                                 arena_alloc_count: interpreter.arena_alloc_count.clone(),
-                                finalizer_promotions_per_arena: finalizer_promotions_per_arena,
+                                finalizer_promotions_per_arena,
                                 weak_created: interpreter.weak_created,
                                 weak_upgrades: interpreter.weak_upgrades,
                                 weak_dangling: interpreter.weak_dangling,

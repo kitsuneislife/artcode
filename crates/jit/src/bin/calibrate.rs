@@ -40,8 +40,8 @@ fn analyze_ir(path: &Path) -> Option<(usize, usize, usize, usize)> {
 
 // simple projected gradient descent for non-negative least-squares with tiny L2 regularization
 fn nnls_projected_gradient(
-    x: &Vec<Vec<f64>>,
-    y: &Vec<f64>,
+    x: &[Vec<f64>],
+    y: &[f64],
     reg: f64,
     iters: usize,
     lr: f64,
@@ -111,17 +111,17 @@ fn main() {
     let mut scales = vec![1.0f64; n];
     for j in 0..n {
         let mut s = 0f64;
-        for i in 0..m {
-            s += x[i][j].abs();
+        for xi in x.iter() {
+            s += xi[j].abs();
         }
         if s > 0.0 {
             scales[j] = s / (m as f64);
         }
     }
     let mut xn = x.clone();
-    for i in 0..m {
+    for row in xn.iter_mut() {
         for j in 0..n {
-            xn[i][j] = xn[i][j] / scales[j];
+            row[j] /= scales[j];
         }
     }
 

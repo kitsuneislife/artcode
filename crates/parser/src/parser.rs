@@ -221,9 +221,7 @@ impl Parser {
                 let mut method = self.function_declaration();
                 // Inject type_name as method_owner if not already set
                 if let Stmt::Function { ref mut method_owner, .. } = method {
-                    if method_owner.is_none() {
-                        *method_owner = Some(type_name.clone());
-                    }
+                    method_owner.get_or_insert_with(|| type_name.clone());
                 }
                 methods.push(method);
             } else {
@@ -444,9 +442,9 @@ impl Parser {
                 TokenType::RightParen,
                 "Expect ')' after tuple type elements.",
             );
-            type_str.push_str("(");
+            type_str.push('(');
             type_str.push_str(&types.join(", "));
-            type_str.push_str(")");
+            type_str.push(')');
         } else {
             let type_name = self.consume(TokenType::Identifier, "Expect type name.");
             type_str.push_str(&type_name.lexeme);
@@ -580,18 +578,18 @@ fn collect_known_names(stmts: &[Stmt]) -> HashSet<String> {
             Stmt::StructDecl { name, .. } => {
                 known.insert(name.lexeme.clone());
             }
-            Stmt::Function { name, .. } => {
-                if name.lexeme.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
-                    known.insert(name.lexeme.clone());
-                }
+            Stmt::Function { name, .. }
+                if name.lexeme.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) =>
+            {
+                known.insert(name.lexeme.clone());
             }
-            Stmt::Let { pattern, .. } => {
-                if let core::ast::MatchPattern::Variable(tok) = pattern {
-                    if tok.lexeme.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
-                        known.insert(tok.lexeme.clone());
-                    }
-                }
+            Stmt::Function { .. } => {}
+            Stmt::Let { pattern: core::ast::MatchPattern::Variable(tok), .. }
+                if tok.lexeme.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) =>
+            {
+                known.insert(tok.lexeme.clone());
             }
+            Stmt::Let { .. } => {}
             _ => {}
         }
     }

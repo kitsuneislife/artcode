@@ -660,11 +660,12 @@ fn parse_slot_node(parser: &mut Parser, open_lt: Token) -> TemplateNode {
     while !parser.is_at_end() && !parser.check(&TokenType::Greater) && !parser.check(&TokenType::Slash) {
         if let TokenType::Identifier = parser.peek().token_type {
             let attr_tok = parser.advance();
-            if attr_tok.lexeme == "name" && parser.match_token(TokenType::Equal) {
-                if let TokenType::String(s) = parser.peek().token_type.clone() {
-                    parser.advance();
-                    slot_name = Some(s);
-                }
+            if attr_tok.lexeme == "name"
+                && parser.match_token(TokenType::Equal)
+                && let TokenType::String(s) = parser.peek().token_type.clone()
+            {
+                parser.advance();
+                slot_name = Some(s);
             }
         } else {
             parser.advance();

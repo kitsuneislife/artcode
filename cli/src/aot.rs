@@ -1,4 +1,3 @@
-use serde_json;
 use std::path::Path;
 
 /// Generate a simple AOT plan JSON from a profile string and write to out_path.
@@ -64,7 +63,7 @@ pub fn generate_aot_plan_from_profile_str(
         callee_score.insert(name.clone(), score);
     }
     let mut scored: Vec<(String, u64)> = callee_score.into_iter().collect();
-    scored.sort_by(|a, b| b.1.cmp(&a.1));
+    scored.sort_by_key(|x| std::cmp::Reverse(x.1));
     let mut plan = serde_json::Map::new();
     let mut inline: Vec<serde_json::Value> = Vec::new();
     for (name, score) in scored.iter().take(50) {
@@ -90,13 +89,13 @@ pub fn generate_aot_plan_from_profile_str(
             .get(name)
             .map(|v| {
                 let mut vv = v.clone();
-                vv.sort_by(|a, b| b.1.cmp(&a.1));
+                vv.sort_by_key(|x| std::cmp::Reverse(x.1));
                 vv.iter()
                     .take(3)
                     .map(|(c, n)| serde_json::json!({"caller": c, "count": *n}))
                     .collect::<Vec<_>>()
             })
-            .unwrap_or_else(|| Vec::new());
+            .unwrap_or_default();
         inline.push(
             serde_json::json!({"name": name, "score": *score, "caller_examples": caller_examples}),
         );

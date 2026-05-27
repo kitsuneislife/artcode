@@ -17,11 +17,11 @@ fn levenshtein(a: &str, b: &str) -> usize {
     let b_chars: Vec<char> = b.chars().collect();
     let mut d = vec![vec![0; b_chars.len() + 1]; a_chars.len() + 1];
 
-    for i in 0..=a_chars.len() {
-        d[i][0] = i;
+    for (i, row) in d.iter_mut().enumerate() {
+        row[0] = i;
     }
-    for j in 0..=b_chars.len() {
-        d[0][j] = j;
+    for (j, val) in d[0].iter_mut().enumerate() {
+        *val = j;
     }
 
     for i in 1..=a_chars.len() {
@@ -934,8 +934,8 @@ impl Interpreter {
             ArtValue::HeapComposite(h) => {
                 let mut inner_val = None;
 
-                if let Some(obj) = self.heap_objects.get(&h.0) {
-                    if let Some(obj_aid) = obj.arena_id {
+                if let Some(obj) = self.heap_objects.get(&h.0)
+                    && let Some(obj_aid) = obj.arena_id {
                         let should_promote = match target_aid {
                             None => true,
                             Some(ta) => obj_aid != ta && obj_aid > ta,
@@ -944,7 +944,6 @@ impl Interpreter {
                             inner_val = Some(obj.value.clone());
                         }
                     }
-                }
 
                 if let Some(mut iv) = inner_val {
                     // Deep recursion: promote children first
@@ -1087,18 +1086,17 @@ impl Interpreter {
     }
 
     fn heap_atomic_store(&mut self, h: ObjHandle, val: ArtValue) -> bool {
-        if let Some(obj) = self.heap_objects.get_mut(&h.0) {
-            if let ArtValue::StructInstance { fields, .. } = &mut obj.value {
+        if let Some(obj) = self.heap_objects.get_mut(&h.0)
+            && let ArtValue::StructInstance { fields, .. } = &mut obj.value {
                 fields.insert("value".to_string(), val);
                 return true;
             }
-        }
         false
     }
 
     fn heap_atomic_add(&mut self, h: ObjHandle, delta: i64) -> Option<i64> {
-        if let Some(obj) = self.heap_objects.get_mut(&h.0) {
-            if let ArtValue::StructInstance { fields, .. } = &mut obj.value {
+        if let Some(obj) = self.heap_objects.get_mut(&h.0)
+            && let ArtValue::StructInstance { fields, .. } = &mut obj.value {
                 match fields.get("value") {
                     Some(ArtValue::Int(curr)) => {
                         if let Some(new) = curr.checked_add(delta) {
@@ -1134,7 +1132,6 @@ impl Interpreter {
                     }
                 }
             }
-        }
         None
     }
 
@@ -1167,8 +1164,8 @@ impl Interpreter {
     }
 
     fn heap_mutex_lock(&mut self, h: ObjHandle) -> bool {
-        if let Some(obj) = self.heap_objects.get_mut(&h.0) {
-            if let ArtValue::StructInstance { fields, .. } = &mut obj.value {
+        if let Some(obj) = self.heap_objects.get_mut(&h.0)
+            && let ArtValue::StructInstance { fields, .. } = &mut obj.value {
                 match fields.get("locked") {
                     Some(ArtValue::Bool(true)) => {
                         self.diagnostics.push(Diagnostic::new(
@@ -1184,13 +1181,12 @@ impl Interpreter {
                     }
                 }
             }
-        }
         false
     }
 
     fn heap_mutex_unlock(&mut self, h: ObjHandle) -> bool {
-        if let Some(obj) = self.heap_objects.get_mut(&h.0) {
-            if let ArtValue::StructInstance { fields, .. } = &mut obj.value {
+        if let Some(obj) = self.heap_objects.get_mut(&h.0)
+            && let ArtValue::StructInstance { fields, .. } = &mut obj.value {
                 match fields.get("locked") {
                     Some(ArtValue::Bool(false)) => {
                         self.diagnostics.push(Diagnostic::new(
@@ -1206,7 +1202,6 @@ impl Interpreter {
                     }
                 }
             }
-        }
         false
     }
     /// Finaliza (libera) todos objetos alocados na arena especificada.
@@ -1407,7 +1402,7 @@ impl Interpreter {
         if self.tracer.is_none() {
             return;
         }
-        if self.executed_statements % CHECKPOINT_INTERVAL != 0 {
+        if !self.executed_statements.is_multiple_of(CHECKPOINT_INTERVAL) {
             return;
         }
         if let Some(tracer) = &mut self.tracer {

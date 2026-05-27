@@ -93,11 +93,10 @@ impl Interpreter {
             let mut skip_finalizer_due_to_kind = false;
 
             if let Some(obj) = self.heap_objects.get_mut(&id) {
-                if obj.strong > 0 {
-                    if crate::heap_utils::dec_strong_obj(obj) {
+                if obj.strong > 0
+                    && crate::heap_utils::dec_strong_obj(obj) {
                         self.strong_decrements += 1;
                     }
-                }
 
                 let should_recurse = !obj.alive; // caiu a zero agora
                 if should_recurse {
@@ -108,11 +107,10 @@ impl Interpreter {
 
                     snapshot_to_enqueue = Some(obj.value.clone());
 
-                    skip_finalizer_due_to_kind = match obj.kind {
-                        Some(crate::heap::HeapKind::Atomic)
-                        | Some(crate::heap::HeapKind::Mutex) => true,
-                        _ => false,
-                    };
+                    skip_finalizer_due_to_kind = matches!(
+                        obj.kind,
+                        Some(crate::heap::HeapKind::Atomic) | Some(crate::heap::HeapKind::Mutex)
+                    );
                 }
             } // fecha if let Some(obj) = heap_objects.get_mut(&id)
 
@@ -134,18 +132,16 @@ impl Interpreter {
                 let mut to_mark_dead: Vec<u64> = Vec::new();
                 for (other_id, other_obj) in self.heap_objects.iter_mut() {
                     match &mut other_obj.value {
-                        ArtValue::WeakRef(h) => {
-                            if h.0 == id {
+                        ArtValue::WeakRef(h)
+                            if h.0 == id => {
                                 self.weak_dangling += 1;
                                 to_mark_dead.push(*other_id);
                             }
-                        }
-                        ArtValue::UnownedRef(h) => {
-                            if h.0 == id {
+                        ArtValue::UnownedRef(h)
+                            if h.0 == id => {
                                 self.unowned_dangling += 1;
                                 to_mark_dead.push(*other_id);
                             }
-                        }
                         _ => {}
                     }
                 }
@@ -303,11 +299,10 @@ impl Interpreter {
     /// Central helper to decrement weak counter on a heap object if present.
     pub fn dec_heap_weak(&mut self, id: u64) {
         use crate::heap_utils::dec_weak_obj;
-        if let Some(obj) = self.heap_objects.get_mut(&id) {
-            if dec_weak_obj(obj) {
+        if let Some(obj) = self.heap_objects.get_mut(&id)
+            && dec_weak_obj(obj) {
                 // metric kept at interpreter level if callers want to track
             }
-        }
     }
     /// Central helper to increment strong counter on a heap object and update metrics.
     pub fn inc_heap_strong(&mut self, id: u64) {
@@ -323,16 +318,15 @@ impl Interpreter {
     /// `dec_object_strong_recursive` which handles finalizers and sweeping.
     pub fn dec_heap_strong(&mut self, id: u64) {
         use crate::heap_utils::dec_strong_obj;
-        if let Some(obj) = self.heap_objects.get_mut(&id) {
-            if dec_strong_obj(obj) {
+        if let Some(obj) = self.heap_objects.get_mut(&id)
+            && dec_strong_obj(obj) {
                 self.strong_decrements += 1;
             }
-        }
     }
 
-    /// Inner helper that performs the decrement on an existing mutable reference
-    /// to a `HeapObject`. This avoids performing multiple `get_mut` borrows when
-    /// the caller already holds a mutable reference (used by finalizer flow).
+    // Inner helper that performs the decrement on an existing mutable reference
+    // to a `HeapObject`. This avoids performing multiple `get_mut` borrows when
+    // the caller already holds a mutable reference (used by finalizer flow).
     // NOTE: the previous implementation used a helper method that took
     // `&mut self` plus `&mut HeapObject`. That caused borrow-checker
     // conflicts when callers already held a mutable borrow into
@@ -501,14 +495,13 @@ impl Interpreter {
                 parent: u64,
             ) {
                 match v {
-                    ArtValue::HeapComposite(h) => {
-                        if !heap.contains_key(&h.0) {
+                    ArtValue::HeapComposite(h)
+                        if !heap.contains_key(&h.0) => {
                             msgs.push(format!(
                                 "parent {} references missing child {}",
                                 parent, h.0
                             ));
                         }
-                    }
                     ArtValue::Array(a) => {
                         for e in a {
                             scan(e, heap, msgs, parent);

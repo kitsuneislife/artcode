@@ -91,8 +91,8 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
         }
 
         // br / br_cond
-        if line.starts_with("br ") {
-            let arg = line[3..].trim();
+        if let Some(arg_raw) = line.strip_prefix("br ") {
+            let arg = arg_raw.trim();
             body.push(Instr::Br(arg.to_string()));
             continue;
         }

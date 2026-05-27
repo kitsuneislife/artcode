@@ -39,6 +39,12 @@ enum MailboxImpl {
     Map(BTreeMap<i32, VecDeque<core::ast::ValueEnvelope>>), // key = priority (ascending)
 }
 
+impl Default for Mailbox {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Mailbox {
     const MIGRATE_THRESHOLD: usize = 64; // simple heuristic
 
@@ -64,9 +70,7 @@ impl Mailbox {
             MailboxImpl::Linear(v) => v.front(),
             MailboxImpl::Map(m) => {
                 // highest priority -> last key in BTreeMap
-                m.keys()
-                    .rev()
-                    .next()
+                m.keys().next_back()
                     .and_then(|k| m.get(k))
                     .and_then(|q| q.front())
             }
@@ -93,15 +97,14 @@ impl Mailbox {
         match &mut self.inner {
             MailboxImpl::Linear(v) => v.pop_front(),
             MailboxImpl::Map(m) => {
-                if let Some((&pri, _)) = m.iter().rev().next() {
-                    if let Some(q) = m.get_mut(&pri) {
+                if let Some((&pri, _)) = m.iter().next_back()
+                    && let Some(q) = m.get_mut(&pri) {
                         let res = q.pop_front();
                         if q.is_empty() {
                             m.remove(&pri);
                         }
                         return res;
                     }
-                }
                 None
             }
         }
@@ -407,7 +410,7 @@ impl Interpreter {
             let aid = actor_ids[idx];
             // If actor was removed or finished, skip
             let should_remove = if let Some(actor) = self.actors.get(&aid) {
-                if actor.finished { true } else { false }
+                actor.finished
             } else {
                 true
             };

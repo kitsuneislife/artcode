@@ -60,15 +60,15 @@ impl Interpreter {
                             values.len()
                         )));
                     }
-                    for (p, v) in patterns.iter().zip(values.into_iter()) {
+                    for (p, v) in patterns.iter().zip(values) {
                         self.bind_value_to_pattern(p, v)?;
                     }
                     Ok(())
                 } else {
-                    return Err(RuntimeError::TypeError(format!(
+                    Err(RuntimeError::TypeError(format!(
                         "Cannot destructure non-tuple value '{:?}' with tuple pattern",
                         value
-                    )));
+                    )))
                 }
             }
             _ => {
@@ -81,10 +81,11 @@ impl Interpreter {
     fn stmt_approx_line(stmt: &core::ast::Stmt) -> usize {
         match stmt {
             Stmt::Expression(e) => Self::expr_approx_line(e),
-            Stmt::Let { pattern, .. } => match pattern {
-                core::ast::MatchPattern::Variable(t) | core::ast::MatchPattern::Binding(t) => t.line,
-                _ => 0,
-            },
+            Stmt::Let {
+                pattern: core::ast::MatchPattern::Variable(t) | core::ast::MatchPattern::Binding(t),
+                ..
+            } => t.line,
+            Stmt::Let { .. } => 0,
             Stmt::Function { name, .. } => name.line,
             Stmt::If { condition, .. } => Self::expr_approx_line(condition),
             Stmt::While { condition, .. } => Self::expr_approx_line(condition),
@@ -200,7 +201,7 @@ impl Interpreter {
                     println!("  quit (q)             sai do debugger");
                 }
                 other if other.starts_with("state-at ") || other.starts_with("goto ") => {
-                    let rest = other.splitn(2, ' ').nth(1).unwrap_or("").trim();
+                    let rest = other.split_once(' ').map(|x| x.1).unwrap_or("").trim();
                     if let Ok(tick) = rest.parse::<usize>() {
                         return Err(crate::values::RuntimeError::DebugJumpTo(tick));
                     } else {
@@ -208,7 +209,7 @@ impl Interpreter {
                     }
                 }
                 other if other.starts_with("breakpoint ") || other.starts_with("break ") => {
-                    let rest = other.splitn(2, ' ').nth(1).unwrap_or("").trim();
+                    let rest = other.split_once(' ').map(|x| x.1).unwrap_or("").trim();
                     if let Ok(n) = rest.parse::<usize>() {
                         self.breakpoints.insert(n);
                         println!("  breakpoint set at line {}", n);
@@ -255,12 +256,11 @@ impl Interpreter {
         }
 
         // Breakpoint check: pause if not already in debug_mode and we hit a breakpoint
-        if !self.debug_mode && self.fast_forward_until.is_none() && !self.breakpoints.is_empty() {
-            if stmt_line > 0 && self.breakpoints.contains(&stmt_line) {
+        if !self.debug_mode && self.fast_forward_until.is_none() && !self.breakpoints.is_empty()
+            && stmt_line > 0 && self.breakpoints.contains(&stmt_line) {
                 println!("Breakpoint hit at line {} (tick {})", stmt_line, self.executed_statements);
                 self.debug_mode = true;
             }
-        }
 
         if self.debug_mode || self.fast_forward_until.is_some() {
             let should_prompt = match self.fast_forward_until {
@@ -671,9 +671,7 @@ impl Interpreter {
                     let _aid = self.push_implicit_arena();
                     let res = self.execute(*body.clone());
                     self.pop_implicit_arena();
-                    if let Err(e) = res {
-                        return Err(e);
-                    }
+                    res?
                 }
                 Ok(())
             }
@@ -923,9 +921,7 @@ impl Interpreter {
                             self.drop_scope_heap_objects(&loop_env);
                             self.environment = previous_env;
 
-                            if let Err(e) = result {
-                                return Err(e);
-                            }
+                            result?
                         }
                         Ok(())
                     }
@@ -992,9 +988,7 @@ impl Interpreter {
                             self.pop_implicit_arena();
                             self.environment = previous_env;
 
-                            if let Err(e) = result {
-                                return Err(e);
-                            }
+                            result?
                         }
                         Ok(())
                     }
@@ -1160,8 +1154,8 @@ impl Interpreter {
                             // Keep heap composite alive across scope teardown.
                             self.inc_heap_strong(h.0);
                         }
-                        if let ArtValue::Function(ref f) = rv {
-                            if f.retained_env.is_none() {
+                        if let ArtValue::Function(ref f) = rv
+                            && f.retained_env.is_none() {
                                 // Returned closures can capture this block env.
                                 let escaped = Function {
                                     name: f.name.clone(),
@@ -1176,7 +1170,6 @@ impl Interpreter {
                                 self.promote_if_escaping(aid, &mut rv);
                                 return Err(RuntimeError::Return(rv));
                             }
-                        }
                         RuntimeError::Return(rv)
                     }
                     other => other,

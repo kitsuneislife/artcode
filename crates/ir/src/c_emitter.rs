@@ -91,11 +91,11 @@ pub fn emit_c_program(funcs: &[Function], entry_func: &str) -> String {
         }
         out.push_str(");\n");
     }
-    out.push_str("\n");
+    out.push('\n');
 
     for f in funcs {
         out.push_str(&emit_c_function(f));
-        out.push_str("\n");
+        out.push('\n');
     }
 
     if funcs.iter().any(|f| f.name.replace("@", "") == entry_func) {
@@ -193,7 +193,7 @@ fn emit_c_function(f: &Function) -> String {
         match instr {
             Instr::Label(l) => {
                 let s_lbl = sanitize_lbl(l);
-                out.push_str(&format!("    _prev_block = _curr_block;\n"));
+                out.push_str("    _prev_block = _curr_block;\n");
                 out.push_str(&format!("    _curr_block = \"{}\";\n", s_lbl));
                 out.push_str(&format!("L_{}:\n", s_lbl));
             }

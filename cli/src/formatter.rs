@@ -33,14 +33,14 @@ pub fn format_string(input: &str) -> String {
         // Check if the line closes a block to decrement indent before writing
         // This is a naive heuristic for minimal idempotency.
         let mut local_indent = indent_level;
-        if trimmed.starts_with('}') || trimmed.starts_with(']') || trimmed.starts_with(')') {
-            if local_indent > 0 {
-                local_indent -= 1;
-            }
-        } else if trimmed.starts_with("else") || trimmed.starts_with("case ") {
-            if local_indent > 0 {
-                local_indent -= 1;
-            }
+        if local_indent > 0
+            && ((trimmed.starts_with('}')
+                || trimmed.starts_with(']')
+                || trimmed.starts_with(')'))
+                || trimmed.starts_with("else")
+                || trimmed.starts_with("case "))
+        {
+            local_indent -= 1;
         }
 
         // Apply indentation
@@ -55,11 +55,7 @@ pub fn format_string(input: &str) -> String {
         for c in trimmed.chars() {
             match c {
                 '{' | '[' | '(' => indent_level += 1,
-                '}' | ']' | ')' => {
-                    if indent_level > 0 {
-                        indent_level -= 1;
-                    }
-                }
+                '}' | ']' | ')' if indent_level > 0 => indent_level -= 1,
                 _ => {}
             }
         }

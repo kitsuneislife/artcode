@@ -662,15 +662,14 @@ impl Interpreter {
                 .or_insert(1);
         }
         // record edge from caller -> callee
-        if let Some(caller) = self.fn_stack.last().and_then(|opt| opt.clone()) {
-            if let Some(callee) = &callee_name_opt {
+        if let Some(caller) = self.fn_stack.last().and_then(|opt| opt.clone())
+            && let Some(callee) = &callee_name_opt {
                 let edge = format!("{}->{}", caller, callee);
                 self.edge_counters
                     .entry(edge)
                     .and_modify(|c| *c += 1)
                     .or_insert(1);
             }
-        }
         self.fn_stack.push(callee_name_opt.clone());
 
         let argc = arguments.len();
@@ -691,8 +690,8 @@ impl Interpreter {
         }
 
         // Generic type parameter validation
-        if let Some(type_params) = &func.type_params {
-            if !type_params.is_empty() {
+        if let Some(type_params) = &func.type_params
+            && !type_params.is_empty() {
                 // Infer concrete types: explicit type_args take priority, else infer from values
                 let concrete: Vec<String> = if let Some(explicit) = &type_args {
                     explicit.clone()
@@ -738,7 +737,6 @@ impl Interpreter {
                     }
                 }
             }
-        }
 
         let previous_env = self.environment.clone();
         let base_env = match func.closure.upgrade() {
@@ -771,7 +769,7 @@ impl Interpreter {
         self.environment = call_env.clone();
 
         // Bind parâmetros
-        for (param, mut value) in func.params.iter().zip(evaluated_args.into_iter()) {
+        for (param, mut value) in func.params.iter().zip(evaluated_args) {
             let target_aid = call_env.borrow().associated_arena;
             self.promote_if_escaping(target_aid, &mut value);
             self.environment
@@ -798,9 +796,9 @@ impl Interpreter {
         };
 
         // Escape analysis para closures
-        if let ArtValue::Function(f) = &return_val {
-            if f.retained_env.is_none() {
-                if let Some(captured_env) = f.closure.upgrade() {
+        if let ArtValue::Function(f) = &return_val
+            && f.retained_env.is_none()
+                && let Some(captured_env) = f.closure.upgrade() {
                     let escaped = Function {
                         name: f.name.clone(),
                         type_params: f.type_params.clone(),
@@ -811,8 +809,6 @@ impl Interpreter {
                     };
                     return_val = ArtValue::Function(Rc::new(escaped));
                 }
-            }
-        }
 
         self.drop_scope_heap_objects(&call_env);
         if pushed_arena {

@@ -42,7 +42,7 @@ impl Interpreter {
                 } = &*val
                 {
                     if variant == "Ok" || variant == "Some" {
-                        Ok(values.get(0).cloned().unwrap_or_else(|| ArtValue::none()))
+                        Ok(values.first().cloned().unwrap_or_else(ArtValue::none))
                     } else {
                         // Produce diagnostic and return error
                         self.diagnostics.push(Diagnostic::new(
@@ -62,7 +62,7 @@ impl Interpreter {
                 } = &*val
                 {
                     if variant == "Ok" || variant == "Some" {
-                        Ok(values.get(0).cloned().unwrap_or_else(|| ArtValue::none()))
+                        Ok(values.first().cloned().unwrap_or_else(ArtValue::none))
                     } else {
                         if arguments.len() == 1 {
                             self.evaluate(arguments[0].clone())
@@ -1064,8 +1064,8 @@ impl Interpreter {
                     }
                     // If actor not found because it's currently executing and removed from map,
                     // try executing_actor
-                    if let Some(exec) = &mut self.executing_actor {
-                        if exec.id == aid {
+                    if let Some(exec) = &mut self.executing_actor
+                        && exec.id == aid {
                             if let Some(env) = exec.mailbox.pop_front() {
                                 return Ok(env.payload);
                             } else {
@@ -1073,7 +1073,6 @@ impl Interpreter {
                                 return Ok(ArtValue::Optional(Box::new(None)));
                             }
                         }
-                    }
                 }
                 self.diagnostics.push(Diagnostic::new(
                     DiagnosticKind::Runtime,
@@ -1107,8 +1106,8 @@ impl Interpreter {
                             return Ok(ArtValue::Optional(Box::new(None)));
                         }
                     }
-                    if let Some(exec) = &mut self.executing_actor {
-                        if exec.id == aid {
+                    if let Some(exec) = &mut self.executing_actor
+                        && exec.id == aid {
                             if let Some(env) = exec.mailbox.pop_front() {
                                 let mut fields = std::collections::HashMap::new();
                                 let sender_val = match env.sender {
@@ -1131,7 +1130,6 @@ impl Interpreter {
                                 return Ok(ArtValue::Optional(Box::new(None)));
                             }
                         }
-                    }
                 }
                 self.diagnostics.push(Diagnostic::new(
                     DiagnosticKind::Runtime,
@@ -1327,11 +1325,10 @@ impl Interpreter {
                 }
                 let a = self.evaluate(arguments[0].clone())?;
                 let delta = self.evaluate(arguments[1].clone())?;
-                if let (ArtValue::Atomic(h), ArtValue::Int(d)) = (a, delta) {
-                    if let Some(new) = self.heap_atomic_add(h, d) {
+                if let (ArtValue::Atomic(h), ArtValue::Int(d)) = (a, delta)
+                    && let Some(new) = self.heap_atomic_add(h, d) {
                         return Ok(ArtValue::Int(new));
                     }
-                }
                 Ok(ArtValue::none())
             }
             core::ast::BuiltinFn::MutexNew => {
