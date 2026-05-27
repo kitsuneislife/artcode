@@ -647,6 +647,7 @@ impl<'a> TypeInfer<'a> {
                 // For spawn actor expressions, conservatively treat body as not capturing outer vars
                 // (body is a sequence of statements; deeper analysis can be added later)
             }
+            Expr::Template(_) => {}
             Literal(_) => {}
         }
         // Deduplicate
@@ -714,7 +715,8 @@ impl<'a> TypeInfer<'a> {
             | Unowned(_)
             | WeakUpgrade(_)
             | UnownedAccess(_)
-            | SpawnActor { .. } => false,
+            | SpawnActor { .. }
+            | Template(_) => false,
         }
     }
 
@@ -1022,6 +1024,7 @@ impl<'a> TypeInfer<'a> {
             }
             Cast { target_type, .. } => Type::Struct(target_type.clone()),
             InterpolatedString(_) => Type::String,
+            Template(_) => Type::Unknown,
         };
         self.tenv.set(expr, t.clone());
         t

@@ -407,6 +407,18 @@ impl Parser {
         self.tokens[self.current - 1].clone()
     }
 
+    pub fn current_pos(&self) -> usize {
+        self.current
+    }
+
+    pub fn set_current_pos(&mut self, pos: usize) {
+        self.current = pos;
+    }
+
+    pub fn tokens_ref(&self) -> &[Token] {
+        &self.tokens
+    }
+
     pub fn parse_type(&mut self) -> String {
         let mut type_str = String::new();
         if self.match_token(TokenType::LeftBracket) {

@@ -394,6 +394,7 @@ fn expr_contains_allocation(expr: &Expr) -> bool {
             InterpolatedPart::Expr { expr, .. } => expr_contains_allocation(expr),
         }),
         Expr::SpawnActor { body } => body.iter().any(stmt_contains_allocation),
+        Expr::Template(_) => false,
         Expr::Literal(_) | Expr::Variable { .. } => false,
     }
 }
@@ -533,6 +534,7 @@ fn lint_expr(expr: &Expr, scopes: &mut ScopeStack, diagnostics: &mut Vec<Diagnos
             }
             scopes.pop();
         }
+        Expr::Template(_) => {}
         Expr::Literal(_) | Expr::Variable { .. } => {}
     }
 }

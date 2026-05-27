@@ -157,6 +157,52 @@ pub enum Expr {
     SpawnActor {
         body: Vec<Stmt>,
     },
+    Template(Vec<TemplateNode>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TemplateAttrValue {
+    Static(String),
+    Dynamic(Box<Expr>),
+    EventHandler(Box<Expr>),
+    Flag,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TemplateAttr {
+    pub name: String,
+    pub value: TemplateAttrValue,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TemplateNode {
+    Element {
+        tag: String,
+        attrs: Vec<TemplateAttr>,
+        children: Vec<TemplateNode>,
+    },
+    Component {
+        name: String,
+        attrs: Vec<TemplateAttr>,
+        children: Vec<TemplateNode>,
+    },
+    Text(String),
+    Expr(Box<Expr>),
+    If {
+        cond: Box<Expr>,
+        then_children: Vec<TemplateNode>,
+        else_children: Vec<TemplateNode>,
+    },
+    For {
+        var: String,
+        items: Box<Expr>,
+        key: Option<Box<Expr>>,
+        children: Vec<TemplateNode>,
+    },
+    Slot {
+        name: Option<String>,
+        children: Vec<TemplateNode>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

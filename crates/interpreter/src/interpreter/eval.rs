@@ -600,6 +600,13 @@ impl Interpreter {
                 self.actors.insert(aid, actor);
                 Ok(ArtValue::Actor(aid))
             }
+
+            Expr::Template(_) => {
+                // ArtML templates are not evaluated by the interpreter — they target the JS codegen.
+                Err(RuntimeError::TypeError(
+                    "ArtML templates can only be used with `art build --target js`".to_string(),
+                ))
+            }
         }
     }
 

@@ -37,7 +37,7 @@
 
             <section class="glass" style="padding: 24px; margin-bottom: 24px;">
                 <h2 style="margin-bottom: 10px;">v0.4.0-dev <span style="font-size: 0.75rem; background: var(--accent, #7c6af7); color: #fff; border-radius: 4px; padding: 2px 8px; vertical-align: middle; margin-left: 8px;">Em desenvolvimento</span></h2>
-                <p style="margin-bottom: 12px;">Primeiro passo para o ArtKit: compilação para JavaScript, type checker estático, debug shell interativo e stdlib de strings.</p>
+                <p style="margin-bottom: 12px;">Primeiro passo para o ArtKit: compilação para JavaScript, parser de templates ArtML, type checker estático, debug shell interativo e stdlib de strings.</p>
 
                 <h3>1. Codegen JavaScript</h3>
                 <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
@@ -63,7 +63,17 @@
                     <li>Breakpoints são persistentes entre restarts do replay.</li>
                 </ul>
 
-                <h3>4. Type Checker Estático</h3>
+                <h3>4. Parser ArtML</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li>Templates declarativos embutidos na linguagem — sem pré-processador externo.</li>
+                    <li>Sintaxe: <code>&lt;div class="x"&gt;</code>, <code>&lt;input value={expr} /&gt;</code>, <code>&lt;button on:click={handler}&gt;</code>, <code>&lt;Counter /&gt;</code> (componente PascalCase), <code>&lt;if cond={x}&gt;</code>, <code>&lt;for item in {items} key={id}&gt;</code>, <code>&lt;slot name="header"&gt;</code>.</li>
+                    <li>Nenhum token novo no lexer — <code>&lt;</code> em posição prefix é inequivocamente início de template (Pratt parser).</li>
+                    <li>Codegen: templates → IIFE com <code>document.createElement</code>, <code>setAttribute</code>, <code>addEventListener</code>, <code>createTextNode</code>, <code>createDocumentFragment</code>.</li>
+                    <li>Diagnósticos: tag sem fechamento → <code>error</code> com span exato; <code>&lt;for&gt;</code> sem <code>key</code> → <code>warning</code>.</li>
+                    <li>22 testes (12 parser + 10 codegen).</li>
+                </ul>
+
+                <h3>5. Type Checker Estático</h3>
                 <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
                     <li>Novo crate <code>crates/typeck</code> — verificação de tipos em compile time, integrado ao pipeline <code>art build --target js</code>.</li>
                     <li>Inferência local: <code>let x = 42</code> → <code>x: Int</code> rastreado no escopo sem anotação explícita.</li>

@@ -6,6 +6,19 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 ## [Unreleased]
 
 ### Added
+- **Parser ArtML (`crates/parser`):** suporte a templates declarativos embutidos na linguagem.
+  `<tag>`, `<tag attr="val">`, `<tag attr={expr}>`, `<tag on:event={handler}>`, `<Tag />` (componente),
+  `<if cond={expr}>...</if><else>...</else>`, `<for item in {items} key={expr}>...</for>`,
+  `<slot name="x">...</slot>`. Nenhum novo token no lexer — `<` em posição prefix é
+  inequivocamente início de template no Pratt parser. 12 testes de parser + 10 testes de codegen.
+- **Codegen de templates (`crates/codegen_js`):** `Expr::Template` → IIFE com chamadas DOM
+  (`document.createElement`, `setAttribute`, `addEventListener`, `createTextNode`,
+  `createDocumentFragment`). Componentes PascalCase → `new Component({...})`.
+- **AST (`crates/core`):** `enum TemplateNode` (`Element`, `Component`, `Text`, `Expr`, `If`,
+  `For`, `Slot`), `struct TemplateAttr`, `enum TemplateAttrValue`, `Expr::Template`.
+- **Diagnósticos de template em parse time:** tag sem fechamento → `error` com span exato;
+  `<for>` sem atributo `key` → `warning`.
+
 - **Codegen JavaScript (`crates/codegen_js`):** novo crate que transpila AST Artcode para
   JavaScript ES2022. Suporta `let`/`var`, funções, structs (→ `class`), enums (→ tagged union),
   `match` (→ if-else com bindings), `for`/`while`, closures, f-strings (→ template literals),

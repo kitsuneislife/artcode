@@ -267,6 +267,8 @@ name = "codegen_js"
 version = "0.3.0"
 dependencies = [
  "core",
+ "lexer",
+ "parser",
 ]
 
 [[package]]

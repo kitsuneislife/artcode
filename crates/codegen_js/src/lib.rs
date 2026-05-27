@@ -1,7 +1,7 @@
 mod sourcemap;
 pub use sourcemap::SourceMapBuilder;
 
-use core::ast::{ArtValue, Expr, InterpolatedPart, MatchPattern, Stmt};
+use core::ast::{ArtValue, Expr, InterpolatedPart, MatchPattern, Stmt, TemplateAttrValue, TemplateNode};
 
 pub struct CodegenOptions {
     pub source_file: Option<String>,
@@ -742,6 +742,209 @@ impl CodegenJs {
                     src
                 )
             }
+
+            Expr::Template(nodes) => self.emit_template_iife(nodes),
+        }
+    }
+
+    // ── ArtML template codegen ────────────────────────────────────────────────
+
+    fn emit_template_iife(&mut self, nodes: &[TemplateNode]) -> String {
+        // Generate an IIFE that builds and returns a DOM node/fragment.
+        let mut buf = String::new();
+        let mut counter = 0usize;
+
+        buf.push_str("(() => {\n");
+
+        if nodes.len() == 1 {
+            let var = format!("__el_{}", counter);
+            counter += 1;
+            Self::emit_template_node_into(&mut buf, &var, &mut counter, nodes[0].clone(), self);
+            buf.push_str(&format!("  return {};\n", var));
+        } else {
+            let frag = format!("__frag_{}", counter);
+            counter += 1;
+            buf.push_str(&format!("  const {} = document.createDocumentFragment();\n", frag));
+            for node in nodes {
+                let child_var = format!("__el_{}", counter);
+                counter += 1;
+                Self::emit_template_node_into(&mut buf, &child_var, &mut counter, node.clone(), self);
+                buf.push_str(&format!("  {}.appendChild({});\n", frag, child_var));
+            }
+            buf.push_str(&format!("  return {};\n", frag));
+        }
+
+        buf.push_str("})()");
+        buf
+    }
+
+    fn emit_template_node_into(
+        buf: &mut String,
+        var: &str,
+        counter: &mut usize,
+        node: TemplateNode,
+        cg: &mut CodegenJs,
+    ) {
+        match node {
+            TemplateNode::Element { tag, attrs, children } => {
+                buf.push_str(&format!("  const {} = document.createElement(\"{}\");\n", var, tag));
+                Self::emit_attrs_into(buf, var, counter, &attrs, cg);
+                Self::emit_children_into(buf, var, counter, &children, cg);
+            }
+
+            TemplateNode::Component { name, attrs, children } => {
+                let props: Vec<String> = attrs
+                    .iter()
+                    .map(|a| {
+                        let val = match &a.value {
+                            TemplateAttrValue::Static(s) => format!("\"{}\"", CodegenJs::escape_string(s)),
+                            TemplateAttrValue::Dynamic(e) | TemplateAttrValue::EventHandler(e) => cg.emit_expr(e),
+                            TemplateAttrValue::Flag => "true".to_string(),
+                        };
+                        format!("{}: {}", a.name, val)
+                    })
+                    .collect();
+                let has_children = !children.is_empty();
+                if has_children {
+                    let frag = format!("__frag_{}", counter);
+                    *counter += 1;
+                    buf.push_str(&format!("  const {} = document.createDocumentFragment();\n", frag));
+                    Self::emit_children_into(buf, &frag, counter, &children, cg);
+                    buf.push_str(&format!("  const {} = new {}({{ {}, children: {} }});\n",
+                        var, name, props.join(", "), frag));
+                } else {
+                    buf.push_str(&format!("  const {} = new {}({{ {} }});\n", var, name, props.join(", ")));
+                }
+            }
+
+            TemplateNode::Text(text) => {
+                buf.push_str(&format!("  const {} = document.createTextNode(\"{}\");\n",
+                    var, CodegenJs::escape_string(&text)));
+            }
+
+            TemplateNode::Expr(expr) => {
+                let val = cg.emit_expr(&expr);
+                buf.push_str(&format!("  const {} = document.createTextNode(String({}));\n", var, val));
+            }
+
+            TemplateNode::If { cond, then_children, else_children } => {
+                let cond_js = cg.emit_expr(&cond);
+                buf.push_str(&format!("  const {} = document.createDocumentFragment();\n", var));
+                buf.push_str(&format!("  if ({}) {{\n", cond_js));
+                let then_frag = format!("__then_{}", counter);
+                *counter += 1;
+                buf.push_str(&format!("    const {} = document.createDocumentFragment();\n", then_frag));
+                for child in &then_children {
+                    let cv = format!("__el_{}", counter);
+                    *counter += 1;
+                    // indent inside if
+                    let mut inner_buf = String::new();
+                    Self::emit_template_node_into(&mut inner_buf, &cv, counter, child.clone(), cg);
+                    for line in inner_buf.lines() {
+                        buf.push_str("  ");
+                        buf.push_str(line);
+                        buf.push('\n');
+                    }
+                    buf.push_str(&format!("    {}.appendChild({});\n", then_frag, cv));
+                }
+                buf.push_str(&format!("    {}.appendChild({});\n", var, then_frag));
+                if !else_children.is_empty() {
+                    buf.push_str("  } else {\n");
+                    let else_frag = format!("__else_{}", counter);
+                    *counter += 1;
+                    buf.push_str(&format!("    const {} = document.createDocumentFragment();\n", else_frag));
+                    for child in &else_children {
+                        let cv = format!("__el_{}", counter);
+                        *counter += 1;
+                        let mut inner_buf = String::new();
+                        Self::emit_template_node_into(&mut inner_buf, &cv, counter, child.clone(), cg);
+                        for line in inner_buf.lines() {
+                            buf.push_str("  ");
+                            buf.push_str(line);
+                            buf.push('\n');
+                        }
+                        buf.push_str(&format!("    {}.appendChild({});\n", else_frag, cv));
+                    }
+                    buf.push_str(&format!("    {}.appendChild({});\n", var, else_frag));
+                }
+                buf.push_str("  }\n");
+            }
+
+            TemplateNode::For { var: loop_var, items, key: _, children } => {
+                let items_js = cg.emit_expr(&items);
+                buf.push_str(&format!("  const {} = document.createDocumentFragment();\n", var));
+                buf.push_str(&format!("  for (const {} of {}) {{\n", loop_var, items_js));
+                for child in &children {
+                    let cv = format!("__el_{}", counter);
+                    *counter += 1;
+                    let mut inner_buf = String::new();
+                    Self::emit_template_node_into(&mut inner_buf, &cv, counter, child.clone(), cg);
+                    for line in inner_buf.lines() {
+                        buf.push_str("  ");
+                        buf.push_str(line);
+                        buf.push('\n');
+                    }
+                    buf.push_str(&format!("    {}.appendChild({});\n", var, cv));
+                }
+                buf.push_str("  }\n");
+            }
+
+            TemplateNode::Slot { name, children } => {
+                let slot_id = name.as_deref().unwrap_or("default");
+                buf.push_str(&format!(
+                    "  const {} = document.createElement(\"slot\");\n", var));
+                if slot_id != "default" {
+                    buf.push_str(&format!("  {}.setAttribute(\"name\", \"{}\");\n", var, slot_id));
+                }
+                Self::emit_children_into(buf, var, counter, &children, cg);
+            }
+        }
+    }
+
+    fn emit_attrs_into(
+        buf: &mut String,
+        var: &str,
+        counter: &mut usize,
+        attrs: &[core::ast::TemplateAttr],
+        cg: &mut CodegenJs,
+    ) {
+        for attr in attrs {
+            match &attr.value {
+                TemplateAttrValue::Static(s) => {
+                    buf.push_str(&format!("  {}.setAttribute(\"{}\", \"{}\");\n",
+                        var, attr.name, CodegenJs::escape_string(s)));
+                }
+                TemplateAttrValue::Dynamic(expr) => {
+                    let val = cg.emit_expr(expr);
+                    buf.push_str(&format!("  {}.setAttribute(\"{}\", String({}));\n",
+                        var, attr.name, val));
+                }
+                TemplateAttrValue::EventHandler(expr) => {
+                    let event_name = attr.name.strip_prefix("on:").unwrap_or(&attr.name);
+                    let handler = cg.emit_expr(expr);
+                    buf.push_str(&format!("  {}.addEventListener(\"{}\", () => {{ {}; }});\n",
+                        var, event_name, handler));
+                }
+                TemplateAttrValue::Flag => {
+                    buf.push_str(&format!("  {}.setAttribute(\"{}\", \"\");\n", var, attr.name));
+                }
+            }
+            let _ = counter; // suppress unused warning
+        }
+    }
+
+    fn emit_children_into(
+        buf: &mut String,
+        parent: &str,
+        counter: &mut usize,
+        children: &[TemplateNode],
+        cg: &mut CodegenJs,
+    ) {
+        for child in children {
+            let cv = format!("__el_{}", counter);
+            *counter += 1;
+            Self::emit_template_node_into(buf, &cv, counter, child.clone(), cg);
+            buf.push_str(&format!("  {}.appendChild({});\n", parent, cv));
         }
     }
 

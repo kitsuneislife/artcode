@@ -325,6 +325,7 @@ impl TypeChecker {
                 Type::Enum(n)
             }
             Expr::SpawnActor { .. } => Type::Unknown,
+            Expr::Template(_) => Type::Unknown,
         }
     }
 
