@@ -37,7 +37,7 @@
 
             <section class="glass" style="padding: 24px; margin-bottom: 24px;">
                 <h2 style="margin-bottom: 10px;">v0.4.0-dev <span style="font-size: 0.75rem; background: var(--accent, #7c6af7); color: #fff; border-radius: 4px; padding: 2px 8px; vertical-align: middle; margin-left: 8px;">Em desenvolvimento</span></h2>
-                <p style="margin-bottom: 12px;">Primeiro passo para o ArtKit: compilação para JavaScript, parser de templates ArtML, type checker estático, debug shell interativo e stdlib de strings.</p>
+                <p style="margin-bottom: 12px;">Primeiro passo para o ArtKit: compilação para JavaScript, parser de templates ArtML, type checker estático, debug shell interativo, stdlib de strings e LSP completo.</p>
 
                 <h3>1. Codegen JavaScript</h3>
                 <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
@@ -79,6 +79,17 @@
                     <li>Inferência local: <code>let x = 42</code> → <code>x: Int</code> rastreado no escopo sem anotação explícita.</li>
                     <li>Verificação de chamadas: <code>func f(x: Int)</code> rejeita argumento <code>String</code> com diagnóstico claro antes do codegen.</li>
                     <li>Inferência paramétrica: <code>func identity&lt;T&gt;(x: T)</code> infere <code>T = Int</code> na chamada com inteiro; sem anotação manual.</li>
+                </ul>
+
+                <h3>6. LSP — Completion, Hover, Goto-Def e Rename</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li><code>textDocument/completion</code> — builtins (~50), variáveis em escopo, funções, structs e enums com kind LSP correto (function=3, struct=7, enum=13, variable=6).</li>
+                    <li><code>textDocument/definition</code> — goto-def para <code>let</code>, funções, structs, enums e imports, incluindo arquivos não abertos no editor.</li>
+                    <li><code>textDocument/rename</code> — renomeia símbolo em todos os arquivos do workspace.</li>
+                    <li>Hover com assinatura real de função (<code>func f(x: Int) -> String</code>) e campos de struct/enum.</li>
+                    <li><code>textDocument/semanticTokens/full</code> — highlight semântico (tipos, funções, variáveis).</li>
+                    <li>Arquitetura refatorada: <code>process_request</code> retorna <code>Option&lt;Value&gt;</code> tornando o servidor testável sem IDE. 6 smoke tests de harness JSON.</li>
+                    <li>Guias de configuração em <code>docs/guides/lsp_vscode.md</code> e <code>docs/guides/lsp_neovim.md</code>.</li>
                 </ul>
             </section>
 

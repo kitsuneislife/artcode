@@ -42,6 +42,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
   (`func f(x: Int)` rejeita argumento `String` na chamada) e inferência paramétrica
   (`func identity<T>(x: T)` infere `T = Int` na chamada com inteiro). Integrado ao pipeline
   `art build --target js` como pré-passo antes do codegen; 12 testes de cobertura.
+- **LSP — completion, goto-def, hover, rename, semantic tokens:** `art lsp` agora expõe
+  `textDocument/completion` (builtins + variáveis + structs/enums com kind correto),
+  `textDocument/definition` (goto-def para `let`, funções, structs, enums, imports),
+  `textDocument/rename` (rename em todos os arquivos do workspace), hover com assinaturas
+  de função reais e campos de struct/enum, `textDocument/semanticTokens/full` (highlight
+  semântico). Arquitetura refatorada com `process_request` testável; 6 smoke tests de
+  harness JSON. Guias de configuração adicionados em `docs/guides/lsp_vscode.md` e
+  `docs/guides/lsp_neovim.md`.
 
 ## [0.3.0] - 2026-05-21
 
