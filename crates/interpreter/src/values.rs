@@ -6,6 +6,8 @@ pub enum RuntimeError {
     Return(ArtValue),
     TypeError(String),
     DebugStepBack,
+    DebugQuit,
+    DebugJumpTo(usize),
 }
 
 impl fmt::Display for RuntimeError {
@@ -14,6 +16,8 @@ impl fmt::Display for RuntimeError {
             RuntimeError::Return(val) => write!(f, "Function returned: {}", val),
             RuntimeError::TypeError(msg) => write!(f, "Type error: {}", msg),
             RuntimeError::DebugStepBack => write!(f, "Debug step back requested"),
+            RuntimeError::DebugQuit => write!(f, "Debug quit"),
+            RuntimeError::DebugJumpTo(tick) => write!(f, "Debug jump to tick {}", tick),
         }
     }
 }

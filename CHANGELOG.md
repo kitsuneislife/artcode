@@ -18,6 +18,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 - **Stdlib de strings:** 8 novos builtins no prelude — `str_split`, `str_join`, `str_contains`,
   `str_starts_with`, `str_replace`, `str_slice`, `str_to_int`, `str_to_float`. Todos com
   diagnósticos de tipo corretos e 25 testes de cobertura.
+- **TTD Fase 2 — Debug Shell interativo:** `art debug --replay` agora expõe shell completo
+  com `step`, `step-back`, `state` (variáveis com valores, filtrando builtins), `state-at <tick>`
+  (salta para tick específico via fast-forward), `mailbox` (inspeciona mailboxes e status de
+  atores), `breakpoint <line>` (pausa na linha), `continue` (executa até próximo breakpoint),
+  `clear` (limpa breakpoints) e `quit`. Breakpoints são persistentes entre restarts do replay.
+  6 testes de cobertura.
 - **Type checker (`crates/typeck`):** novo crate de verificação estática em compile time.
   Inferência local (`let x = 42` → `x: Int`), verificação de anotações de funções
   (`func f(x: Int)` rejeita argumento `String` na chamada) e inferência paramétrica

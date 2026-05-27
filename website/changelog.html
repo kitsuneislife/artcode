@@ -37,7 +37,7 @@
 
             <section class="glass" style="padding: 24px; margin-bottom: 24px;">
                 <h2 style="margin-bottom: 10px;">v0.4.0-dev <span style="font-size: 0.75rem; background: var(--accent, #7c6af7); color: #fff; border-radius: 4px; padding: 2px 8px; vertical-align: middle; margin-left: 8px;">Em desenvolvimento</span></h2>
-                <p style="margin-bottom: 12px;">Primeiro passo para o ArtKit: compilação para JavaScript e stdlib de strings.</p>
+                <p style="margin-bottom: 12px;">Primeiro passo para o ArtKit: compilação para JavaScript, type checker estático, debug shell interativo e stdlib de strings.</p>
 
                 <h3>1. Codegen JavaScript</h3>
                 <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
@@ -54,7 +54,16 @@
                     <li><code>str_to_int</code> e <code>str_to_float</code> retornam <code>Result&lt;T, String&gt;</code> — sem panics.</li>
                 </ul>
 
-                <h3>3. Type Checker Estático</h3>
+                <h3>3. TTD Debug Shell</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li><code>art debug --replay trace.artlog script.art</code> — abre shell interativo de time-travel debugging.</li>
+                    <li><code>step</code> / <code>step-back</code> — avança ou recua no tempo; <code>continue</code> — executa até o próximo breakpoint.</li>
+                    <li><code>state</code> — exibe todas as variáveis com valores (filtrando builtins); <code>state-at &lt;tick&gt;</code> — salta para tick específico.</li>
+                    <li><code>mailbox</code> — inspeciona mailboxes e status dos atores; <code>breakpoint &lt;line&gt;</code> — pausa na linha especificada.</li>
+                    <li>Breakpoints são persistentes entre restarts do replay.</li>
+                </ul>
+
+                <h3>4. Type Checker Estático</h3>
                 <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
                     <li>Novo crate <code>crates/typeck</code> — verificação de tipos em compile time, integrado ao pipeline <code>art build --target js</code>.</li>
                     <li>Inferência local: <code>let x = 42</code> → <code>x: Int</code> rastreado no escopo sem anotação explícita.</li>

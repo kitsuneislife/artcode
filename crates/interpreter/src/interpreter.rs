@@ -1,6 +1,6 @@
 use crate::type_registry::TypeRegistry;
 use crate::values::{Result, RuntimeError};
-use core::ast::{ArtValue, Expr, Function, ObjHandle, Program, Stmt};
+use core::ast::{ArtValue, Expr, Function, ObjHandle, Program};
 use core::environment::Environment;
 use diagnostics::{Diagnostic, DiagnosticKind, Span};
 use std::cell::{Cell, RefCell};
@@ -109,6 +109,9 @@ pub struct Interpreter {
     pub replayer: Option<crate::replayer::Replayer>,
     pub debug_mode: bool,
     pub fast_forward_until: Option<usize>,
+    pub breakpoints: std::collections::HashSet<usize>,
+    pub debug_jump_to_tick: Option<usize>,
+    pub current_line: usize,
     pub invariant_checks: bool,
     finalizers: HashMap<u64, Rc<Function>>, // finalizers por objeto composto
     // Arena support
@@ -141,7 +144,7 @@ pub struct Interpreter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::ast::ArtValue;
+    use core::ast::{ArtValue, Stmt};
     use std::rc::Rc;
 
     #[test]
@@ -442,6 +445,9 @@ impl Interpreter {
             replayer: None,
             debug_mode: false,
             fast_forward_until: None,
+            breakpoints: std::collections::HashSet::new(),
+            debug_jump_to_tick: None,
+            current_line: 0,
             invariant_checks: false,
             finalizers: HashMap::new(),
             current_arena: None,

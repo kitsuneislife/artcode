@@ -78,10 +78,39 @@ impl Interpreter {
         }
     }
 
+    fn stmt_approx_line(stmt: &core::ast::Stmt) -> usize {
+        match stmt {
+            Stmt::Expression(e) => Self::expr_approx_line(e),
+            Stmt::Let { pattern, .. } => match pattern {
+                core::ast::MatchPattern::Variable(t) | core::ast::MatchPattern::Binding(t) => t.line,
+                _ => 0,
+            },
+            Stmt::Function { name, .. } => name.line,
+            Stmt::If { condition, .. } => Self::expr_approx_line(condition),
+            Stmt::While { condition, .. } => Self::expr_approx_line(condition),
+            Stmt::For { element, .. } => element.line,
+            Stmt::Return { value: Some(e) } => Self::expr_approx_line(e),
+            Stmt::Match { expr, .. } => Self::expr_approx_line(expr),
+            Stmt::StructDecl { name, .. } | Stmt::EnumDecl { name, .. } => name.line,
+            _ => 0,
+        }
+    }
+
+    fn expr_approx_line(expr: &core::ast::Expr) -> usize {
+        match expr {
+            core::ast::Expr::Variable { name } => name.line,
+            core::ast::Expr::Call { callee, .. } => Self::expr_approx_line(callee),
+            core::ast::Expr::FieldAccess { field, .. } => field.line,
+            core::ast::Expr::Binary { left, .. } => Self::expr_approx_line(left),
+            _ => 0,
+        }
+    }
+
     fn debug_prompt(&mut self, stmt: &core::ast::Stmt) -> Result<bool> {
         use std::io::{self, Write};
+        let line = Self::stmt_approx_line(stmt);
         loop {
-            println!("\n[Tick {}] {:?}", self.executed_statements, stmt);
+            println!("\n[tick={} line={}] {}", self.executed_statements, line, Self::stmt_summary(stmt));
             print!("(art-debug) > ");
             let _ = io::stdout().flush();
 
@@ -89,44 +118,150 @@ impl Interpreter {
             if io::stdin().read_line(&mut input).is_err() {
                 break;
             }
-            let input = input.trim();
+            let cmd = input.trim();
 
-            match input {
+            match cmd {
                 "" | "step" | "s" => return Ok(false),
-                "back" | "b" => return Ok(true),
-                "env" => {
-                    println!("Environment bindings:");
-                    for (k, _) in self.environment.borrow().values.iter() {
-                        println!(" - {}", k);
+                "step-back" | "back" | "b" => return Ok(true),
+                "continue" | "c" => {
+                    self.debug_mode = false;
+                    return Ok(false);
+                }
+                "quit" | "q" | "exit" => {
+                    return Err(crate::values::RuntimeError::DebugQuit);
+                }
+                "state" => {
+                    let mut vars: Vec<(String, String)> = self
+                        .environment
+                        .borrow()
+                        .values
+                        .iter()
+                        .filter(|(_, v)| !matches!(v, core::ast::ArtValue::Builtin(_)))
+                        .map(|(k, v)| (k.to_string(), format!("{}", v)))
+                        .collect();
+                    vars.sort_by(|a, b| a.0.cmp(&b.0));
+                    if vars.is_empty() {
+                        println!("  (no user variables in scope yet)");
+                    } else {
+                        println!("  Variables at tick {}:", self.executed_statements);
+                        for (k, v) in &vars {
+                            println!("    {} = {}", k, v);
+                        }
                     }
+                }
+                "mailbox" => {
+                    if self.actors.is_empty() {
+                        println!("  (no actors)");
+                    } else {
+                        for (id, actor) in &self.actors {
+                            let mb = actor.mailbox.len();
+                            let limit = actor.mailbox_limit;
+                            let status = if actor.finished { "finished" } else if actor.parked { "parked" } else { "running" };
+                            println!("  actor #{}: mailbox={}/{} status={}", id, mb, limit, status);
+                            for (i, msg) in actor.mailbox.iter().iter().enumerate().take(5) {
+                                println!("    [{}] sender={:?} priority={} payload={}",
+                                    i,
+                                    msg.sender,
+                                    msg.priority,
+                                    msg.payload
+                                );
+                            }
+                            if mb > 5 {
+                                println!("    ... ({} more)", mb - 5);
+                            }
+                        }
+                    }
+                }
+                "breakpoints" | "bps" => {
+                    let mut bps: Vec<usize> = self.breakpoints.iter().cloned().collect();
+                    bps.sort_unstable();
+                    if bps.is_empty() {
+                        println!("  (no breakpoints)");
+                    } else {
+                        for bp in bps {
+                            println!("  breakpoint at line {}", bp);
+                        }
+                    }
+                }
+                "clear" => {
+                    self.breakpoints.clear();
+                    println!("  all breakpoints cleared");
                 }
                 "help" => {
-                    println!("Commands:");
-                    println!("  step (s)      - Avança 1 statement (Default)");
-                    println!(
-                        "  back (b)      - Volta 1 statement no tempo via snapshotting rápido"
-                    );
-                    println!(
-                        "  inspect <var> - Avalia nome da variável no contexto local ou global"
-                    );
-                    println!("  env           - Lista escopo");
-                    println!("  help          - Mostra essa ajuda");
+                    println!("  step (s)             avança 1 statement");
+                    println!("  step-back (b)        recua no tempo para o tick anterior");
+                    println!("  continue (c)         executa até o próximo breakpoint");
+                    println!("  state                mostra todas as variáveis com valores");
+                    println!("  state-at <tick>      salta diretamente para o tick");
+                    println!("  mailbox              inspeciona mailboxes dos atores");
+                    println!("  breakpoint <line>    adiciona breakpoint na linha");
+                    println!("  breakpoints          lista todos os breakpoints");
+                    println!("  clear                limpa todos os breakpoints");
+                    println!("  quit (q)             sai do debugger");
                 }
-                other if other.starts_with("inspect ") => {
-                    let var = &other[8..];
-                    if let Some(val) = self.get_global(var) {
-                        println!("{} = {:?}", var, val);
+                other if other.starts_with("state-at ") || other.starts_with("goto ") => {
+                    let rest = other.splitn(2, ' ').nth(1).unwrap_or("").trim();
+                    if let Ok(tick) = rest.parse::<usize>() {
+                        return Err(crate::values::RuntimeError::DebugJumpTo(tick));
                     } else {
-                        println!("Variable '{}' not found.", var);
+                        println!("  usage: state-at <tick number>");
                     }
                 }
-                _ => println!("Unknown command. Type 'help'."),
+                other if other.starts_with("breakpoint ") || other.starts_with("break ") => {
+                    let rest = other.splitn(2, ' ').nth(1).unwrap_or("").trim();
+                    if let Ok(n) = rest.parse::<usize>() {
+                        self.breakpoints.insert(n);
+                        println!("  breakpoint set at line {}", n);
+                    } else {
+                        println!("  usage: breakpoint <line number>");
+                    }
+                }
+                _ => println!("  unknown command — type 'help'"),
             }
         }
         Ok(false)
     }
 
+    fn stmt_summary(stmt: &core::ast::Stmt) -> String {
+        match stmt {
+            Stmt::Expression(_) => "expression".to_string(),
+            Stmt::Let { pattern, .. } => {
+                let name = match pattern {
+                    core::ast::MatchPattern::Variable(t) => t.lexeme.clone(),
+                    _ => "?".to_string(),
+                };
+                format!("let {}", name)
+            }
+            Stmt::Function { name, .. } => format!("func {}", name.lexeme),
+            Stmt::If { .. } => "if".to_string(),
+            Stmt::While { .. } => "while".to_string(),
+            Stmt::For { element, .. } => format!("for {}", element.lexeme),
+            Stmt::Return { .. } => "return".to_string(),
+            Stmt::Match { .. } => "match".to_string(),
+            Stmt::Block { .. } => "block".to_string(),
+            Stmt::StructDecl { name, .. } => format!("struct {}", name.lexeme),
+            Stmt::EnumDecl { name, .. } => format!("enum {}", name.lexeme),
+            Stmt::ImplBlock { type_name, .. } => format!("impl {}", type_name),
+            Stmt::SpawnActor { .. } => "spawn actor".to_string(),
+            Stmt::Performant { .. } => "performant".to_string(),
+            _ => "stmt".to_string(),
+        }
+    }
+
     pub(super) fn execute(&mut self, stmt: Stmt) -> Result<()> {
+        let stmt_line = Self::stmt_approx_line(&stmt);
+        if stmt_line > 0 {
+            self.current_line = stmt_line;
+        }
+
+        // Breakpoint check: pause if not already in debug_mode and we hit a breakpoint
+        if !self.debug_mode && self.fast_forward_until.is_none() && !self.breakpoints.is_empty() {
+            if stmt_line > 0 && self.breakpoints.contains(&stmt_line) {
+                println!("Breakpoint hit at line {} (tick {})", stmt_line, self.executed_statements);
+                self.debug_mode = true;
+            }
+        }
+
         if self.debug_mode || self.fast_forward_until.is_some() {
             let should_prompt = match self.fast_forward_until {
                 Some(target) => self.executed_statements >= target,
@@ -332,7 +467,9 @@ impl Interpreter {
             } => match self.execute(*try_branch) {
                 Ok(()) => Ok(()),
                 Err(RuntimeError::Return(v)) => Err(RuntimeError::Return(v)),
-                Err(RuntimeError::DebugStepBack) => Err(RuntimeError::DebugStepBack),
+                Err(e @ RuntimeError::DebugStepBack)
+                | Err(e @ RuntimeError::DebugQuit)
+                | Err(e @ RuntimeError::DebugJumpTo(_)) => Err(e),
                 Err(RuntimeError::TypeError(msg)) => {
                     let previous_env = self.environment.clone();
                     let (p_depth, p_arena) = {

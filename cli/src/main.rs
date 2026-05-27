@@ -559,62 +559,84 @@ fn run_debug_repl(script_path: &str, replay_path: &str) {
     let source = match fs::read_to_string(script_path) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("Erro ao carregar script base: {}", e);
+            eprintln!("error: cannot read '{}': {}", script_path, e);
             return;
         }
     };
 
-    let mut target_tick = 0;
-    println!(">>> ARTCODE TIME-TRAVEL DEBUGGER <<<");
-    println!(
-        "Type 'help' for commands. File loaded: {} (Trace: {})",
-        script_path, replay_path
-    );
-
-    loop {
-        let mut lexer = Lexer::new(source.clone());
-        let tokens = match lexer.scan_tokens() {
-            Ok(t) => t,
-            Err(e) => {
-                eprintln!("Lexer error in debug replay: {:?}", e);
-                continue;
-            }
-        };
-        let mut parser = Parser::new(tokens);
-        let (program, _) = parser.parse();
-
-        let mut interpreter = Interpreter::with_prelude();
-        if let Err(e) = interpreter.enable_replayer(replay_path) {
-            eprintln!("Falha grave ao criar motor de replay: {}", e);
+    // Parse once — reused across restarts (replay re-creates interpreter each time)
+    let tokens = match Lexer::new(source.clone()).scan_tokens() {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("error: {}", format_diagnostic(&source, &e));
             return;
         }
+    };
+    let (program, parse_diags) = Parser::new(tokens).parse();
+    for d in &parse_diags {
+        eprintln!("{}", format_diagnostic(&source, d));
+    }
+
+    println!("art debug — time-travel debugger");
+    println!("  script : {}", script_path);
+    println!("  trace  : {}", replay_path);
+    println!("  type 'help' for available commands\n");
+
+    // Persistent breakpoints survive across restarts
+    let mut persistent_breakpoints: std::collections::HashSet<usize> = std::collections::HashSet::new();
+    let mut target_tick: usize = 0;
+
+    loop {
+        let mut interpreter = Interpreter::with_prelude();
+        if let Err(e) = interpreter.enable_replayer(replay_path) {
+            eprintln!("error: cannot open trace file '{}': {}", replay_path, e);
+            return;
+        }
+
+        // Restore breakpoints from previous iteration
+        interpreter.breakpoints = persistent_breakpoints.clone();
 
         if target_tick > 0 {
             interpreter.set_debug_mode(false);
             interpreter.fast_forward_until = Some(target_tick);
-            if let Some((ck_tick, _payload)) = interpreter
+            // Find nearest checkpoint to speed up seek
+            if let Some((ck_tick, _)) = interpreter
                 .replayer
                 .as_ref()
                 .and_then(|r| r.find_checkpoint_before(target_tick))
             {
-                println!("=> checkpoint heuristic: nearest keyframe tick={}", ck_tick);
+                if ck_tick > 0 {
+                    println!("  seeking via checkpoint at tick {} ...", ck_tick);
+                }
             }
         } else {
             interpreter.set_debug_mode(true);
         }
 
-        match interpreter.interpret(program) {
-            Err(e) if e.to_string().contains("DEBUG_STEP_BACK") => {
+        use interpreter::RuntimeError;
+        match interpreter.interpret(program.clone()) {
+            Err(RuntimeError::DebugStepBack) => {
                 target_tick = interpreter.executed_statements.saturating_sub(1);
-                println!("<< Time-Traveling to tick {}...", target_tick);
+                persistent_breakpoints = interpreter.breakpoints.clone();
+                println!("  time-traveling to tick {} ...", target_tick);
                 continue;
             }
-            Err(e) => {
-                eprintln!("Erro fatal do debugger: {}", e);
+            Err(RuntimeError::DebugJumpTo(tick)) => {
+                target_tick = tick;
+                persistent_breakpoints = interpreter.breakpoints.clone();
+                println!("  jumping to tick {} ...", target_tick);
+                continue;
+            }
+            Err(RuntimeError::DebugQuit) => {
+                println!("  debugger exited.");
                 break;
             }
-            Ok(_) => {
-                println!("Program exited normally.");
+            Err(RuntimeError::Return(_)) | Ok(_) => {
+                println!("  program reached end normally (tick {}).", interpreter.executed_statements);
+                break;
+            }
+            Err(RuntimeError::TypeError(msg)) => {
+                eprintln!("  runtime error: {}", msg);
                 break;
             }
         }
