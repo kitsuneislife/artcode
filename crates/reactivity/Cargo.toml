@@ -1,0 +1,12 @@
+[package]
+name = "reactivity"
+version = "0.5.0"
+edition = "2021"
+
+[dependencies]
+core = { path = "../core", package = "core" }
+diagnostics = { path = "../diagnostics" }
+
+[dev-dependencies]
+lexer = { path = "../lexer" }
+parser = { path = "../parser" }

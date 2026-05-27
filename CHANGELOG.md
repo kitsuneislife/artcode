@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 ## [Unreleased]
 
 ### Added
+- **Bloco D — ReactivityPass e grafo de dependências (`crates/reactivity/`):**
+  - Novo crate `reactivity`: `DepGraph` com nós `Source`/`Derived`/`Sink`, arestas tipadas
+  - `ReactivityPass::analyse` visita `Stmt::ComponentBlock` e constrói DAG de dependências
+  - Tarjan SCC para detecção de ciclos em memos — emite diagnóstico `reactive cycle detected`
+  - Codegen JS atualizado: `set_X(v)` recomputa memos em ordem topológica e atualiza apenas os text nodes afetados (text nodes nomeados `__txt_X_N` para cada referência reativa no template)
+  - 4 testes: DAG acíclico válido (×2), ciclo entre memos detectado (×2)
+
 - **Bloco B — `component {}` e qualificadores de binding:**
   - Lexer: 6 novos tokens — `component`, `view`, `state`, `prop`, `memo`, `ref`
   - AST: `Stmt::ComponentBlock { name, bindings, view }`, `Stmt::QualifiedBinding { qualifier, name, type_ann, value }`, `enum BindingQualifier { State, Prop, Memo, Ref }`

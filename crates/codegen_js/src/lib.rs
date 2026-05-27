@@ -40,6 +40,12 @@ pub struct CodegenJs {
     gen_col: u32,
     source_map: SourceMapBuilder,
     options: CodegenOptions,
+    /// reactive binding names in scope during component emission
+    reactive_names: std::collections::HashSet<String>,
+    /// (binding_name, txt_node_var) pairs collected while emitting view nodes
+    reactive_txt_nodes: Vec<(String, String)>,
+    /// counter for unique text node variable names
+    txt_node_counter: usize,
 }
 
 impl CodegenJs {
@@ -51,6 +57,9 @@ impl CodegenJs {
             gen_col: 0,
             source_map: SourceMapBuilder::new(),
             options,
+            reactive_names: std::collections::HashSet::new(),
+            reactive_txt_nodes: Vec::new(),
+            txt_node_counter: 0,
         }
     }
 
@@ -515,12 +524,33 @@ impl CodegenJs {
 
     fn emit_component(&mut self, name: &str, bindings: &[Stmt], view: &[core::ast::TemplateNode]) {
         use core::ast::{BindingQualifier, Stmt as S};
+        use reactivity::{NodeKind, ReactivityPass};
+
+        // Run reactivity analysis to get the dependency graph
+        let comp_stmt = S::ComponentBlock {
+            name: name.to_string(),
+            bindings: bindings.to_vec(),
+            view: view.to_vec(),
+        };
+        let pass = ReactivityPass::analyse(&comp_stmt);
+        let graph = pass.graph;
+
+        // Populate reactive_names for use in emit_template_node_create
+        self.reactive_names.clear();
+        self.reactive_txt_nodes.clear();
+        self.txt_node_counter = 0;
+        for b in bindings {
+            if let S::QualifiedBinding { name: n, .. } = b {
+                self.reactive_names.insert(n.lexeme.clone());
+            }
+        }
+
         let ind = self.indent_str();
-        // function <Name>_create(host) { ... }
         self.write(&format!("{}function {}_create(host) {{\n", ind, Self::js_ident(name)));
         self.indent += 1;
         let ind2 = self.indent_str();
-        // emit state declarations
+
+        // Emit binding declarations
         for b in bindings {
             if let S::QualifiedBinding { qualifier, name: n, value, .. } = b {
                 let val = value.as_deref().map(|v| self.emit_expr(v)).unwrap_or_else(|| "undefined".to_string());
@@ -538,17 +568,10 @@ impl CodegenJs {
                         self.write(&format!("{}let {} = {};\n", ind2, Self::js_ident(&n.lexeme), val));
                     }
                 }
-                // generate set_X updater for state bindings
-                if matches!(qualifier, BindingQualifier::State) {
-                    let vname = Self::js_ident(&n.lexeme);
-                    self.write(&format!(
-                        "{}function set_{}(v) {{ {} = v; __flush_{}(); }}\n",
-                        ind2, vname, vname, Self::js_ident(name)
-                    ));
-                }
             }
         }
-        // emit DOM construction from view
+
+        // Emit DOM construction — reactive Expr nodes generate named text node vars
         if !view.is_empty() {
             self.write(&format!("{}const __root = document.createDocumentFragment();\n", ind2));
             for node in view {
@@ -556,8 +579,77 @@ impl CodegenJs {
             }
             self.write(&format!("{}host.appendChild(__root);\n", ind2));
         }
-        // flush function for batched updates
-        self.write(&format!("{}function __flush_{}() {{}}\n", ind2, Self::js_ident(name)));
+
+        // Snapshot text node map before generating set_X functions
+        let txt_nodes: Vec<(String, String)> = std::mem::take(&mut self.reactive_txt_nodes);
+
+        // Generate set_X(v) for each state binding using the dep graph
+        for b in bindings {
+            if let S::QualifiedBinding { qualifier: BindingQualifier::State, name: n, .. } = b {
+                let state_name = n.lexeme.clone();
+                let js_state = Self::js_ident(&state_name);
+
+                // Collect memos that transitively depend on this state, in topo order
+                let dep_memos: Vec<String> = if let Some(state_id) = graph.node_by_name(&state_name) {
+                    let dependents = graph.dependents_of(state_id);
+                    let mut memo_names: Vec<String> = dependents
+                        .iter()
+                        .filter(|&&id| graph.nodes[id.0].kind == NodeKind::Derived)
+                        .map(|&id| graph.nodes[id.0].name.clone())
+                        .collect();
+                    // Preserve declaration order (topological)
+                    memo_names.sort_by_key(|mn| {
+                        bindings.iter().position(|b| {
+                            matches!(b, S::QualifiedBinding { name: nb, qualifier: BindingQualifier::Memo, .. } if nb.lexeme == *mn)
+                        }).unwrap_or(usize::MAX)
+                    });
+                    memo_names
+                } else {
+                    Vec::new()
+                };
+
+                // Collect text nodes that show this state or any affected memo
+                let affected_names: std::collections::HashSet<&str> = std::iter::once(state_name.as_str())
+                    .chain(dep_memos.iter().map(|s| s.as_str()))
+                    .collect();
+                let affected_txts: Vec<(&str, &str)> = txt_nodes
+                    .iter()
+                    .filter(|(bname, _)| affected_names.contains(bname.as_str()))
+                    .map(|(bname, tvar)| (bname.as_str(), tvar.as_str()))
+                    .collect();
+
+                self.write(&format!("{}function set_{}(v) {{\n", ind2, js_state));
+                self.indent += 1;
+                let ind3 = self.indent_str();
+                self.write(&format!("{}{} = v;\n", ind3, js_state));
+
+                // Recompute memos in declaration order
+                for memo_name in &dep_memos {
+                    if let Some(S::QualifiedBinding { value: Some(memo_expr), .. }) = bindings.iter().find(|b| {
+                        matches!(b, S::QualifiedBinding { name: nb, qualifier: BindingQualifier::Memo, .. } if nb.lexeme == *memo_name)
+                    }) {
+                        let memo_expr_clone = memo_expr.as_ref().clone();
+                        let memo_js = self.emit_expr(&memo_expr_clone);
+                        self.write(&format!("{}{} = {};\n", ind3, Self::js_ident(memo_name), memo_js));
+                    }
+                }
+
+                // Update text node sinks
+                for (bname, tvar) in &affected_txts {
+                    self.write(&format!("{}{}.textContent = String({});\n", ind3, tvar, Self::js_ident(bname)));
+                }
+
+                self.indent -= 1;
+                self.write(&format!("{}}}\n", ind2));
+            }
+        }
+
+        // Restore txt_nodes so subsequent calls work cleanly
+        self.reactive_txt_nodes = txt_nodes;
+        // Clear reactive context
+        self.reactive_names.clear();
+        self.reactive_txt_nodes.clear();
+
         self.indent -= 1;
         self.write(&format!("{}}}\n", ind));
     }
@@ -604,7 +696,22 @@ impl CodegenJs {
             }
             TemplateNode::Expr(e) => {
                 let js = self.emit_expr(e);
-                self.write(&format!("{}{}.appendChild(document.createTextNode(String({})));\n", ind, parent, js));
+                // If the expression is a simple variable reference to a reactive binding,
+                // generate a named text node so set_X can update it surgically.
+                let reactive_var = if let core::ast::Expr::Variable { name: vt } = e.as_ref() {
+                    if self.reactive_names.contains(&vt.lexeme) {
+                        Some(vt.lexeme.clone())
+                    } else { None }
+                } else { None };
+                if let Some(var_name) = reactive_var {
+                    let txt_var = format!("__txt_{}_{}", Self::js_ident(&var_name), self.txt_node_counter);
+                    self.txt_node_counter += 1;
+                    self.write(&format!("{}const {} = document.createTextNode(String({}));\n", ind, txt_var, js));
+                    self.write(&format!("{}{}.appendChild({});\n", ind, parent, txt_var));
+                    self.reactive_txt_nodes.push((var_name, txt_var));
+                } else {
+                    self.write(&format!("{}{}.appendChild(document.createTextNode(String({})));\n", ind, parent, js));
+                }
             }
             TemplateNode::Component { name: cname, .. } => {
                 self.write(&format!("{}{}_create({});\n", ind, Self::js_ident(cname), parent));

@@ -15,6 +15,7 @@ members = [
     "crates/jit",
     "crates/codegen_js",
     "crates/typeck",
+    "crates/reactivity",
     "fuzz",
 ]
 

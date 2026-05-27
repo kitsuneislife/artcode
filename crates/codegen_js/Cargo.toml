@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 core = { path = "../core" }
+reactivity = { path = "../reactivity" }
 
 [dev-dependencies]
 lexer = { path = "../lexer" }
