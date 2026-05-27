@@ -5,6 +5,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-27
+
 ### Added
 - **Parser ArtML (`crates/parser`):** suporte a templates declarativos embutidos na linguagem.
   `<tag>`, `<tag attr="val">`, `<tag attr={expr}>`, `<tag on:event={handler}>`, `<Tag />` (componente),
@@ -73,6 +75,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
   semântico). Arquitetura refatorada com `process_request` testável; 6 smoke tests de
   harness JSON. Guias de configuração adicionados em `docs/guides/lsp_vscode.md` e
   `docs/guides/lsp_neovim.md`.
+
+### Deferred to v0.5
+- Qualificadores `state`/`prop`/`memo`/`ref` no lexer e parser — depende de `component {}`.
+- Regras de diagnóstico para `prop` mutada e `memo` com dependência ausente — depende de `component {}`.
+- TTD delta snapshots e integração DAP mínima — fora de escopo v0.4.
 
 ## [0.3.0] - 2026-05-21
 

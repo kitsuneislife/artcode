@@ -7,7 +7,7 @@
 	<a href="https://github.com/kitsuneislife/artcode"><img alt="stars - artcode" src="https://img.shields.io/github/stars/kitsuneislife/artcode?style=social" /></a>
 </p>
 
-Implementação experimental de uma linguagem interpretada em Rust — **v0.3.0** (2026-05-21).
+Implementação experimental de uma linguagem interpretada em Rust — **v0.4.0** (2026-05-27).
 
 # Complexidade Progressiva
 
@@ -20,8 +20,9 @@ generics com constraints, actors e capabilities para problemas avançados.
 - Structs, Enums (variantes com payload) e pattern matching com guards
 - Loops nativos (`while`, `for`), tuplas e destructuring (`let (a, b) = value`)
 - Funções, closures com captura léxica e métodos com auto-binding de `self`
-- **`impl Type { }` blocks** — syntax para agrupar métodos por tipo (novo em v0.3)
-- **Generics com constraints** — `func foo<T: Numeric>(x: T)` valida tipos em runtime (novo em v0.3)
+- `impl Type { }` blocks — syntax para agrupar métodos por tipo
+- Generics com constraints — `func foo<T: Numeric>(x: T)` valida tipos em runtime
+- **Templates ArtML** — `<div class="x">`, `<input value={expr} />`, `<button on:click={fn}>`, `<if cond={x}>`, `<for item in {items} key={id}>` (novo em v0.4)
 - f-Strings com format specs (`upper`, `lower`, `trim`, `hex`, `padN`, `debug`)
 - Error handling explícito: `try/catch` + operador `?` + enums `Result`/`Option`
 - Modo `--pure` para execução sem I/O e sem não-determinismo
@@ -41,9 +42,12 @@ generics com constraints, actors e capabilities para problemas avançados.
 
 ## Tooling
 
-- LSP com diagnósticos, autocomplete e goto-definition (`art lsp`)
-- **Diagnósticos com linha:coluna** em erros de runtime (novo em v0.3)
-- **REPL limpo** — exibe `=> valor` sem ruído de métricas (novo em v0.3)
+- **`art build --target js`** — transpila para JavaScript ES2022 com source maps V3 (novo em v0.4)
+- **`art build --bundle`** — bundle autocontido para Node.js e browser (novo em v0.4)
+- **Type checker** — inferência local, verificação de anotações, inferência paramétrica (novo em v0.4)
+- **LSP completo** — completion, goto-def, hover, rename, semantic tokens (`art lsp`)
+- **TTD shell** — `art debug --replay` com `step`, `breakpoint`, `state-at` (novo em v0.4)
+- REPL limpo — exibe `=> valor` sem ruído de métricas
 - Time-Travel Debugging: `--record` / `--replay` determinístico
 - Linter com detecção de hotspot de alocação (`art lint`)
 - Formatter (`art format`), autodoc de stdlib (`art doc std`)
@@ -97,9 +101,13 @@ art lint meu_script.art
 # Autodoc da stdlib
 art doc std
 
+# Compilar para JavaScript
+art build examples/00_hello.art --target js --out dist/
+art build examples/00_hello.art --target js --bundle   # bundle autocontido
+
 # Time-travel: gravar e reproduzir
 art run --record trace.artlog examples/44_ttd_keyframes.art
-art run --replay trace.artlog examples/44_ttd_keyframes.art
+art debug --replay trace.artlog examples/44_ttd_keyframes.art
 
 # Build e testes
 cargo test --all
@@ -139,12 +147,14 @@ Links rápidos:
 crates/
   core/          AST, tokens, ambiente
   lexer/         Tokenizer
-  parser/        Parser recursivo descendente
+  parser/        Parser recursivo descendente (inclui ArtML)
   interpreter/   Runtime (eval, exec, gc, actors, builtins…)
   diagnostics/   Erros com spans e sugestões
+  codegen_js/    Codegen JavaScript ES2022 + source maps V3
+  typeck/        Type checker estático
   ir/            Representação intermediária
   jit/           JIT stub (LLVM, opcional)
-cli/             Binário `art` com todos os subcomandos
+cli/             Binário `art` com todos os subcomandos + bundler
 ```
 
 ---

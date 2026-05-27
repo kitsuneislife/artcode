@@ -1420,23 +1420,25 @@ else_:
                     <h1>Roadmap</h1>
                     <p>Roadmap detalhado em <code>docs/roadmap.md</code>. Histórico em <code>CHANGELOG.md</code>.</p>
                     <p>Para migração entre versões, use o guia <code>docs/guides/migration.md</code> e o utilitário <code>art upgrade --check</code>.</p>
-                    <h2>v0.3.0 (atual)</h2>
+                    <h2>v0.4.0 (atual)</h2>
                     <ul>
-                        <li>✅ Lexer, Parser, Interpreter e Type Checker completos</li>
-                        <li>✅ <code>impl Type { }</code> blocks e generics com constraints em runtime</li>
-                        <li>✅ Diagnósticos com linha:coluna em erros de builtins</li>
-                        <li>✅ ARC, weak/unowned, Arenas, Finalizers, Actors, Capabilities</li>
-                        <li>✅ IPC/FFI baseline, Time-Travel Debugging, CLI unificada</li>
-                        <li>✅ <code>interpreter.rs</code> refatorado de 6.734 → 1.715 linhas</li>
+                        <li>✅ Codegen JavaScript ES2022 + bundler autocontido</li>
+                        <li>✅ Parser ArtML com templates declarativos embutidos na linguagem</li>
+                        <li>✅ Type checker estático com inferência local e paramétrica</li>
+                        <li>✅ Diagnósticos de template: <code>on:click</code> não-callable, componente sem import</li>
+                        <li>✅ TTD Fase 2: debug shell interativo com <code>step</code>, <code>breakpoint</code>, <code>state-at</code></li>
+                        <li>✅ LSP completo: completion, goto-def, hover, rename, semantic tokens</li>
+                        <li>✅ Stdlib de strings: 8 builtins <code>str_*</code></li>
+                        <li>✅ Robustez: fuzzing duplo, property tests, CI regression detector</li>
                     </ul>
-                    <h2>v0.4+ (planejado)</h2>
+                    <h2>v0.5+ (planejado)</h2>
                     <ul>
+                        <li>Qualificadores <code>state</code>/<code>prop</code>/<code>memo</code> e bloco <code>component {}</code> (ArtKit)</li>
+                        <li>ReactivityPass — grafo de dependências e scheduler</li>
+                        <li>Runtime DOM + lifecycle hooks</li>
+                        <li>WASM target funcional</li>
+                        <li>TTD delta snapshots e integração DAP</li>
                         <li>JIT funcional com LLVM e PGO</li>
-                        <li>FFI Rust/C ABI com fronteiras de ownership explícitas</li>
-                        <li>Time-Travel Debugging fase 2 (shell interativo)</li>
-                        <li>LSP avançado: code actions e análise semântica profunda</li>
-                        <li>WASM target</li>
-                        <li>IR SSA + otimizações intermediárias</li>
                     </ul>
 
                     <h2>Métricas de Sucesso</h2>
@@ -1578,7 +1580,7 @@ else_:
                 <a href="why.html">Por que Artcode?</a>
                 <a href="examples.html">Exemplos</a>
             </div>
-            <p>Artcode v0.3.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
+            <p>Artcode v0.4.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
                     target="_blank">kitsuneislife</a></p>
         </div>
     </footer>

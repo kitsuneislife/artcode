@@ -239,7 +239,7 @@ checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
 
 [[package]]
 name = "cli"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -264,7 +264,7 @@ dependencies = [
 
 [[package]]
 name = "codegen_js"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "core",
  "lexer",
@@ -279,7 +279,7 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
 name = "core"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "cpufeatures"
@@ -369,7 +369,7 @@ dependencies = [
 
 [[package]]
 name = "diagnostics"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "difflib"
@@ -566,7 +566,7 @@ dependencies = [
 
 [[package]]
 name = "interpreter"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "core",
  "criterion",
@@ -579,7 +579,7 @@ dependencies = [
 
 [[package]]
 name = "ir"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "core",
 ]
@@ -618,7 +618,7 @@ checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 
 [[package]]
 name = "jit"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "inkwell",
  "ir",
@@ -647,7 +647,7 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "lexer"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "core",
  "diagnostics",
@@ -768,7 +768,7 @@ dependencies = [
 
 [[package]]
 name = "parser"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "core",
  "diagnostics",
