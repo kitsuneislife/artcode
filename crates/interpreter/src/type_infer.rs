@@ -258,7 +258,9 @@ impl<'a> TypeInfer<'a> {
             | Stmt::Return { .. }
             | Stmt::Match { .. }
             | Stmt::ShellCommand { .. }
-            | Stmt::Import { .. } => {}
+            | Stmt::Import { .. }
+            | Stmt::ComponentBlock { .. }
+            | Stmt::QualifiedBinding { .. } => {}
             Stmt::Function {
                 name,
                 type_params,
@@ -547,6 +549,7 @@ impl<'a> TypeInfer<'a> {
                     diagnostics::Span::new(0, 0, 0, 0),
                 ));
             }
+            ComponentBlock { .. } | QualifiedBinding { .. } => { /* allowed — compile-time only */ }
         }
     }
 

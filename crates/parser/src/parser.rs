@@ -206,6 +206,8 @@ impl Parser {
             Stmt::Performant { statements }
         } else if self.match_token(TokenType::Impl) {
             self.impl_block()
+        } else if self.match_token(TokenType::Component) {
+            self.component_block()
         } else {
             self.statement()
         }
@@ -231,6 +233,52 @@ impl Parser {
         }
         self.consume(TokenType::RightBrace, "Expect '}' after impl block.");
         Stmt::ImplBlock { type_name, methods }
+    }
+
+    fn component_block(&mut self) -> Stmt {
+        use core::ast::{BindingQualifier, TemplateNode};
+        let name_token = self.consume(TokenType::Identifier, "Expect component name after 'component'.");
+        let name = name_token.lexeme.clone();
+        self.consume(TokenType::LeftBrace, "Expect '{' after component name.");
+        let mut bindings: Vec<Stmt> = Vec::new();
+        let mut view: Vec<TemplateNode> = Vec::new();
+        while !self.is_at_end() && !self.check(&TokenType::RightBrace) {
+            let qualifier = if self.match_token(TokenType::State) {
+                Some(BindingQualifier::State)
+            } else if self.match_token(TokenType::Prop) {
+                Some(BindingQualifier::Prop)
+            } else if self.match_token(TokenType::Memo) {
+                Some(BindingQualifier::Memo)
+            } else if self.match_token(TokenType::Ref) {
+                Some(BindingQualifier::Ref)
+            } else {
+                None
+            };
+            if let Some(qualifier) = qualifier {
+                let name_tok = self.consume(TokenType::Identifier, "Expect binding name.");
+                let type_ann = if self.match_token(TokenType::Colon) {
+                    Some(self.parse_type())
+                } else {
+                    None
+                };
+                let value = if self.match_token(TokenType::Equal) {
+                    Some(Box::new(self.expression()))
+                } else {
+                    None
+                };
+                self.match_token(TokenType::Semicolon);
+                bindings.push(Stmt::QualifiedBinding { qualifier, name: name_tok, type_ann, value });
+            } else if self.match_token(TokenType::View) {
+                self.consume(TokenType::LeftBrace, "Expect '{' after 'view'.");
+                let nodes = expressions::parse_template_nodes(self);
+                self.consume(TokenType::RightBrace, "Expect '}' after view body.");
+                view = nodes;
+            } else {
+                self.advance();
+            }
+        }
+        self.consume(TokenType::RightBrace, "Expect '}' after component block.");
+        Stmt::ComponentBlock { name, bindings, view }
     }
 
     pub fn struct_declaration(&mut self) -> Stmt {

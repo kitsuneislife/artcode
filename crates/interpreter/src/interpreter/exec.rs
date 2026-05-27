@@ -994,6 +994,10 @@ impl Interpreter {
                     }
                 }
             }
+            Stmt::ComponentBlock { .. } | Stmt::QualifiedBinding { .. } => {
+                // Component blocks are a compile-time / codegen concern; runtime no-op.
+                Ok(())
+            }
             Stmt::SpawnActor { body } => {
                 let aid = self.next_actor_id;
                 self.next_actor_id += 1;

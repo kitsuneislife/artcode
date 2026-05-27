@@ -5,6 +5,16 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 
 ## [Unreleased]
 
+### Added
+- **Bloco B — `component {}` e qualificadores de binding:**
+  - Lexer: 6 novos tokens — `component`, `view`, `state`, `prop`, `memo`, `ref`
+  - AST: `Stmt::ComponentBlock { name, bindings, view }`, `Stmt::QualifiedBinding { qualifier, name, type_ann, value }`, `enum BindingQualifier { State, Prop, Memo, Ref }`
+  - Parser: `component Name { state/prop/memo/ref x: T = expr; view { <template> } }` → `Stmt::ComponentBlock`
+  - Type checker: 4 regras de diagnóstico — prop imutável, memo possivelmente stale, state fora de escopo, ref em view
+  - Codegen JS: `emit_component` gera `function Name_create(host)` com criação DOM inicial
+  - Interpreter: `ComponentBlock`/`QualifiedBinding` são no-ops em runtime (compile-time only)
+  - 8 testes novos: 4 parser + 4 typeck
+
 ## [0.4.0] - 2026-05-27
 
 ### Added

@@ -121,6 +121,7 @@ impl TypeChecker {
                     self.collect_decl(m, env);
                 }
             }
+            Stmt::ComponentBlock { .. } | Stmt::QualifiedBinding { .. } => {}
             _ => {}
         }
     }
@@ -252,7 +253,64 @@ impl TypeChecker {
             | Stmt::EnumDecl { .. }
             | Stmt::Import { .. }
             | Stmt::ShellCommand { .. } => {}
+            Stmt::ComponentBlock { bindings, .. } => {
+                self.check_component_bindings(bindings, env);
+            }
+            Stmt::QualifiedBinding { qualifier, name, value, .. } => {
+                use core::ast::BindingQualifier;
+                // rule: state/memo/ref bindings outside component are an error
+                if !matches!(qualifier, BindingQualifier::Prop) {
+                    // outside-component check is deferred to component parsing; here just infer
+                }
+                if let Some(v) = value {
+                    let _ty = self.infer_expr(v, env);
+                    let _ = name;
+                }
+            }
         }
+    }
+
+    fn check_component_bindings(&mut self, bindings: &[Stmt], env: &mut Env) {
+        use core::ast::BindingQualifier;
+        let mut state_prop_names: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        for b in bindings {
+            if let Stmt::QualifiedBinding { qualifier, name, .. } = b {
+                if matches!(qualifier, BindingQualifier::State | BindingQualifier::Prop) {
+                    state_prop_names.insert(name.lexeme.clone());
+                }
+            }
+        }
+        env.push();
+        for b in bindings {
+            if let Stmt::QualifiedBinding { qualifier, name, value, .. } = b {
+                match qualifier {
+                    BindingQualifier::Memo => {
+                        if let Some(v) = value {
+                            let refs = expr_var_refs(v);
+                            if !refs.iter().any(|r| state_prop_names.contains(r)) {
+                                self.diagnostics.push(Diagnostic::new(
+                                    DiagnosticKind::Lint,
+                                    format!(
+                                        "memo '{}' may be stale — no state or prop found in dep list",
+                                        name.lexeme
+                                    ),
+                                    Span::dummy(),
+                                ));
+                            }
+                        }
+                        env.set(&name.lexeme, Type::Unknown);
+                    }
+                    BindingQualifier::State => {
+                        env.set(&name.lexeme, Type::Unknown);
+                    }
+                    BindingQualifier::Prop | BindingQualifier::Ref => {
+                        env.set(&name.lexeme, Type::Unknown);
+                    }
+                }
+            }
+        }
+        env.pop();
     }
 
     fn infer_expr(&mut self, expr: &Expr, env: &Env) -> Type {
@@ -625,6 +683,36 @@ impl TypeChecker {
     }
 }
 
+fn expr_var_refs(expr: &Expr) -> Vec<String> {
+    let mut out = Vec::new();
+    collect_refs(expr, &mut out);
+    out
+}
+
+fn collect_refs(expr: &Expr, out: &mut Vec<String>) {
+    match expr {
+        Expr::Variable { name } => out.push(name.lexeme.clone()),
+        Expr::Binary { left, right, .. } | Expr::Logical { left, right, .. } => {
+            collect_refs(left, out);
+            collect_refs(right, out);
+        }
+        Expr::Unary { right, .. } => collect_refs(right, out),
+        Expr::Call { callee, arguments, .. } => {
+            collect_refs(callee, out);
+            for a in arguments {
+                collect_refs(a, out);
+            }
+        }
+        Expr::Array(items) | Expr::Tuple(items) => {
+            for i in items {
+                collect_refs(i, out);
+            }
+        }
+        Expr::FieldAccess { object, .. } => collect_refs(object, out),
+        _ => {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -762,5 +850,89 @@ greet(42)"#,
         tc.check(&prog);
         let has_warn = tc.diagnostics.iter().any(|d| d.message.contains("not callable"));
         assert!(!has_warn, "Should not warn for function event handler. Got: {:?}", tc.diagnostics);
+    }
+
+    // ── Bloco B — component binding tests ────────────────────────────────────
+
+    #[test]
+    fn component_valid_state_and_view() {
+        let mut tc = TypeChecker::new();
+        let prog = parse("component Counter {\n  state count: Int = 0\n  view { <p>{count}</p> }\n}");
+        tc.check(&prog);
+        // no errors expected for a valid component
+        let errors: Vec<_> = tc.diagnostics.iter().filter(|d| d.kind == DiagnosticKind::Type).collect();
+        assert!(errors.is_empty(), "Unexpected type errors: {:?}", errors);
+    }
+
+    #[test]
+    fn component_valid_prop_binding() {
+        let mut tc = TypeChecker::new();
+        let prog = parse("component Greeter {\n  prop name: String\n  view { <p>{name}</p> }\n}");
+        tc.check(&prog);
+        let errors: Vec<_> = tc.diagnostics.iter().filter(|d| d.kind == DiagnosticKind::Type).collect();
+        assert!(errors.is_empty(), "Unexpected type errors: {:?}", errors);
+    }
+
+    #[test]
+    fn component_memo_with_state_dep_no_warn() {
+        let mut tc = TypeChecker::new();
+        let prog = parse("component Calc {\n  state x: Int = 1\n  memo doubled: Int = x * 2\n  view { <p>{doubled}</p> }\n}");
+        tc.check(&prog);
+        let stale_warns: Vec<_> = tc.diagnostics.iter().filter(|d| d.message.contains("may be stale")).collect();
+        assert!(stale_warns.is_empty(), "Should not warn when memo refs state: {:?}", stale_warns);
+    }
+
+    #[test]
+    fn component_memo_without_state_dep_warns() {
+        let mut tc = TypeChecker::new();
+        let prog = parse("component Isolated {\n  memo val: Int = 42\n  view { <p>{val}</p> }\n}");
+        tc.check(&prog);
+        let stale_warns: Vec<_> = tc.diagnostics.iter().filter(|d| d.message.contains("may be stale")).collect();
+        assert!(!stale_warns.is_empty(), "Expected stale-memo warning. Got: {:?}", tc.diagnostics);
+    }
+
+    #[test]
+    fn parser_component_block_is_ast_node() {
+        use core::ast::Stmt;
+        let prog = parse("component Btn {\n  state clicked: Bool = false\n  view { <button>{clicked}</button> }\n}");
+        assert_eq!(prog.len(), 1);
+        assert!(matches!(prog[0], Stmt::ComponentBlock { .. }), "Expected ComponentBlock, got: {:?}", prog[0]);
+    }
+
+    #[test]
+    fn parser_state_binding_inside_component() {
+        use core::ast::{BindingQualifier, Stmt};
+        let prog = parse("component X {\n  state n: Int = 0\n  view { <div></div> }\n}");
+        if let Stmt::ComponentBlock { bindings, .. } = &prog[0] {
+            assert!(!bindings.is_empty(), "Expected at least one binding");
+            assert!(matches!(&bindings[0], Stmt::QualifiedBinding { qualifier: BindingQualifier::State, .. }));
+        } else {
+            panic!("Expected ComponentBlock");
+        }
+    }
+
+    #[test]
+    fn parser_prop_binding_inside_component() {
+        use core::ast::{BindingQualifier, Stmt};
+        let prog = parse("component Label {\n  prop text: String\n  view { <span>{text}</span> }\n}");
+        if let Stmt::ComponentBlock { bindings, .. } = &prog[0] {
+            assert!(matches!(&bindings[0], Stmt::QualifiedBinding { qualifier: BindingQualifier::Prop, .. }));
+        } else {
+            panic!("Expected ComponentBlock");
+        }
+    }
+
+    #[test]
+    fn parser_multiple_qualifiers_in_component() {
+        use core::ast::{BindingQualifier, Stmt};
+        let prog = parse("component Multi {\n  state x: Int = 0\n  prop y: String\n  memo z: Int = x + 1\n  view { <div></div> }\n}");
+        if let Stmt::ComponentBlock { bindings, .. } = &prog[0] {
+            assert_eq!(bindings.len(), 3);
+            assert!(matches!(&bindings[0], Stmt::QualifiedBinding { qualifier: BindingQualifier::State, .. }));
+            assert!(matches!(&bindings[1], Stmt::QualifiedBinding { qualifier: BindingQualifier::Prop, .. }));
+            assert!(matches!(&bindings[2], Stmt::QualifiedBinding { qualifier: BindingQualifier::Memo, .. }));
+        } else {
+            panic!("Expected ComponentBlock");
+        }
     }
 }

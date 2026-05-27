@@ -26,5 +26,11 @@ pub fn make_keywords() -> HashMap<String, TokenType> {
     keywords.insert("in".to_string(), TokenType::In);
     keywords.insert("try".to_string(), TokenType::Try);
     keywords.insert("catch".to_string(), TokenType::Catch);
+    keywords.insert("component".to_string(), TokenType::Component);
+    keywords.insert("view".to_string(), TokenType::View);
+    keywords.insert("state".to_string(), TokenType::State);
+    keywords.insert("prop".to_string(), TokenType::Prop);
+    keywords.insert("memo".to_string(), TokenType::Memo);
+    keywords.insert("ref".to_string(), TokenType::Ref);
     keywords
 }

@@ -217,7 +217,9 @@ fn lint_stmt(
         | Stmt::Import { .. }
         | Stmt::ShellCommand { .. }
         | Stmt::StructDecl { .. }
-        | Stmt::EnumDecl { .. } => {}
+        | Stmt::EnumDecl { .. }
+        | Stmt::ComponentBlock { .. }
+        | Stmt::QualifiedBinding { .. } => {}
         Stmt::ImplBlock { methods, .. } => {
             for method in methods {
                 lint_stmt(method, scopes, diagnostics, in_performant);
@@ -356,7 +358,9 @@ fn stmt_contains_allocation(stmt: &Stmt) -> bool {
         | Stmt::Function { .. }
         | Stmt::Import { .. }
         | Stmt::ShellCommand { .. }
-        | Stmt::ImplBlock { .. } => false,
+        | Stmt::ImplBlock { .. }
+        | Stmt::ComponentBlock { .. }
+        | Stmt::QualifiedBinding { .. } => false,
     }
 }
 

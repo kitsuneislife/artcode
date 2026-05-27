@@ -455,6 +455,34 @@ impl CodegenJs {
                 self.write("/* shell command: not supported in JS target */");
                 self.newline();
             }
+
+            Stmt::ComponentBlock { name, bindings, view } => {
+                self.emit_component(name, bindings, view);
+            }
+
+            Stmt::QualifiedBinding { qualifier, name, value, .. } => {
+                use core::ast::BindingQualifier;
+                let ind = self.indent_str();
+                self.write(&ind);
+                match qualifier {
+                    BindingQualifier::State => {
+                        let val = value.as_deref().map(|v| self.emit_expr(v)).unwrap_or_else(|| "undefined".to_string());
+                        self.write(&format!("let {} = {};", Self::js_ident(&name.lexeme), val));
+                    }
+                    BindingQualifier::Prop => {
+                        self.write(&format!("/* prop {} */", Self::js_ident(&name.lexeme)));
+                    }
+                    BindingQualifier::Memo => {
+                        let val = value.as_deref().map(|v| self.emit_expr(v)).unwrap_or_else(|| "undefined".to_string());
+                        self.write(&format!("let {} = {};", Self::js_ident(&name.lexeme), val));
+                    }
+                    BindingQualifier::Ref => {
+                        let val = value.as_deref().map(|v| self.emit_expr(v)).unwrap_or_else(|| "null".to_string());
+                        self.write(&format!("let {} = {};", Self::js_ident(&name.lexeme), val));
+                    }
+                }
+                self.newline();
+            }
         }
     }
 
@@ -482,6 +510,106 @@ impl CodegenJs {
                 self.write(&ind);
                 self.write("}");
             }
+        }
+    }
+
+    fn emit_component(&mut self, name: &str, bindings: &[Stmt], view: &[core::ast::TemplateNode]) {
+        use core::ast::{BindingQualifier, Stmt as S};
+        let ind = self.indent_str();
+        // function <Name>_create(host) { ... }
+        self.write(&format!("{}function {}_create(host) {{\n", ind, Self::js_ident(name)));
+        self.indent += 1;
+        let ind2 = self.indent_str();
+        // emit state declarations
+        for b in bindings {
+            if let S::QualifiedBinding { qualifier, name: n, value, .. } = b {
+                let val = value.as_deref().map(|v| self.emit_expr(v)).unwrap_or_else(|| "undefined".to_string());
+                match qualifier {
+                    BindingQualifier::State => {
+                        self.write(&format!("{}let {} = {};\n", ind2, Self::js_ident(&n.lexeme), val));
+                    }
+                    BindingQualifier::Memo => {
+                        self.write(&format!("{}let {} = {};\n", ind2, Self::js_ident(&n.lexeme), val));
+                    }
+                    BindingQualifier::Prop => {
+                        self.write(&format!("{}const {} = host.getAttribute(\"{}\");\n", ind2, Self::js_ident(&n.lexeme), n.lexeme));
+                    }
+                    BindingQualifier::Ref => {
+                        self.write(&format!("{}let {} = {};\n", ind2, Self::js_ident(&n.lexeme), val));
+                    }
+                }
+                // generate set_X updater for state bindings
+                if matches!(qualifier, BindingQualifier::State) {
+                    let vname = Self::js_ident(&n.lexeme);
+                    self.write(&format!(
+                        "{}function set_{}(v) {{ {} = v; __flush_{}(); }}\n",
+                        ind2, vname, vname, Self::js_ident(name)
+                    ));
+                }
+            }
+        }
+        // emit DOM construction from view
+        if !view.is_empty() {
+            self.write(&format!("{}const __root = document.createDocumentFragment();\n", ind2));
+            for node in view {
+                self.emit_template_node_create(node, "__root");
+            }
+            self.write(&format!("{}host.appendChild(__root);\n", ind2));
+        }
+        // flush function for batched updates
+        self.write(&format!("{}function __flush_{}() {{}}\n", ind2, Self::js_ident(name)));
+        self.indent -= 1;
+        self.write(&format!("{}}}\n", ind));
+    }
+
+    fn emit_template_node_create(&mut self, node: &core::ast::TemplateNode, parent: &str) {
+        use core::ast::TemplateNode;
+        let ind = self.indent_str();
+        match node {
+            TemplateNode::Element { tag, attrs, children } => {
+                let var = format!("__el_{}", tag);
+                self.write(&format!("{}const {} = document.createElement(\"{}\");\n", ind, var, tag));
+                for attr in attrs {
+                    use core::ast::TemplateAttrValue;
+                    match &attr.value {
+                        TemplateAttrValue::Static(s) => {
+                            self.write(&format!("{}{}.setAttribute(\"{}\", \"{}\");\n", ind, var, attr.name, s));
+                        }
+                        TemplateAttrValue::Dynamic(e) => {
+                            let js = self.emit_expr(e);
+                            if attr.name.starts_with("on:") {
+                                let event = &attr.name[3..];
+                                self.write(&format!("{}{}.addEventListener(\"{}\", {});\n", ind, var, event, js));
+                            } else {
+                                self.write(&format!("{}{}.setAttribute(\"{}\", {});\n", ind, var, attr.name, js));
+                            }
+                        }
+                        TemplateAttrValue::EventHandler(e) => {
+                            let js = self.emit_expr(e);
+                            let event = attr.name.strip_prefix("on:").unwrap_or(&attr.name);
+                            self.write(&format!("{}{}.addEventListener(\"{}\", {});\n", ind, var, event, js));
+                        }
+                        TemplateAttrValue::Flag => {
+                            self.write(&format!("{}{}.setAttribute(\"{}\", \"\");\n", ind, var, attr.name));
+                        }
+                    }
+                }
+                for child in children {
+                    self.emit_template_node_create(child, &var);
+                }
+                self.write(&format!("{}{}.appendChild({});\n", ind, parent, var));
+            }
+            TemplateNode::Text(t) => {
+                self.write(&format!("{}{}.appendChild(document.createTextNode(\"{}\"));\n", ind, parent, t));
+            }
+            TemplateNode::Expr(e) => {
+                let js = self.emit_expr(e);
+                self.write(&format!("{}{}.appendChild(document.createTextNode(String({})));\n", ind, parent, js));
+            }
+            TemplateNode::Component { name: cname, .. } => {
+                self.write(&format!("{}{}_create({});\n", ind, Self::js_ident(cname), parent));
+            }
+            _ => {}
         }
     }
 

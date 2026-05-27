@@ -54,8 +54,14 @@ pub enum TokenType {
     Try,
     Catch,
     Impl,
-    Weak,    // keyword 'weak' (açúcar)
-    Unowned, // keyword 'unowned' (açúcar)
+    Weak,      // keyword 'weak' (açúcar)
+    Unowned,   // keyword 'unowned' (açúcar)
+    Component, // keyword 'component'
+    View,      // keyword 'view'
+    State,     // binding qualifier 'state'
+    Prop,      // binding qualifier 'prop'
+    Memo,      // binding qualifier 'memo'
+    Ref,       // binding qualifier 'ref'
     Identifier,
     String(String),
     InterpolatedString(String), // <<< NOSSO NOVO TOKEN
@@ -114,6 +120,12 @@ impl Token {
                 | TokenType::In
                 | TokenType::Try
                 | TokenType::Catch
+                | TokenType::Component
+                | TokenType::View
+                | TokenType::State
+                | TokenType::Prop
+                | TokenType::Memo
+                | TokenType::Ref
         )
         .then(|| intern(&lexeme));
         Token {

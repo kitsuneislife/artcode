@@ -93,6 +93,25 @@ pub enum Stmt {
         type_name: String,
         methods: Vec<Stmt>,
     },
+    ComponentBlock {
+        name: String,
+        bindings: Vec<Stmt>,
+        view: Vec<TemplateNode>,
+    },
+    QualifiedBinding {
+        qualifier: BindingQualifier,
+        name: Token,
+        type_ann: Option<String>,
+        value: Option<Box<Expr>>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BindingQualifier {
+    State,
+    Prop,
+    Memo,
+    Ref,
 }
 
 #[derive(Debug, Clone, PartialEq)]

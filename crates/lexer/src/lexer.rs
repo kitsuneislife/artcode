@@ -252,6 +252,12 @@ impl Lexer {
             "try" => TokenType::Try,
             "catch" => TokenType::Catch,
             "impl" => TokenType::Impl,
+            "component" => TokenType::Component,
+            "view" => TokenType::View,
+            "state" => TokenType::State,
+            "prop" => TokenType::Prop,
+            "memo" => TokenType::Memo,
+            "ref" => TokenType::Ref,
             _ => TokenType::Identifier,
         };
         self.add_token(token_type);

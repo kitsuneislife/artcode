@@ -4,14 +4,14 @@
 // Aqui usamos uma função global `next` que retorna Option.None para encerrar.
 
 // Estado compartilhado de forma mutável (mapa em heap).
-let state = map_new();
-map_set(state, "i", 0);
+let iter_state = map_new();
+map_set(iter_state, "i", 0);
 
 func gen() {
     // Incrementa o contador no mapa e retorna Optional.
-    map_set(state, "i", map_get(state, "i").unwrap_or(0) + 1);
-    if map_get(state, "i").unwrap_or(0) <= 3 {
-        yield map_get(state, "i").unwrap_or(0);
+    map_set(iter_state, "i", map_get(iter_state, "i").unwrap_or(0) + 1);
+    if map_get(iter_state, "i").unwrap_or(0) <= 3 {
+        yield map_get(iter_state, "i").unwrap_or(0);
     }
     return Option.None;
 }

@@ -7,14 +7,14 @@ use parser::parser::Parser;
 fn for_loop_over_generator_closure_returns_option() {
     let src = r#"
 // Use a mutable map as shared state for the iterator.
-let state = map_new();
-map_set(state, "i", 0);
+let iter_state = map_new();
+map_set(iter_state, "i", 0);
 
 func gen() {
     // Increment stored counter and yield up to 3.
-    map_set(state, "i", map_get(state, "i").unwrap_or(0) + 1);
-    if map_get(state, "i").unwrap_or(0) <= 3 {
-        yield map_get(state, "i").unwrap_or(0);
+    map_set(iter_state, "i", map_get(iter_state, "i").unwrap_or(0) + 1);
+    if map_get(iter_state, "i").unwrap_or(0) <= 3 {
+        yield map_get(iter_state, "i").unwrap_or(0);
     }
     return Option.None;
 }

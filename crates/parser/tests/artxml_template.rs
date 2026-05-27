@@ -171,7 +171,7 @@ fn test_for_without_key_emits_warning() {
 
 #[test]
 fn test_template_in_let_binding() {
-    let src = r#"let view = <div class="app">{name}</div>"#;
+    let src = r#"let ui = <div class="app">{name}</div>"#;
     let (stmts, diags) = parse(src);
     assert!(diags.is_empty(), "Unexpected diagnostics: {:?}", diags);
     assert_eq!(stmts.len(), 1);
@@ -179,7 +179,7 @@ fn test_template_in_let_binding() {
 
 #[test]
 fn test_component_without_import_emits_error() {
-    let src = r#"let view = <Counter label="x" />"#;
+    let src = r#"let ui = <Counter label="x" />"#;
     let (_, diags) = parse(src);
     let has_import_error = diags
         .iter()

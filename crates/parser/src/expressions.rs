@@ -345,6 +345,32 @@ pub fn finish_call(parser: &mut Parser, callee: Expr) -> Expr {
 
 // ── ArtML template parsing ────────────────────────────────────────────────────
 
+/// Parse ArtML template nodes until `}` is the next token (used by `view {}`).
+pub fn parse_template_nodes(parser: &mut Parser) -> Vec<TemplateNode> {
+    let mut nodes = Vec::new();
+    while !parser.is_at_end() && !parser.check(&TokenType::RightBrace) {
+        if parser.check(&TokenType::Less) {
+            let lt = parser.advance();
+            let tag = parse_template_tag_name(parser);
+            if !tag.is_empty() {
+                nodes.push(parse_element(parser, tag, lt));
+            }
+        } else if parser.check(&TokenType::LeftBrace) {
+            parser.advance();
+            let expr = expression(parser);
+            parser.consume(TokenType::RightBrace, "Expect '}' after template expression");
+            nodes.push(TemplateNode::Expr(Box::new(expr)));
+        } else {
+            let tok = parser.advance();
+            let text = tok.lexeme.clone();
+            if !text.trim().is_empty() {
+                nodes.push(TemplateNode::Text(text));
+            }
+        }
+    }
+    nodes
+}
+
 fn parse_template_expr(parser: &mut Parser, lt_token: Token) -> Expr {
     // We already consumed `<`. Parse an opening tag name.
     let tag_name = parse_template_tag_name(parser);
