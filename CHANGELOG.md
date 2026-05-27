@@ -6,6 +6,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 ## [Unreleased]
 
 ### Added
+- **Bloco E — Runtime UI: scheduler assíncrono, lifecycle hooks, dom helpers:**
+  - `JS_RUNTIME` em `cli/src/bundler.rs` expandido com: scheduler assíncrono (`__schedule`/`__flush` via `queueMicrotask`), `tick(fn)`, registry de lifecycle (`on_mount`, `on_destroy`, `on_update`), helpers DOM (`dom.create`, `dom.text`, `dom.append`, `dom.set_attr`, `dom.set_text`, `dom.remove`, `dom.on`, `dom.off`, `dom.query`)
+  - Codegen: `set_X(v)` usa `__schedule` para batching assíncrono de updates DOM
+  - Codegen: `Name_create` expõe `Name_component` e chama `tick(() => __run_mount(...))` após DOM inserido
+  - 4 testes em `codegen_js/tests/scheduler_lifecycle.rs`
+
 - **Bloco D — ReactivityPass e grafo de dependências (`crates/reactivity/`):**
   - Novo crate `reactivity`: `DepGraph` com nós `Source`/`Derived`/`Sink`, arestas tipadas
   - `ReactivityPass::analyse` visita `Stmt::ComponentBlock` e constrói DAG de dependências

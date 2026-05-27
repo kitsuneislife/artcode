@@ -618,31 +618,51 @@ impl CodegenJs {
                     .map(|(bname, tvar)| (bname.as_str(), tvar.as_str()))
                     .collect();
 
+                // set_X schedules an async updater so multiple mutations batch into one flush
                 self.write(&format!("{}function set_{}(v) {{\n", ind2, js_state));
                 self.indent += 1;
                 let ind3 = self.indent_str();
                 self.write(&format!("{}{} = v;\n", ind3, js_state));
 
-                // Recompute memos in declaration order
-                for memo_name in &dep_memos {
+                // Build the updater closure that recomputes memos and patches text nodes
+                let dep_memos_clone = dep_memos.clone();
+                let affected_txts_clone: Vec<(String, String)> = affected_txts
+                    .iter()
+                    .map(|&(b, t)| (b.to_string(), t.to_string()))
+                    .collect();
+
+                self.write(&format!("{}__schedule(() => {{\n", ind3));
+                self.indent += 1;
+                let ind4 = self.indent_str();
+
+                for memo_name in &dep_memos_clone {
                     if let Some(S::QualifiedBinding { value: Some(memo_expr), .. }) = bindings.iter().find(|b| {
                         matches!(b, S::QualifiedBinding { name: nb, qualifier: BindingQualifier::Memo, .. } if nb.lexeme == *memo_name)
                     }) {
                         let memo_expr_clone = memo_expr.as_ref().clone();
                         let memo_js = self.emit_expr(&memo_expr_clone);
-                        self.write(&format!("{}{} = {};\n", ind3, Self::js_ident(memo_name), memo_js));
+                        self.write(&format!("{}{} = {};\n", ind4, Self::js_ident(memo_name), memo_js));
                     }
                 }
 
-                // Update text node sinks
-                for (bname, tvar) in &affected_txts {
-                    self.write(&format!("{}{}.textContent = String({});\n", ind3, tvar, Self::js_ident(bname)));
+                for (bname, tvar) in &affected_txts_clone {
+                    self.write(&format!("{}{}.textContent = String({});\n", ind4, tvar, Self::js_ident(bname)));
                 }
+                // Notify on_update listeners
+                let changed_list = affected_names.iter().map(|n| format!("\"{}\"", n)).collect::<Vec<_>>().join(", ");
+                self.write(&format!("{}__run_update({}_component, [{}]);\n", ind4, Self::js_ident(name), changed_list));
 
+                self.indent -= 1;
+                self.write(&format!("{}}});\n", ind3));
                 self.indent -= 1;
                 self.write(&format!("{}}}\n", ind2));
             }
         }
+
+        // Expose component reference and call on_mount after DOM is ready
+        let comp_ref = format!("{}_component", Self::js_ident(name));
+        self.write(&format!("{}const {} = {{ name: \"{}\" }};\n", ind2, comp_ref, name));
+        self.write(&format!("{}tick(() => __run_mount({}));\n", ind2, comp_ref));
 
         // Restore txt_nodes so subsequent calls work cleanly
         self.reactive_txt_nodes = txt_nodes;

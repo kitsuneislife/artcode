@@ -23,6 +23,69 @@ const str_to_float   = (s) => { const n = parseFloat(s);   return isNaN(n) ? { t
 const len            = (v) => v.length ?? 0;
 const none           = null;
 const some           = (v) => v;
+
+// ── Async scheduler ──────────────────────────────────────────────────────────
+const __pending = new Set();
+let __scheduled = false;
+function __schedule(updater) {
+  __pending.add(updater);
+  if (!__scheduled) {
+    __scheduled = true;
+    (typeof queueMicrotask !== 'undefined' ? queueMicrotask : (fn) => Promise.resolve().then(fn))(__flush);
+  }
+}
+function __flush() {
+  __scheduled = false;
+  for (const u of __pending) { u(); }
+  __pending.clear();
+}
+function tick(fn) {
+  (typeof queueMicrotask !== 'undefined' ? queueMicrotask : (f) => Promise.resolve().then(f))(fn);
+}
+
+// ── Lifecycle registry ───────────────────────────────────────────────────────
+const __mount_cbs   = new Map();
+const __destroy_cbs = new Map();
+const __update_cbs  = new Map();
+function on_mount(component, fn) {
+  const list = __mount_cbs.get(component) ?? [];
+  list.push(fn);
+  __mount_cbs.set(component, list);
+}
+function on_destroy(component, fn) {
+  const list = __destroy_cbs.get(component) ?? [];
+  list.push(fn);
+  __destroy_cbs.set(component, list);
+}
+function on_update(component, fn, deps) {
+  const list = __update_cbs.get(component) ?? [];
+  list.push({ fn, deps });
+  __update_cbs.set(component, list);
+}
+function __run_mount(component) {
+  for (const fn of (__mount_cbs.get(component) ?? [])) fn();
+}
+function __run_destroy(component) {
+  for (const fn of (__destroy_cbs.get(component) ?? [])) fn();
+}
+function __run_update(component, changed) {
+  for (const { fn, deps } of (__update_cbs.get(component) ?? [])) {
+    if (!deps || deps.some((d) => changed.includes(d))) fn();
+  }
+}
+
+// ── DOM helpers ──────────────────────────────────────────────────────────────
+const dom = {
+  create:   (tag)           => document.createElement(tag),
+  text:     (t)             => document.createTextNode(String(t)),
+  append:   (parent, child) => parent.appendChild(child),
+  set_attr: (el, k, v)      => el.setAttribute(k, v),
+  set_text: (node, v)       => { node.textContent = String(v); },
+  remove:   (el)            => el.parentNode?.removeChild(el),
+  on:       (el, ev, fn)    => el.addEventListener(ev, fn),
+  off:      (el, ev, fn)    => el.removeEventListener(ev, fn),
+  query:    (sel)           => document.querySelector(sel),
+};
 "#;
 
 fn resolve_import_path(base_dir: &Path, path_parts: &[String]) -> PathBuf {
