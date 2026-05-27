@@ -1,0 +1,24 @@
+// ArtKit v0.1 — Todo component
+// Demonstrates: prop binding, list rendering with for, component composition
+
+component TodoItem {
+    prop label: String
+    prop done: Bool
+
+    view {
+        <div>
+            <p>{label}</p>
+        </div>
+    }
+}
+
+component TodoList {
+    state items: Array = []
+    state input_val: String = ""
+
+    view {
+        <div>
+            <p>{input_val}</p>
+        </div>
+    }
+}

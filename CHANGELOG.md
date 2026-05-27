@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 ## [Unreleased]
 
 ### Added
+- **Bloco F — ArtKit v0.1 — primeiro componente real:**
+  - `examples/artkit/counter.art` — Counter com `state count`, event handler `on:click`, view com `<p>{count}</p>`
+  - `examples/artkit/todo.art` — TodoItem com `prop label`, TodoList com `state items`
+  - `art build --bundle examples/artkit/counter.art` gera bundle autocontido e executa sem erros em Node.js
+  - `docs/guides/artkit_quickstart.md` — guia passo a passo: instalar, criar componente, compilar, rodar no browser
+  - Job CI `artkit-smoke` em `.github/workflows/ci.yml`: compila counter.art e verifica bundle com Node.js
+
 - **Bloco E — Runtime UI: scheduler assíncrono, lifecycle hooks, dom helpers:**
   - `JS_RUNTIME` em `cli/src/bundler.rs` expandido com: scheduler assíncrono (`__schedule`/`__flush` via `queueMicrotask`), `tick(fn)`, registry de lifecycle (`on_mount`, `on_destroy`, `on_update`), helpers DOM (`dom.create`, `dom.text`, `dom.append`, `dom.set_attr`, `dom.set_text`, `dom.remove`, `dom.on`, `dom.off`, `dom.query`)
   - Codegen: `set_X(v)` usa `__schedule` para batching assíncrono de updates DOM

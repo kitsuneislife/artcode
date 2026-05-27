@@ -82,6 +82,35 @@ jobs:
           fi
           echo "PASS: Node.js output matches expected"
 
+  artkit-smoke:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build CLI (debug)
+        run: cargo build -p cli --bin art
+
+      - name: Bundle counter.art
+        run: target/debug/art build examples/artkit/counter.art --target js --bundle --out /tmp/artkit/
+
+      - name: Verify bundle with Node.js (no runtime errors)
+        run: |
+          node --input-type=module <<'EOF'
+          import { readFileSync } from 'fs';
+          // The bundle must load without throwing
+          const src = readFileSync('/tmp/artkit/counter.js', 'utf8');
+          const fn = new Function(src);
+          fn();
+          console.log("PASS: counter.js loaded without errors");
+          EOF
+
   perf-regression:
     needs: build-and-test
     runs-on: ubuntu-latest

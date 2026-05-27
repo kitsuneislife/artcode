@@ -1,0 +1,17 @@
+// ArtKit v0.1 — Counter component
+// Demonstrates: state binding, event handler, reactive DOM update
+
+component Counter {
+    state count: Int = 0
+
+    view {
+        <div>
+            <p>{count}</p>
+            <button on:click={increment}>+</button>
+        </div>
+    }
+}
+
+func increment() {
+    set_count(count + 1)
+}
