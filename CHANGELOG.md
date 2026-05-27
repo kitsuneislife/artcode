@@ -6,6 +6,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 ## [Unreleased]
 
 ### Added
+- **Bloco G — Pendências e completude:**
+  - `Deque<T>` no prelude: `deque_new`, `deque_push_front`, `deque_push_back`, `deque_pop_front`, `deque_pop_back`, `deque_len`; variante `ArtValue::Deque` e `DequeRef` em `crates/core`; 6 testes em `interpreter/tests/deque_stdlib.rs`
+  - TTD delta snapshots: `Tracer::record_delta` armazena apenas as chaves alteradas desde o último snapshot, reduzindo tamanho dos traces
+  - DAP mínimo: `cli/src/dap.rs` com `send_initialized`, `send_stopped`, `send_terminated`; flag `--dap` no comando `art debug`
+  - `art doc <path>` agora gera HTML em `docs/generated/<name>.html` (antes: `docs.html` no diretório atual)
+  - `docs/guides/migration_v0.4_to_v0.5.md` — guia de migração com breaking changes (novos keywords, output do `art doc`)
+  - GitHub Releases: workflow `release.yml` e `install.sh` para Linux x86_64 e macOS arm64
+
 - **Bloco F — ArtKit v0.1 — primeiro componente real:**
   - `examples/artkit/counter.art` — Counter com `state count`, event handler `on:click`, view com `<p>{count}</p>`
   - `examples/artkit/todo.art` — TodoItem com `prop label`, TodoList com `state items`

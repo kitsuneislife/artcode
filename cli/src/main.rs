@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use toml::Value as TomlValue;
 mod aot;
 mod bundler;
+mod dap;
 mod docgen;
 mod formatter;
 mod linter;
@@ -1216,6 +1217,7 @@ fn main() {
     if args[1] == "debug" {
         let mut replay_file: Option<String> = None;
         let mut script_file: Option<String> = None;
+        let mut dap_mode = false;
 
         let mut j = 2usize;
         while j < args.len() {
@@ -1223,16 +1225,31 @@ fn main() {
             if a == "--replay" && j + 1 < args.len() {
                 replay_file = Some(args[j + 1].clone());
                 j += 2;
+            } else if a == "--dap" {
+                dap_mode = true;
+                j += 1;
             } else if script_file.is_none() {
                 script_file = Some(a.clone());
                 j += 1;
             } else {
-                eprintln!("Usage: art debug --replay <trace.artlog> <script>");
+                eprintln!("Usage: art debug [--dap] [--replay <trace.artlog>] <script>");
                 process::exit(64);
             }
         }
-        let (Some(script), Some(replay)) = (script_file, replay_file) else {
-            eprintln!("Usage: art debug --replay <trace.artlog> <script>");
+        let Some(script) = script_file else {
+            eprintln!("Usage: art debug [--dap] [--replay <trace.artlog>] <script>");
+            process::exit(64);
+        };
+
+        if dap_mode {
+            dap::send_initialized();
+            dap::send_stopped("entry", &script, 1, 1);
+            dap::send_terminated();
+            return;
+        }
+
+        let Some(replay) = replay_file else {
+            eprintln!("Usage: art debug [--dap] --replay <trace.artlog> <script>");
             process::exit(64);
         };
 

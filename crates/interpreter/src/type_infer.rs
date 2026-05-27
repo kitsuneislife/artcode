@@ -1055,6 +1055,7 @@ fn value_type(v: &ArtValue) -> Type {
         ArtValue::Actor(_) => Type::Unknown,
         ArtValue::Map(_) => Type::Unknown,
         ArtValue::Set(_) => Type::Unknown,
+        ArtValue::Deque(_) => Type::Unknown,
         ArtValue::Capability { kind, .. } => Type::Struct(format!("Capability[{}]", kind)),
         ArtValue::MovedCapability => Type::Unknown,
         ArtValue::HeapComposite(_) => Type::Unknown, // resolução ocorre em nível de interpretador; para inferência simplificada tratamos como Unknown

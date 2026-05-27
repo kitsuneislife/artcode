@@ -269,9 +269,13 @@ impl PartialEq for MapRef {
 #[derive(Debug, Clone)]
 pub struct SetRef(pub Arc<std::sync::Mutex<Vec<ArtValue>>>);
 impl PartialEq for SetRef {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
+    fn eq(&self, other: &Self) -> bool { Arc::ptr_eq(&self.0, &other.0) }
+}
+
+#[derive(Debug, Clone)]
+pub struct DequeRef(pub Arc<std::sync::Mutex<std::collections::VecDeque<ArtValue>>>);
+impl PartialEq for DequeRef {
+    fn eq(&self, other: &Self) -> bool { Arc::ptr_eq(&self.0, &other.0) }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -307,6 +311,7 @@ pub enum ArtValue {
     UnownedRef(ObjHandle), // id para registro global (não mantém vivo)
     Map(MapRef),
     Set(SetRef),
+    Deque(DequeRef),
     Buffer(Arc<[u8]>),
     Capability {
         kind: Arc<str>,
@@ -389,6 +394,14 @@ pub enum BuiltinFn {
     StrToInt,        // str_to_int(s) -> Result<Int, String>
     StrToFloat,      // str_to_float(s) -> Result<Float, String>
 
+    // Deque<T> — double-ended queue stdlib
+    DequeNew,        // deque_new() -> Deque
+    DequePushFront,  // deque_push_front(d, v)
+    DequePushBack,   // deque_push_back(d, v)
+    DequePopFront,   // deque_pop_front(d) -> Option<T>
+    DequePopBack,    // deque_pop_back(d) -> Option<T>
+    DequeLen,        // deque_len(d) -> Int
+
     // Built-in methods internally bound to Enum structs
     EnumIsOk(Box<ArtValue>),
     EnumIsErr(Box<ArtValue>),
@@ -464,6 +477,12 @@ impl fmt::Debug for BuiltinFn {
             BuiltinFn::StrSlice => write!(f, "<builtin str_slice>"),
             BuiltinFn::StrToInt => write!(f, "<builtin str_to_int>"),
             BuiltinFn::StrToFloat => write!(f, "<builtin str_to_float>"),
+            BuiltinFn::DequeNew => write!(f, "<builtin deque_new>"),
+            BuiltinFn::DequePushFront => write!(f, "<builtin deque_push_front>"),
+            BuiltinFn::DequePushBack => write!(f, "<builtin deque_push_back>"),
+            BuiltinFn::DequePopFront => write!(f, "<builtin deque_pop_front>"),
+            BuiltinFn::DequePopBack => write!(f, "<builtin deque_pop_back>"),
+            BuiltinFn::DequeLen => write!(f, "<builtin deque_len>"),
             BuiltinFn::EnumIsOk(_)
             | BuiltinFn::EnumIsErr(_)
             | BuiltinFn::EnumUnwrap(_)
@@ -591,6 +610,12 @@ impl fmt::Display for ArtValue {
                 BuiltinFn::StrSlice => write!(f, "<builtin str_slice>"),
                 BuiltinFn::StrToInt => write!(f, "<builtin str_to_int>"),
                 BuiltinFn::StrToFloat => write!(f, "<builtin str_to_float>"),
+                BuiltinFn::DequeNew => write!(f, "<builtin deque_new>"),
+                BuiltinFn::DequePushFront => write!(f, "<builtin deque_push_front>"),
+                BuiltinFn::DequePushBack => write!(f, "<builtin deque_push_back>"),
+                BuiltinFn::DequePopFront => write!(f, "<builtin deque_pop_front>"),
+                BuiltinFn::DequePopBack => write!(f, "<builtin deque_pop_back>"),
+                BuiltinFn::DequeLen => write!(f, "<builtin deque_len>"),
                 BuiltinFn::EnumIsOk(_)
                 | BuiltinFn::EnumIsErr(_)
                 | BuiltinFn::EnumUnwrap(_)
@@ -614,6 +639,11 @@ impl fmt::Display for ArtValue {
                 let set = s.0.lock().unwrap_or_else(|e| e.into_inner());
                 let elems: Vec<String> = set.iter().map(|item| item.to_string()).collect();
                 write!(f, "Set {{ {} }}", elems.join(", "))
+            }
+            ArtValue::Deque(d) => {
+                let dq = d.0.lock().unwrap_or_else(|e| e.into_inner());
+                let elems: Vec<String> = dq.iter().map(|item| item.to_string()).collect();
+                write!(f, "Deque [{}]", elems.join(", "))
             }
             ArtValue::Buffer(buf) => write!(f, "<buffer {} bytes>", buf.len()),
             ArtValue::Capability { kind, id } => write!(f, "Capability[{}]#{}", kind, id),
@@ -667,6 +697,7 @@ impl ArtValue {
             ArtValue::UnownedRef(_) => "Unowned".to_string(),
             ArtValue::Map(_) => "Map".to_string(),
             ArtValue::Set(_) => "Set".to_string(),
+            ArtValue::Deque(_) => "Deque".to_string(),
             ArtValue::Buffer(_) => "Buffer".to_string(),
             ArtValue::Capability { .. } => "Capability".to_string(),
             ArtValue::MovedCapability => "MovedCapability".to_string(),

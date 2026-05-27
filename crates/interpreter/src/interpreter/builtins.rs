@@ -783,6 +783,7 @@ impl Interpreter {
                         ArtValue::Tuple(_) => "Tuple",
                         ArtValue::Map(_) => "Map",
                         ArtValue::Set(_) => "Set",
+                        ArtValue::Deque(_) => "Deque",
                         ArtValue::StructInstance { .. } => "Struct",
                         ArtValue::EnumInstance { .. } => "Enum",
                         ArtValue::Function(_) => "Function",
@@ -1967,6 +1968,68 @@ impl Interpreter {
                 } else {
                     Ok(ArtValue::none())
                 }
+            }
+            core::ast::BuiltinFn::DequeNew => Ok(ArtValue::Deque(core::ast::DequeRef(
+                std::sync::Arc::new(std::sync::Mutex::new(std::collections::VecDeque::new())),
+            ))),
+            core::ast::BuiltinFn::DequePushFront => {
+                let mut args = arguments.into_iter();
+                if let (Some(deque_expr), Some(val_expr)) = (args.next(), args.next()) {
+                    let deque_val = self.evaluate(deque_expr)?;
+                    let v = self.evaluate(val_expr)?;
+                    if let ArtValue::Deque(d) = deque_val {
+                        d.0.lock().unwrap_or_else(|e| e.into_inner()).push_front(v);
+                    }
+                }
+                Ok(ArtValue::none())
+            }
+            core::ast::BuiltinFn::DequePushBack => {
+                let mut args = arguments.into_iter();
+                if let (Some(deque_expr), Some(val_expr)) = (args.next(), args.next()) {
+                    let deque_val = self.evaluate(deque_expr)?;
+                    let v = self.evaluate(val_expr)?;
+                    if let ArtValue::Deque(d) = deque_val {
+                        d.0.lock().unwrap_or_else(|e| e.into_inner()).push_back(v);
+                    }
+                }
+                Ok(ArtValue::none())
+            }
+            core::ast::BuiltinFn::DequePopFront => {
+                let mut args = arguments.into_iter();
+                if let Some(deque_expr) = args.next() {
+                    let deque_val = self.evaluate(deque_expr)?;
+                    if let ArtValue::Deque(d) = deque_val {
+                        match d.0.lock().unwrap_or_else(|e| e.into_inner()).pop_front() {
+                            Some(v) => return Ok(ArtValue::Optional(Box::new(Some(v)))),
+                            None => return Ok(ArtValue::none()),
+                        }
+                    }
+                }
+                Ok(ArtValue::none())
+            }
+            core::ast::BuiltinFn::DequePopBack => {
+                let mut args = arguments.into_iter();
+                if let Some(deque_expr) = args.next() {
+                    let deque_val = self.evaluate(deque_expr)?;
+                    if let ArtValue::Deque(d) = deque_val {
+                        match d.0.lock().unwrap_or_else(|e| e.into_inner()).pop_back() {
+                            Some(v) => return Ok(ArtValue::Optional(Box::new(Some(v)))),
+                            None => return Ok(ArtValue::none()),
+                        }
+                    }
+                }
+                Ok(ArtValue::none())
+            }
+            core::ast::BuiltinFn::DequeLen => {
+                let mut args = arguments.into_iter();
+                if let Some(deque_expr) = args.next() {
+                    let deque_val = self.evaluate(deque_expr)?;
+                    if let ArtValue::Deque(d) = deque_val {
+                        let len = d.0.lock().unwrap_or_else(|e| e.into_inner()).len();
+                        return Ok(ArtValue::Int(len as i64));
+                    }
+                }
+                Ok(ArtValue::Int(0))
             }
         }
     }

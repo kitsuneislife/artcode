@@ -329,6 +329,12 @@ impl Interpreter {
         "str_slice",
         "str_to_int",
         "str_to_float",
+        "deque_new",
+        "deque_push_front",
+        "deque_push_back",
+        "deque_pop_front",
+        "deque_pop_back",
+        "deque_len",
     ];
 
     #[inline]
@@ -399,6 +405,12 @@ impl Interpreter {
             "str_slice" => BuiltinFn::StrSlice,
             "str_to_int" => BuiltinFn::StrToInt,
             "str_to_float" => BuiltinFn::StrToFloat,
+            "deque_new" => BuiltinFn::DequeNew,
+            "deque_push_front" => BuiltinFn::DequePushFront,
+            "deque_push_back" => BuiltinFn::DequePushBack,
+            "deque_pop_front" => BuiltinFn::DequePopFront,
+            "deque_pop_back" => BuiltinFn::DequePopBack,
+            "deque_len" => BuiltinFn::DequeLen,
             _ => unreachable!("Unknown builtin name: {}", name),
         }
     }
@@ -511,6 +523,7 @@ impl Interpreter {
             ArtValue::Actor(_) => "Actor".to_string(),
             ArtValue::Map(_) => "Map".to_string(),
             ArtValue::Set(_) => "Set".to_string(),
+            ArtValue::Deque(_) => "Deque".to_string(),
             ArtValue::Capability { kind, .. } => format!("Capability[{}]", kind),
             ArtValue::MovedCapability => "MovedCapability".to_string(),
             ArtValue::HeapComposite(_) => "Composite".to_string(),

@@ -9,15 +9,18 @@ struct DocItem {
 }
 
 pub fn generate_html<P: AsRef<Path>>(input_path: P) -> io::Result<()> {
-    let content = fs::read_to_string(&input_path)?;
+    let path = input_path.as_ref();
+    let content = fs::read_to_string(path)?;
     let items = parse_doc_items(&content);
+    let module_name = path.file_stem().and_then(|s| s.to_str()).unwrap_or("Module");
+    let html = build_html_document(module_name, &items);
 
-    let html = build_html_document(input_path.as_ref().to_str().unwrap_or("Module"), &items);
+    let out_dir = Path::new("docs/generated");
+    fs::create_dir_all(out_dir)?;
+    let out_path = out_dir.join(format!("{}.html", module_name));
+    fs::write(&out_path, html)?;
 
-    let out_path = "docs.html";
-    fs::write(out_path, html)?;
-
-    println!("Generated HTML documentation at {}", out_path);
+    println!("Generated HTML documentation at {}", out_path.display());
     Ok(())
 }
 
