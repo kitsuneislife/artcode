@@ -55,6 +55,24 @@ jobs:
           name: metrics
           path: artifacts/metrics.json
 
+  perf-regression:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build CLI (debug)
+        run: cargo build -p cli --bin art
+
+      - name: Run performance regression check
+        run: bash scripts/perf_regression.sh target/debug/art
+
   coverage:
     needs: build-and-test
     # Run coverage only on manual dispatch to avoid long runs on every push

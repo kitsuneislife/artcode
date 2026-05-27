@@ -4,6 +4,10 @@ name = "cli"
 version = "0.3.0"
 edition = "2021"
 
+[lib]
+name = "cli"
+path = "src/lib.rs"
+
 [[bin]]
 name = "art"
 path = "src/main.rs"
@@ -32,3 +36,6 @@ rayon = "1.10"
 assert_cmd = "2.0"
 predicates = "2.1"
 tempfile = "3.5"
+lexer = { path = "../crates/lexer" }
+parser = { path = "../crates/parser" }
+core = { path = "../crates/core" }

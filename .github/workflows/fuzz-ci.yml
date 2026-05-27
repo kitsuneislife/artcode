@@ -28,3 +28,6 @@ jobs:
 
       - name: Run parser/loops fuzz worker
         run: cargo fuzz run parser_loops --fuzz-dir fuzz/cargo_fuzz -- -max_total_time=60
+
+      - name: Run interpreter/valid fuzz worker
+        run: cargo fuzz run interpreter_valid --fuzz-dir fuzz/cargo_fuzz -- -max_total_time=60

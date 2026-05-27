@@ -42,6 +42,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
   (`func f(x: Int)` rejeita argumento `String` na chamada) e inferência paramétrica
   (`func identity<T>(x: T)` infere `T = Int` na chamada com inteiro). Integrado ao pipeline
   `art build --target js` como pré-passo antes do codegen; 12 testes de cobertura.
+- **Robustez — fuzzing, property tests e regression detector:**
+  - Novo fuzz target `interpreter_valid` — executa o interpreter apenas em programas sem erros de parse, complementando o `parser_loops` existente.
+  - 9 property tests de round-trip `parse(format(src)) == parse(src)` em `cli/tests/formatter_roundtrip.rs`, incluindo idempotência do formatter.
+  - 2 stress tests de arena: N atores com `performant {}` e 100 iterações de alloc/finalize (`cli/tests/actor_performant_stress.rs`).
+  - `scripts/perf_regression.sh` mede `executed_statements/s` de fib(20) com baseline em `baseline/perf_fib20.json`; integrado no CI como job `perf-regression` — falha se a taxa cair abaixo de 50k stmt/s ou se a contagem de statements mudar.
+  - `cli` expõe crate library (`lib.rs`) para testes de integração terem acesso direto ao `formatter`.
 - **LSP — completion, goto-def, hover, rename, semantic tokens:** `art lsp` agora expõe
   `textDocument/completion` (builtins + variáveis + structs/enums com kind correto),
   `textDocument/definition` (goto-def para `let`, funções, structs, enums, imports),

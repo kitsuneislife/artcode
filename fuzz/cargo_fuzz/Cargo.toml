@@ -14,10 +14,18 @@ libfuzzer-sys = "0.4"
 lexer = { path = "../../crates/lexer" }
 parser = { path = "../../crates/parser" }
 interpreter = { path = "../../crates/interpreter" }
+diagnostics = { path = "../../crates/diagnostics" }
 
 [[bin]]
 name = "parser_loops"
 path = "fuzz_targets/parser_loops.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "interpreter_valid"
+path = "fuzz_targets/interpreter_valid.rs"
 test = false
 doc = false
 bench = false

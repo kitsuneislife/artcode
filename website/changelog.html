@@ -37,7 +37,7 @@
 
             <section class="glass" style="padding: 24px; margin-bottom: 24px;">
                 <h2 style="margin-bottom: 10px;">v0.4.0-dev <span style="font-size: 0.75rem; background: var(--accent, #7c6af7); color: #fff; border-radius: 4px; padding: 2px 8px; vertical-align: middle; margin-left: 8px;">Em desenvolvimento</span></h2>
-                <p style="margin-bottom: 12px;">Primeiro passo para o ArtKit: compilação para JavaScript, parser de templates ArtML, type checker estático, debug shell interativo, stdlib de strings e LSP completo.</p>
+                <p style="margin-bottom: 12px;">Primeiro passo para o ArtKit: compilação para JavaScript, parser de templates ArtML, type checker estático, debug shell interativo, stdlib de strings, LSP completo e robustez (fuzzing, property tests, CI regression detector).</p>
 
                 <h3>1. Codegen JavaScript</h3>
                 <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
@@ -90,6 +90,14 @@
                     <li><code>textDocument/semanticTokens/full</code> — highlight semântico (tipos, funções, variáveis).</li>
                     <li>Arquitetura refatorada: <code>process_request</code> retorna <code>Option&lt;Value&gt;</code> tornando o servidor testável sem IDE. 6 smoke tests de harness JSON.</li>
                     <li>Guias de configuração em <code>docs/guides/lsp_vscode.md</code> e <code>docs/guides/lsp_neovim.md</code>.</li>
+                </ul>
+
+                <h3>7. Robustez — Fuzzing, Property Tests e Regression Detector</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li>Novo fuzz target <code>interpreter_valid</code> — executa o interpreter apenas em programas sem erros de parse, complementando o <code>parser_loops</code> existente. Ambos rodam 60s por push no CI.</li>
+                    <li>9 property tests de round-trip <code>parse(format(src)) == parse(src)</code> incluindo idempotência do formatter.</li>
+                    <li>2 stress tests de arena: N atores com <code>performant {}</code> e 100 iterações de alloc/finalize sem panics.</li>
+                    <li>Detector de regressão no CI (<code>scripts/perf_regression.sh</code>): mede <code>executed_statements/s</code> de fib(20) contra baseline; falha se a taxa cair abaixo de 50k stmt/s.</li>
                 </ul>
             </section>
 
