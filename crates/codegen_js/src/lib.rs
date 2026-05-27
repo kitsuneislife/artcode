@@ -14,6 +14,8 @@ pub enum ModuleFormat {
     #[default]
     Esm,
     Iife,
+    /// Bundle mode: import statements are suppressed (bundler inlines deps externally).
+    Bundle,
 }
 
 impl Default for CodegenOptions {
@@ -434,6 +436,10 @@ impl CodegenJs {
             }
 
             Stmt::Import { path } => {
+                // Bundle mode: imports are inlined by the bundler; suppress the statement.
+                if self.options.module_format == ModuleFormat::Bundle {
+                    return;
+                }
                 let ind = self.indent_str();
                 self.write(&ind);
                 let parts: Vec<String> = path.iter().map(|t| t.lexeme.clone()).collect();

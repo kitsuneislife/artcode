@@ -43,7 +43,8 @@ fn test_text_node_child_generates_create_text_node() {
 
 #[test]
 fn test_component_generates_new_call() {
-    let js = compile("let v = <Counter />");
+    // Counter must be defined (struct or import) to pass the component-import check.
+    let js = compile("struct Counter { }\nlet v = <Counter />");
     assert!(js.contains("new Counter("), "got: {}", js);
 }
 

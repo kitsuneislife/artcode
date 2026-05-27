@@ -42,6 +42,23 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
   (`func f(x: Int)` rejeita argumento `String` na chamada) e inferência paramétrica
   (`func identity<T>(x: T)` infere `T = Int` na chamada com inteiro). Integrado ao pipeline
   `art build --target js` como pré-passo antes do codegen; 12 testes de cobertura.
+- **`art build --bundle`: bundler completo para JS de arquivo único.**
+  `cli/src/bundler.rs` resolve imports recursivamente, compila cada módulo com
+  `ModuleFormat::Bundle` (que suprime `import` stmts no codegen), deduplica módulos
+  visitados e concatena: runtime preamble → módulos em ordem topológica → entry file.
+  O runtime preamble (`JS_RUNTIME`) define os builtins Artcode em JS nativo
+  (`println = console.log`, `str_*`, `len`, `none`, etc.), tornando o bundle
+  autocontido para Node.js e browser. 3 testes de integração. Job `node-smoke-test`
+  no CI verifica `art build --bundle examples/00_hello.art` com Node.js.
+- **Diagnósticos de template ArtML:**
+  - C.1: `on:click={expr}` onde `expr` tem tipo não-callable (Int, Float, String, Bool)
+    → `lint error: event handler 'on:click' has type 'Int', which is not callable`.
+    Verificado no type checker (`typeck`) ao visitar `TemplateAttrValue::EventHandler`.
+    2 testes: handler não-callable emite aviso; handler function não emite.
+  - C.2: Componente PascalCase usado em template sem import ou struct correspondente
+    → `parse error: Component '<Counter>' is used but not imported or defined`.
+    Verificado em post-parse pass no parser (`check_component_imports`).
+    2 testes: componente sem definição emite erro; com struct definida não emite.
 - **Robustez — fuzzing, property tests e regression detector:**
   - Novo fuzz target `interpreter_valid` — executa o interpreter apenas em programas sem erros de parse, complementando o `parser_loops` existente.
   - 9 property tests de round-trip `parse(format(src)) == parse(src)` em `cli/tests/formatter_roundtrip.rs`, incluindo idempotência do formatter.

@@ -176,3 +176,24 @@ fn test_template_in_let_binding() {
     assert!(diags.is_empty(), "Unexpected diagnostics: {:?}", diags);
     assert_eq!(stmts.len(), 1);
 }
+
+#[test]
+fn test_component_without_import_emits_error() {
+    let src = r#"let view = <Counter label="x" />"#;
+    let (_, diags) = parse(src);
+    let has_import_error = diags
+        .iter()
+        .any(|d| d.message.contains("Counter") && d.message.contains("not imported"));
+    assert!(has_import_error, "Expected error for undefined component 'Counter'. Got: {:?}", diags);
+}
+
+#[test]
+fn test_component_with_struct_no_error() {
+    // If a struct named Counter is defined, the component should be allowed.
+    let src = "struct Counter { label: String }\nlet view = <Counter label=\"x\" />";
+    let (_, diags) = parse(src);
+    let has_component_error = diags
+        .iter()
+        .any(|d| d.message.contains("Counter") && d.message.contains("not imported"));
+    assert!(!has_component_error, "Should not error when struct is defined. Got: {:?}", diags);
+}

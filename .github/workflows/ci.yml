@@ -55,6 +55,33 @@ jobs:
           name: metrics
           path: artifacts/metrics.json
 
+  node-smoke-test:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build CLI (debug)
+        run: cargo build -p cli --bin art
+
+      - name: Bundle hello world to JS
+        run: target/debug/art build examples/00_hello.art --target js --bundle --out /tmp/dist/
+
+      - name: Run bundled output with Node.js
+        run: |
+          output=$(node /tmp/dist/00_hello.js)
+          if [ "$output" != "Hello, Artcode!" ]; then
+            echo "ERROR: expected 'Hello, Artcode!' but got: $output"
+            exit 1
+          fi
+          echo "PASS: Node.js output matches expected"
+
   perf-regression:
     needs: build-and-test
     runs-on: ubuntu-latest

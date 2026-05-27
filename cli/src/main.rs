@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use toml::Value as TomlValue;
 mod aot;
+mod bundler;
 mod docgen;
 mod formatter;
 mod linter;
@@ -1097,13 +1098,6 @@ fn main() {
             process::exit(65);
         }
 
-        let opts = CodegenOptions {
-            source_file: Some(input.clone()),
-            emit_source_map: emit_sourcemap,
-            module_format: if bundle { ModuleFormat::Iife } else { ModuleFormat::Esm },
-        };
-        let output = CodegenJs::new(opts).emit_program(&program);
-
         if let Err(e) = std::fs::create_dir_all(&out_dir) {
             eprintln!("error: cannot create output directory '{}': {}", out_dir, e);
             process::exit(73);
@@ -1114,22 +1108,46 @@ fn main() {
             .and_then(|s| s.to_str())
             .unwrap_or("output");
         let js_path = format!("{}/{}.js", out_dir, stem);
-        if let Err(e) = std::fs::write(&js_path, &output.code) {
-            eprintln!("error: cannot write '{}': {}", js_path, e);
-            process::exit(73);
-        }
-        println!("wrote {}", js_path);
 
-        if let Some(sm) = output.source_map {
-            let sm_path = format!("{}.map", js_path);
-            if let Err(e) = std::fs::write(&sm_path, &sm) {
-                eprintln!("error: cannot write source map '{}': {}", sm_path, e);
-            } else {
-                println!("wrote {}", sm_path);
-                // Append sourceMappingURL comment
-                let mut code = std::fs::read_to_string(&js_path).unwrap_or_default();
-                code.push_str(&format!("\n//# sourceMappingURL={}.map\n", stem));
-                let _ = std::fs::write(&js_path, code);
+        if bundle {
+            match bundler::bundle(&input, emit_sourcemap) {
+                Ok(b) => {
+                    if let Err(e) = std::fs::write(&js_path, &b.code) {
+                        eprintln!("error: cannot write '{}': {}", js_path, e);
+                        process::exit(73);
+                    }
+                    println!("wrote {} (bundled)", js_path);
+                }
+                Err(errs) => {
+                    for e in &errs {
+                        eprintln!("bundle error: {}", e);
+                    }
+                    process::exit(65);
+                }
+            }
+        } else {
+            let opts = CodegenOptions {
+                source_file: Some(input.clone()),
+                emit_source_map: emit_sourcemap,
+                module_format: ModuleFormat::Esm,
+            };
+            let output = CodegenJs::new(opts).emit_program(&program);
+            if let Err(e) = std::fs::write(&js_path, &output.code) {
+                eprintln!("error: cannot write '{}': {}", js_path, e);
+                process::exit(73);
+            }
+            println!("wrote {}", js_path);
+
+            if let Some(sm) = output.source_map {
+                let sm_path = format!("{}.map", js_path);
+                if let Err(e) = std::fs::write(&sm_path, &sm) {
+                    eprintln!("error: cannot write source map '{}': {}", sm_path, e);
+                } else {
+                    println!("wrote {}", sm_path);
+                    let mut code = std::fs::read_to_string(&js_path).unwrap_or_default();
+                    code.push_str(&format!("\n//# sourceMappingURL={}.map\n", stem));
+                    let _ = std::fs::write(&js_path, code);
+                }
             }
         }
         return;

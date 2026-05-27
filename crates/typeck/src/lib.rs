@@ -1,4 +1,4 @@
-use core::ast::{ArtValue, Expr, MatchPattern, Stmt};
+use core::ast::{ArtValue, Expr, MatchPattern, Stmt, TemplateAttrValue, TemplateNode};
 use core::types::Type;
 use diagnostics::{Diagnostic, DiagnosticKind, Span};
 use std::collections::HashMap;
@@ -325,7 +325,69 @@ impl TypeChecker {
                 Type::Enum(n)
             }
             Expr::SpawnActor { .. } => Type::Unknown,
-            Expr::Template(_) => Type::Unknown,
+            Expr::Template(nodes) => {
+                for node in nodes {
+                    self.check_template_node(node, env);
+                }
+                Type::Unknown
+            }
+        }
+    }
+
+    fn check_template_node(&mut self, node: &TemplateNode, env: &Env) {
+        match node {
+            TemplateNode::Element { attrs, children, .. }
+            | TemplateNode::Component { attrs, children, .. } => {
+                for attr in attrs {
+                    if let TemplateAttrValue::EventHandler(handler_expr) = &attr.value {
+                        let ty = self.infer_expr(handler_expr, env);
+                        // Warn only if the type is a known non-callable (literal value type).
+                        let is_non_callable = matches!(
+                            ty,
+                            Type::Int | Type::Float | Type::String | Type::Bool
+                        );
+                        if is_non_callable {
+                            let span = self.expr_span(handler_expr);
+                            self.diagnostics.push(Diagnostic::new(
+                                DiagnosticKind::Lint,
+                                format!(
+                                    "event handler '{}' has type '{}', which is not callable — expected a function",
+                                    attr.name,
+                                    ty.name()
+                                ),
+                                span,
+                            ));
+                        }
+                    }
+                }
+                for child in children {
+                    self.check_template_node(child, env);
+                }
+            }
+            TemplateNode::If { cond, then_children, else_children } => {
+                self.infer_expr(cond, env);
+                for child in then_children {
+                    self.check_template_node(child, env);
+                }
+                for child in else_children {
+                    self.check_template_node(child, env);
+                }
+            }
+            TemplateNode::For { items, children, .. } => {
+                self.infer_expr(items, env);
+                for child in children {
+                    self.check_template_node(child, env);
+                }
+            }
+            TemplateNode::Slot { children, .. } => {
+                for child in children {
+                    self.check_template_node(child, env);
+                }
+            }
+            TemplateNode::Expr(e) => {
+                self.infer_expr(e, env);
+            }
+            TemplateNode::Text(_) => {}
         }
     }
 
@@ -680,5 +742,25 @@ greet(42)"#,
         );
         tc.check(&prog);
         assert!(tc.diagnostics.is_empty(), "{:?}", tc.diagnostics);
+    }
+
+    #[test]
+    fn test_template_event_handler_non_callable_warns() {
+        let mut tc = TypeChecker::new();
+        // x is an Int — using it as an event handler should produce a lint warning
+        let prog = parse("let x = 42;\nlet el = <button on:click={x}>ok</button>;");
+        tc.check(&prog);
+        let has_warn = tc.diagnostics.iter().any(|d| d.message.contains("not callable"));
+        assert!(has_warn, "Expected non-callable event handler warning. Got: {:?}", tc.diagnostics);
+    }
+
+    #[test]
+    fn test_template_event_handler_function_no_warn() {
+        let mut tc = TypeChecker::new();
+        // handler is a function — no warning expected
+        let prog = parse("func handler() { }\nlet el = <button on:click={handler}>ok</button>;");
+        tc.check(&prog);
+        let has_warn = tc.diagnostics.iter().any(|d| d.message.contains("not callable"));
+        assert!(!has_warn, "Should not warn for function event handler. Got: {:?}", tc.diagnostics);
     }
 }

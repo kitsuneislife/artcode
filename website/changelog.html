@@ -37,14 +37,16 @@
 
             <section class="glass" style="padding: 24px; margin-bottom: 24px;">
                 <h2 style="margin-bottom: 10px;">v0.4.0-dev <span style="font-size: 0.75rem; background: var(--accent, #7c6af7); color: #fff; border-radius: 4px; padding: 2px 8px; vertical-align: middle; margin-left: 8px;">Em desenvolvimento</span></h2>
-                <p style="margin-bottom: 12px;">Primeiro passo para o ArtKit: compilação para JavaScript, parser de templates ArtML, type checker estático, debug shell interativo, stdlib de strings, LSP completo e robustez (fuzzing, property tests, CI regression detector).</p>
+                <p style="margin-bottom: 12px;">Primeiro passo para o ArtKit: compilação para JavaScript com bundler completo, parser de templates ArtML com diagnósticos integrais, type checker estático, debug shell interativo, stdlib de strings, LSP completo e robustez (fuzzing, property tests, CI regression detector). <strong>71/72 itens do roadmap v0.4 concluídos.</strong></p>
 
-                <h3>1. Codegen JavaScript</h3>
+                <h3>1. Codegen JavaScript + Bundler</h3>
                 <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
                     <li>Novo crate <code>crates/codegen_js</code> — transpila AST Artcode para JavaScript ES2022.</li>
                     <li>Mapeamentos: <code>let</code> → <code>const</code>, <code>func</code> → <code>function</code>, <code>struct</code> → <code>class</code>, <code>enum</code> → tagged union, <code>match</code> → if-else com bindings, <code>spawn actor</code> → Web Worker, <code>performant {}</code> → IIFE, <code>import</code> → ES modules.</li>
                     <li>Comando <code>art build &lt;file.art&gt; --target js --out dist/ --sourcemap</code>.</li>
                     <li>Source maps V3 com VLQ encoding — erros em runtime apontam para o <code>.art</code> original no DevTools.</li>
+                    <li><strong><code>--bundle</code></strong>: resolve imports recursivamente, emite runtime preamble JS (<code>println</code>, <code>str_*</code>, <code>len</code>, etc.) + todos os módulos inline em arquivo único. Output autocontido para Node.js e browser.</li>
+                    <li>CI verifica o bundle com <code>node</code> a cada push (<code>node-smoke-test</code>).</li>
                 </ul>
 
                 <h3>2. Stdlib de Strings</h3>
@@ -69,8 +71,8 @@
                     <li>Sintaxe: <code>&lt;div class="x"&gt;</code>, <code>&lt;input value={expr} /&gt;</code>, <code>&lt;button on:click={handler}&gt;</code>, <code>&lt;Counter /&gt;</code> (componente PascalCase), <code>&lt;if cond={x}&gt;</code>, <code>&lt;for item in {items} key={id}&gt;</code>, <code>&lt;slot name="header"&gt;</code>.</li>
                     <li>Nenhum token novo no lexer — <code>&lt;</code> em posição prefix é inequivocamente início de template (Pratt parser).</li>
                     <li>Codegen: templates → IIFE com <code>document.createElement</code>, <code>setAttribute</code>, <code>addEventListener</code>, <code>createTextNode</code>, <code>createDocumentFragment</code>.</li>
-                    <li>Diagnósticos: tag sem fechamento → <code>error</code> com span exato; <code>&lt;for&gt;</code> sem <code>key</code> → <code>warning</code>.</li>
-                    <li>22 testes (12 parser + 10 codegen).</li>
+                    <li>Diagnósticos completos: tag sem fechamento → <code>error</code>; <code>&lt;for&gt;</code> sem <code>key</code> → <code>warning</code>; <code>on:click={expr_nao_callable}</code> → <code>lint error: not callable</code>; componente PascalCase sem import/struct → <code>parse error: not imported or defined</code>.</li>
+                    <li>26 testes (14 parser + 10 codegen + 2 typeck).</li>
                 </ul>
 
                 <h3>5. Type Checker Estático</h3>

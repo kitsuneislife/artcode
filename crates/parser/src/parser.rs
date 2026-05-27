@@ -117,9 +117,10 @@ impl Parser {
 use crate::expressions;
 use crate::precedence::Precedence;
 use crate::statements;
-use core::ast::{Expr, Program, Stmt};
+use core::ast::{Expr, Program, Stmt, TemplateNode};
 use core::{Token, TokenType};
 use diagnostics::{Diagnostic, DiagnosticKind, Span};
+use std::collections::HashSet;
 use std::rc::Rc;
 
 const MAX_PARSE_DEPTH: usize = 200;
@@ -170,6 +171,7 @@ impl Parser {
         while !self.is_at_end() {
             statements.push(self.declaration());
         }
+        check_component_imports(&statements, &mut self.diagnostics);
         (statements, std::mem::take(&mut self.diagnostics))
     }
 
@@ -558,6 +560,137 @@ impl Parser {
             body,
             method_owner,
             is_async: false,
+        }
+    }
+}
+
+// ── Post-parse: component import validation ──────────────────────────────────
+
+/// Collect names known at file scope: imported module names, locally defined
+/// struct names, and function names that start with an uppercase letter.
+fn collect_known_names(stmts: &[Stmt]) -> HashSet<String> {
+    let mut known = HashSet::new();
+    for stmt in stmts {
+        match stmt {
+            Stmt::Import { path } => {
+                if let Some(last) = path.last() {
+                    known.insert(last.lexeme.clone());
+                }
+            }
+            Stmt::StructDecl { name, .. } => {
+                known.insert(name.lexeme.clone());
+            }
+            Stmt::Function { name, .. } => {
+                if name.lexeme.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                    known.insert(name.lexeme.clone());
+                }
+            }
+            Stmt::Let { pattern, .. } => {
+                if let core::ast::MatchPattern::Variable(tok) = pattern {
+                    if tok.lexeme.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                        known.insert(tok.lexeme.clone());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    known
+}
+
+/// Walk a slice of TemplateNodes and collect (component_name, span) for all
+/// PascalCase component references.
+fn collect_template_components(nodes: &[TemplateNode]) -> Vec<(String, Span)> {
+    let mut out = Vec::new();
+    for node in nodes {
+        match node {
+            TemplateNode::Component { name, attrs: _, children } => {
+                out.push((name.clone(), Span::new(0, 0, 0, 0)));
+                out.extend(collect_template_components(children));
+            }
+            TemplateNode::Element { children, .. } => {
+                out.extend(collect_template_components(children));
+            }
+            TemplateNode::If { then_children, else_children, .. } => {
+                out.extend(collect_template_components(then_children));
+                out.extend(collect_template_components(else_children));
+            }
+            TemplateNode::For { children, .. } => {
+                out.extend(collect_template_components(children));
+            }
+            TemplateNode::Slot { children, .. } => {
+                out.extend(collect_template_components(children));
+            }
+            TemplateNode::Text(_) | TemplateNode::Expr(_) => {}
+        }
+    }
+    out
+}
+
+/// Walk all expressions in the program and find template component references.
+fn find_template_components_in_stmts(stmts: &[Stmt]) -> Vec<(String, Span)> {
+    let mut out = Vec::new();
+    for stmt in stmts {
+        find_template_components_in_stmt(stmt, &mut out);
+    }
+    out
+}
+
+fn find_template_components_in_stmt(stmt: &Stmt, out: &mut Vec<(String, Span)>) {
+    match stmt {
+        Stmt::Expression(e) | Stmt::Return { value: Some(e) } => {
+            find_template_components_in_expr(e, out);
+        }
+        Stmt::Let { initializer, .. } => find_template_components_in_expr(initializer, out),
+        Stmt::Block { statements } => {
+            for s in statements { find_template_components_in_stmt(s, out); }
+        }
+        Stmt::Function { body, .. } => {
+            find_template_components_in_stmt(body, out);
+        }
+        Stmt::SpawnActor { body } => {
+            for s in body { find_template_components_in_stmt(s, out); }
+        }
+        Stmt::If { condition, then_branch, else_branch } => {
+            find_template_components_in_expr(condition, out);
+            find_template_components_in_stmt(then_branch, out);
+            if let Some(eb) = else_branch { find_template_components_in_stmt(eb, out); }
+        }
+        Stmt::While { condition, body } => {
+            find_template_components_in_expr(condition, out);
+            find_template_components_in_stmt(body, out);
+        }
+        Stmt::For { iterator, body, .. } => {
+            find_template_components_in_expr(iterator, out);
+            find_template_components_in_stmt(body, out);
+        }
+        Stmt::Performant { statements } | Stmt::ImplBlock { methods: statements, .. } => {
+            for s in statements { find_template_components_in_stmt(s, out); }
+        }
+        _ => {}
+    }
+}
+
+fn find_template_components_in_expr(expr: &Expr, out: &mut Vec<(String, Span)>) {
+    if let Expr::Template(nodes) = expr {
+        out.extend(collect_template_components(nodes));
+    }
+}
+
+fn check_component_imports(stmts: &[Stmt], diags: &mut Vec<Diagnostic>) {
+    let known = collect_known_names(stmts);
+    let used_components = find_template_components_in_stmts(stmts);
+    let mut reported: HashSet<String> = HashSet::new();
+    for (name, span) in used_components {
+        if !known.contains(&name) && !reported.contains(&name) {
+            reported.insert(name.clone());
+            diags.push(Diagnostic::new(
+                DiagnosticKind::Parse,
+                format!(
+                    "Component '<{name}>' is used but not imported or defined — add `import {name};` or define a struct '{name}'"
+                ),
+                span,
+            ));
         }
     }
 }
