@@ -49,3 +49,28 @@ fn on_update_called_in_scheduler() {
     );
     assert!(js.contains("__run_update("), "expected __run_update inside updater, got:\n{js}");
 }
+
+// D.3 — component create function must return setters for composability
+#[test]
+fn component_create_returns_setters() {
+    let js = compile_component(
+        "component Counter {\n  state count: Int = 0\n  view { <p>{count}</p> }\n}",
+    );
+    assert!(
+        js.contains("return { set_count }"),
+        "expected return {{ set_count }} for composability, got:\n{js}"
+    );
+}
+
+// D.3 — multiple state bindings: all setters returned
+#[test]
+fn component_create_returns_all_setters() {
+    let js = compile_component(
+        "component Form {\n  state name: String = \"\"\n  state age: Int = 0\n  view { <div>{name}</div> }\n}",
+    );
+    assert!(
+        js.contains("set_name") && js.contains("set_age"),
+        "expected both setters in return, got:\n{js}"
+    );
+    assert!(js.contains("return {"), "expected return object, got:\n{js}");
+}

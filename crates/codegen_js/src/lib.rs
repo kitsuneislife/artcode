@@ -664,6 +664,21 @@ impl CodegenJs {
         self.write(&format!("{}const {} = {{ name: \"{}\" }};\n", ind2, comp_ref, name));
         self.write(&format!("{}tick(() => __run_mount({}));\n", ind2, comp_ref));
 
+        // Return all state setters so parent components can drive this component
+        let setters: Vec<String> = bindings
+            .iter()
+            .filter_map(|b| {
+                if let S::QualifiedBinding { qualifier: BindingQualifier::State, name: n, .. } = b {
+                    Some(format!("set_{}", Self::js_ident(&n.lexeme)))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if !setters.is_empty() {
+            self.write(&format!("{}return {{ {} }};\n", ind2, setters.join(", ")));
+        }
+
         // Restore txt_nodes so subsequent calls work cleanly
         self.reactive_txt_nodes = txt_nodes;
         // Clear reactive context

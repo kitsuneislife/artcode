@@ -283,7 +283,36 @@ impl TypeChecker {
         }
         env.push();
         for b in bindings {
-            if let Stmt::QualifiedBinding { qualifier, name, value, .. } = b {
+            if let Stmt::QualifiedBinding { qualifier, name, value, type_ann, .. } = b {
+                // Infer the type of the initializer (if present)
+                let inferred = if let Some(v) = value {
+                    self.infer_expr(v, env)
+                } else {
+                    Type::Unknown
+                };
+
+                // B.4 — check declared type annotation against the initializer type
+                let binding_ty = if let Some(ann) = type_ann {
+                    let ann_ty = self.parse_type(ann);
+                    if !self.types_compatible(&ann_ty, &inferred)
+                        && !matches!(inferred, Type::Unknown)
+                    {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Type,
+                            format!(
+                                "type mismatch: '{}' declared as {}, initializer has type {}",
+                                name.lexeme,
+                                ann_ty.name(),
+                                inferred.name()
+                            ),
+                            Span::dummy(),
+                        ));
+                    }
+                    ann_ty
+                } else {
+                    inferred
+                };
+
                 match qualifier {
                     BindingQualifier::Memo => {
                         if let Some(v) = value {
@@ -299,15 +328,12 @@ impl TypeChecker {
                                 ));
                             }
                         }
-                        env.set(&name.lexeme, Type::Unknown);
                     }
-                    BindingQualifier::State => {
-                        env.set(&name.lexeme, Type::Unknown);
-                    }
-                    BindingQualifier::Prop | BindingQualifier::Ref => {
-                        env.set(&name.lexeme, Type::Unknown);
-                    }
+                    BindingQualifier::State
+                    | BindingQualifier::Prop
+                    | BindingQualifier::Ref => {}
                 }
+                env.set(&name.lexeme, binding_ty);
             }
         }
         env.pop();
@@ -850,6 +876,46 @@ greet(42)"#,
         tc.check(&prog);
         let has_warn = tc.diagnostics.iter().any(|d| d.message.contains("not callable"));
         assert!(!has_warn, "Should not warn for function event handler. Got: {:?}", tc.diagnostics);
+    }
+
+    // ── Bloco B.4 — type annotation enforcement on component bindings ─────────
+
+    #[test]
+    fn component_state_type_annotation_match_ok() {
+        let mut tc = TypeChecker::new();
+        let prog = parse("component Counter {\n  state count: Int = 0\n  view { <p>{count}</p> }\n}");
+        tc.check(&prog);
+        let errors: Vec<_> = tc.diagnostics.iter().filter(|d| d.kind == DiagnosticKind::Type).collect();
+        assert!(errors.is_empty(), "Should not error when Int = 0: {:?}", errors);
+    }
+
+    #[test]
+    fn component_state_type_annotation_mismatch_errors() {
+        let mut tc = TypeChecker::new();
+        let prog = parse(r#"component Bad { state count: Int = "hello" view { <p>{count}</p> } }"#);
+        tc.check(&prog);
+        let errors: Vec<_> = tc.diagnostics.iter().filter(|d| d.kind == DiagnosticKind::Type).collect();
+        assert!(!errors.is_empty(), "Expected type mismatch error for state Int = string");
+        assert!(errors[0].message.contains("Int") && errors[0].message.contains("String"),
+            "Error message should mention both types: {:?}", errors[0].message);
+    }
+
+    #[test]
+    fn component_memo_type_annotation_mismatch_errors() {
+        let mut tc = TypeChecker::new();
+        let prog = parse(r#"component Bad { state x: Int = 1 memo label: Int = "text" view { <p>{label}</p> } }"#);
+        tc.check(&prog);
+        let errors: Vec<_> = tc.diagnostics.iter().filter(|d| d.kind == DiagnosticKind::Type).collect();
+        assert!(!errors.is_empty(), "Expected type mismatch error for memo Int = string");
+    }
+
+    #[test]
+    fn component_prop_no_initializer_no_error() {
+        let mut tc = TypeChecker::new();
+        let prog = parse("component Label {\n  prop text: String\n  view { <span>{text}</span> }\n}");
+        tc.check(&prog);
+        let errors: Vec<_> = tc.diagnostics.iter().filter(|d| d.kind == DiagnosticKind::Type).collect();
+        assert!(errors.is_empty(), "prop without initializer should not error: {:?}", errors);
     }
 
     // ── Bloco B — component binding tests ────────────────────────────────────

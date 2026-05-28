@@ -5,6 +5,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-05-27
+
+### Fixed
+- **B.4 — Type annotation enforcement in component bindings:** `state`, `prop` e `memo` com anotação de tipo agora emitem `type error` quando o initializer tem tipo incompatível (ex: `state count: Int = "hello"` → erro). Resolve o último gap dos pré-requisitos ArtKit no Bloco B. 4 testes adicionados em `crates/typeck/`.
+- **D.3 — Component create retorna setters:** `Name_create(host)` agora retorna `{ set_X, ... }` com todos os setters de state, permitindo composição entre componentes pai/filho sem referências globais. 2 testes adicionados em `crates/codegen_js/tests/scheduler_lifecycle.rs`.
+
 ## [0.5.0] - 2026-05-27
 
 ### Added
