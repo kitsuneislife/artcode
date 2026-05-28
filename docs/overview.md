@@ -1,76 +1,86 @@
 # Visão Geral do Projeto Artcode
 
-Artcode é uma linguagem de programação experimental construída em Rust com foco em Complexidade Progressiva: iniciantes têm uma sintaxe simples; usuários avançados ganham mecanismos explícitos (enums, pattern matching com guards, interpolação rica (f-strings com specs), métodos em structs/enums, métricas de execução, etc.).
+Artcode é uma linguagem de programação experimental construída em Rust com foco em **Complexidade Progressiva**: iniciantes têm uma sintaxe simples; usuários avançados ganham mecanismos explícitos (pattern matching, f-strings, generics, actors, componentes reativos).
 
 ## Objetivos
-- Construir uma base clara e modular (lexer, parser, core AST, interpreter, CLI) para evoluir em direção a compilação JIT/AOT futura.
-- Fornecer Result e enums para modelagem de erros sem exceções implícitas.
-- Oferecer interpolação de strings poderosa (f-strings) sem sacrificar legibilidade.
-- Manter execução determinística e transparente.
+
+- Construir uma base clara e modular (lexer, parser, core AST, interpreter, codegen, CLI) em direção a compilação JIT/AOT futura.
+- Fornecer `Result`/`Option` e enums para modelagem de erros sem exceções implícitas.
+- Suportar desenvolvimento de UIs reativas via `component {}` blocks com ReactivityPass e geração de JS cirúrgico.
+- Manter execução determinística e transparente com Time-Travel Debugging.
 
 ## Arquitetura em Camadas
+
 ```
-cli  --> parser ----> core (AST + tokens + env)
-  \        ^            ^
-   \       |            |
-    \--> lexer ---------/
+cli  ──► parser ──────► core (AST + tokens + env)
+  \         ^                 ^
+   \        |                 |
+    \──► lexer ───────────────/
           |
-          +--> interpreter (usa AST + registry de tipos)
+          ├──► interpreter  (eval, exec, actors, builtins, GC, arena)
+          ├──► typeck        (inferência local, diagnósticos de componentes)
+          ├──► reactivity    (ReactivityPass, DepGraph, Tarjan SCC)
+          ├──► codegen_js    (transpiler ES2022, source maps, bundler)
+          └──► diagnostics   (erros com spans e sugestões)
 ```
 
 ### Crates
-- `core`: AST, valores, tokens, ambiente léxico, padrões de match.
-- `lexer`: Tokenizador simples com suporte a números, strings, f-strings (prefixo f"...").
-- `parser`: Parser recursivo descendente; constrói AST; suporta f-strings (delegando sub-expressões a novo lexer/parser).
-- `interpreter`: Avaliador; executa programa, gerencia escopos, pattern matching (com guards), inferência de enum shorthand, f-strings (com specs de formato), métodos reais em structs/enums, métricas.
-- `cli`: Interface de linha de comando (REPL simples e execução de arquivo).
+
+| Crate | Responsabilidade |
+|---|---|
+| `core` | AST, valores, tokens, ambiente léxico, padrões de match |
+| `lexer` | Tokenizador com suporte a f-strings, keywords v0.5 (`component`, `view`, `state`, `prop`, `memo`, `ref`) |
+| `parser` | Parser recursivo descendente; ArtML templates; `component {}` blocks |
+| `interpreter` | Runtime: eval, exec, GC, actors, builtins, arena, IPC |
+| `diagnostics` | Erros acumulativos com spans e sugestões |
+| `typeck` | Type checker estático; 4 regras de diagnóstico para componentes |
+| `reactivity` | ReactivityPass: analisa `ComponentBlock`, constrói DAG, detecta ciclos (Tarjan SCC) |
+| `codegen_js` | Transpila AST para JavaScript ES2022; source maps V3; updaters cirúrgicos para componentes reativos |
+| `ir` | Representação intermediária (scaffolded) |
+| `jit` | JIT stub via LLVM (requer `--features=jit`) |
+| `cli` | Binário `art` com todos os subcomandos + bundler + JS_RUNTIME |
 
 ## Fluxo de Execução
-1. Ler fonte (arquivo ou REPL)
-2. Lexer gera tokens (inclui InterpolatedString para f-strings)
-3. Parser converte tokens em AST (`Program = Vec<Stmt>`)
-4. Interpreter percorre statements, avaliando expressões, gerindo ambientes aninhados
-5. Funções criam closures capturando ambiente pai
-6. Pattern matching resolve variantes de enum e bindings
 
-## Roadmap Completo
-As metas de longo prazo estão documentadas em `docs/roadmap.md`.
+**Modo interpretador (`art run`):**
+1. Ler fonte → Lexer → tokens
+2. Parser → AST (`Program = Vec<Stmt>`)
+3. Typeck → diagnósticos estáticos
+4. Interpreter → executa statements, gerencia escopos, actors
+
+**Modo compilação (`art build --target js`):**
+1. Ler fonte → Lexer → Parser → AST
+2. Typeck → valida tipos e componentes
+3. `ReactivityPass` analisa `ComponentBlock` → `DepGraph`
+4. Codegen JS emite JavaScript ES2022 com updaters cirúrgicos
+5. Bundler injeta `JS_RUNTIME` (scheduler, lifecycle, DOM helpers)
 
 ## Decisões de Design
+
 | Tema | Decisão | Racional |
 |------|---------|----------|
-| Memória | ARC + Rc/RefCell | Simplicidade inicial e segurança; GC evitado em produção |
-| Erros | Diagnostics acumulativos + Result | Erros reportados sem panics, favorecendo IDE tooling |
-| Interpolação | Parser recursivo + specs (`upper`, `lower`, `trim`, `hex`, `padN`, `debug`) | Poder expressivo e reutilização do pipeline |
-| Enum shorthand | Inferência única por variante | Ergonomia mantendo determinismo |
-| Métodos | Registro em `TypeRegistry` com auto-binding de `self` | Clareza, evita açúcar impl complexo cedo |
-| Métricas | `handled_errors`, `executed_statements`, `crash_free%` | Observabilidade e qualidade contínua |
-| Qualidade | CI (fmt, clippy -D warnings, testes, coverage badge) | Reforça saúde do projeto e confiança |
+| Memória | Adaptive ARC + arenas | Simplicidade com controle quando necessário |
+| Erros | Diagnostics acumulativos + `Result` | Erros reportados sem panics, favorecendo IDE tooling |
+| Reatividade | ReactivityPass + DAG | Ciclos em compile time; updates cirúrgicos sem virtual DOM |
+| Componentes | `component {}` blocks → JS | Modelo declarativo compilado, não interpretado |
+| Generics | Suporte no parser/AST | Monomorphização de runtime planejada para v0.6 |
 
-## Estado Atual & Limitações (v0.2.0)
-- Parser e lexer não panica em entradas malformadas; erros viram diagnostics acumulados.
-- Estrutura de métodos existe, mas ainda não há bloco `impl` agrupador (definição via `func Tipo.metodo(self) {}`).
-- Sistema de tipos ainda básico (sem generics, sem checagem de campo em tempo de parse para struct init além de aridade/nome runtime).
-- Execução ainda interpretada (sem JIT/AOT ainda).
-- REPL básico (sem histórico de último valor exposto por enquanto).
+## Estado Atual (v0.4 / v0.5-unreleased)
+
+- `cargo test --all` verde; `cargo clippy -- -D warnings` limpo.
+- Todos os 57 exemplos em `examples/` executam sem regressão.
+- `component {}` blocks, qualificadores de binding e ReactivityPass entregues em v0.5.
+- ArtKit v0.1: `counter.art` e `todo.art` funcionais; CI smoke test passando.
+- JIT/AOT scaffolded mas sem compilação nativa funcional.
+- Generics suportados no parser; monomorphização no interpreter não implementada.
 
 ## Contribuindo
-1. Abrir issue ou RFC para mudanças estruturais
-2. Manter separação de responsabilidades entre crates
-3. Adicionar testes de integração no crate `interpreter` para comportamento de linguagem
-4. Documentar decisões no diretório `docs/`.
 
-### Qualidade & Scripts
-- `cargo xtask ci` roda pipeline local (fmt, clippy, testes, scan de panics/unwrap/expect, cobertura)
-- `scripts/devcheck.sh` atalho rápido de verificação
-- `scripts/gen_coverage_badge.sh` gera badge SVG atualizado
-- `scripts/check_ast_docs.sh` garante atualização de docs quando AST mudar
-
-### Métricas de Execução
-Interpreter expõe contadores internos:
-- `handled_errors`: quantos diagnostics de runtime foram capturados sem crash
-- `executed_statements`: número de statements executados na sessão
-- `crash_free%`: derivado para monitorar estabilidade (usado em relatórios futuros)
+1. Abrir issue ou RFC para mudanças estruturais.
+2. Manter separação de responsabilidades entre crates.
+3. Adicionar testes de integração em `crates/interpreter/tests/` para comportamento de linguagem.
+4. `cargo xtask ci` roda pipeline local (fmt, clippy, testes).
 
 ---
-Próximo: veja `docs/prelude.md` para detalhes sobre o prelude e Result.
+
+Próximo: veja `docs/roadmap.md` para o estado atual e planos futuros.

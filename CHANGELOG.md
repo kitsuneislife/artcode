@@ -5,6 +5,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-27
+
 ### Added
 - **Bloco G — Pendências e completude:**
   - `Deque<T>` no prelude: `deque_new`, `deque_push_front`, `deque_push_back`, `deque_pop_front`, `deque_pop_back`, `deque_len`; variante `ArtValue::Deque` e `DequeRef` em `crates/core`; 6 testes em `interpreter/tests/deque_stdlib.rs`

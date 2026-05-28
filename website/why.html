@@ -366,7 +366,7 @@
             <section class="section--sm fade-in" id="tradeoffs">
                 <div style="text-align:center; margin-bottom: 40px;">
                     <p class="label">Honestidade</p>
-                    <h2>Trade-offs da v0.4.0</h2>
+                    <h2>Trade-offs da v0.5.0</h2>
                     <p class="subtitle" style="margin: 12px auto 0;">Nenhum documento de marketing sério omite
                         limitações reais.</p>
                 </div>
@@ -379,29 +379,29 @@
                     </div>
                     <div class="tradeoff-card">
                         <h4>⏳ WASM e GPU</h4>
-                        <p>Compilação para WebAssembly e aceleração por GPU seguem no roadmap v0.5+.</p>
+                        <p>Compilação para WebAssembly e aceleração por GPU seguem no roadmap v0.6+.</p>
                     </div>
                     <div class="tradeoff-card">
-                        <h4>⏳ LSP Avançado</h4>
-                        <p>Completion, goto-def, rename e semantic tokens já existem; code actions contextuais e análise semântica profunda seguem no v0.5+.</p>
+                        <h4>⏳ Generics no runtime</h4>
+                        <p>Parser e AST suportam parâmetros de tipo; monomorphização no interpreter está planejada para v0.6.</p>
                     </div>
                     <div class="tradeoff-card">
-                        <h4>⏳ ArtKit / component {}</h4>
-                        <p>Templates ArtML já compilam para DOM; o modelo de reatividade completo (<code>state</code>/<code>prop</code>/<code>memo</code>) e o scheduler DOM são escopo do v0.5.</p>
+                        <h4>⏳ JIT/AOT funcional</h4>
+                        <p>O crate <code>jit</code> está scaffolded com LLVM; compilação nativa real está no roadmap v0.6+.</p>
                     </div>
                 </div>
 
                 <div style="margin-top: 40px;">
-                    <h3>O que entregamos sólido na v0.4.0</h3>
+                    <h3>O que entregamos sólido na v0.5.0</h3>
                     <ul style="padding-left: 20px; margin-top: 16px;">
+                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> <code>component {}</code> blocks com <code>state</code>/<code>prop</code>/<code>memo</code>/<code>ref</code> — sintaxe reativa nativa</li>
+                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> ReactivityPass: DAG de dependências, Tarjan SCC, ciclos detectados em compile time</li>
+                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Codegen JS com updaters cirúrgicos via <code>queueMicrotask</code> — sem virtual DOM</li>
+                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> ArtKit v0.1: <code>counter.art</code>, <code>todo.art</code>, quickstart guide, CI smoke test</li>
+                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> <code>Deque&lt;T&gt;</code> no prelude, TTD delta snapshots, DAP mínimo (<code>--dap</code>)</li>
                         <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Codegen JS ES2022 + bundler autocontido (<code>art build --target js --bundle</code>)</li>
-                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Parser ArtML com templates declarativos embutidos — sem pré-processador externo</li>
-                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Type checker estático com inferência local e paramétrica</li>
-                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Diagnósticos de template: <code>on:click</code> não-callable, componente sem import</li>
-                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> TTD Fase 2: shell interativo com <code>step</code>/<code>step-back</code>, <code>breakpoint</code>, <code>state-at</code></li>
                         <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> LSP completo: completion, goto-def, hover, rename, semantic tokens</li>
-                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Stdlib <code>str_*</code>: 8 builtins com suporte a índices negativos e Result</li>
-                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Robustez: fuzzing duplo, 9 property tests de round-trip, CI regression detector</li>
+                        <li style="padding-left: 8px; margin-bottom: 8px;"><span class="check">✅</span> Robustez: fuzzing duplo, property tests, CI regression detector, 0 clippy warnings</li>
                     </ul>
                 </div>
             </section>
@@ -432,7 +432,7 @@
                 <a href="examples.html">Exemplos</a>
                 <a href="index.html">Início</a>
             </div>
-            <p>Artcode v0.4.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
+            <p>Artcode v0.5.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
                     target="_blank">kitsuneislife</a></p>
         </div>
     </footer>

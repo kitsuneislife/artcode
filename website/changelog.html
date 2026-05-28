@@ -36,6 +36,51 @@
             </div>
 
             <section class="glass" style="padding: 24px; margin-bottom: 24px;">
+                <h2 style="margin-bottom: 10px;">v0.5.0 <span style="font-size: 0.75rem; background: #22c55e; color: #fff; border-radius: 4px; padding: 2px 8px; vertical-align: middle; margin-left: 8px;">Lançado 2026-05-27</span></h2>
+                <p style="margin-bottom: 12px;">ArtKit v0.1: componentes reativos sem virtual DOM, sistema de dependências em compile time, scheduler assíncrono, lifecycle hooks, Deque&lt;T&gt; no prelude, TTD delta snapshots, DAP mínimo e guia de migração. <strong>53/53 itens do roadmap v0.5 — feature-complete.</strong></p>
+
+                <h3>1. Componentes Reativos — Bloco B</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li>6 novos tokens no lexer: <code>component</code>, <code>view</code>, <code>state</code>, <code>prop</code>, <code>memo</code>, <code>ref</code>.</li>
+                    <li>AST: <code>Stmt::ComponentBlock</code>, <code>Stmt::QualifiedBinding</code>, <code>enum BindingQualifier</code>.</li>
+                    <li>Parser: <code>component Name { state x: T = expr; view { &lt;template&gt; } }</code>.</li>
+                    <li>Type checker: 4 regras de diagnóstico — prop imutável, memo possivelmente stale, state fora de escopo, ref em view.</li>
+                </ul>
+
+                <h3>2. ReactivityPass e Grafo de Dependências — Bloco D</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li>Novo crate <code>reactivity</code>: <code>DepGraph</code> com nós <code>Source</code>/<code>Derived</code>/<code>Sink</code> e arestas tipadas.</li>
+                    <li><code>ReactivityPass::analyse</code> constrói DAG a partir de <code>ComponentBlock</code>.</li>
+                    <li>Tarjan SCC para detecção de ciclos em memos — erro em compile time com mensagem clara.</li>
+                    <li>Codegen: <code>set_X(v)</code> recomputa memos em ordem topológica e atualiza apenas os text nodes afetados.</li>
+                </ul>
+
+                <h3>3. Runtime UI: Scheduler e Lifecycle — Bloco E</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li><code>JS_RUNTIME</code> expandido: scheduler <code>__schedule</code>/<code>__flush</code> via <code>queueMicrotask</code>, <code>tick(fn)</code>.</li>
+                    <li>Lifecycle registry: <code>on_mount</code>, <code>on_destroy</code>, <code>on_update</code>.</li>
+                    <li>Helpers DOM: <code>dom.create</code>, <code>dom.text</code>, <code>dom.append</code>, <code>dom.set_attr</code>, <code>dom.set_text</code>, <code>dom.remove</code>, <code>dom.on</code>, <code>dom.off</code>, <code>dom.query</code>.</li>
+                </ul>
+
+                <h3>4. ArtKit v0.1 — Bloco F</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li><code>examples/artkit/counter.art</code> — Counter com <code>state count</code> e evento <code>on:click</code>.</li>
+                    <li><code>examples/artkit/todo.art</code> — <code>TodoItem</code> e <code>TodoList</code> com state e props.</li>
+                    <li><code>art build --bundle examples/artkit/counter.art</code> gera bundle autocontido.</li>
+                    <li>Guia <code>docs/guides/artkit_quickstart.md</code>; CI smoke test <code>artkit-smoke</code>.</li>
+                </ul>
+
+                <h3>5. Stdlib, TTD e Tooling — Bloco G</h3>
+                <ul style="list-style: disc; padding-left: 20px; color: var(--text-1); margin-top: 0; margin-bottom: 14px;">
+                    <li><code>Deque&lt;T&gt;</code> no prelude: <code>deque_new</code>, <code>deque_push_front</code>, <code>deque_push_back</code>, <code>deque_pop_front</code>, <code>deque_pop_back</code>, <code>deque_len</code>.</li>
+                    <li>TTD delta snapshots: <code>Tracer::record_delta</code> armazena apenas chaves alteradas.</li>
+                    <li>DAP mínimo: <code>art debug --dap</code> emite eventos <code>initialized</code>/<code>stopped</code>/<code>terminated</code> para editores DAP.</li>
+                    <li><code>art doc &lt;path&gt;</code> gera HTML em <code>docs/generated/&lt;name&gt;.html</code>.</li>
+                    <li><code>docs/guides/migration_v0.4_to_v0.5.md</code> — breaking changes e guia de migração.</li>
+                </ul>
+            </section>
+
+            <section class="glass" style="padding: 24px; margin-bottom: 24px;">
                 <h2 style="margin-bottom: 10px;">v0.4.0 <span style="font-size: 0.75rem; background: #22c55e; color: #fff; border-radius: 4px; padding: 2px 8px; vertical-align: middle; margin-left: 8px;">Lançado 2026-05-27</span></h2>
                 <p style="margin-bottom: 12px;">Primeiro passo para o ArtKit: compilação para JavaScript com bundler completo, parser de templates ArtML com diagnósticos integrais, type checker estático, debug shell interativo, stdlib de strings, LSP completo e robustez (fuzzing, property tests, CI regression detector). <strong>71/72 itens do roadmap v0.4 — feature-complete.</strong></p>
 
@@ -253,7 +298,7 @@ art run --record examples/44_ttd_keyframes.artlog examples/44_ttd_keyframes.art<
                 <a href="examples.html">Exemplos</a>
                 <a href="changelog.html">Changelog</a>
             </div>
-            <p>Artcode v0.4.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife" target="_blank">kitsuneislife</a></p>
+            <p>Artcode v0.5.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife" target="_blank">kitsuneislife</a></p>
         </div>
     </footer>
 

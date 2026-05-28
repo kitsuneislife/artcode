@@ -191,7 +191,7 @@
                         </li>
                         <li>Sistema de tipos básico: sem generics, sem checagem de campo em parse-time para struct init
                         </li>
-                        <li>Execução ainda interpretada (sem JIT/AOT) — plano: compilador "Jano" no roadmap v0.4+</li>
+                        <li>Execução ainda interpretada (sem JIT/AOT) — plano: compilador "Jano" no roadmap v0.6+</li>
                         <li>REPL básico: sem histórico e sem exibição automática do último valor</li>
                     </ul>
 
@@ -1285,7 +1285,7 @@ else_:
 <span class="fn">cargo</span> run -p xtask -- irgen --check  <span class="cm"># CI: falha se houver diffs</span></pre>
                     </div>
 
-                    <h2>Compilador "Jano" (Roadmap v0.4+)</h2>
+                    <h2>Compilador "Jano" (Roadmap v0.6+)</h2>
                     <p>Duas faces: <strong>JIT</strong> para desenvolvimento (compilação instantânea) e
                         <strong>AOT</strong> para produção com Profile-Guided Optimization (PGO):
                     </p>
@@ -1420,25 +1420,35 @@ else_:
                     <h1>Roadmap</h1>
                     <p>Roadmap detalhado em <code>docs/roadmap.md</code>. Histórico em <code>CHANGELOG.md</code>.</p>
                     <p>Para migração entre versões, use o guia <code>docs/guides/migration.md</code> e o utilitário <code>art upgrade --check</code>.</p>
-                    <h2>v0.4.0 (atual)</h2>
+                    <h2>v0.5.0 (atual)</h2>
+                    <ul>
+                        <li>✅ <code>component {}</code> blocks e qualificadores <code>state</code>/<code>prop</code>/<code>memo</code>/<code>ref</code></li>
+                        <li>✅ ReactivityPass: grafo de dependências, Tarjan SCC, detecção de ciclos em compile time</li>
+                        <li>✅ Codegen JS com updaters cirúrgicos — apenas os nós afetados são atualizados</li>
+                        <li>✅ Scheduler assíncrono <code>__schedule</code>/<code>__flush</code> via <code>queueMicrotask</code></li>
+                        <li>✅ Lifecycle hooks: <code>on_mount</code>, <code>on_destroy</code>, <code>on_update</code>, <code>tick</code></li>
+                        <li>✅ ArtKit v0.1: <code>counter.art</code>, <code>todo.art</code>, quickstart guide, CI smoke test</li>
+                        <li>✅ <code>Deque&lt;T&gt;</code> no prelude: 6 builtins, variante <code>ArtValue::Deque</code></li>
+                        <li>✅ TTD delta snapshots e integração DAP mínima (<code>--dap</code>)</li>
+                        <li>✅ <code>art doc &lt;path&gt;</code> gera HTML em <code>docs/generated/</code></li>
+                    </ul>
+                    <h2>v0.4.0</h2>
                     <ul>
                         <li>✅ Codegen JavaScript ES2022 + bundler autocontido</li>
                         <li>✅ Parser ArtML com templates declarativos embutidos na linguagem</li>
                         <li>✅ Type checker estático com inferência local e paramétrica</li>
-                        <li>✅ Diagnósticos de template: <code>on:click</code> não-callable, componente sem import</li>
-                        <li>✅ TTD Fase 2: debug shell interativo com <code>step</code>, <code>breakpoint</code>, <code>state-at</code></li>
+                        <li>✅ TTD debug shell interativo com <code>step</code>, <code>breakpoint</code>, <code>state-at</code></li>
                         <li>✅ LSP completo: completion, goto-def, hover, rename, semantic tokens</li>
                         <li>✅ Stdlib de strings: 8 builtins <code>str_*</code></li>
                         <li>✅ Robustez: fuzzing duplo, property tests, CI regression detector</li>
                     </ul>
-                    <h2>v0.5+ (planejado)</h2>
+                    <h2>v0.6+ (planejado)</h2>
                     <ul>
-                        <li>Qualificadores <code>state</code>/<code>prop</code>/<code>memo</code> e bloco <code>component {}</code> (ArtKit)</li>
-                        <li>ReactivityPass — grafo de dependências e scheduler</li>
-                        <li>Runtime DOM + lifecycle hooks</li>
-                        <li>WASM target funcional</li>
-                        <li>TTD delta snapshots e integração DAP</li>
+                        <li>Generics no interpreter — monomorphização básica na chamada de função</li>
+                        <li>Diagnósticos com linha/coluna precisa</li>
+                        <li>TTD Fase 2 — debug shell interativo com checkpoints navegáveis</li>
                         <li>JIT funcional com LLVM e PGO</li>
+                        <li>WASM target funcional</li>
                     </ul>
 
                     <h2>Métricas de Sucesso</h2>
@@ -1580,7 +1590,7 @@ else_:
                 <a href="why.html">Por que Artcode?</a>
                 <a href="examples.html">Exemplos</a>
             </div>
-            <p>Artcode v0.4.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
+            <p>Artcode v0.5.0 · MIT License · Feito com carinho por <a href="https://github.com/kitsuneislife"
                     target="_blank">kitsuneislife</a></p>
         </div>
     </footer>
