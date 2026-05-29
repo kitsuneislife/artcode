@@ -54,7 +54,7 @@ fn test_replayer_reads_artlog_and_provides_events() {
 
     let interp = run_and_interpret_with_tracer(src, trace_path);
     let t_val = interp.get_global("t").expect("t deve existir");
-    let r_val = interp.get_global("r").expect("r deve existir");
+    let _r_val = interp.get_global("r").expect("r deve existir");
 
     let mut replayer =
         interpreter::replayer::Replayer::new(trace_path).expect("replayer deve abrir arquivo");

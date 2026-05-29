@@ -409,7 +409,7 @@ fn run_file(
     }
 }
 
-fn run_aot(path: &str, out: Option<&str>, wasm: bool) {
+fn run_aot(path: &str, out: Option<&str>, wasm: bool, llvm: bool, emit_llvm_ir: bool) {
     match crate::resolver::resolve(path) {
         Ok((program, main_source)) => {
             let mut tenv = TypeEnv::new();
@@ -457,6 +457,80 @@ fn run_aot(path: &str, out: Option<&str>, wasm: bool) {
             if funcs.is_empty() {
                 eprintln!("Nenhuma função compativel com o MVP AOT (Pura Númerica) encontrada.");
                 process::exit(1);
+            }
+
+            // ── LLVM backend: emit textual IR and compile with clang ─────────
+            if llvm || emit_llvm_ir {
+                let ll_code = ir::llvm_emitter::emit_llvm_module(&funcs, "main");
+
+                if emit_llvm_ir {
+                    let out_ll = out.map(|s| s.to_string()).unwrap_or_else(|| {
+                        let stem = std::path::Path::new(path)
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("out");
+                        format!("{}.ll", stem)
+                    });
+                    if let Err(e) = fs::write(&out_ll, &ll_code) {
+                        eprintln!("[AOT] Falha ao escrever LLVM IR: {}", e);
+                        process::exit(1);
+                    }
+                    println!("[AOT] LLVM IR escrito em: {}", out_ll);
+                    return;
+                }
+
+                use sha2::{Digest, Sha256};
+                let mut hasher = Sha256::new();
+                hasher.update(ll_code.as_bytes());
+                let hash_hex = hex::encode(hasher.finalize());
+
+                let temp_dir = std::env::temp_dir().join(".artcache");
+                let _ = fs::create_dir_all(&temp_dir);
+                let ll_path = temp_dir.join(format!("art_aot_{}.ll", hash_hex));
+                let out_bin = out.unwrap_or("a.out");
+                let cached_bin = temp_dir.join(format!("clang_{}.bin", hash_hex));
+
+                if cached_bin.exists() {
+                    if let Err(e) = fs::copy(&cached_bin, out_bin) {
+                        eprintln!("[AOT] Falha ao copiar do cache: {}", e);
+                        process::exit(1);
+                    }
+                    eprintln!("[AOT] 🔥 CACHE HIT — binário LLVM reutilizado: {}", out_bin);
+                    return;
+                }
+
+                if let Err(e) = fs::write(&ll_path, &ll_code) {
+                    eprintln!("[AOT] Falha ao salvar LLVM IR intermediário: {}", e);
+                    process::exit(1);
+                }
+
+                eprintln!("[AOT] Compilando LLVM IR com clang -O2...");
+                let status = std::process::Command::new("clang")
+                    .arg("-O2")
+                    .arg("-Wno-override-module")
+                    .arg(&ll_path)
+                    .arg("-o")
+                    .arg(out_bin)
+                    .status();
+
+                match status {
+                    Ok(s) if s.success() => {
+                        eprintln!("[AOT] Binário nativo exportado para: {}", out_bin);
+                        let _ = fs::copy(out_bin, &cached_bin);
+                    }
+                    Ok(_) => {
+                        eprintln!("[AOT] clang falhou ao compilar o LLVM IR emitido.");
+                        process::exit(1);
+                    }
+                    Err(e) => {
+                        eprintln!("[AOT] Não foi possível invocar 'clang': {}", e);
+                        eprintln!("[AOT] Dica: instale LLVM/clang e garanta que está no PATH.");
+                        process::exit(1);
+                    }
+                }
+
+                let _ = fs::remove_file(&ll_path);
+                return;
             }
 
             let c_code = ir::c_emitter::emit_c_program(&funcs, "main");
@@ -972,12 +1046,23 @@ fn main() {
         let mut file: Option<String> = None;
         let mut out: Option<String> = None;
         let mut wasm = false;
+        let mut llvm = false;
+        let mut emit_llvm_ir = false;
+
+        const USAGE: &str =
+            "Usage: art build-aot <script.art> [--out <path>] [--wasm | --llvm | --emit-llvm-ir]";
 
         let mut j = 2usize;
         while j < args.len() {
             let a = &args[j];
             if a == "--wasm" {
                 wasm = true;
+                j += 1;
+            } else if a == "--llvm" {
+                llvm = true;
+                j += 1;
+            } else if a == "--emit-llvm-ir" {
+                emit_llvm_ir = true;
                 j += 1;
             } else if a == "--out" && j + 1 < args.len() {
                 out = Some(args[j + 1].clone());
@@ -986,15 +1071,15 @@ fn main() {
                 file = Some(a.clone());
                 j += 1;
             } else {
-                eprintln!("Usage: art build-aot <script.art> [--out <binary>] [--wasm]");
+                eprintln!("{}", USAGE);
                 process::exit(64);
             }
         }
         let Some(file) = file else {
-            eprintln!("Usage: art build-aot <script.art> [--out <binary>] [--wasm]");
+            eprintln!("{}", USAGE);
             process::exit(64);
         };
-        run_aot(&file, out.as_deref(), wasm);
+        run_aot(&file, out.as_deref(), wasm, llvm, emit_llvm_ir);
         return;
     }
 

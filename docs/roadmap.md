@@ -66,13 +66,26 @@
 
 ---
 
-## v0.6 — Objetivos de médio prazo
+## v0.6 — LLVM AOT + WASM + Generics (em desenvolvimento)
 
-- Generics no interpreter — monomorphização básica na chamada de função
-- Diagnósticos com linha/coluna precisa — erros de parse mostram posição exata
-- TTD Fase 2 — debug shell interativo com checkpoints navegáveis
-- JIT compilação funcional (LLVM integrado sem flags extras)
-- Sistema de módulos além do MVP (cache, resolução em rede)
+### Entregue
+
+#### Backend LLVM AOT — Bloco A (parcial)
+- Novo emissor de LLVM IR textual (`crates/ir/src/llvm_emitter.rs`) — traduz o IR
+  interno para `.ll` válido, compilado por `clang`. Sem dependência de `inkwell`,
+  desacoplado da versão da C-API do LLVM.
+- `art build-aot <file> --llvm` — binário nativo via `clang -O2`, com cache por hash do IR.
+- `art build-aot --emit-llvm-ir` — emite `.ll` textual (validável por `llvm-as`).
+- Lowering de `if`/`else` corrigido — ramos em bloco desembrulhados e condições bool
+  materializadas; gera `BrCond` + `phi` e executa nativamente.
+
+### Próximos objetivos
+
+- IR Lowering: laços (`while`/`for`), variáveis locais e recursão atravessando condicionais
+- WASM target — pipeline IR→C→emcc + WASI standalone (Bloco W)
+- Generics no interpreter — monomorphização básica na chamada de função (Bloco G)
+- Diagnósticos com linha/coluna precisa — erros de parse mostram posição exata (Bloco D)
+- TTD Fase 2 — debug shell interativo com checkpoints navegáveis (Bloco T)
 
 ---
 

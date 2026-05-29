@@ -106,3 +106,8 @@ Lowering contract
 
 - The lowering entrypoint `crates/ir::lowering::lower_stmt` accepts a `core::ast::Stmt` and returns `Option<ir::Function>` for supported constructs (arithmetic functions, simple calls, if-then-else patterns).
 - The interpreter is canonical; lowering must preserve semantics validated by golden-tests and unit tests.
+
+Backends
+
+- **C** (`crate::c_emitter::emit_c_program`): emits portable C compiled by `gcc`/`emcc`. Default for `art build-aot` and `--wasm`.
+- **LLVM** (`crate::llvm_emitter::emit_llvm_module`): emits textual LLVM IR (`.ll`) compiled by `clang`. Used by `art build-aot --llvm` (native binary) and `--emit-llvm-ir` (inspect/validate). The emitter relies on the lowering producing SSA-form IR, so `Instr::Phi` maps 1:1 onto LLVM `phi` and temporaries onto SSA registers. No `inkwell` dependency — the pipeline is decoupled from the LLVM C-API version. See the [AOT via LLVM guide](../guides/aot_llvm.md).

@@ -53,7 +53,7 @@ fn test_scheduler_actor_massive_message_stress() {
 
             // 2. Enviar massivamente (Roteamento Assíncrono para os mailboxes sem execução)
             // Isso encherá as filas locais sem consumir ainda (exceto as preemptadas).
-            for (i, aid) in actor_ids.iter().enumerate() {
+            for (i, _aid) in actor_ids.iter().enumerate() {
                 for m in 0..messages_per_actor {
                     let target = actor_ids[(i + (m as usize)) % actors_qty as usize];
 

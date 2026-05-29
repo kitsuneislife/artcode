@@ -39,6 +39,7 @@
 ## Guias
 
 - [Instalação](guides/installation.md)
+- [AOT nativo via LLVM](guides/aot_llvm.md)
 - [Time-Travel Debugging](guides/debugging.md)
 - [Guia de Migração](guides/migration.md)
 - [Versionamento](guides/versioning.md)

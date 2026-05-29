@@ -5,6 +5,19 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 
 ## [Unreleased]
 
+### Added
+- **Backend LLVM AOT (`crates/ir/src/llvm_emitter.rs`):** novo emissor de LLVM IR textual (`.ll`) a partir do IR interno. Compila para binário nativo via `clang` — sem dependência de `inkwell` e desacoplado da versão da C-API do LLVM.
+  - `art build-aot <file> --llvm [--out <bin>]`: emite LLVM IR, compila com `clang -O2`, gera binário nativo. Cache por hash do IR em `$TMPDIR/.artcache/` (CACHE HIT em recompilações).
+  - `art build-aot <file> --emit-llvm-ir [--out <file.ll>]`: escreve o LLVM IR textual para inspeção; validável com `llvm-as`.
+  - 4 testes em `crates/ir/tests/golden_llvm.rs`: emissão de texto válido + roundtrips de execução nativa (aritmética, if/else com `phi`, chamada entre funções), guardados por disponibilidade de `clang`.
+  - `docs/guides/aot_llvm.md` — guia do backend LLVM AOT.
+
+### Fixed
+- **Lowering de `if`/`else` para IR:** ramos embrulhados em bloco pelo parser (`if c { return x }`) agora são corretamente desembrulhados (`unwrap_single`), e condições `Bool` literais são materializadas como constante i64 (antes geravam `BrCond` sobre um temp não definido → IR inválido). `if`/`else` agora baixam para `BrCond` + `phi` e executam nativamente via LLVM.
+
+### Removed
+- Arquivos `.bak` de testes (`golden_lower_call.rs.bak`, `golden_ssa_unique.rs.bak`) e `eprintln!` de depuração remanescente no passe SSA (`crates/ir/src/ssa.rs`).
+
 ## [0.5.1] - 2026-05-27
 
 ### Fixed

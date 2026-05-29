@@ -210,9 +210,7 @@ pub fn insert_phi_nodes(func: &mut Function) {
         let mut incoming: Vec<(String, String)> = Vec::new();
         for p in preds[i].iter() {
             if let Some(&pi) = idx_of.get(p) {
-                let last = last_def(&blocks[pi].1);
-                eprintln!("[ssa] pred '{}' -> idx {} last_def={:?}", p, pi, last);
-                if let Some(v) = last {
+                if let Some(v) = last_def(&blocks[pi].1) {
                     incoming.push((v, blocks[pi].0.clone()));
                 }
             }

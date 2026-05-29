@@ -2,6 +2,20 @@ use crate::{Function, Instr, Type};
 use core::ast::{Expr, Stmt};
 use std::collections::HashMap;
 
+/// Unwrap a `Block` that holds exactly one statement, recursively. The parser
+/// wraps `if`/`match` branch bodies in blocks (`if c { return x }`), so the
+/// lowering inspects the inner statement directly.
+fn unwrap_single(mut s: &Stmt) -> &Stmt {
+    while let Stmt::Block { statements } = s {
+        if statements.len() == 1 {
+            s = &statements[0];
+        } else {
+            break;
+        }
+    }
+    s
+}
+
 /// Attempt to lower a `Stmt` to an IR `Function`.
 /// Currently supports `Stmt::Function` whose body is a `Return` of a Binary Add
 /// between either variables or integer literals. It's intentionally small for
@@ -215,31 +229,21 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
                 let else_bb = format!("{}_else", fname_prefix);
                 let merge_bb = format!("{}_merge", fname_prefix);
 
-                // lower condition: only var or literal supported for now
-                let cond_name = match condition {
-                    Expr::Variable { name } => name.lexeme.clone(),
+                // lower condition into (predicate name, instructions to materialize it).
+                // A `Bool` literal is materialized as an i64 0/1 const; a variable is
+                // used directly (treated as non-zero == true by `BrCond`).
+                let (cond_name, cond_pre): (String, Vec<Instr>) = match condition {
+                    Expr::Variable { name } => (name.lexeme.clone(), vec![]),
                     Expr::Literal(core::ast::ArtValue::Bool(b)) => {
-                        // materialize a const bool as i64 (0/1) in temp; record into pre_body
                         let t = mktemp();
                         let v = if *b { 1 } else { 0 };
-                        let _pb = [Instr::ConstI64(t.clone(), v)];
-                        // store pre_body in an option to be emitted later
-                        // We'll set cond_name to the temp we created.
-                        // Note: return cond_name as t and attach pre_body later.
-                        // Use a side-channel via a mutable variable below.
-                        // We'll shadow cond_name after the match to access pb via outer scope.
-                        // To implement this cleanly, we'll use a trick: store pb in a local
-                        // variable `pre_body_opt` declared below. For now, just return t.
-                        t
+                        (t.clone(), vec![Instr::ConstI64(t, v)])
                     }
                     _ => return None,
                 };
 
-                // optional pre-body (e.g. materialized consts for literal conditions)
-                let mut pre_body_opt: Option<Vec<Instr>> = None;
-
                 // lower then_branch: expect Return { value: Some(Literal Int) } or Binary
-                let then_res = match &**then_branch {
+                let then_res = match unwrap_single(then_branch) {
                     Stmt::Return {
                         value: Some(Expr::Literal(core::ast::ArtValue::Int(n))),
                     } => {
@@ -281,7 +285,7 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
 
                 // lower else_branch similarly
                 let else_branch = else_branch.as_ref()?;
-                let else_res = match &**else_branch {
+                let else_res = match unwrap_single(else_branch) {
                     Stmt::Return {
                         value: Some(Expr::Literal(core::ast::ArtValue::Int(n))),
                     } => {
@@ -323,11 +327,9 @@ pub fn lower_if_function(stmt: &Stmt) -> Option<Function> {
 
                 // assemble function body
                 let mut body: Vec<Instr> = Vec::new();
-                // emit pre_body if present
-                if let Some(pb) = pre_body_opt.take() {
-                    for i in pb.into_iter() {
-                        body.push(i);
-                    }
+                // materialize the condition predicate (e.g. const for bool literals)
+                for i in cond_pre.into_iter() {
+                    body.push(i);
                 }
                 // entry: br_cond cond, then_bb, else_bb
                 body.push(Instr::BrCond(

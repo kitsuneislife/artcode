@@ -35,6 +35,7 @@ pub struct Function {
 }
 
 pub mod c_emitter;
+pub mod llvm_emitter;
 pub mod lowering;
 pub mod ssa;
 
