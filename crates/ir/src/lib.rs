@@ -10,6 +10,31 @@ pub enum Type {
     Void,
 }
 
+/// Integer comparison predicates used by [`Instr::ICmp`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CmpPred {
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    Eq,
+    Ne,
+}
+
+impl CmpPred {
+    /// Symbol used in the textual IR (`emit_text`).
+    pub fn symbol(self) -> &'static str {
+        match self {
+            CmpPred::Lt => "lt",
+            CmpPred::Le => "le",
+            CmpPred::Gt => "gt",
+            CmpPred::Ge => "ge",
+            CmpPred::Eq => "eq",
+            CmpPred::Ne => "ne",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Instr {
     ConstI64(String, i64),       // name, value
@@ -17,7 +42,11 @@ pub enum Instr {
     Sub(String, String, String),
     Mul(String, String, String),
     Div(String, String, String),
-    Call(String, String, Vec<String>), // dest, fn, args
+    ICmp(String, CmpPred, String, String), // dest (0/1), pred, a, b
+    Call(String, String, Vec<String>),     // dest, fn, args
+    Alloca(String),                        // slot — stack-allocated i64 cell
+    Load(String, String),                  // dest, slot
+    Store(String, String),                 // slot, value
     Label(String),
     Br(String),
     BrCond(String, String, String), // pred, if_true, if_false
@@ -36,6 +65,7 @@ pub struct Function {
 
 pub mod c_emitter;
 pub mod llvm_emitter;
+pub mod lower_fn;
 pub mod lowering;
 pub mod ssa;
 
@@ -84,6 +114,20 @@ impl Function {
                 }
                 Instr::Div(dest, a, b) => {
                     body.push_str(&format!("  {} = div i64 {}, {}\n", dest, a, b))
+                }
+                Instr::ICmp(dest, pred, a, b) => body.push_str(&format!(
+                    "  {} = icmp {} i64 {}, {}\n",
+                    dest,
+                    pred.symbol(),
+                    a,
+                    b
+                )),
+                Instr::Alloca(slot) => body.push_str(&format!("  {} = alloca i64\n", slot)),
+                Instr::Load(dest, slot) => {
+                    body.push_str(&format!("  {} = load i64 {}\n", dest, slot))
+                }
+                Instr::Store(slot, val) => {
+                    body.push_str(&format!("  store i64 {}, {}\n", val, slot))
                 }
                 Instr::Call(dest, fnname, args) => body.push_str(&format!(
                     "  {} = call {}({})\n",

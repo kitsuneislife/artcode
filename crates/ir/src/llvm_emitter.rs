@@ -157,6 +157,30 @@ fn emit_llvm_function(f: &Function) -> String {
                     arg_str
                 );
             }
+            Instr::ICmp(dest, pred, a, b) => {
+                let p = match pred {
+                    crate::CmpPred::Lt => "slt",
+                    crate::CmpPred::Le => "sle",
+                    crate::CmpPred::Gt => "sgt",
+                    crate::CmpPred::Ge => "sge",
+                    crate::CmpPred::Eq => "eq",
+                    crate::CmpPred::Ne => "ne",
+                };
+                // Produce an i64 0/1 so it composes with `BrCond`'s `icmp ne 0`.
+                let bit = format!("%icmp.{}", cmp_id);
+                cmp_id += 1;
+                let _ = writeln!(out, "  {} = icmp {} i64 {}, {}", bit, p, operand(a), operand(b));
+                let _ = writeln!(out, "  {} = zext i1 {} to i64", operand(dest), bit);
+            }
+            Instr::Alloca(slot) => {
+                let _ = writeln!(out, "  {} = alloca i64", operand(slot));
+            }
+            Instr::Load(dest, slot) => {
+                let _ = writeln!(out, "  {} = load i64, ptr {}", operand(dest), operand(slot));
+            }
+            Instr::Store(slot, val) => {
+                let _ = writeln!(out, "  store i64 {}, ptr {}", operand(val), operand(slot));
+            }
             Instr::Br(target) => {
                 let _ = writeln!(out, "  br label %{}", target);
             }

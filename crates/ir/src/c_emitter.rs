@@ -168,6 +168,15 @@ fn emit_c_function(f: &Function) -> String {
             Instr::Phi(dest, _, _) => {
                 locals.insert(sanitize(dest));
             }
+            Instr::ICmp(dest, _, _, _) => {
+                locals.insert(sanitize(dest));
+            }
+            Instr::Alloca(slot) => {
+                locals.insert(sanitize(slot));
+            }
+            Instr::Load(dest, _) => {
+                locals.insert(sanitize(dest));
+            }
             _ => {}
         }
     }
@@ -244,6 +253,32 @@ fn emit_c_function(f: &Function) -> String {
                     .join(", ");
                 let ct = sanitize_fname(target);
                 out.push_str(&format!("    {} = {}({});\n", resolve(dest), ct, args_str));
+            }
+            Instr::ICmp(dest, pred, a, b) => {
+                let op = match pred {
+                    crate::CmpPred::Lt => "<",
+                    crate::CmpPred::Le => "<=",
+                    crate::CmpPred::Gt => ">",
+                    crate::CmpPred::Ge => ">=",
+                    crate::CmpPred::Eq => "==",
+                    crate::CmpPred::Ne => "!=",
+                };
+                out.push_str(&format!(
+                    "    {} = ({} {} {}) ? 1 : 0;\n",
+                    resolve(dest),
+                    resolve(a),
+                    op,
+                    resolve(b)
+                ));
+            }
+            Instr::Alloca(_slot) => {
+                // Storage is the function-scope local declared above; no-op here.
+            }
+            Instr::Load(dest, slot) => {
+                out.push_str(&format!("    {} = {};\n", resolve(dest), resolve(slot)));
+            }
+            Instr::Store(slot, val) => {
+                out.push_str(&format!("    {} = {};\n", resolve(slot), resolve(val)));
             }
             Instr::Br(target) => {
                 out.push_str(&format!("    goto L_{};\n", sanitize_lbl(target)));

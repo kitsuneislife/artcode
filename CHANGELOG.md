@@ -11,9 +11,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
   - `art build-aot <file> --emit-llvm-ir [--out <file.ll>]`: escreve o LLVM IR textual para inspeção; validável com `llvm-as`.
   - 4 testes em `crates/ir/tests/golden_llvm.rs`: emissão de texto válido + roundtrips de execução nativa (aritmética, if/else com `phi`, chamada entre funções), guardados por disponibilidade de `clang`.
   - `docs/guides/aot_llvm.md` — guia do backend LLVM AOT.
+- **Motor geral de lowering (`crates/ir/src/lower_fn.rs`):** motor recursivo baseado em modelo de memória (`alloca`/`load`/`store`) para baixar o subconjunto procedural completo — `let`, `if`/`else`, `while`, `return` e chamadas aninhadas. `clang -O2` (mem2reg) promove os slots para registradores. `for` sobre coleções deferido (Artcode não tem sintaxe de range inteiro).
+  - `Stmt::Let` → `alloca` + `store`; rebind do mesmo nome no mesmo slot = reassignation natural.
+  - `Stmt::While` → `while_head`/`while_body`/`while_exit` com back-edge.
+  - `Expr::Binary` com operadores de comparação (`<`, `<=`, `>`, `>=`, `==`, `!=`) → `ICmp` + `BrCond`.
+  - 4 testes em `crates/ir/tests/golden_lower_general.rs`: estrutura IR, roundtrip `let`+add (42), while counter (7), if com local (clamp_pos → 0).
+- **Novos opcodes IR:** `Instr::ICmp`, `Instr::Alloca`, `Instr::Load`, `Instr::Store` — emitidos por `llvm_emitter.rs` (LLVM IR válido), `c_emitter.rs` (C equivalente) e registrados em `ssa.rs` (`rename_temps`).
 
 ### Fixed
 - **Lowering de `if`/`else` para IR:** ramos embrulhados em bloco pelo parser (`if c { return x }`) agora são corretamente desembrulhados (`unwrap_single`), e condições `Bool` literais são materializadas como constante i64 (antes geravam `BrCond` sobre um temp não definido → IR inválido). `if`/`else` agora baixam para `BrCond` + `phi` e executam nativamente via LLVM.
+- **E0004 em `ssa.rs` (`rename_temps`):** match não-exaustivo em Pass 2 — variantes `ICmp`, `Alloca`, `Load`, `Store` adicionadas.
+- **E0004 em `jit/src/ir_loader.rs`:** mesmo match adicionado com as 4 novas variantes, mantendo contagem de instruções correta.
 
 ### Removed
 - Arquivos `.bak` de testes (`golden_lower_call.rs.bak`, `golden_ssa_unique.rs.bak`) e `eprintln!` de depuração remanescente no passe SSA (`crates/ir/src/ssa.rs`).

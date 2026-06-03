@@ -391,6 +391,11 @@ pub fn lower_stmt(stmt: &Stmt) -> Option<Function> {
         crate::ssa::rename_temps(&mut f);
         return Some(f);
     }
+    // general fallback: full procedural subset (let, if/else, while, for, recursion)
+    // via the memory (alloca/load/store) model. No SSA passes — already valid IR.
+    if let Some(f) = crate::lower_fn::lower_function(stmt) {
+        return Some(f);
+    }
     None
 }
 

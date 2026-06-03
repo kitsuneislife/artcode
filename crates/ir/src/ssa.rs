@@ -90,6 +90,20 @@ pub fn rename_temps(func: &mut Function) {
                     *v = replace(v, &map);
                 }
             }
+            Instr::ICmp(dest, _pred, a, b) => {
+                *dest = replace(dest, &map);
+                *a = replace(a, &map);
+                *b = replace(b, &map);
+            }
+            Instr::Alloca(_) => {}
+            Instr::Load(dest, slot) => {
+                *dest = replace(dest, &map);
+                *slot = replace(slot, &map);
+            }
+            Instr::Store(slot, val) => {
+                *slot = replace(slot, &map);
+                *val = replace(val, &map);
+            }
             Instr::Ret(opt) => {
                 if let Some(v) = opt {
                     *v = replace(v, &map);
