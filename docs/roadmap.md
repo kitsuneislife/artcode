@@ -97,6 +97,12 @@
   remoção do prefixo `\\?\` que `canonicalize` introduzia.
 - `art add` e o resolver de imports passam a compartilhar `resolver::cache_dir()`, com
   override por `ARTCODE_HOME`. Antes discordavam do diretório de cache no Windows.
+- `perf-regression` verde pela primeira vez: `.gitignore` casava `*.json` e mantinha
+  `baseline/perf_fib20.json` fora do repositório, então o job abortava em "baseline file not
+  found" antes de medir qualquer coisa.
+- `coverage` verde: os testes de exemplo procuravam o binário em `target/debug/art`, caminho
+  que não existe sob `cargo llvm-cov`. Passam a derivar o diretório do executável de teste.
+- `release.yml` compila a tag informada, e não o branch do dispatch.
 
 ### Próximos objetivos
 

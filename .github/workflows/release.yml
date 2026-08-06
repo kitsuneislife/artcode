@@ -37,7 +37,12 @@ jobs:
             artifact: art-windows-x86_64.exe
 
     steps:
+      # Build from the tag being released, not from the branch the workflow was
+      # dispatched on — otherwise the published binaries can silently disagree
+      # with the tag they are attached to.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -76,6 +81,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag }}
 
       - name: Download all binaries
         uses: actions/download-artifact@v4

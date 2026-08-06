@@ -167,8 +167,12 @@ jobs:
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov --locked
 
+      # --no-fail-fast so every failing test target is reported in one run.
+      # Without it cargo stops at the first failure and the remaining targets
+      # are never executed, which turns one broken assumption shared by several
+      # tests into one CI cycle per test.
       - name: Run coverage
-        run: cargo llvm-cov --workspace --ignore-filename-regex ".*/target/.*" --lcov --output-path lcov.info
+        run: cargo llvm-cov --workspace --no-fail-fast --ignore-filename-regex ".*/target/.*" --lcov --output-path lcov.info
 
       - name: Coverage threshold (≥60%)
         run: |

@@ -13,6 +13,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 - **`art add` e o resolver de imports concordam sobre o diretório de cache.** `art add` usava `env::var("HOME")` com fallback `"."` enquanto o resolver usava `dirs::home_dir()`; no Windows, onde `HOME` normalmente não existe e `dirs` lê a pasta de perfil pela API do Win32, os pacotes eram instalados onde o resolver nunca procurava. Ambos passam a usar `resolver::cache_dir()`, com override explícito via `ARTCODE_HOME`.
 - **Golden `crates/ir/golden/if.ir` regenerado.** Continuava registrando a saída antiga e inválida (`br_cond %f_0`, sobre um temp nunca definido) mesmo depois de a correção de lowering ter mudado a emissão. O passo `xtask gen-golden --check` — o primeiro do job `build-and-test` — teria falhado assim que os commits de IR chegassem ao CI.
 - **53 warnings de clippy e 1 erro de compilação** eliminados no workspace (`assert!(false, …)` → `panic!`, `useless_conversion`, `for_kv_map`, transmutes de ponteiro de função, casts redundantes, `approx_constant`). Workspace inteiro reformatado com `cargo fmt`.
+- **CI *perf-regression* passou pela primeira vez.** O job existia desde `0ce2e6f` e nunca havia passado. A causa não era desempenho: `.gitignore` casa `*.json` globalmente e engolia `baseline/perf_fib20.json`, que existia apenas nas cópias de trabalho e nunca foi versionado. Todo run abortava em `ERROR: baseline file not found` antes de medir qualquer coisa. O padrão passou a ser negado para `baseline/` e o arquivo foi commitado.
+- **CI *coverage* voltou a passar.** `integration_example_13` e `integration_example_99` procuravam o interpretador no caminho fixo `target/debug/art`, mas `cargo llvm-cov` compila em `target/llvm-cov-target` — onde esse caminho nunca existe. Ambos passam a derivar o diretório de build do próprio executável de teste, via helper compartilhado em `crates/interpreter/tests/common/mod.rs`, e compilam `cli` no mesmo target dir quando o binário falta.
+- **`-D unused-mut` falhava só fora do Windows:** o `mut` do local de `to_file_uri` é usado exclusivamente dentro de um bloco `#[cfg(windows)]`, então em Linux a variável nunca é mutada. Substituído por rebind sob o mesmo `cfg`.
+- **`release.yml` compila a tag informada.** Ambos os jobs faziam `actions/checkout@v4` sem `ref`, ou seja, compilavam o branch em que o workflow foi disparado e publicavam o resultado sob o nome da tag escolhida — os binários podiam não corresponder à tag. Agora usam `ref: ${{ github.event.inputs.tag }}`.
+- **Lowering de `if`/`else` para IR:** ramos embrulhados em bloco pelo parser (`if c { return x }`) agora são corretamente desembrulhados (`unwrap_single`), e condições `Bool` literais são materializadas como constante i64 (antes geravam `BrCond` sobre um temp não definido → IR inválido). `if`/`else` agora baixam para `BrCond` + `phi` e executam nativamente via LLVM.
+- **E0004 em `ssa.rs` (`rename_temps`):** match não-exaustivo em Pass 2 — variantes `ICmp`, `Alloca`, `Load`, `Store` adicionadas.
+- **E0004 em `jit/src/ir_loader.rs`:** mesmo match adicionado com as 4 novas variantes, mantendo contagem de instruções correta.
 
 ### Added
 - **Job `lint` no CI:** `cargo clippy --workspace --all-targets --locked -- -D warnings` e `cargo fmt --all -- --check`. O CI não executava clippy em lugar nenhum — a alegação de "zero warnings" do commit `b7ba5c3` havia regredido sem detecção. `build-and-test` também passa a usar `--locked`.
@@ -30,13 +37,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
   - 4 testes em `crates/ir/tests/golden_lower_general.rs`: estrutura IR, roundtrip `let`+add (42), while counter (7), if com local (clamp_pos → 0).
 - **Novos opcodes IR:** `Instr::ICmp`, `Instr::Alloca`, `Instr::Load`, `Instr::Store` — emitidos por `llvm_emitter.rs` (LLVM IR válido), `c_emitter.rs` (C equivalente) e registrados em `ssa.rs` (`rename_temps`).
 
-### Fixed
-- **Lowering de `if`/`else` para IR:** ramos embrulhados em bloco pelo parser (`if c { return x }`) agora são corretamente desembrulhados (`unwrap_single`), e condições `Bool` literais são materializadas como constante i64 (antes geravam `BrCond` sobre um temp não definido → IR inválido). `if`/`else` agora baixam para `BrCond` + `phi` e executam nativamente via LLVM.
-- **E0004 em `ssa.rs` (`rename_temps`):** match não-exaustivo em Pass 2 — variantes `ICmp`, `Alloca`, `Load`, `Store` adicionadas.
-- **E0004 em `jit/src/ir_loader.rs`:** mesmo match adicionado com as 4 novas variantes, mantendo contagem de instruções correta.
-
 ### Changed
-- **`scripts/perf_regression.sh` reescrito.** O job `perf-regression` foi adicionado em `0ce2e6f` e nunca passou — `7f4cf33` foi sua primeira execução no CI. O script deixou de depender de `python3`, passou a medir o melhor de 5 execuções (uma amostra única num runner compartilhado não é representativa), preserva o `stderr` do binário em vez de descartá-lo com `2>/dev/null`, e imprime o JSON medido quando uma verificação falha.
+- **`scripts/perf_regression.sh` reescrito.** Independente da causa da falha do job (ver *Fixed*), o script deixou de depender de `python3`, passou a medir o melhor de 5 execuções (uma amostra única num runner compartilhado não é representativa), preserva o `stderr` do binário em vez de descartá-lo com `2>/dev/null`, e imprime o JSON medido quando uma verificação falha.
+- **Etapa `coverage` usa `--no-fail-fast`.** Sem isso o `cargo test` para no primeiro alvo que falha e os demais nunca executam, o que transforma uma suposição errada compartilhada por vários testes em um ciclo de CI por teste.
 - Testes que dependem de ferramentas POSIX (`echo`, `tr`, `sh`) marcados com `#![cfg(unix)]`: a sintaxe shell do Artcode executa o programa nomeado diretamente, sem interpretador de shell, e no Windows `echo` é um builtin do `cmd.exe`, não um executável.
 
 ### Removed

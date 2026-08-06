@@ -143,10 +143,18 @@ as versões dessincronizadas. O CI não executava `clippy` em lugar nenhum, ent�
 - [x] `Metrics Validation` verde: a etapa `Build workspace` usa `--locked` e o `Cargo.lock`
       declarava `cli 0.5.0` enquanto os manifestos diziam `0.4.0` — `cargo` recusava atualizar o
       lock e falhava antes de compilar. Versões unificadas e lock regenerado.
-- [ ] `CI / perf-regression` verde: job adicionado em `0ce2e6f` e **nunca passou** — `7f4cf33`
-      foi sua primeira execução. Script reescrito (sem dependência de `python3`, best-of-5 para
-      absorver ruído de runner, stderr preservado, JSON impresso em falha); confirmação pendente
-      da próxima execução no CI.
+- [x] `CI / perf-regression` verde: o job nunca havia passado desde `0ce2e6f`. Causa real —
+      `.gitignore` casava `*.json` globalmente e engolia `baseline/perf_fib20.json`, que existia
+      só nas cópias de trabalho. Todo run abortava em "baseline file not found" antes de medir
+      qualquer coisa; performance nunca esteve envolvida. Padrão negado para `baseline/` e
+      arquivo commitado.
+- [x] `CI / coverage` verde: `integration_example_13` e `_99` procuravam o binário em
+      `target/debug/art`, mas `cargo llvm-cov` compila em `target/llvm-cov-target`. Helper
+      compartilhado em `crates/interpreter/tests/common/mod.rs` deriva o diretório do próprio
+      executável de teste. Etapa passou a usar `--no-fail-fast`, senão cada teste com a mesma
+      suposição custa um ciclo de CI para aparecer.
+- [x] `CI / lint` verde: `-D unused-mut` disparava só fora do Windows, porque o `mut` de
+      `to_file_uri` só é usado dentro de `#[cfg(windows)]`.
 
 **Guardas novas**
 - [x] Job `lint` no `ci.yml`: `cargo clippy --workspace --all-targets --locked -- -D warnings`
@@ -170,6 +178,9 @@ as versões dessincronizadas. O CI não executava `clippy` em lugar nenhum, ent�
       `env::var("HOME")` com fallback `"."`, o resolver usava `dirs::home_dir()`. No Windows o
       pacote era instalado onde o resolver nunca procurava. Unificado em `resolver::cache_dir()`,
       com override explícito via `ARTCODE_HOME`.
+- [x] `release.yml` dava checkout no branch do dispatch, não na tag informada, e publicava os
+      binários resultantes sob o nome dessa tag — release e artefatos podiam divergir. Ambos os
+      jobs passaram a usar `ref: ${{ github.event.inputs.tag }}`.
 
 **Higiene**
 - [x] `.gitattributes` normalizando fim de linha (`eol=lf`) — sem ele todo checkout no Windows
@@ -219,7 +230,7 @@ Sequência recomendada:
 
 - [x] `cargo test --workspace` verde; `cargo clippy --workspace --all-targets -- -D warnings` limpo;
       `cargo fmt --all --check` limpo — verificado no Windows e travado por job de CI
-- [x] Todos os workflows do GitHub Actions verdes (falta confirmar `perf-regression` na próxima execução)
+- [x] Todos os workflows do GitHub Actions verdes, `perf-regression` e `coverage` inclusive
 - [x] `art build-aot <file> --llvm` produz binário nativo via `clang` (LLVM IR textual, sem `inkwell`)
 - [x] `art build-aot --emit-llvm-ir <file>` emite `.ll` válido verificado por `llvm-as`
 - [ ] `art build --target wasm examples/wasm/fib.art --standalone` produz `.wasm` executado por `wasmtime`
