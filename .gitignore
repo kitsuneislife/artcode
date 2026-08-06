@@ -6,6 +6,9 @@ lcov.info
 *.json
 !calibration_suggestion.json
 !profile.json
+# The perf baseline is committed data, not an output: without it the CI
+# perf-regression job aborts with "baseline file not found".
+!baseline/*.json
 
 # Generated artifacts and plans
 /artifacts/

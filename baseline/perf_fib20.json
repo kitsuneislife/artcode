@@ -1,0 +1,7 @@
+{
+  "benchmark": "fib(20)",
+  "script": "baseline/bench_fib20.art",
+  "expected_stmts": 76621,
+  "min_stmts_per_sec": 50000,
+  "note": "Baseline measured on ubuntu-latest debug build. min_stmts_per_sec is a floor (debug=~140k, CI may be slower). If stmts count changes, the function behaviour changed."
+}

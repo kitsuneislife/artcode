@@ -464,17 +464,17 @@ fn decode_file_uri_path(uri: &str) -> Option<PathBuf> {
 
 fn to_file_uri(path: &Path) -> Option<String> {
     let canonical = std::fs::canonicalize(path).ok()?;
-    let mut text = canonical.to_string_lossy().into_owned();
+    let text = canonical.to_string_lossy().into_owned();
 
     // `canonicalize` returns extended-length paths (`\\?\C:\dir`) on Windows.
     // That prefix is a Win32 API detail and is not valid inside a file URI.
+    // Rebinding rather than mutating keeps the binding immutable on Unix, where
+    // this block does not exist and a `mut` would trip `-D unused-mut`.
     #[cfg(windows)]
-    {
-        text = text
-            .strip_prefix(r"\\?\")
-            .unwrap_or(text.as_str())
-            .replace('\\', "/");
-    }
+    let text = text
+        .strip_prefix(r"\\?\")
+        .unwrap_or(text.as_str())
+        .replace('\\', "/");
 
     // Unix paths already start with `/`; Windows paths start with a drive
     // letter and need the extra slash that separates authority from path.
