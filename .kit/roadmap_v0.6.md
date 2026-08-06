@@ -10,7 +10,7 @@ Estado: v0.5.1 concluído e versionado (manifestos, README e website alinhados).
 
 ---
 
-## Progresso geral  [███░░░░░░░]  20 / 57
+## Progresso geral  [███░░░░░░░]  20 / 62
 
 ---
 
@@ -40,6 +40,30 @@ mais minimalista (sem dependência pesada), portável e desacoplado da versão d
 **Testes**
 - [x] 4 testes de roundtrip em `crates/ir/tests/golden_llvm.rs`: emissão válida + execução nativa de aritmética, if/else (com `phi`) e chamada entre funções (guardados por disponibilidade de `clang`)
 - [x] 4 testes do motor geral em `crates/ir/tests/golden_lower_general.rs`: estrutura alloca/load/store, roundtrip `let`+add (42), while counter (7), if com local (clamp_pos → 0)
+
+---
+
+## M — Interner e Processos Longevos  [░░░░░░░░░░]  0 / 5
+
+**Prioridade alta.** `core::interner::intern` faz `Box::leak` de todo símbolo distinto num
+pool global `OnceLock<Mutex<HashSet<&'static str>>>` que nunca é liberado. O comentário do
+código assume que "o conjunto de símbolos é pequeno comparado ao tempo de vida do processo" —
+premissa válida para `art run script.art`, inválida para qualquer processo que viva mais que
+uma execução. `art lsp` re-lexa o arquivo a cada tecla, então vaza todo identificador parcial
+digitado durante a sessão inteira, além de toda string literal via `intern_arc`.
+
+Descoberto pelo `Fuzz CI`, que fuzza in-process: o custo por iteração sobe ~6x
+(990ms → 6.1s por 2000 iterações) até um input qualquer cruzar o `-timeout` do libFuzzer.
+Enquanto não for corrigido, `Fuzz CI` permanece vermelho — achado legítimo, não infraestrutura.
+
+- [ ] M.1 Medir o crescimento: teste que roda N iterações do pipeline lex→parse→interpret num
+      só processo e falha se o tempo por iteração degradar acima de um limite
+- [ ] M.2 Substituir o pool global por interner com tempo de vida explícito (por sessão/arena),
+      ou pool limitado com política LRU e teto configurável
+- [ ] M.3 Mesmo tratamento para `intern_arc` (`ARC_POOL`), que retém `String` + `Arc<str>` por
+      literal — chamado de `parser/expressions.rs:37` e `statements.rs:373`
+- [ ] M.4 Auditar `art lsp` sob edição prolongada: RSS estável após N reparses do mesmo arquivo
+- [ ] M.5 `Fuzz CI` verde de novo, sem aumentar `-timeout` para mascarar o sintoma
 
 ---
 
@@ -207,6 +231,7 @@ Itens pendentes do checklist operacional que completam a stdlib mínima.
 ## Ordem de implementação
 
 ```
+M (Interner)     ─── independente, mas mantém o Fuzz CI vermelho até fechar
 A (LLVM AOT)     ──► W (WASM — depende de IR Lowering expandido em A)
 G (Generics)     ──► D (Diagnósticos — span propagation mais fácil depois de generics)
 T (TTD Fase 2)   ─── independente
@@ -216,12 +241,11 @@ S (Stdlib)       ─── independente
 
 ```
 Sequência recomendada:
-1. A.1–A.4  (IR Lowering expandido)    ← desbloqueia W e A.5–A.7
-2. A.5–A.7  (inkwell + art aot --llvm)
-3. A.8–A.10 (otimizações, cache, testes LLVM)
-4. W.1–W.8  (WASM pipeline completo)
-5. G.1–G.9  (Generics)
-6. D + T + P + S  (paralelo — sem dependência entre si)
+1. M.1–M.5  (interner)                 ← primeiro: devolve o Fuzz CI ao verde
+2. A.11     (inlining guiado por PGO — fecha o bloco A)
+3. W.1–W.8  (WASM pipeline completo)
+4. G.1–G.9  (Generics)
+5. D + T + P + S  (paralelo — sem dependência entre si)
 ```
 
 ---

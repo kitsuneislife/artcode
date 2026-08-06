@@ -106,6 +106,10 @@
 
 ### Próximos objetivos
 
+- **Interner com tempo de vida explícito (Bloco M — prioridade alta).** `core::interner::intern`
+  faz `Box::leak` de cada símbolo novo num pool global permanente. É seguro para a CLI, que é
+  efêmera, mas vaza sem limite em `art lsp`, que vive a sessão de edição inteira e re-lexa a
+  cada tecla. Encontrado pelo `Fuzz CI`, que fuzza in-process e degrada ~6x até dar timeout.
 - WASM target — pipeline IR→C→emcc + WASI standalone (Bloco W)
 - Generics no interpreter — monomorphização básica na chamada de função (Bloco G)
 - Diagnósticos com linha/coluna precisa — erros de parse mostram posição exata (Bloco D)
