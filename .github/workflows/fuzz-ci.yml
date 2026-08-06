@@ -10,7 +10,11 @@ on:
 jobs:
   parser-loops-fuzz:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 20 minutes was not enough for the work this job actually does: building
+    # cargo-fuzz from source plus instrumenting both targets consumes most of
+    # the budget before any fuzzing starts, so the run was cancelled mid-way
+    # through the second worker rather than failing on a finding.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -24,7 +28,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
 
       - name: Run parser/loops fuzz worker
         run: cargo fuzz run parser_loops --fuzz-dir fuzz/cargo_fuzz -- -max_total_time=60

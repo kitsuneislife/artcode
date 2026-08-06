@@ -39,6 +39,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 
 ### Changed
 - **`scripts/perf_regression.sh` reescrito.** Independente da causa da falha do job (ver *Fixed*), o script deixou de depender de `python3`, passou a medir o melhor de 5 execuções (uma amostra única num runner compartilhado não é representativa), preserva o `stderr` do binário em vez de descartá-lo com `2>/dev/null`, e imprime o JSON medido quando uma verificação falha.
+- **`Fuzz CI` com `timeout-minutes: 45`.** O limite anterior de 20 minutos era menor que o trabalho real do job: compilar `cargo-fuzz` da fonte e instrumentar os dois alvos consome quase todo o orçamento antes de o fuzzing começar, então o run era cancelado no meio do segundo worker — nunca foi uma falha de fuzzing. `cargo install cargo-fuzz` passou a usar `--locked`.
 - **Etapa `coverage` usa `--no-fail-fast`.** Sem isso o `cargo test` para no primeiro alvo que falha e os demais nunca executam, o que transforma uma suposição errada compartilhada por vários testes em um ciclo de CI por teste.
 - Testes que dependem de ferramentas POSIX (`echo`, `tr`, `sh`) marcados com `#![cfg(unix)]`: a sintaxe shell do Artcode executa o programa nomeado diretamente, sem interpretador de shell, e no Windows `echo` é um builtin do `cmd.exe`, não um executável.
 
