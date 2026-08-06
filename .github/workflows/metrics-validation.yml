@@ -5,6 +5,10 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  # Manual trigger: a push event lost to a GitHub Actions outage is never
+  # replayed, and without this the only way to re-run this workflow was to
+  # create another commit.
+  workflow_dispatch: {}
 
 jobs:
   metrics-validate:
