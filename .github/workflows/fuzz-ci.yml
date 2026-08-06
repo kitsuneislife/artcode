@@ -8,13 +8,19 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  parser-loops-fuzz:
+  fuzz:
+    name: fuzz — ${{ matrix.target }}
     runs-on: ubuntu-latest
-    # 20 minutes was not enough for the work this job actually does: building
-    # cargo-fuzz from source plus instrumenting both targets consumes most of
-    # the budget before any fuzzing starts, so the run was cancelled mid-way
-    # through the second worker rather than failing on a finding.
+    # The cost here is the instrumented build, not the fuzzing: lexer, parser,
+    # interpreter and diagnostics are all recompiled with sanitizer coverage
+    # before a single input runs. 45 minutes covers a cold cache; a warm one
+    # finishes in a couple of minutes.
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [parser_loops, interpreter_valid]
+
     steps:
       - uses: actions/checkout@v4
 
@@ -24,14 +30,23 @@ jobs:
       - name: Install LLVM/Clang
         run: sudo apt-get update && sudo apt-get install -y clang lld
 
+      # cargo-fuzz builds into `fuzz/cargo_fuzz/target`, which is a separate
+      # workspace and was never covered by the default `./target` cache — so
+      # every run paid for the full instrumented build from scratch. The shared
+      # key lets both matrix jobs restore the same artifacts.
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: fuzz
+          workspaces: |
+            . -> target
+            fuzz/cargo_fuzz -> target
 
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
 
-      - name: Run parser/loops fuzz worker
-        run: cargo fuzz run parser_loops --fuzz-dir fuzz/cargo_fuzz -- -max_total_time=60
-
-      - name: Run interpreter/valid fuzz worker
-        run: cargo fuzz run interpreter_valid --fuzz-dir fuzz/cargo_fuzz -- -max_total_time=60
+      # -timeout=25 makes libFuzzer report a hanging input as a finding after 25
+      # seconds. The default is 1200s per input, long enough to swallow the whole
+      # job and look like an infrastructure problem rather than a bug.
+      - name: Run fuzz worker
+        run: cargo fuzz run ${{ matrix.target }} --fuzz-dir fuzz/cargo_fuzz -- -max_total_time=60 -timeout=25
