@@ -222,7 +222,11 @@ impl Parser {
             if self.match_token(TokenType::Func) {
                 let mut method = self.function_declaration();
                 // Inject type_name as method_owner if not already set
-                if let Stmt::Function { ref mut method_owner, .. } = method {
+                if let Stmt::Function {
+                    ref mut method_owner,
+                    ..
+                } = method
+                {
                     method_owner.get_or_insert_with(|| type_name.clone());
                 }
                 methods.push(method);
@@ -237,7 +241,10 @@ impl Parser {
 
     fn component_block(&mut self) -> Stmt {
         use core::ast::{BindingQualifier, TemplateNode};
-        let name_token = self.consume(TokenType::Identifier, "Expect component name after 'component'.");
+        let name_token = self.consume(
+            TokenType::Identifier,
+            "Expect component name after 'component'.",
+        );
         let name = name_token.lexeme.clone();
         self.consume(TokenType::LeftBrace, "Expect '{' after component name.");
         let mut bindings: Vec<Stmt> = Vec::new();
@@ -267,7 +274,12 @@ impl Parser {
                     None
                 };
                 self.match_token(TokenType::Semicolon);
-                bindings.push(Stmt::QualifiedBinding { qualifier, name: name_tok, type_ann, value });
+                bindings.push(Stmt::QualifiedBinding {
+                    qualifier,
+                    name: name_tok,
+                    type_ann,
+                    value,
+                });
             } else if self.match_token(TokenType::View) {
                 self.consume(TokenType::LeftBrace, "Expect '{' after 'view'.");
                 let nodes = expressions::parse_template_nodes(self);
@@ -278,7 +290,11 @@ impl Parser {
             }
         }
         self.consume(TokenType::RightBrace, "Expect '}' after component block.");
-        Stmt::ComponentBlock { name, bindings, view }
+        Stmt::ComponentBlock {
+            name,
+            bindings,
+            view,
+        }
     }
 
     pub fn struct_declaration(&mut self) -> Stmt {
@@ -627,13 +643,25 @@ fn collect_known_names(stmts: &[Stmt]) -> HashSet<String> {
                 known.insert(name.lexeme.clone());
             }
             Stmt::Function { name, .. }
-                if name.lexeme.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) =>
+                if name
+                    .lexeme
+                    .chars()
+                    .next()
+                    .map(|c| c.is_uppercase())
+                    .unwrap_or(false) =>
             {
                 known.insert(name.lexeme.clone());
             }
             Stmt::Function { .. } => {}
-            Stmt::Let { pattern: core::ast::MatchPattern::Variable(tok), .. }
-                if tok.lexeme.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) =>
+            Stmt::Let {
+                pattern: core::ast::MatchPattern::Variable(tok),
+                ..
+            } if tok
+                .lexeme
+                .chars()
+                .next()
+                .map(|c| c.is_uppercase())
+                .unwrap_or(false) =>
             {
                 known.insert(tok.lexeme.clone());
             }
@@ -650,14 +678,22 @@ fn collect_template_components(nodes: &[TemplateNode]) -> Vec<(String, Span)> {
     let mut out = Vec::new();
     for node in nodes {
         match node {
-            TemplateNode::Component { name, attrs: _, children } => {
+            TemplateNode::Component {
+                name,
+                attrs: _,
+                children,
+            } => {
                 out.push((name.clone(), Span::new(0, 0, 0, 0)));
                 out.extend(collect_template_components(children));
             }
             TemplateNode::Element { children, .. } => {
                 out.extend(collect_template_components(children));
             }
-            TemplateNode::If { then_children, else_children, .. } => {
+            TemplateNode::If {
+                then_children,
+                else_children,
+                ..
+            } => {
                 out.extend(collect_template_components(then_children));
                 out.extend(collect_template_components(else_children));
             }
@@ -689,18 +725,28 @@ fn find_template_components_in_stmt(stmt: &Stmt, out: &mut Vec<(String, Span)>) 
         }
         Stmt::Let { initializer, .. } => find_template_components_in_expr(initializer, out),
         Stmt::Block { statements } => {
-            for s in statements { find_template_components_in_stmt(s, out); }
+            for s in statements {
+                find_template_components_in_stmt(s, out);
+            }
         }
         Stmt::Function { body, .. } => {
             find_template_components_in_stmt(body, out);
         }
         Stmt::SpawnActor { body } => {
-            for s in body { find_template_components_in_stmt(s, out); }
+            for s in body {
+                find_template_components_in_stmt(s, out);
+            }
         }
-        Stmt::If { condition, then_branch, else_branch } => {
+        Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        } => {
             find_template_components_in_expr(condition, out);
             find_template_components_in_stmt(then_branch, out);
-            if let Some(eb) = else_branch { find_template_components_in_stmt(eb, out); }
+            if let Some(eb) = else_branch {
+                find_template_components_in_stmt(eb, out);
+            }
         }
         Stmt::While { condition, body } => {
             find_template_components_in_expr(condition, out);
@@ -710,8 +756,14 @@ fn find_template_components_in_stmt(stmt: &Stmt, out: &mut Vec<(String, Span)>) 
             find_template_components_in_expr(iterator, out);
             find_template_components_in_stmt(body, out);
         }
-        Stmt::Performant { statements } | Stmt::ImplBlock { methods: statements, .. } => {
-            for s in statements { find_template_components_in_stmt(s, out); }
+        Stmt::Performant { statements }
+        | Stmt::ImplBlock {
+            methods: statements,
+            ..
+        } => {
+            for s in statements {
+                find_template_components_in_stmt(s, out);
+            }
         }
         _ => {}
     }

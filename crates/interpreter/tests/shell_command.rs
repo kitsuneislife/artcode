@@ -1,3 +1,9 @@
+// Artcode shell syntax spawns the named program directly (no shell interpreter),
+// so these tests need the POSIX tools they invoke (`echo`, `tr`, `sh`) on PATH.
+// Windows has no such binaries — `echo` there is a cmd.exe builtin, not an
+// executable — so the suite is gated to Unix rather than asserting false failures.
+#![cfg(unix)]
+
 use interpreter::interpreter::Interpreter;
 use lexer::lexer::Lexer;
 use parser::parser::Parser;

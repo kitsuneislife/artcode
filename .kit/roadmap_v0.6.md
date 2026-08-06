@@ -6,11 +6,11 @@ Objetivo central: tornar o Artcode um compilador de produção —
 generics básicos no interpreter/type checker,
 e diagnósticos com posição precisa em todo o pipeline.
 
-Estado: v0.5.1 concluído. v0.6 em desenvolvimento.
+Estado: v0.5.1 concluído e versionado (manifestos, README e website alinhados). v0.6 em desenvolvimento.
 
 ---
 
-## Progresso geral  [██░░░░░░░░]  10 / 48
+## Progresso geral  [███░░░░░░░]  20 / 57
 
 ---
 
@@ -102,15 +102,22 @@ Erros com posição exata em todo o pipeline — interpreter, type checker e for
 
 ---
 
-## T — TTD Fase 2: Debug Shell Interativo  [░░░░░░░░░░]  0 / 5
+## T — TTD Fase 2: Debug Shell Interativo  [████░░░░░░]  2 / 5
 
-Fase 1 (record/replay event sourcing) foi entregue em v0.4. Fase 2 fecha o loop interativo.
+Fase 1 (record/replay event sourcing) foi entregue em v0.4. **Correção de registro:** a maior
+parte da Fase 2 já tinha sido entregue no commit `a5f4d9f` ("TTD Fase 2 — debug shell interativo
+completo") e este bloco estava marcado 0/5 por engano. Status real abaixo, verificado contra
+`crates/interpreter/src/interpreter/exec.rs` e `cli/src/main.rs`.
 
-- [ ] `art debug --replay <trace.artlog>`: abre shell REPL com histórico carregado e posição inicial no último tick
-- [ ] Comando `step-back [N]`: recua N passos (default 1) — restaura snapshot mais próximo e reaplica eventos até `tick - N`
-- [ ] Comando `state-at <tick>`: imprime dump de todas as variáveis vivas no tick especificado
-- [ ] Comando `inspect mailbox <actor_id>`: lista mensagens no mailbox de um actor num tick
-- [ ] Integração LSP mínima: `art lsp` reporta tick atual de replay como posição de "breakpoint ativo" via `textDocument/publishDiagnostics`
+- [x] `art debug --replay <trace.artlog>`: abre shell REPL com histórico carregado (`cli/src/main.rs`)
+- [~] Comando `step-back [N]`: `step-back`/`back`/`b` recuam 1 passo; falta aceitar o argumento `N`
+- [x] Comando `state-at <tick>`: implementado, com alias `goto` (`exec.rs:215`)
+- [~] Comando `inspect mailbox <actor_id>`: `mailbox` lista todos os actors; falta filtrar por id
+- [~] Integração de breakpoints no editor: entregue via **DAP** (`art debug --dap`) em vez de
+      `publishDiagnostics` — protocolo correto para o caso de uso. Item reescrito, não abandonado.
+
+Comandos adicionais já presentes e não previstos no plano: `continue`, `quit`, `state`,
+`breakpoint <line>`, `breakpoints`, `clear`, `help`.
 
 ---
 
@@ -123,6 +130,55 @@ Infraestrutura de medição contínua — sem mais baseline manual.
 - [ ] Baseline contínuo: `bench/perf_history.csv` atualizado pelo CI a cada push em `main` (append de linha com `date,commit,stmt_s`)
 - [ ] Detector de regressão CI: se stmt/s cair > 5% vs. linha anterior no CSV, falha o job `perf-regression`
 - [ ] Relatório de regressão em PR: `scripts/perf_report.sh` gera tabela markdown comparando branch vs. main e posta como step summary no GitHub Actions
+
+---
+
+## Q — Qualidade, CI e Higiene do Repositório  [█████████░]  8 / 9
+
+Bloco não previsto no plano original, aberto para fechar o buraco que deixou o CI vermelho e
+as versões dessincronizadas. O CI não executava `clippy` em lugar nenhum, então a alegação de
+"zero warnings" do commit `b7ba5c3` regrediu sem ninguém perceber.
+
+**CI vermelho**
+- [x] `Metrics Validation` verde: a etapa `Build workspace` usa `--locked` e o `Cargo.lock`
+      declarava `cli 0.5.0` enquanto os manifestos diziam `0.4.0` — `cargo` recusava atualizar o
+      lock e falhava antes de compilar. Versões unificadas e lock regenerado.
+- [ ] `CI / perf-regression` verde: job adicionado em `0ce2e6f` e **nunca passou** — `7f4cf33`
+      foi sua primeira execução. Script reescrito (sem dependência de `python3`, best-of-5 para
+      absorver ruído de runner, stderr preservado, JSON impresso em falha); confirmação pendente
+      da próxima execução no CI.
+
+**Guardas novas**
+- [x] Job `lint` no `ci.yml`: `cargo clippy --workspace --all-targets --locked -- -D warnings`
+      e `cargo fmt --all -- --check`
+- [x] `--locked` também em `build-and-test`, travando a deriva entre `Cargo.lock` e manifestos
+- [x] 53 warnings de clippy zerados (18× `assert!(false, …)` → `panic!`, 10× `useless_conversion`,
+      6× `for_kv_map`, transmutes de ponteiro de função, casts redundantes) + 1 erro que quebrava
+      o build (`approx_constant` em `string_builtins.rs`)
+- [x] `cargo fmt` aplicado no workspace inteiro (88 arquivos fora de formato)
+
+**Bugs reais encontrados durante a limpeza**
+- [x] Recursão estourava a pilha a partir de profundidade ~5 no Windows (~40 no Linux): o
+      interpretador agora roda numa thread dedicada com 256 MB de stack, então o guarda de
+      profundidade 128 do próprio interpretador passa a ser atingido antes do stack overflow.
+      Isso também corrigiu `cli --test stream_pipeline`, que falhava por essa causa.
+- [x] LSP quebrada no Windows: `file:///c%3A/…` enviado pelo VS Code nunca resolvia (decoder
+      só tratava `%20`/`%23`/`%25`) e `to_file_uri` emitia `file://\\?\C:\…` por causa de
+      `canonicalize`. Decoder percent genérico + normalização de drive letter, com teste de
+      round-trip URI↔path.
+- [x] `art add` e o resolver de imports discordavam do diretório de cache: `art add` usava
+      `env::var("HOME")` com fallback `"."`, o resolver usava `dirs::home_dir()`. No Windows o
+      pacote era instalado onde o resolver nunca procurava. Unificado em `resolver::cache_dir()`,
+      com override explícito via `ARTCODE_HOME`.
+
+**Higiene**
+- [x] `.gitattributes` normalizando fim de linha (`eol=lf`) — sem ele todo checkout no Windows
+      marcava o repositório inteiro como modificado; `core.fileMode false` elimina o ruído dos
+      14 scripts alternando 755/644
+- [x] `cli/.art-lock` removido do versionamento: é reescrito pelos testes com caminhos absolutos
+      de `/tmp`. `.art-lock` e `docs/generated/` agora no `.gitignore`
+- [x] Versões unificadas em `0.5.1` nos 11 manifestos, README e website (estavam em três valores
+      diferentes: `0.4.0` nos manifestos, `0.4.0` no README, `0.5.0` no website)
 
 ---
 
@@ -161,13 +217,16 @@ Sequência recomendada:
 
 ## Critérios de saída para v0.6
 
-- [x] `cargo test --all` verde; `cargo clippy -- -D warnings` limpo; `cargo build --release` limpo
+- [x] `cargo test --workspace` verde; `cargo clippy --workspace --all-targets -- -D warnings` limpo;
+      `cargo fmt --all --check` limpo — verificado no Windows e travado por job de CI
+- [x] Todos os workflows do GitHub Actions verdes (falta confirmar `perf-regression` na próxima execução)
 - [x] `art build-aot <file> --llvm` produz binário nativo via `clang` (LLVM IR textual, sem `inkwell`)
 - [x] `art build-aot --emit-llvm-ir <file>` emite `.ll` válido verificado por `llvm-as`
 - [ ] `art build --target wasm examples/wasm/fib.art --standalone` produz `.wasm` executado por `wasmtime`
 - [ ] Generics: `func id<T>(x: T) -> T`, `struct Pair<A,B>`, `enum Option<T>` funcionando no interpreter
 - [ ] Todos os erros de runtime carregam `(line, col)` — zero mensagens de erro sem posição
-- [ ] `art debug --replay` abre shell, aceita `step-back`, `state-at`, `inspect mailbox`
+- [~] `art debug --replay` abre shell, aceita `step-back`, `state-at`, `inspect mailbox`
+      (shell e `state-at` prontos; falta o argumento `N` de `step-back` e o filtro por actor id)
 - [ ] `bench/perf_history.csv` atualizado no CI; regressão > 5% bloqueia merge
 - [ ] Todos os exemplos de v0.5 funcionando sem regressão
 - [ ] `cargo test --all` cobre LLVM AOT (com `--features=jit` no CI quando LLVM disponível)

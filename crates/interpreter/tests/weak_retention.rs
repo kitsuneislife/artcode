@@ -47,12 +47,7 @@ fn unowned_diag_after_drop() {
     let tokens = match lexer.scan_tokens() {
         Ok(t) => t,
         Err(e) => {
-            assert!(
-                false,
-                "lexer scan_tokens in weak_retention.rs failed: {:?}",
-                e
-            );
-            Vec::new()
+            panic!("lexer scan_tokens in weak_retention.rs failed: {:?}", e);
         }
     };
     let mut parser = Parser::new(tokens);

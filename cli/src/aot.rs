@@ -197,7 +197,7 @@ mod tests {
         });
         fs::write(&tmp, serde_json::to_string(&profile).unwrap()).unwrap();
         let res =
-            generate_aot_plan_from_profile_str(&fs::read_to_string(&tmp).unwrap(), &out.as_path());
+            generate_aot_plan_from_profile_str(&fs::read_to_string(&tmp).unwrap(), out.as_path());
         assert!(res.is_ok());
         let s = fs::read_to_string(&out).unwrap();
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();

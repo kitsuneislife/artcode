@@ -266,7 +266,7 @@ fn actor_mailbox_fifo_and_backpressure_and_scheduler() {
     // check global variable 'm' (should be None because actor ran in its own env; instead inspect mailbox front earlier)
     // Instead assert that mailbox for receiver is empty (message consumed)
     assert!(
-        interp4.actors.get(&receiver).is_none()
+        !interp4.actors.contains_key(&receiver)
             || interp4.actors.get(&receiver).unwrap().mailbox.is_empty()
     );
 }

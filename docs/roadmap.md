@@ -32,7 +32,7 @@
 
 ---
 
-## Entregue em v0.5 (em desenvolvimento)
+## Entregue em v0.5.1 (lançado 2026-05-27)
 
 ### Linguagem — Bloco B: `component {}` e qualificadores de binding
 - Keywords `component`, `view`, `state`, `prop`, `memo`, `ref` no lexer
@@ -64,6 +64,10 @@
 - `art doc <path>` gera HTML em `docs/generated/<name>.html`
 - `docs/guides/migration_v0.4_to_v0.5.md`
 
+### Correções — v0.5.1
+- Enforcement de anotação de tipo em `state`/`prop`/`memo`
+- `Name_create(host)` retorna os setters de state, permitindo composição pai/filho
+
 ---
 
 ## v0.6 — LLVM AOT + WASM + Generics (em desenvolvimento)
@@ -78,14 +82,29 @@
 - `art build-aot --emit-llvm-ir` — emite `.ll` textual (validável por `llvm-as`).
 - Lowering de `if`/`else` corrigido — ramos em bloco desembrulhados e condições bool
   materializadas; gera `BrCond` + `phi` e executa nativamente.
+- Motor geral de lowering (`crates/ir/src/lower_fn.rs`) — `let`, `while`, variáveis locais
+  e chamadas aninhadas via modelo `alloca`/`load`/`store`.
+
+#### Qualidade e CI — Bloco Q
+- Job `lint` no CI: `cargo clippy --workspace --all-targets --locked -- -D warnings` e
+  `cargo fmt --all -- --check`. Antes disso o CI não executava clippy em lugar nenhum.
+- 53 warnings de clippy e 1 erro de compilação eliminados; workspace reformatado.
+- Versões unificadas em `0.5.1` entre manifestos, `Cargo.lock`, README e website — a
+  divergência quebrava o workflow *Metrics Validation*, que compila com `--locked`.
+- Interpretador passa a rodar em thread com stack de 256 MB: recursão estourava a pilha
+  do processo a partir de profundidade ~5 no Windows e ~40 no Linux.
+- LSP corrigida no Windows: decodificação percent completa de URIs (`file:///c%3A/…`) e
+  remoção do prefixo `\\?\` que `canonicalize` introduzia.
+- `art add` e o resolver de imports passam a compartilhar `resolver::cache_dir()`, com
+  override por `ARTCODE_HOME`. Antes discordavam do diretório de cache no Windows.
 
 ### Próximos objetivos
 
-- IR Lowering: laços (`while`/`for`), variáveis locais e recursão atravessando condicionais
 - WASM target — pipeline IR→C→emcc + WASI standalone (Bloco W)
 - Generics no interpreter — monomorphização básica na chamada de função (Bloco G)
 - Diagnósticos com linha/coluna precisa — erros de parse mostram posição exata (Bloco D)
-- TTD Fase 2 — debug shell interativo com checkpoints navegáveis (Bloco T)
+- Inlining de hot paths guiado por `aot_plan.json` (fecha o Bloco A)
+- Benchmarks contínuos com histórico em CSV e detecção de regressão (Bloco P)
 
 ---
 

@@ -1,10 +1,16 @@
+// Artcode shell syntax spawns the named program directly (no shell interpreter),
+// so these tests need the POSIX tools they invoke (`echo`, `tr`, `sh`) on PATH.
+// Windows has no such binaries — `echo` there is a cmd.exe builtin, not an
+// executable — so the suite is gated to Unix rather than asserting false failures.
+#![cfg(unix)]
+
 use assert_cmd::Command;
 use std::io::Write;
 
 #[test]
 fn run_executes_shell_syntax_statement() {
     let mut tmp = tempfile::NamedTempFile::new().expect("create tmp file");
-    write!(tmp, "$ echo cli_shell_ok;\n").expect("write script");
+    writeln!(tmp, "$ echo cli_shell_ok;").expect("write script");
 
     let path = tmp.path().to_str().expect("tmp path utf8");
     let mut cmd = Command::cargo_bin("art").expect("binary present");
@@ -26,7 +32,7 @@ fn run_executes_shell_syntax_statement() {
 #[test]
 fn run_executes_shell_pipeline_syntax_statement() {
     let mut tmp = tempfile::NamedTempFile::new().expect("create tmp file");
-    write!(tmp, "$ echo cli_pipe_ok |> tr a-z A-Z;\n").expect("write script");
+    writeln!(tmp, "$ echo cli_pipe_ok |> tr a-z A-Z;").expect("write script");
 
     let path = tmp.path().to_str().expect("tmp path utf8");
     let mut cmd = Command::cargo_bin("art").expect("binary present");

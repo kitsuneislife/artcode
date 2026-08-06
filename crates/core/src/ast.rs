@@ -269,13 +269,17 @@ impl PartialEq for MapRef {
 #[derive(Debug, Clone)]
 pub struct SetRef(pub Arc<std::sync::Mutex<Vec<ArtValue>>>);
 impl PartialEq for SetRef {
-    fn eq(&self, other: &Self) -> bool { Arc::ptr_eq(&self.0, &other.0) }
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct DequeRef(pub Arc<std::sync::Mutex<std::collections::VecDeque<ArtValue>>>);
 impl PartialEq for DequeRef {
-    fn eq(&self, other: &Self) -> bool { Arc::ptr_eq(&self.0, &other.0) }
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -385,22 +389,22 @@ pub enum BuiltinFn {
     GCStats,
     RuntimeVersion,
     // Fase 15 Stdlib: String operations
-    StrSplit,        // str_split(s, sep) -> Array<String>
-    StrJoin,         // str_join(arr, sep) -> String
-    StrContains,     // str_contains(s, sub) -> Bool
-    StrStartsWith,   // str_starts_with(s, prefix) -> Bool
-    StrReplace,      // str_replace(s, from, to) -> String
-    StrSlice,        // str_slice(s, start, end) -> String
-    StrToInt,        // str_to_int(s) -> Result<Int, String>
-    StrToFloat,      // str_to_float(s) -> Result<Float, String>
+    StrSplit,      // str_split(s, sep) -> Array<String>
+    StrJoin,       // str_join(arr, sep) -> String
+    StrContains,   // str_contains(s, sub) -> Bool
+    StrStartsWith, // str_starts_with(s, prefix) -> Bool
+    StrReplace,    // str_replace(s, from, to) -> String
+    StrSlice,      // str_slice(s, start, end) -> String
+    StrToInt,      // str_to_int(s) -> Result<Int, String>
+    StrToFloat,    // str_to_float(s) -> Result<Float, String>
 
     // Deque<T> — double-ended queue stdlib
-    DequeNew,        // deque_new() -> Deque
-    DequePushFront,  // deque_push_front(d, v)
-    DequePushBack,   // deque_push_back(d, v)
-    DequePopFront,   // deque_pop_front(d) -> Option<T>
-    DequePopBack,    // deque_pop_back(d) -> Option<T>
-    DequeLen,        // deque_len(d) -> Int
+    DequeNew,       // deque_new() -> Deque
+    DequePushFront, // deque_push_front(d, v)
+    DequePushBack,  // deque_push_back(d, v)
+    DequePopFront,  // deque_pop_front(d) -> Option<T>
+    DequePopBack,   // deque_pop_back(d) -> Option<T>
+    DequeLen,       // deque_len(d) -> Int
 
     // Built-in methods internally bound to Enum structs
     EnumIsOk(Box<ArtValue>),

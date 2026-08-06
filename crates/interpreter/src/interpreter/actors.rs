@@ -70,7 +70,8 @@ impl Mailbox {
             MailboxImpl::Linear(v) => v.front(),
             MailboxImpl::Map(m) => {
                 // highest priority -> last key in BTreeMap
-                m.keys().next_back()
+                m.keys()
+                    .next_back()
                     .and_then(|k| m.get(k))
                     .and_then(|q| q.front())
             }
@@ -98,13 +99,14 @@ impl Mailbox {
             MailboxImpl::Linear(v) => v.pop_front(),
             MailboxImpl::Map(m) => {
                 if let Some((&pri, _)) = m.iter().next_back()
-                    && let Some(q) = m.get_mut(&pri) {
-                        let res = q.pop_front();
-                        if q.is_empty() {
-                            m.remove(&pri);
-                        }
-                        return res;
+                    && let Some(q) = m.get_mut(&pri)
+                {
+                    let res = q.pop_front();
+                    if q.is_empty() {
+                        m.remove(&pri);
                     }
+                    return res;
+                }
                 None
             }
         }
@@ -427,7 +429,12 @@ impl Interpreter {
                 self.executing_actor = Some(actor_entry);
 
                 // If parked (waiting for message) skip until unparked (actor_send will unpark)
-                if self.executing_actor.as_ref().expect("set two lines above").parked {
+                if self
+                    .executing_actor
+                    .as_ref()
+                    .expect("set two lines above")
+                    .parked
+                {
                     let actor = self.executing_actor.take().expect("set two lines above");
                     self.actors.insert(aid, actor);
                     idx += 1;
@@ -460,7 +467,12 @@ impl Interpreter {
                 if let Some(stmt) = stmt_opt {
                     // Swap environment
                     let previous_env = self.environment.clone();
-                    self.environment = self.executing_actor.as_ref().expect("set above").env.clone();
+                    self.environment = self
+                        .executing_actor
+                        .as_ref()
+                        .expect("set above")
+                        .env
+                        .clone();
                     let actor_env_before_stmt = self.environment.clone();
                     // Execute statement; ignore return errors for now
                     let _ = self.execute(stmt.clone());
@@ -517,5 +529,4 @@ impl Interpreter {
             self.actors.remove(&id);
         }
     }
-
 }

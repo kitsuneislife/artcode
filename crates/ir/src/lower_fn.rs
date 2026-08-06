@@ -115,9 +115,7 @@ impl Lowerer {
                 Some(dest)
             }
             Expr::Call {
-                callee,
-                arguments,
-                ..
+                callee, arguments, ..
             } => {
                 let fname = match &**callee {
                     Expr::Variable { name } => name.lexeme.clone(),

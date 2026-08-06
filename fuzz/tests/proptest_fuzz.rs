@@ -33,7 +33,7 @@ fn fuzzing_evaluator_stability() {
             let result = std::thread::Builder::new()
                 .stack_size(32 * 1024 * 1024)
                 .spawn(move || {
-                    let mut lexer = Lexer::new(String::from(s.clone()));
+                    let mut lexer = Lexer::new(s.clone());
                     if let Ok(tokens) = lexer.scan_tokens() {
                         let mut parser = Parser::new(tokens);
                         let (program, _) = parser.parse();

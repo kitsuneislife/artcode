@@ -187,14 +187,10 @@ fn field_mutation_runs_finalizer_on_previous_value() {
         );
         if !interp.debug_check_invariants() {
             let v = interp.debug_invariant_violations();
-            assert!(
-                false,
-                "invariants failed after field mutation finalizer: {:?}",
-                v
-            );
+            panic!("invariants failed after field mutation finalizer: {:?}", v);
         }
     } else {
-        assert!(false, "x missing in test setup");
+        panic!("x missing in test setup");
     }
 }
 

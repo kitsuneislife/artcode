@@ -1,5 +1,5 @@
-use diagnostics::format_diagnostic;
 use codegen_js::{CodegenJs, CodegenOptions, ModuleFormat};
+use diagnostics::format_diagnostic;
 use typeck::TypeChecker;
 mod resolver;
 use interpreter::interpreter::Interpreter;
@@ -653,7 +653,8 @@ fn run_debug_repl(script_path: &str, replay_path: &str) {
     println!("  type 'help' for available commands\n");
 
     // Persistent breakpoints survive across restarts
-    let mut persistent_breakpoints: std::collections::HashSet<usize> = std::collections::HashSet::new();
+    let mut persistent_breakpoints: std::collections::HashSet<usize> =
+        std::collections::HashSet::new();
     let mut target_tick: usize = 0;
 
     loop {
@@ -702,7 +703,10 @@ fn run_debug_repl(script_path: &str, replay_path: &str) {
                 break;
             }
             Err(RuntimeError::Return(_)) | Ok(_) => {
-                println!("  program reached end normally (tick {}).", interpreter.executed_statements);
+                println!(
+                    "  program reached end normally (tick {}).",
+                    interpreter.executed_statements
+                );
                 break;
             }
             Err(RuntimeError::TypeError(msg)) => {
@@ -990,7 +994,31 @@ fn maybe_warn_new_release(args: &[String]) {
     }
 }
 
+/// Stack size for the interpreter thread.
+///
+/// The tree-walking interpreter recurses through the Rust stack once per Art
+/// call frame, and a debug build spends ~200 KB of stack per frame. The default
+/// main-thread stack (1 MB on Windows, 8 MB on Linux) therefore overflows at a
+/// recursion depth of ~5 on Windows and ~40 on Linux — far below what ordinary
+/// Art programs need. Running the CLI on a dedicated thread with a large stack
+/// makes the usable depth identical across platforms.
+const INTERPRETER_STACK_SIZE: usize = 256 * 1024 * 1024;
+
 fn main() {
+    let child = std::thread::Builder::new()
+        .name("art-main".to_string())
+        .stack_size(INTERPRETER_STACK_SIZE)
+        .spawn(real_main)
+        .expect("failed to spawn interpreter thread");
+
+    // Propagate a panic in the worker as a non-zero exit status, since a panic
+    // on a non-main thread does not by itself fail the process.
+    if child.join().is_err() {
+        process::exit(101);
+    }
+}
+
+fn real_main() {
     // Capture process start time immediately for --startup-bench measurements.
     let process_start = std::time::Instant::now();
 
@@ -1583,9 +1611,9 @@ fn main() {
     }
     if args[1] == "add" && args.len() == 3 {
         let src = &args[2];
-        // default cache dir
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        let cache_dir = std::path::PathBuf::from(format!("{}/.artcode/cache", home));
+        // Same cache directory the import resolver reads from.
+        let cache_dir = resolver::cache_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from(".").join(".artcode").join("cache"));
         let _ = std::fs::create_dir_all(&cache_dir);
 
         // Determine source kind: local path, file://, or git URL

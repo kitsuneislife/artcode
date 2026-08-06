@@ -8,6 +8,27 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      # --locked also guards against Cargo.lock drifting away from the
+      # crate versions declared in the Cargo.toml manifests.
+      - name: Clippy (deny warnings)
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Rustfmt
+        run: cargo fmt --all -- --check
+
   build-and-test:
     runs-on: ubuntu-latest
     steps:
@@ -23,10 +44,10 @@ jobs:
         run: cargo run -p xtask -- gen-golden --check
 
       - name: Build (all)
-        run: cargo build --all
+        run: cargo build --workspace --all-targets --locked
 
       - name: Run tests
-        run: cargo test --all --quiet
+        run: cargo test --workspace --locked --quiet
 
   metrics:
     needs: build-and-test

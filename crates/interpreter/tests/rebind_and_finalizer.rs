@@ -26,9 +26,7 @@ fn rebind_decrements_strong_and_runs_finalizer() {
                 Stmt::Let {
                     pattern: core::ast::MatchPattern::Variable(core::Token::dummy("x")),
                     ty: None,
-                    initializer: Expr::Array(vec![
-                        Expr::Literal(core::ast::ArtValue::Int(1)).into(),
-                    ]),
+                    initializer: Expr::Array(vec![Expr::Literal(core::ast::ArtValue::Int(1))]),
                 },
                 // registrar finalizer
                 Stmt::Expression(Expr::Call {

@@ -93,10 +93,9 @@ impl Interpreter {
             let mut skip_finalizer_due_to_kind = false;
 
             if let Some(obj) = self.heap_objects.get_mut(&id) {
-                if obj.strong > 0
-                    && crate::heap_utils::dec_strong_obj(obj) {
-                        self.strong_decrements += 1;
-                    }
+                if obj.strong > 0 && crate::heap_utils::dec_strong_obj(obj) {
+                    self.strong_decrements += 1;
+                }
 
                 let should_recurse = !obj.alive; // caiu a zero agora
                 if should_recurse {
@@ -132,16 +131,14 @@ impl Interpreter {
                 let mut to_mark_dead: Vec<u64> = Vec::new();
                 for (other_id, other_obj) in self.heap_objects.iter_mut() {
                     match &mut other_obj.value {
-                        ArtValue::WeakRef(h)
-                            if h.0 == id => {
-                                self.weak_dangling += 1;
-                                to_mark_dead.push(*other_id);
-                            }
-                        ArtValue::UnownedRef(h)
-                            if h.0 == id => {
-                                self.unowned_dangling += 1;
-                                to_mark_dead.push(*other_id);
-                            }
+                        ArtValue::WeakRef(h) if h.0 == id => {
+                            self.weak_dangling += 1;
+                            to_mark_dead.push(*other_id);
+                        }
+                        ArtValue::UnownedRef(h) if h.0 == id => {
+                            self.unowned_dangling += 1;
+                            to_mark_dead.push(*other_id);
+                        }
                         _ => {}
                     }
                 }
@@ -252,7 +249,7 @@ impl Interpreter {
                 }
             }
             let mut referenced = false;
-            for (_other_id, other_obj) in self.heap_objects.iter() {
+            for other_obj in self.heap_objects.values() {
                 if other_obj.alive && referenced_in(&other_obj.value, start_id) {
                     referenced = true;
                     break;
@@ -300,9 +297,10 @@ impl Interpreter {
     pub fn dec_heap_weak(&mut self, id: u64) {
         use crate::heap_utils::dec_weak_obj;
         if let Some(obj) = self.heap_objects.get_mut(&id)
-            && dec_weak_obj(obj) {
-                // metric kept at interpreter level if callers want to track
-            }
+            && dec_weak_obj(obj)
+        {
+            // metric kept at interpreter level if callers want to track
+        }
     }
     /// Central helper to increment strong counter on a heap object and update metrics.
     pub fn inc_heap_strong(&mut self, id: u64) {
@@ -319,9 +317,10 @@ impl Interpreter {
     pub fn dec_heap_strong(&mut self, id: u64) {
         use crate::heap_utils::dec_strong_obj;
         if let Some(obj) = self.heap_objects.get_mut(&id)
-            && dec_strong_obj(obj) {
-                self.strong_decrements += 1;
-            }
+            && dec_strong_obj(obj)
+        {
+            self.strong_decrements += 1;
+        }
     }
 
     // Inner helper that performs the decrement on an existing mutable reference
@@ -387,7 +386,7 @@ impl Interpreter {
         }
         for id in dead_ids {
             let mut referenced = false;
-            for (_other_id, other_obj) in self.heap_objects.iter() {
+            for other_obj in self.heap_objects.values() {
                 if other_obj.alive && referenced_in(&other_obj.value, id) {
                     referenced = true;
                     break;
@@ -444,7 +443,7 @@ impl Interpreter {
 
     /// Verificação básica de invariantes do heap. Retorna true se OK.
     pub fn debug_check_invariants(&self) -> bool {
-        for (_id, obj) in self.heap_objects.iter() {
+        for obj in self.heap_objects.values() {
             if obj.strong == 0 && obj.alive {
                 return false;
             }
@@ -495,13 +494,12 @@ impl Interpreter {
                 parent: u64,
             ) {
                 match v {
-                    ArtValue::HeapComposite(h)
-                        if !heap.contains_key(&h.0) => {
-                            msgs.push(format!(
-                                "parent {} references missing child {}",
-                                parent, h.0
-                            ));
-                        }
+                    ArtValue::HeapComposite(h) if !heap.contains_key(&h.0) => {
+                        msgs.push(format!(
+                            "parent {} references missing child {}",
+                            parent, h.0
+                        ));
+                    }
                     ArtValue::Array(a) => {
                         for e in a {
                             scan(e, heap, msgs, parent);

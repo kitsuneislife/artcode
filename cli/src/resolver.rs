@@ -8,6 +8,22 @@ use lexer::lexer::Lexer;
 use parser::parser::Parser;
 use rayon::prelude::*;
 
+/// Directory holding the local package cache (`<home>/.artcode/cache`).
+///
+/// Resolution order is `ARTCODE_HOME`, then `HOME`, then the platform home
+/// directory. `art add` and the import resolver must agree on this path — they
+/// used to disagree on Windows, where `HOME` is normally unset and
+/// `dirs::home_dir()` reads the profile folder from the Win32 API, so packages
+/// were installed somewhere the resolver never looked. The explicit env
+/// overrides also make the cache relocatable for tests and sandboxes.
+pub fn cache_dir() -> Option<PathBuf> {
+    let home = std::env::var_os("ARTCODE_HOME")
+        .or_else(|| std::env::var_os("HOME"))
+        .map(PathBuf::from)
+        .or_else(dirs::home_dir)?;
+    Some(home.join(".artcode").join("cache"))
+}
+
 struct ResolveContext {
     visited: Mutex<HashSet<PathBuf>>,
     deps: Mutex<HashMap<PathBuf, Vec<PathBuf>>>,
@@ -75,8 +91,7 @@ fn resolve_candidate(base: &Path, rel: &str) -> Option<PathBuf> {
         return Some(cand_mod);
     }
 
-    if let Some(home) = dirs::home_dir() {
-        let cache_dir = home.join(".artcode").join("cache");
+    if let Some(cache_dir) = cache_dir() {
         let cand_cache = cache_dir.join(rel);
         if cand_cache.exists() {
             if cand_cache.is_file() {

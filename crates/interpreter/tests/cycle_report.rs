@@ -11,12 +11,7 @@ fn cycle_report_counts_basic_refs() {
         let tokens = match lexer.scan_tokens() {
             Ok(t) => t,
             Err(e) => {
-                assert!(
-                    false,
-                    "lexer scan_tokens in cycle_report.rs failed: {:?}",
-                    e
-                );
-                Vec::new()
+                panic!("lexer scan_tokens in cycle_report.rs failed: {:?}", e);
             }
         };
         let mut parser = parser::parser::Parser::new(tokens);

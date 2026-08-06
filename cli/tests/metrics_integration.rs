@@ -62,7 +62,7 @@ fn metrics_json_includes_arena_and_finalized_maps() {
         for (k, v) in m.as_object().unwrap() {
             // keys should parse as u32
             k.parse::<u32>()
-                .expect(&format!("{} key '{}' not a u32", name, k));
+                .unwrap_or_else(|_| panic!("{} key '{}' not a u32", name, k));
             assert!(
                 v.as_u64().is_some(),
                 "{} value for key {} must be integer",

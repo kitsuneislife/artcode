@@ -20,8 +20,7 @@ fn weak_dies_after_scope() {
     let tokens = match lx.scan_tokens() {
         Ok(t) => t,
         Err(e) => {
-            assert!(false, "lexer scan_tokens in heap_drop.rs failed: {:?}", e);
-            Vec::new()
+            panic!("lexer scan_tokens in heap_drop.rs failed: {:?}", e);
         }
     };
     let mut p = Parser::new(tokens);
@@ -47,6 +46,6 @@ fn weak_dies_after_scope() {
         core::ast::ArtValue::Optional(b) => {
             assert!(b.is_none(), "expected None from weak upgrade, got {:?}", b)
         }
-        other => assert!(false, "res has unexpected type: {:?}", other),
+        other => panic!("res has unexpected type: {:?}", other),
     }
 }

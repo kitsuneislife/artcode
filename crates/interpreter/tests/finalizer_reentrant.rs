@@ -20,9 +20,7 @@ fn finalizer_reentrant_alloc_and_release_is_stable() {
                     Stmt::Let {
                         pattern: core::ast::MatchPattern::Variable(core::Token::dummy("_tmp")),
                         ty: None,
-                        initializer: Expr::Array(vec![
-                            Expr::Literal(core::ast::ArtValue::Int(99)).into(),
-                        ]),
+                        initializer: Expr::Array(vec![Expr::Literal(core::ast::ArtValue::Int(99))]),
                     },
                 ],
             }),
@@ -34,9 +32,7 @@ fn finalizer_reentrant_alloc_and_release_is_stable() {
                 Stmt::Let {
                     pattern: core::ast::MatchPattern::Variable(core::Token::dummy("x")),
                     ty: None,
-                    initializer: Expr::Array(vec![
-                        Expr::Literal(core::ast::ArtValue::Int(1)).into(),
-                    ]),
+                    initializer: Expr::Array(vec![Expr::Literal(core::ast::ArtValue::Int(1))]),
                 },
                 Stmt::Expression(Expr::Call {
                     type_args: None,

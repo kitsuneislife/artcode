@@ -13,13 +13,21 @@ fn compile(src: &str) -> String {
 #[test]
 fn test_self_closing_div_generates_create_element() {
     let js = compile("let v = <div />");
-    assert!(js.contains("document.createElement(\"div\")"), "got: {}", js);
+    assert!(
+        js.contains("document.createElement(\"div\")"),
+        "got: {}",
+        js
+    );
 }
 
 #[test]
 fn test_static_attr_generates_set_attribute() {
     let js = compile(r#"let v = <div class="app" />"#);
-    assert!(js.contains("setAttribute(\"class\", \"app\")"), "got: {}", js);
+    assert!(
+        js.contains("setAttribute(\"class\", \"app\")"),
+        "got: {}",
+        js
+    );
 }
 
 #[test]
@@ -38,7 +46,11 @@ fn test_event_handler_generates_addeventlistener() {
 #[test]
 fn test_text_node_child_generates_create_text_node() {
     let js = compile("let v = <h1>{title}</h1>");
-    assert!(js.contains("document.createTextNode(String(title))"), "got: {}", js);
+    assert!(
+        js.contains("document.createTextNode(String(title))"),
+        "got: {}",
+        js
+    );
 }
 
 #[test]
@@ -72,5 +84,9 @@ fn test_if_node_generates_conditional() {
 fn test_slot_generates_slot_element() {
     let js = compile(r#"let v = <slot name="header" />"#);
     assert!(js.contains("createElement(\"slot\")"), "got: {}", js);
-    assert!(js.contains("setAttribute(\"name\", \"header\")"), "got: {}", js);
+    assert!(
+        js.contains("setAttribute(\"name\", \"header\")"),
+        "got: {}",
+        js
+    );
 }

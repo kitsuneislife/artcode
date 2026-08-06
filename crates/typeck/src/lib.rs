@@ -27,7 +27,9 @@ struct Env {
 
 impl Env {
     fn new() -> Self {
-        Self { scopes: vec![HashMap::new()] }
+        Self {
+            scopes: vec![HashMap::new()],
+        }
     }
 
     fn push(&mut self) {
@@ -86,17 +88,25 @@ impl TypeChecker {
     /// be verified even when a function is called before its declaration.
     fn collect_decl(&mut self, stmt: &Stmt, env: &mut Env) {
         match stmt {
-            Stmt::Function { name, params, return_type, type_params, .. } => {
+            Stmt::Function {
+                name,
+                params,
+                return_type,
+                type_params,
+                ..
+            } => {
                 let param_types: Vec<(String, Type)> = params
                     .iter()
                     .map(|p| {
-                        let ty = p.ty.as_deref()
-                            .map(|s| self.parse_type(s))
-                            .unwrap_or(Type::Unknown);
+                        let ty =
+                            p.ty.as_deref()
+                                .map(|s| self.parse_type(s))
+                                .unwrap_or(Type::Unknown);
                         (p.name.lexeme.clone(), ty)
                     })
                     .collect();
-                let ret = return_type.as_deref()
+                let ret = return_type
+                    .as_deref()
                     .map(|s| self.parse_type(s))
                     .unwrap_or(Type::Unknown);
                 let tparams = type_params.clone().unwrap_or_default();
@@ -128,7 +138,11 @@ impl TypeChecker {
 
     fn check_stmt(&mut self, stmt: &Stmt, env: &mut Env) {
         match stmt {
-            Stmt::Let { pattern, ty, initializer } => {
+            Stmt::Let {
+                pattern,
+                ty,
+                initializer,
+            } => {
                 let inferred = self.infer_expr(initializer, env);
                 let actual_ty = if let Some(ann) = ty {
                     let ann_ty = self.parse_type(ann);
@@ -152,12 +166,18 @@ impl TypeChecker {
                 };
                 self.bind_pattern(pattern, &actual_ty, env);
             }
-            Stmt::Function { params, body, type_params, .. } => {
+            Stmt::Function {
+                params,
+                body,
+                type_params,
+                ..
+            } => {
                 env.push();
                 for p in params {
-                    let ty = p.ty.as_deref()
-                        .map(|s| self.parse_type(s))
-                        .unwrap_or(Type::Unknown);
+                    let ty =
+                        p.ty.as_deref()
+                            .map(|s| self.parse_type(s))
+                            .unwrap_or(Type::Unknown);
                     env.set(&p.name.lexeme, ty);
                 }
                 for (tp_name, _) in type_params.as_deref().unwrap_or(&[]) {
@@ -173,14 +193,23 @@ impl TypeChecker {
                 }
                 env.pop();
             }
-            Stmt::If { condition, then_branch, else_branch } => {
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 self.infer_expr(condition, env);
                 self.check_stmt(then_branch, env);
                 if let Some(eb) = else_branch {
                     self.check_stmt(eb, env);
                 }
             }
-            Stmt::IfLet { value, then_branch, else_branch, .. } => {
+            Stmt::IfLet {
+                value,
+                then_branch,
+                else_branch,
+                ..
+            } => {
                 self.infer_expr(value, env);
                 env.push();
                 self.check_stmt(then_branch, env);
@@ -193,7 +222,11 @@ impl TypeChecker {
                 self.infer_expr(condition, env);
                 self.check_stmt(body, env);
             }
-            Stmt::For { element, iterator, body } => {
+            Stmt::For {
+                element,
+                iterator,
+                body,
+            } => {
                 let iter_ty = self.infer_expr(iterator, env);
                 let elem_ty = match iter_ty {
                     Type::Array(inner) => *inner,
@@ -204,7 +237,11 @@ impl TypeChecker {
                 self.check_stmt(body, env);
                 env.pop();
             }
-            Stmt::TryCatch { try_branch, catch_name, catch_branch } => {
+            Stmt::TryCatch {
+                try_branch,
+                catch_name,
+                catch_branch,
+            } => {
                 self.check_stmt(try_branch, env);
                 env.push();
                 env.set(&catch_name.lexeme, Type::String);
@@ -256,7 +293,12 @@ impl TypeChecker {
             Stmt::ComponentBlock { bindings, .. } => {
                 self.check_component_bindings(bindings, env);
             }
-            Stmt::QualifiedBinding { qualifier, name, value, .. } => {
+            Stmt::QualifiedBinding {
+                qualifier,
+                name,
+                value,
+                ..
+            } => {
                 use core::ast::BindingQualifier;
                 // rule: state/memo/ref bindings outside component are an error
                 if !matches!(qualifier, BindingQualifier::Prop) {
@@ -275,7 +317,10 @@ impl TypeChecker {
         let mut state_prop_names: std::collections::HashSet<String> =
             std::collections::HashSet::new();
         for b in bindings {
-            if let Stmt::QualifiedBinding { qualifier, name, .. } = b {
+            if let Stmt::QualifiedBinding {
+                qualifier, name, ..
+            } = b
+            {
                 if matches!(qualifier, BindingQualifier::State | BindingQualifier::Prop) {
                     state_prop_names.insert(name.lexeme.clone());
                 }
@@ -283,7 +328,14 @@ impl TypeChecker {
         }
         env.push();
         for b in bindings {
-            if let Stmt::QualifiedBinding { qualifier, name, value, type_ann, .. } = b {
+            if let Stmt::QualifiedBinding {
+                qualifier,
+                name,
+                value,
+                type_ann,
+                ..
+            } = b
+            {
                 // Infer the type of the initializer (if present)
                 let inferred = if let Some(v) = value {
                     self.infer_expr(v, env)
@@ -329,9 +381,7 @@ impl TypeChecker {
                             }
                         }
                     }
-                    BindingQualifier::State
-                    | BindingQualifier::Prop
-                    | BindingQualifier::Ref => {}
+                    BindingQualifier::State | BindingQualifier::Prop | BindingQualifier::Ref => {}
                 }
                 env.set(&name.lexeme, binding_ty);
             }
@@ -342,9 +392,7 @@ impl TypeChecker {
     fn infer_expr(&mut self, expr: &Expr, env: &Env) -> Type {
         match expr {
             Expr::Literal(v) => self.type_of_value(v),
-            Expr::Variable { name } => {
-                env.get(&name.lexeme).cloned().unwrap_or(Type::Unknown)
-            }
+            Expr::Variable { name } => env.get(&name.lexeme).cloned().unwrap_or(Type::Unknown),
             Expr::Array(items) => {
                 let inner = items
                     .first()
@@ -356,7 +404,11 @@ impl TypeChecker {
                 Type::Tuple(items.iter().map(|e| self.infer_expr(e, env)).collect())
             }
             Expr::InterpolatedString(_) => Type::String,
-            Expr::Binary { left, operator, right } => {
+            Expr::Binary {
+                left,
+                operator,
+                right,
+            } => {
                 let lt = self.infer_expr(left, env);
                 let rt = self.infer_expr(right, env);
                 match operator.lexeme.as_str() {
@@ -387,9 +439,11 @@ impl TypeChecker {
                 }
             }
             Expr::Grouping { expression } => self.infer_expr(expression, env),
-            Expr::Call { callee, arguments, type_args } => {
-                self.infer_call(callee, arguments, type_args, env)
-            }
+            Expr::Call {
+                callee,
+                arguments,
+                type_args,
+            } => self.infer_call(callee, arguments, type_args, env),
             Expr::FieldAccess { field, .. } => match field.lexeme.as_str() {
                 "len" | "size" | "count" => Type::Int,
                 _ => Type::Unknown,
@@ -420,16 +474,18 @@ impl TypeChecker {
 
     fn check_template_node(&mut self, node: &TemplateNode, env: &Env) {
         match node {
-            TemplateNode::Element { attrs, children, .. }
-            | TemplateNode::Component { attrs, children, .. } => {
+            TemplateNode::Element {
+                attrs, children, ..
+            }
+            | TemplateNode::Component {
+                attrs, children, ..
+            } => {
                 for attr in attrs {
                     if let TemplateAttrValue::EventHandler(handler_expr) = &attr.value {
                         let ty = self.infer_expr(handler_expr, env);
                         // Warn only if the type is a known non-callable (literal value type).
-                        let is_non_callable = matches!(
-                            ty,
-                            Type::Int | Type::Float | Type::String | Type::Bool
-                        );
+                        let is_non_callable =
+                            matches!(ty, Type::Int | Type::Float | Type::String | Type::Bool);
                         if is_non_callable {
                             let span = self.expr_span(handler_expr);
                             self.diagnostics.push(Diagnostic::new(
@@ -448,7 +504,11 @@ impl TypeChecker {
                     self.check_template_node(child, env);
                 }
             }
-            TemplateNode::If { cond, then_children, else_children } => {
+            TemplateNode::If {
+                cond,
+                then_children,
+                else_children,
+            } => {
                 self.infer_expr(cond, env);
                 for child in then_children {
                     self.check_template_node(child, env);
@@ -457,7 +517,9 @@ impl TypeChecker {
                     self.check_template_node(child, env);
                 }
             }
-            TemplateNode::For { items, children, .. } => {
+            TemplateNode::For {
+                items, children, ..
+            } => {
                 self.infer_expr(items, env);
                 for child in children {
                     self.check_template_node(child, env);
@@ -495,10 +557,8 @@ impl TypeChecker {
                 let span = self.callee_span(callee);
                 let bindings = self.resolve_generic_bindings(&sig, type_args, &arg_types);
 
-                let non_self_params: Vec<_> = sig.params
-                    .iter()
-                    .filter(|(n, _)| n != "self")
-                    .collect();
+                let non_self_params: Vec<_> =
+                    sig.params.iter().filter(|(n, _)| n != "self").collect();
 
                 // Only verify argument count when fully annotated (no Unknown params)
                 let all_annotated = non_self_params
@@ -579,17 +639,16 @@ impl TypeChecker {
 
     fn substitute(&self, ty: &Type, bindings: &HashMap<String, Type>) -> Type {
         match ty {
-            Type::GenericParam(name) => {
-                bindings.get(name).cloned().unwrap_or(Type::Unknown)
-            }
-            Type::Array(inner) => {
-                Type::Array(Box::new(self.substitute(inner, bindings)))
-            }
+            Type::GenericParam(name) => bindings.get(name).cloned().unwrap_or(Type::Unknown),
+            Type::Array(inner) => Type::Array(Box::new(self.substitute(inner, bindings))),
             Type::Tuple(items) => {
                 Type::Tuple(items.iter().map(|t| self.substitute(t, bindings)).collect())
             }
             Type::Function(params, ret) => Type::Function(
-                params.iter().map(|p| self.substitute(p, bindings)).collect(),
+                params
+                    .iter()
+                    .map(|p| self.substitute(p, bindings))
+                    .collect(),
                 Box::new(self.substitute(ret, bindings)),
             ),
             _ => ty.clone(),
@@ -607,7 +666,10 @@ impl TypeChecker {
             (Type::Float, Type::Int) => true,
             (Type::Array(a), Type::Array(b)) => self.types_compatible(a, b),
             (Type::Tuple(a), Type::Tuple(b)) => {
-                a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| self.types_compatible(x, y))
+                a.len() == b.len()
+                    && a.iter()
+                        .zip(b.iter())
+                        .all(|(x, y)| self.types_compatible(x, y))
             }
             _ => false,
         }
@@ -627,7 +689,9 @@ impl TypeChecker {
                     self.bind_pattern(p, t, env);
                 }
             }
-            MatchPattern::EnumVariant { params: Some(pats), .. } => {
+            MatchPattern::EnumVariant {
+                params: Some(pats), ..
+            } => {
                 for p in pats {
                     self.bind_pattern(p, &Type::Unknown, env);
                 }
@@ -656,7 +720,10 @@ impl TypeChecker {
             }
             _ if s.starts_with("Result<") && s.ends_with('>') => {
                 let inner = &s[7..s.len() - 1];
-                let params = inner.splitn(2, ',').map(|p| self.parse_type(p.trim())).collect();
+                let params = inner
+                    .splitn(2, ',')
+                    .map(|p| self.parse_type(p.trim()))
+                    .collect();
                 Type::EnumInstance("Result".to_string(), params)
             }
             _ if s.starts_with("Option<") && s.ends_with('>') => {
@@ -664,10 +731,20 @@ impl TypeChecker {
                 Type::EnumInstance("Option".to_string(), vec![self.parse_type(inner)])
             }
             // Single uppercase letter = generic type parameter
-            _ if s.len() == 1 && s.chars().next().map(|c| c.is_ascii_uppercase()).unwrap_or(false) => {
+            _ if s.len() == 1
+                && s.chars()
+                    .next()
+                    .map(|c| c.is_ascii_uppercase())
+                    .unwrap_or(false) =>
+            {
                 Type::GenericParam(s.to_string())
             }
-            _ if s.chars().next().map(|c| c.is_ascii_uppercase()).unwrap_or(false) => {
+            _ if s
+                .chars()
+                .next()
+                .map(|c| c.is_ascii_uppercase())
+                .unwrap_or(false) =>
+            {
                 Type::Struct(s.to_string())
             }
             // Anything else treated as a generic parameter name
@@ -723,7 +800,9 @@ fn collect_refs(expr: &Expr, out: &mut Vec<String>) {
             collect_refs(right, out);
         }
         Expr::Unary { right, .. } => collect_refs(right, out),
-        Expr::Call { callee, arguments, .. } => {
+        Expr::Call {
+            callee, arguments, ..
+        } => {
             collect_refs(callee, out);
             for a in arguments {
                 collect_refs(a, out);
@@ -744,7 +823,9 @@ mod tests {
     use super::*;
 
     fn parse(src: &str) -> Vec<Stmt> {
-        let tokens = lexer::Lexer::new(src.to_string()).scan_tokens().expect("lex");
+        let tokens = lexer::Lexer::new(src.to_string())
+            .scan_tokens()
+            .expect("lex");
         let (stmts, _diags) = parser::Parser::new(tokens).parse();
         stmts
     }
@@ -785,9 +866,7 @@ mod tests {
     #[test]
     fn test_function_arg_type_ok() {
         let mut tc = TypeChecker::new();
-        let prog = parse(
-            "func add(a: Int, b: Int) -> Int { return a + b }\nlet r = add(1, 2)",
-        );
+        let prog = parse("func add(a: Int, b: Int) -> Int { return a + b }\nlet r = add(1, 2)");
         tc.check(&prog);
         assert!(tc.diagnostics.is_empty(), "{:?}", tc.diagnostics);
     }
@@ -834,8 +913,14 @@ greet(42)"#,
     #[test]
     fn test_parse_type_array() {
         let tc = TypeChecker::new();
-        assert_eq!(tc.parse_type("Array<Int>"), Type::Array(Box::new(Type::Int)));
-        assert_eq!(tc.parse_type("[String]"), Type::Array(Box::new(Type::String)));
+        assert_eq!(
+            tc.parse_type("Array<Int>"),
+            Type::Array(Box::new(Type::Int))
+        );
+        assert_eq!(
+            tc.parse_type("[String]"),
+            Type::Array(Box::new(Type::String))
+        );
     }
 
     #[test]
@@ -864,8 +949,15 @@ greet(42)"#,
         // x is an Int — using it as an event handler should produce a lint warning
         let prog = parse("let x = 42;\nlet el = <button on:click={x}>ok</button>;");
         tc.check(&prog);
-        let has_warn = tc.diagnostics.iter().any(|d| d.message.contains("not callable"));
-        assert!(has_warn, "Expected non-callable event handler warning. Got: {:?}", tc.diagnostics);
+        let has_warn = tc
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("not callable"));
+        assert!(
+            has_warn,
+            "Expected non-callable event handler warning. Got: {:?}",
+            tc.diagnostics
+        );
     }
 
     #[test]
@@ -874,8 +966,15 @@ greet(42)"#,
         // handler is a function — no warning expected
         let prog = parse("func handler() { }\nlet el = <button on:click={handler}>ok</button>;");
         tc.check(&prog);
-        let has_warn = tc.diagnostics.iter().any(|d| d.message.contains("not callable"));
-        assert!(!has_warn, "Should not warn for function event handler. Got: {:?}", tc.diagnostics);
+        let has_warn = tc
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("not callable"));
+        assert!(
+            !has_warn,
+            "Should not warn for function event handler. Got: {:?}",
+            tc.diagnostics
+        );
     }
 
     // ── Bloco B.4 — type annotation enforcement on component bindings ─────────
@@ -883,10 +982,19 @@ greet(42)"#,
     #[test]
     fn component_state_type_annotation_match_ok() {
         let mut tc = TypeChecker::new();
-        let prog = parse("component Counter {\n  state count: Int = 0\n  view { <p>{count}</p> }\n}");
+        let prog =
+            parse("component Counter {\n  state count: Int = 0\n  view { <p>{count}</p> }\n}");
         tc.check(&prog);
-        let errors: Vec<_> = tc.diagnostics.iter().filter(|d| d.kind == DiagnosticKind::Type).collect();
-        assert!(errors.is_empty(), "Should not error when Int = 0: {:?}", errors);
+        let errors: Vec<_> = tc
+            .diagnostics
+            .iter()
+            .filter(|d| d.kind == DiagnosticKind::Type)
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "Should not error when Int = 0: {:?}",
+            errors
+        );
     }
 
     #[test]
@@ -894,28 +1002,56 @@ greet(42)"#,
         let mut tc = TypeChecker::new();
         let prog = parse(r#"component Bad { state count: Int = "hello" view { <p>{count}</p> } }"#);
         tc.check(&prog);
-        let errors: Vec<_> = tc.diagnostics.iter().filter(|d| d.kind == DiagnosticKind::Type).collect();
-        assert!(!errors.is_empty(), "Expected type mismatch error for state Int = string");
-        assert!(errors[0].message.contains("Int") && errors[0].message.contains("String"),
-            "Error message should mention both types: {:?}", errors[0].message);
+        let errors: Vec<_> = tc
+            .diagnostics
+            .iter()
+            .filter(|d| d.kind == DiagnosticKind::Type)
+            .collect();
+        assert!(
+            !errors.is_empty(),
+            "Expected type mismatch error for state Int = string"
+        );
+        assert!(
+            errors[0].message.contains("Int") && errors[0].message.contains("String"),
+            "Error message should mention both types: {:?}",
+            errors[0].message
+        );
     }
 
     #[test]
     fn component_memo_type_annotation_mismatch_errors() {
         let mut tc = TypeChecker::new();
-        let prog = parse(r#"component Bad { state x: Int = 1 memo label: Int = "text" view { <p>{label}</p> } }"#);
+        let prog = parse(
+            r#"component Bad { state x: Int = 1 memo label: Int = "text" view { <p>{label}</p> } }"#,
+        );
         tc.check(&prog);
-        let errors: Vec<_> = tc.diagnostics.iter().filter(|d| d.kind == DiagnosticKind::Type).collect();
-        assert!(!errors.is_empty(), "Expected type mismatch error for memo Int = string");
+        let errors: Vec<_> = tc
+            .diagnostics
+            .iter()
+            .filter(|d| d.kind == DiagnosticKind::Type)
+            .collect();
+        assert!(
+            !errors.is_empty(),
+            "Expected type mismatch error for memo Int = string"
+        );
     }
 
     #[test]
     fn component_prop_no_initializer_no_error() {
         let mut tc = TypeChecker::new();
-        let prog = parse("component Label {\n  prop text: String\n  view { <span>{text}</span> }\n}");
+        let prog =
+            parse("component Label {\n  prop text: String\n  view { <span>{text}</span> }\n}");
         tc.check(&prog);
-        let errors: Vec<_> = tc.diagnostics.iter().filter(|d| d.kind == DiagnosticKind::Type).collect();
-        assert!(errors.is_empty(), "prop without initializer should not error: {:?}", errors);
+        let errors: Vec<_> = tc
+            .diagnostics
+            .iter()
+            .filter(|d| d.kind == DiagnosticKind::Type)
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "prop without initializer should not error: {:?}",
+            errors
+        );
     }
 
     // ── Bloco B — component binding tests ────────────────────────────────────
@@ -923,10 +1059,15 @@ greet(42)"#,
     #[test]
     fn component_valid_state_and_view() {
         let mut tc = TypeChecker::new();
-        let prog = parse("component Counter {\n  state count: Int = 0\n  view { <p>{count}</p> }\n}");
+        let prog =
+            parse("component Counter {\n  state count: Int = 0\n  view { <p>{count}</p> }\n}");
         tc.check(&prog);
         // no errors expected for a valid component
-        let errors: Vec<_> = tc.diagnostics.iter().filter(|d| d.kind == DiagnosticKind::Type).collect();
+        let errors: Vec<_> = tc
+            .diagnostics
+            .iter()
+            .filter(|d| d.kind == DiagnosticKind::Type)
+            .collect();
         assert!(errors.is_empty(), "Unexpected type errors: {:?}", errors);
     }
 
@@ -935,7 +1076,11 @@ greet(42)"#,
         let mut tc = TypeChecker::new();
         let prog = parse("component Greeter {\n  prop name: String\n  view { <p>{name}</p> }\n}");
         tc.check(&prog);
-        let errors: Vec<_> = tc.diagnostics.iter().filter(|d| d.kind == DiagnosticKind::Type).collect();
+        let errors: Vec<_> = tc
+            .diagnostics
+            .iter()
+            .filter(|d| d.kind == DiagnosticKind::Type)
+            .collect();
         assert!(errors.is_empty(), "Unexpected type errors: {:?}", errors);
     }
 
@@ -944,8 +1089,16 @@ greet(42)"#,
         let mut tc = TypeChecker::new();
         let prog = parse("component Calc {\n  state x: Int = 1\n  memo doubled: Int = x * 2\n  view { <p>{doubled}</p> }\n}");
         tc.check(&prog);
-        let stale_warns: Vec<_> = tc.diagnostics.iter().filter(|d| d.message.contains("may be stale")).collect();
-        assert!(stale_warns.is_empty(), "Should not warn when memo refs state: {:?}", stale_warns);
+        let stale_warns: Vec<_> = tc
+            .diagnostics
+            .iter()
+            .filter(|d| d.message.contains("may be stale"))
+            .collect();
+        assert!(
+            stale_warns.is_empty(),
+            "Should not warn when memo refs state: {:?}",
+            stale_warns
+        );
     }
 
     #[test]
@@ -953,8 +1106,16 @@ greet(42)"#,
         let mut tc = TypeChecker::new();
         let prog = parse("component Isolated {\n  memo val: Int = 42\n  view { <p>{val}</p> }\n}");
         tc.check(&prog);
-        let stale_warns: Vec<_> = tc.diagnostics.iter().filter(|d| d.message.contains("may be stale")).collect();
-        assert!(!stale_warns.is_empty(), "Expected stale-memo warning. Got: {:?}", tc.diagnostics);
+        let stale_warns: Vec<_> = tc
+            .diagnostics
+            .iter()
+            .filter(|d| d.message.contains("may be stale"))
+            .collect();
+        assert!(
+            !stale_warns.is_empty(),
+            "Expected stale-memo warning. Got: {:?}",
+            tc.diagnostics
+        );
     }
 
     #[test]
@@ -962,7 +1123,11 @@ greet(42)"#,
         use core::ast::Stmt;
         let prog = parse("component Btn {\n  state clicked: Bool = false\n  view { <button>{clicked}</button> }\n}");
         assert_eq!(prog.len(), 1);
-        assert!(matches!(prog[0], Stmt::ComponentBlock { .. }), "Expected ComponentBlock, got: {:?}", prog[0]);
+        assert!(
+            matches!(prog[0], Stmt::ComponentBlock { .. }),
+            "Expected ComponentBlock, got: {:?}",
+            prog[0]
+        );
     }
 
     #[test]
@@ -971,7 +1136,13 @@ greet(42)"#,
         let prog = parse("component X {\n  state n: Int = 0\n  view { <div></div> }\n}");
         if let Stmt::ComponentBlock { bindings, .. } = &prog[0] {
             assert!(!bindings.is_empty(), "Expected at least one binding");
-            assert!(matches!(&bindings[0], Stmt::QualifiedBinding { qualifier: BindingQualifier::State, .. }));
+            assert!(matches!(
+                &bindings[0],
+                Stmt::QualifiedBinding {
+                    qualifier: BindingQualifier::State,
+                    ..
+                }
+            ));
         } else {
             panic!("Expected ComponentBlock");
         }
@@ -980,9 +1151,16 @@ greet(42)"#,
     #[test]
     fn parser_prop_binding_inside_component() {
         use core::ast::{BindingQualifier, Stmt};
-        let prog = parse("component Label {\n  prop text: String\n  view { <span>{text}</span> }\n}");
+        let prog =
+            parse("component Label {\n  prop text: String\n  view { <span>{text}</span> }\n}");
         if let Stmt::ComponentBlock { bindings, .. } = &prog[0] {
-            assert!(matches!(&bindings[0], Stmt::QualifiedBinding { qualifier: BindingQualifier::Prop, .. }));
+            assert!(matches!(
+                &bindings[0],
+                Stmt::QualifiedBinding {
+                    qualifier: BindingQualifier::Prop,
+                    ..
+                }
+            ));
         } else {
             panic!("Expected ComponentBlock");
         }
@@ -994,9 +1172,27 @@ greet(42)"#,
         let prog = parse("component Multi {\n  state x: Int = 0\n  prop y: String\n  memo z: Int = x + 1\n  view { <div></div> }\n}");
         if let Stmt::ComponentBlock { bindings, .. } = &prog[0] {
             assert_eq!(bindings.len(), 3);
-            assert!(matches!(&bindings[0], Stmt::QualifiedBinding { qualifier: BindingQualifier::State, .. }));
-            assert!(matches!(&bindings[1], Stmt::QualifiedBinding { qualifier: BindingQualifier::Prop, .. }));
-            assert!(matches!(&bindings[2], Stmt::QualifiedBinding { qualifier: BindingQualifier::Memo, .. }));
+            assert!(matches!(
+                &bindings[0],
+                Stmt::QualifiedBinding {
+                    qualifier: BindingQualifier::State,
+                    ..
+                }
+            ));
+            assert!(matches!(
+                &bindings[1],
+                Stmt::QualifiedBinding {
+                    qualifier: BindingQualifier::Prop,
+                    ..
+                }
+            ));
+            assert!(matches!(
+                &bindings[2],
+                Stmt::QualifiedBinding {
+                    qualifier: BindingQualifier::Memo,
+                    ..
+                }
+            ));
         } else {
             panic!("Expected ComponentBlock");
         }

@@ -109,8 +109,16 @@ impl DepGraph {
                 }
             }
         }
-        let derived_count = self.nodes.iter().filter(|n| n.kind == NodeKind::Derived).count();
-        if order.len() == derived_count { Some(order) } else { None }
+        let derived_count = self
+            .nodes
+            .iter()
+            .filter(|n| n.kind == NodeKind::Derived)
+            .count();
+        if order.len() == derived_count {
+            Some(order)
+        } else {
+            None
+        }
     }
 }
 
@@ -169,7 +177,9 @@ impl<'a> Tarjan<'a> {
                 let w = self.stack.pop().expect("stack non-empty during SCC");
                 self.on_stack[w.0] = false;
                 scc.push(w);
-                if w == v { break; }
+                if w == v {
+                    break;
+                }
             }
             self.sccs.push(scc);
         }
@@ -197,7 +207,10 @@ impl ReactivityPass {
 
         // Phase 1: register all binding nodes
         for binding in bindings {
-            if let Stmt::QualifiedBinding { qualifier, name, .. } = binding {
+            if let Stmt::QualifiedBinding {
+                qualifier, name, ..
+            } = binding
+            {
                 let kind = match qualifier {
                     BindingQualifier::State | BindingQualifier::Prop => NodeKind::Source,
                     BindingQualifier::Memo => NodeKind::Derived,
@@ -221,8 +234,12 @@ impl ReactivityPass {
 
         // Phase 3: add edges for memo deps
         for binding in bindings {
-            if let Stmt::QualifiedBinding { qualifier: BindingQualifier::Memo, name, value, .. } =
-                binding
+            if let Stmt::QualifiedBinding {
+                qualifier: BindingQualifier::Memo,
+                name,
+                value,
+                ..
+            } = binding
             {
                 let memo_id = match graph.node_by_name(&name.lexeme) {
                     Some(id) => id,
@@ -271,8 +288,12 @@ fn collect_template_refs(nodes: &[TemplateNode]) -> Vec<String> {
     for node in nodes {
         match node {
             TemplateNode::Expr(e) => collect_expr_refs_into(e, &mut out),
-            TemplateNode::Element { attrs, children, .. }
-            | TemplateNode::Component { attrs, children, .. } => {
+            TemplateNode::Element {
+                attrs, children, ..
+            }
+            | TemplateNode::Component {
+                attrs, children, ..
+            } => {
                 for attr in attrs {
                     match &attr.value {
                         TemplateAttrValue::Dynamic(e) | TemplateAttrValue::EventHandler(e) => {
@@ -283,12 +304,18 @@ fn collect_template_refs(nodes: &[TemplateNode]) -> Vec<String> {
                 }
                 out.extend(collect_template_refs(children));
             }
-            TemplateNode::If { cond, then_children, else_children } => {
+            TemplateNode::If {
+                cond,
+                then_children,
+                else_children,
+            } => {
                 collect_expr_refs_into(cond, &mut out);
                 out.extend(collect_template_refs(then_children));
                 out.extend(collect_template_refs(else_children));
             }
-            TemplateNode::For { items, children, .. } => {
+            TemplateNode::For {
+                items, children, ..
+            } => {
                 collect_expr_refs_into(items, &mut out);
                 out.extend(collect_template_refs(children));
             }
@@ -316,21 +343,32 @@ fn collect_expr_refs_into(expr: &Expr, out: &mut Vec<String>) {
         }
         Expr::Unary { right, .. } => collect_expr_refs_into(right, out),
         Expr::Grouping { expression } => collect_expr_refs_into(expression, out),
-        Expr::Call { callee, arguments, .. } => {
+        Expr::Call {
+            callee, arguments, ..
+        } => {
             collect_expr_refs_into(callee, out);
-            for a in arguments { collect_expr_refs_into(a, out); }
+            for a in arguments {
+                collect_expr_refs_into(a, out);
+            }
         }
         Expr::FieldAccess { object, .. } => collect_expr_refs_into(object, out),
         Expr::Array(elems) | Expr::Tuple(elems) => {
-            for e in elems { collect_expr_refs_into(e, out); }
+            for e in elems {
+                collect_expr_refs_into(e, out);
+            }
         }
         Expr::Cast { object, .. } => collect_expr_refs_into(object, out),
-        Expr::Try(e) | Expr::Weak(e) | Expr::Unowned(e)
-        | Expr::WeakUpgrade(e) | Expr::UnownedAccess(e) => {
+        Expr::Try(e)
+        | Expr::Weak(e)
+        | Expr::Unowned(e)
+        | Expr::WeakUpgrade(e)
+        | Expr::UnownedAccess(e) => {
             collect_expr_refs_into(e, out);
         }
         Expr::StructInit { fields, .. } => {
-            for (_, e) in fields { collect_expr_refs_into(e, out); }
+            for (_, e) in fields {
+                collect_expr_refs_into(e, out);
+            }
         }
         Expr::InterpolatedString(parts) => {
             use core::ast::InterpolatedPart;
@@ -370,7 +408,11 @@ mod tests {
             "component Counter {\n  state count: Int = 0\n  memo doubled: Int = count * 2\n  view { <p>{doubled}</p> }\n}",
         );
         let result = ReactivityPass::analyse(&comp);
-        assert!(result.diagnostics.is_empty(), "unexpected: {:?}", result.diagnostics);
+        assert!(
+            result.diagnostics.is_empty(),
+            "unexpected: {:?}",
+            result.diagnostics
+        );
         // graph has: count(Source), doubled(Derived), view:doubled(Sink) at minimum
         assert!(result.graph.node_by_name("count").is_some());
         assert!(result.graph.node_by_name("doubled").is_some());
@@ -383,7 +425,11 @@ mod tests {
             "component C {\n  state x: Int = 1\n  memo a: Int = x + 1\n  memo b: Int = a * 2\n  view { <p>{b}</p> }\n}",
         );
         let result = ReactivityPass::analyse(&comp);
-        assert!(result.diagnostics.is_empty(), "unexpected: {:?}", result.diagnostics);
+        assert!(
+            result.diagnostics.is_empty(),
+            "unexpected: {:?}",
+            result.diagnostics
+        );
         let g = &result.graph;
         let a_id = g.node_by_name("a").expect("a");
         let b_id = g.node_by_name("b").expect("b");

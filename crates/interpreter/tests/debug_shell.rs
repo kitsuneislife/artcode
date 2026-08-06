@@ -53,7 +53,10 @@ let z = 3
     let mut interp = Interpreter::with_prelude();
     interp.interpret(program).expect("interpret");
     // After execution, current_line should reflect the last executed statement's line
-    assert!(interp.current_line > 0, "current_line should be set after execution");
+    assert!(
+        interp.current_line > 0,
+        "current_line should be set after execution"
+    );
 }
 
 #[test]

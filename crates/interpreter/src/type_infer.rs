@@ -32,7 +32,11 @@ impl TypeEnv {
     }
 }
 
-type FuncEntry = (Vec<String>, std::rc::Rc<Stmt>, Option<Vec<(String, Option<String>)>>);
+type FuncEntry = (
+    Vec<String>,
+    std::rc::Rc<Stmt>,
+    Option<Vec<(String, Option<String>)>>,
+);
 
 pub struct TypeInfer<'a> {
     pub diags: Vec<Diagnostic>,
@@ -549,7 +553,8 @@ impl<'a> TypeInfer<'a> {
                     diagnostics::Span::new(0, 0, 0, 0),
                 ));
             }
-            ComponentBlock { .. } | QualifiedBinding { .. } => { /* allowed — compile-time only */ }
+            ComponentBlock { .. } | QualifiedBinding { .. } => { /* allowed — compile-time only */
+            }
         }
     }
 
@@ -825,9 +830,10 @@ impl<'a> TypeInfer<'a> {
                         }
                     } else if name.lexeme == "capability_acquire" {
                         if let Some(first) = arguments.first()
-                            && let Expr::Literal(ArtValue::String(kind)) = first {
-                                return Type::Struct(format!("Capability[{}]", kind));
-                            }
+                            && let Expr::Literal(ArtValue::String(kind)) = first
+                        {
+                            return Type::Struct(format!("Capability[{}]", kind));
+                        }
                         return Type::Struct("Capability[Any]".to_string());
                     } else if name.lexeme == "capability_kind" {
                         return Type::String;
@@ -836,54 +842,56 @@ impl<'a> TypeInfer<'a> {
                 // Simple callsite propagation: if the callee is a known top-level function,
                 // bind parameter names to argument types (for literal or known-variable args)
                 if let Expr::Variable { name } = &**callee
-                    && let Some(entry) = self.functions.get(&name.lexeme).cloned() {
-                        let (param_names, body, type_params) = entry;
+                    && let Some(entry) = self.functions.get(&name.lexeme).cloned()
+                {
+                    let (param_names, body, type_params) = entry;
 
-                        // Check simple generic constraints
-                        if let (Some(t_args), Some(t_params)) = (type_args, &type_params)
-                            && t_args.len() == t_params.len() {
-                                for (i, t_arg) in t_args.iter().enumerate() {
-                                    if let Some(bound) = &t_params[i].1 {
-                                        let ok = match bound.as_str() {
-                                            "Numeric" => t_arg == "Int" || t_arg == "Float",
-                                            "Eq" | "Hash" => {
-                                                t_arg == "Int"
-                                                    || t_arg == "Float"
-                                                    || t_arg == "String"
-                                                    || t_arg == "Bool"
-                                            }
-                                            _ => true,
-                                        };
-                                        if !ok {
-                                            self.diags.push(Diagnostic::new(
+                    // Check simple generic constraints
+                    if let (Some(t_args), Some(t_params)) = (type_args, &type_params)
+                        && t_args.len() == t_params.len()
+                    {
+                        for (i, t_arg) in t_args.iter().enumerate() {
+                            if let Some(bound) = &t_params[i].1 {
+                                let ok = match bound.as_str() {
+                                    "Numeric" => t_arg == "Int" || t_arg == "Float",
+                                    "Eq" | "Hash" => {
+                                        t_arg == "Int"
+                                            || t_arg == "Float"
+                                            || t_arg == "String"
+                                            || t_arg == "Bool"
+                                    }
+                                    _ => true,
+                                };
+                                if !ok {
+                                    self.diags.push(Diagnostic::new(
                                                 DiagnosticKind::Type,
                                                 format!("Type argument '{}' does not satisfy constraint '{}' for type parameter '{}'", t_arg, bound, t_params[i].0),
                                                 Span::new(name.start, name.end, name.line, name.col),
                                             ));
-                                        }
-                                    }
                                 }
                             }
-
-                        // Avoid infinite recursion for recursive calls
-                        if self.visiting_functions.insert(name.lexeme.clone()) {
-                            // create a temporary scope for params
-                            self.push_scope();
-                            for (i, p) in param_names.iter().enumerate() {
-                                if i < arguments.len() {
-                                    let arg = &arguments[i];
-                                    let ty = self.infer_expr(arg);
-                                    self.record_var_binding(p);
-                                    self.tenv.set_var(p, ty);
-                                }
-                            }
-                            // Optionally infer the body to propagate types inside function (cheap simulation)
-                            // We don't attempt full signature/return inference here.
-                            self.visit_stmt(&body);
-                            self.pop_scope();
-                            self.visiting_functions.remove(&name.lexeme);
                         }
                     }
+
+                    // Avoid infinite recursion for recursive calls
+                    if self.visiting_functions.insert(name.lexeme.clone()) {
+                        // create a temporary scope for params
+                        self.push_scope();
+                        for (i, p) in param_names.iter().enumerate() {
+                            if i < arguments.len() {
+                                let arg = &arguments[i];
+                                let ty = self.infer_expr(arg);
+                                self.record_var_binding(p);
+                                self.tenv.set_var(p, ty);
+                            }
+                        }
+                        // Optionally infer the body to propagate types inside function (cheap simulation)
+                        // We don't attempt full signature/return inference here.
+                        self.visit_stmt(&body);
+                        self.pop_scope();
+                        self.visiting_functions.remove(&name.lexeme);
+                    }
+                }
                 for a in arguments {
                     self.infer_expr(a);
                 }

@@ -1,8 +1,8 @@
-use super::actors::{ActorState, Mailbox};
 use super::Interpreter;
+use super::actors::{ActorState, Mailbox};
 use crate::values::{Result, RuntimeError};
-use core::ast::{ArtValue, Function, MatchPattern, Stmt};
 use core::Token;
+use core::ast::{ArtValue, Function, MatchPattern, Stmt};
 use core::environment::Environment;
 use diagnostics::{Diagnostic, DiagnosticKind, Span};
 use std::cell::RefCell;
@@ -111,7 +111,12 @@ impl Interpreter {
         use std::io::{self, Write};
         let line = Self::stmt_approx_line(stmt);
         loop {
-            println!("\n[tick={} line={}] {}", self.executed_statements, line, Self::stmt_summary(stmt));
+            println!(
+                "\n[tick={} line={}] {}",
+                self.executed_statements,
+                line,
+                Self::stmt_summary(stmt)
+            );
             print!("(art-debug) > ");
             let _ = io::stdout().flush();
 
@@ -157,14 +162,21 @@ impl Interpreter {
                         for (id, actor) in &self.actors {
                             let mb = actor.mailbox.len();
                             let limit = actor.mailbox_limit;
-                            let status = if actor.finished { "finished" } else if actor.parked { "parked" } else { "running" };
-                            println!("  actor #{}: mailbox={}/{} status={}", id, mb, limit, status);
+                            let status = if actor.finished {
+                                "finished"
+                            } else if actor.parked {
+                                "parked"
+                            } else {
+                                "running"
+                            };
+                            println!(
+                                "  actor #{}: mailbox={}/{} status={}",
+                                id, mb, limit, status
+                            );
                             for (i, msg) in actor.mailbox.iter().iter().enumerate().take(5) {
-                                println!("    [{}] sender={:?} priority={} payload={}",
-                                    i,
-                                    msg.sender,
-                                    msg.priority,
-                                    msg.payload
+                                println!(
+                                    "    [{}] sender={:?} priority={} payload={}",
+                                    i, msg.sender, msg.priority, msg.payload
                                 );
                             }
                             if mb > 5 {
@@ -256,11 +268,18 @@ impl Interpreter {
         }
 
         // Breakpoint check: pause if not already in debug_mode and we hit a breakpoint
-        if !self.debug_mode && self.fast_forward_until.is_none() && !self.breakpoints.is_empty()
-            && stmt_line > 0 && self.breakpoints.contains(&stmt_line) {
-                println!("Breakpoint hit at line {} (tick {})", stmt_line, self.executed_statements);
-                self.debug_mode = true;
-            }
+        if !self.debug_mode
+            && self.fast_forward_until.is_none()
+            && !self.breakpoints.is_empty()
+            && stmt_line > 0
+            && self.breakpoints.contains(&stmt_line)
+        {
+            println!(
+                "Breakpoint hit at line {} (tick {})",
+                stmt_line, self.executed_statements
+            );
+            self.debug_mode = true;
+        }
 
         if self.debug_mode || self.fast_forward_until.is_some() {
             let should_prompt = match self.fast_forward_until {
@@ -1098,11 +1117,8 @@ impl Interpreter {
                         }
                         let mut all_bindings = Vec::new();
                         for (i, p) in param_patterns.iter().enumerate() {
-                            if let Some(bindings) = self.pattern_matches(p, &values[i]) {
-                                all_bindings.extend(bindings);
-                            } else {
-                                return None;
-                            }
+                            let bindings = self.pattern_matches(p, &values[i])?;
+                            all_bindings.extend(bindings);
                         }
                         Some(all_bindings)
                     }
@@ -1159,21 +1175,22 @@ impl Interpreter {
                             self.inc_heap_strong(h.0);
                         }
                         if let ArtValue::Function(ref f) = rv
-                            && f.retained_env.is_none() {
-                                // Returned closures can capture this block env.
-                                let escaped = Function {
-                                    name: f.name.clone(),
-                                    type_params: f.type_params.clone(),
-                                    params: f.params.clone(),
-                                    body: f.body.clone(),
-                                    closure: f.closure.clone(),
-                                    retained_env: Some(scope_env.clone()),
-                                };
-                                let mut rv = ArtValue::Function(Rc::new(escaped));
-                                let aid = previous.borrow().associated_arena;
-                                self.promote_if_escaping(aid, &mut rv);
-                                return Err(RuntimeError::Return(rv));
-                            }
+                            && f.retained_env.is_none()
+                        {
+                            // Returned closures can capture this block env.
+                            let escaped = Function {
+                                name: f.name.clone(),
+                                type_params: f.type_params.clone(),
+                                params: f.params.clone(),
+                                body: f.body.clone(),
+                                closure: f.closure.clone(),
+                                retained_env: Some(scope_env.clone()),
+                            };
+                            let mut rv = ArtValue::Function(Rc::new(escaped));
+                            let aid = previous.borrow().associated_arena;
+                            self.promote_if_escaping(aid, &mut rv);
+                            return Err(RuntimeError::Return(rv));
+                        }
                         RuntimeError::Return(rv)
                     }
                     other => other,
@@ -1187,5 +1204,4 @@ impl Interpreter {
         self.environment = previous;
         Ok(())
     }
-
 }

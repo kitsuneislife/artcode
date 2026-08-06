@@ -32,7 +32,7 @@ fn finalizer_promotes_handles_to_root_during_execution() {
         Stmt::Let {
             pattern: core::ast::MatchPattern::Variable(core::Token::dummy("outside")),
             ty: None,
-            initializer: Expr::Array(vec![Expr::Literal(core::ast::ArtValue::Int(7)).into()]),
+            initializer: Expr::Array(vec![Expr::Literal(core::ast::ArtValue::Int(7))]),
         },
         // create block where x is created and finalizer registered, then rebind x
         Stmt::Block {
@@ -40,9 +40,7 @@ fn finalizer_promotes_handles_to_root_during_execution() {
                 Stmt::Let {
                     pattern: core::ast::MatchPattern::Variable(core::Token::dummy("x")),
                     ty: None,
-                    initializer: Expr::Array(vec![
-                        Expr::Literal(core::ast::ArtValue::Int(1)).into(),
-                    ]),
+                    initializer: Expr::Array(vec![Expr::Literal(core::ast::ArtValue::Int(1))]),
                 },
                 // register finalizer
                 Stmt::Expression(Expr::Call {

@@ -5,7 +5,19 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 
 ## [Unreleased]
 
+### Fixed
+- **CI *Metrics Validation* voltou a passar.** A etapa `Build workspace` compila com `--locked`, mas o `Cargo.lock` versionado declarava `cli 0.5.0` enquanto os manifestos diziam `0.4.0`; `cargo` recusava atualizar o lock e falhava antes de compilar qualquer coisa. Todos os 11 crates foram unificados em `0.5.1` e o lock regenerado.
+- **Versões alinhadas em `0.5.1`** entre manifestos, `Cargo.lock`, README e website. Estavam em três valores distintos (`0.4.0` nos manifestos e README, `0.5.0` no website), apesar de o CHANGELOG já documentar `0.5.1`.
+- **Recursão deixou de estourar a pilha do processo.** O interpretador percorre a pilha do Rust uma vez por frame de chamada Art e gasta ~200 KB por frame em build debug, então a stack padrão da thread principal (1 MB no Windows, 8 MB no Linux) estourava a partir de profundidade ~5 e ~40 respectivamente — antes de o guarda de nesting 128 do próprio interpretador ser atingido. A CLI agora executa numa thread dedicada com 256 MB de stack. Isso também corrigiu `cli --test stream_pipeline`, que falhava por essa causa.
+- **LSP corrigida no Windows.** `decode_file_uri_path` só decodificava `%20`, `%23` e `%25`, então o `file:///c%3A/…` que o VS Code envia nunca resolvia para um caminho válido; e `to_file_uri` emitia `file://\\?\C:\…` porque `std::fs::canonicalize` devolve caminhos extended-length. Agora há decodificação percent genérica, tratamento de drive letter e remoção do prefixo `\\?\`, com teste de round-trip URI↔path.
+- **`art add` e o resolver de imports concordam sobre o diretório de cache.** `art add` usava `env::var("HOME")` com fallback `"."` enquanto o resolver usava `dirs::home_dir()`; no Windows, onde `HOME` normalmente não existe e `dirs` lê a pasta de perfil pela API do Win32, os pacotes eram instalados onde o resolver nunca procurava. Ambos passam a usar `resolver::cache_dir()`, com override explícito via `ARTCODE_HOME`.
+- **Golden `crates/ir/golden/if.ir` regenerado.** Continuava registrando a saída antiga e inválida (`br_cond %f_0`, sobre um temp nunca definido) mesmo depois de a correção de lowering ter mudado a emissão. O passo `xtask gen-golden --check` — o primeiro do job `build-and-test` — teria falhado assim que os commits de IR chegassem ao CI.
+- **53 warnings de clippy e 1 erro de compilação** eliminados no workspace (`assert!(false, …)` → `panic!`, `useless_conversion`, `for_kv_map`, transmutes de ponteiro de função, casts redundantes, `approx_constant`). Workspace inteiro reformatado com `cargo fmt`.
+
 ### Added
+- **Job `lint` no CI:** `cargo clippy --workspace --all-targets --locked -- -D warnings` e `cargo fmt --all -- --check`. O CI não executava clippy em lugar nenhum — a alegação de "zero warnings" do commit `b7ba5c3` havia regredido sem detecção. `build-and-test` também passa a usar `--locked`.
+- **`ARTCODE_HOME`:** variável de ambiente que relocaliza o cache de pacotes (`<home>/.artcode/cache`), útil para testes, sandboxes e CI.
+- **`.gitattributes`:** normaliza fim de linha (`eol=lf`). Sem ele, todo checkout no Windows convertia a árvore inteira para CRLF e marcava o repositório como modificado. `.art-lock` e `docs/generated/` passam a ser ignorados — são artefatos reescritos por testes e por `art doc`.
 - **Backend LLVM AOT (`crates/ir/src/llvm_emitter.rs`):** novo emissor de LLVM IR textual (`.ll`) a partir do IR interno. Compila para binário nativo via `clang` — sem dependência de `inkwell` e desacoplado da versão da C-API do LLVM.
   - `art build-aot <file> --llvm [--out <bin>]`: emite LLVM IR, compila com `clang -O2`, gera binário nativo. Cache por hash do IR em `$TMPDIR/.artcache/` (CACHE HIT em recompilações).
   - `art build-aot <file> --emit-llvm-ir [--out <file.ll>]`: escreve o LLVM IR textual para inspeção; validável com `llvm-as`.
@@ -23,8 +35,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
 - **E0004 em `ssa.rs` (`rename_temps`):** match não-exaustivo em Pass 2 — variantes `ICmp`, `Alloca`, `Load`, `Store` adicionadas.
 - **E0004 em `jit/src/ir_loader.rs`:** mesmo match adicionado com as 4 novas variantes, mantendo contagem de instruções correta.
 
+### Changed
+- **`scripts/perf_regression.sh` reescrito.** O job `perf-regression` foi adicionado em `0ce2e6f` e nunca passou — `7f4cf33` foi sua primeira execução no CI. O script deixou de depender de `python3`, passou a medir o melhor de 5 execuções (uma amostra única num runner compartilhado não é representativa), preserva o `stderr` do binário em vez de descartá-lo com `2>/dev/null`, e imprime o JSON medido quando uma verificação falha.
+- Testes que dependem de ferramentas POSIX (`echo`, `tr`, `sh`) marcados com `#![cfg(unix)]`: a sintaxe shell do Artcode executa o programa nomeado diretamente, sem interpretador de shell, e no Windows `echo` é um builtin do `cmd.exe`, não um executável.
+
 ### Removed
 - Arquivos `.bak` de testes (`golden_lower_call.rs.bak`, `golden_ssa_unique.rs.bak`) e `eprintln!` de depuração remanescente no passe SSA (`crates/ir/src/ssa.rs`).
+- `cli/.art-lock` do versionamento: é reescrito pelos testes de integração com caminhos absolutos de `/tmp`, portanto é estado local e não código-fonte.
 
 ## [0.5.1] - 2026-05-27
 

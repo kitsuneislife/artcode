@@ -19,8 +19,10 @@ fn test_simple_element_no_children() {
     match expr {
         Expr::Template(nodes) => {
             assert_eq!(nodes.len(), 1);
-            assert!(matches!(&nodes[0], TemplateNode::Element { tag, attrs, children }
-                if tag == "div" && attrs.is_empty() && children.is_empty()));
+            assert!(
+                matches!(&nodes[0], TemplateNode::Element { tag, attrs, children }
+                if tag == "div" && attrs.is_empty() && children.is_empty())
+            );
         }
         other => panic!("Expected Template, got {:?}", other),
     }
@@ -36,7 +38,9 @@ fn test_element_with_static_attr() {
                 assert_eq!(tag, "div");
                 assert_eq!(attrs.len(), 1);
                 assert_eq!(attrs[0].name, "class");
-                assert!(matches!(&attrs[0].value, TemplateAttrValue::Static(s) if s == "container"));
+                assert!(
+                    matches!(&attrs[0].value, TemplateAttrValue::Static(s) if s == "container")
+                );
             } else {
                 panic!("Expected Element");
             }
@@ -70,7 +74,10 @@ fn test_element_with_event_handler() {
             if let TemplateNode::Element { attrs, .. } = &nodes[0] {
                 let handler = attrs.iter().find(|a| a.name == "on:click");
                 assert!(handler.is_some());
-                assert!(matches!(&handler.unwrap().value, TemplateAttrValue::EventHandler(_)));
+                assert!(matches!(
+                    &handler.unwrap().value,
+                    TemplateAttrValue::EventHandler(_)
+                ));
             } else {
                 panic!("Expected Element");
             }
@@ -113,7 +120,12 @@ fn test_if_node_basic() {
     match expr {
         Expr::Template(nodes) => {
             assert!(matches!(&nodes[0], TemplateNode::If { .. }));
-            if let TemplateNode::If { then_children, else_children, .. } = &nodes[0] {
+            if let TemplateNode::If {
+                then_children,
+                else_children,
+                ..
+            } = &nodes[0]
+            {
                 assert_eq!(then_children.len(), 1);
                 assert!(else_children.is_empty());
             }
@@ -166,7 +178,10 @@ fn test_for_without_key_emits_warning() {
     let src = "let t = <for item in {items}><div /></for>";
     let (_, diags) = parse(src);
     let has_key_warning = diags.iter().any(|d| d.message.contains("key"));
-    assert!(has_key_warning, "Expected warning about missing key in <for>");
+    assert!(
+        has_key_warning,
+        "Expected warning about missing key in <for>"
+    );
 }
 
 #[test]
@@ -184,7 +199,11 @@ fn test_component_without_import_emits_error() {
     let has_import_error = diags
         .iter()
         .any(|d| d.message.contains("Counter") && d.message.contains("not imported"));
-    assert!(has_import_error, "Expected error for undefined component 'Counter'. Got: {:?}", diags);
+    assert!(
+        has_import_error,
+        "Expected error for undefined component 'Counter'. Got: {:?}",
+        diags
+    );
 }
 
 #[test]
@@ -195,5 +214,9 @@ fn test_component_with_struct_no_error() {
     let has_component_error = diags
         .iter()
         .any(|d| d.message.contains("Counter") && d.message.contains("not imported"));
-    assert!(!has_component_error, "Should not error when struct is defined. Got: {:?}", diags);
+    assert!(
+        !has_component_error,
+        "Should not error when struct is defined. Got: {:?}",
+        diags
+    );
 }

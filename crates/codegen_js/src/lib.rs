@@ -1,7 +1,9 @@
 mod sourcemap;
 pub use sourcemap::SourceMapBuilder;
 
-use core::ast::{ArtValue, Expr, InterpolatedPart, MatchPattern, Stmt, TemplateAttrValue, TemplateNode};
+use core::ast::{
+    ArtValue, Expr, InterpolatedPart, MatchPattern, Stmt, TemplateAttrValue, TemplateNode,
+};
 
 pub struct CodegenOptions {
     pub source_file: Option<String>,
@@ -155,7 +157,11 @@ impl CodegenJs {
                 self.newline();
             }
 
-            Stmt::Let { pattern, initializer, .. } => {
+            Stmt::Let {
+                pattern,
+                initializer,
+                ..
+            } => {
                 let ind = self.indent_str();
                 self.write(&ind);
                 match pattern {
@@ -202,7 +208,11 @@ impl CodegenJs {
                 self.newline();
             }
 
-            Stmt::If { condition, then_branch, else_branch } => {
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 let ind = self.indent_str();
                 self.write(&ind);
                 let cond = self.emit_expr(condition);
@@ -215,7 +225,12 @@ impl CodegenJs {
                 self.newline();
             }
 
-            Stmt::IfLet { pattern, value, then_branch, else_branch } => {
+            Stmt::IfLet {
+                pattern,
+                value,
+                then_branch,
+                else_branch,
+            } => {
                 let ind = self.indent_str();
                 self.write(&ind);
                 let val = self.emit_expr(value);
@@ -246,7 +261,11 @@ impl CodegenJs {
                 self.newline();
             }
 
-            Stmt::TryCatch { try_branch, catch_name, catch_branch } => {
+            Stmt::TryCatch {
+                try_branch,
+                catch_name,
+                catch_branch,
+            } => {
                 let ind = self.indent_str();
                 self.write(&ind);
                 self.write("try ");
@@ -257,24 +276,40 @@ impl CodegenJs {
                 self.newline();
             }
 
-            Stmt::Function { name, params, body, method_owner, type_params: _, is_async, .. } => {
+            Stmt::Function {
+                name,
+                params,
+                body,
+                method_owner,
+                type_params: _,
+                is_async,
+                ..
+            } => {
                 let ind = self.indent_str();
                 self.write(&ind);
                 self.record(name.line, name.col);
                 let fname = Self::js_ident(&name.lexeme);
-                let pnames: Vec<String> =
-                    params.iter().map(|p| Self::js_ident(&p.name.lexeme)).collect();
+                let pnames: Vec<String> = params
+                    .iter()
+                    .map(|p| Self::js_ident(&p.name.lexeme))
+                    .collect();
                 let async_kw = if *is_async { "async " } else { "" };
                 if let Some(owner) = method_owner {
                     let owner_js = Self::js_ident(owner);
                     self.write(&format!(
                         "{}{}_{}.prototype.{} = function({}) ",
-                        async_kw, owner_js, owner_js, fname, pnames.join(", ")
+                        async_kw,
+                        owner_js,
+                        owner_js,
+                        fname,
+                        pnames.join(", ")
                     ));
                 } else {
                     self.write(&format!(
                         "{}function {}({}) ",
-                        async_kw, fname, pnames.join(", ")
+                        async_kw,
+                        fname,
+                        pnames.join(", ")
                     ));
                 }
                 self.emit_stmt_inline(body);
@@ -290,7 +325,11 @@ impl CodegenJs {
                 self.newline();
             }
 
-            Stmt::For { element, iterator, body } => {
+            Stmt::For {
+                element,
+                iterator,
+                body,
+            } => {
                 let ind = self.indent_str();
                 self.write(&ind);
                 let elem = Self::js_ident(&element.lexeme);
@@ -318,8 +357,10 @@ impl CodegenJs {
                 self.write(&ind);
                 self.record(name.line, name.col);
                 let cname = &name.lexeme;
-                let field_names: Vec<String> =
-                    fields.iter().map(|(f, _)| Self::js_ident(&f.lexeme)).collect();
+                let field_names: Vec<String> = fields
+                    .iter()
+                    .map(|(f, _)| Self::js_ident(&f.lexeme))
+                    .collect();
                 self.write(&format!("class {} {{\n", cname));
                 self.indent += 1;
                 let ind2 = self.indent_str();
@@ -352,9 +393,8 @@ impl CodegenJs {
                     let vname = &variant.lexeme;
                     let ind2 = self.indent_str();
                     if let Some(types) = payload_types {
-                        let args: Vec<String> = (0..types.len())
-                            .map(|i| format!("_v{}", i))
-                            .collect();
+                        let args: Vec<String> =
+                            (0..types.len()).map(|i| format!("_v{}", i)).collect();
                         self.write(&format!(
                             "{}{}(...[{}]) {{ return {{ tag: \"{}\", payload: [{}] }}; }},\n",
                             ind2,
@@ -382,7 +422,14 @@ impl CodegenJs {
 
             Stmt::ImplBlock { type_name, methods } => {
                 for method in methods {
-                    if let Stmt::Function { name, params, body, is_async, .. } = method {
+                    if let Stmt::Function {
+                        name,
+                        params,
+                        body,
+                        is_async,
+                        ..
+                    } = method
+                    {
                         let ind = self.indent_str();
                         self.write(&ind);
                         let tname = Self::js_ident(type_name);
@@ -395,7 +442,10 @@ impl CodegenJs {
                         let async_kw = if *is_async { "async " } else { "" };
                         self.write(&format!(
                             "{}.prototype.{} = {}function({}) ",
-                            tname, mname, async_kw, pnames.join(", ")
+                            tname,
+                            mname,
+                            async_kw,
+                            pnames.join(", ")
                         ));
                         self.emit_stmt_inline(body);
                         self.newline();
@@ -465,28 +515,46 @@ impl CodegenJs {
                 self.newline();
             }
 
-            Stmt::ComponentBlock { name, bindings, view } => {
+            Stmt::ComponentBlock {
+                name,
+                bindings,
+                view,
+            } => {
                 self.emit_component(name, bindings, view);
             }
 
-            Stmt::QualifiedBinding { qualifier, name, value, .. } => {
+            Stmt::QualifiedBinding {
+                qualifier,
+                name,
+                value,
+                ..
+            } => {
                 use core::ast::BindingQualifier;
                 let ind = self.indent_str();
                 self.write(&ind);
                 match qualifier {
                     BindingQualifier::State => {
-                        let val = value.as_deref().map(|v| self.emit_expr(v)).unwrap_or_else(|| "undefined".to_string());
+                        let val = value
+                            .as_deref()
+                            .map(|v| self.emit_expr(v))
+                            .unwrap_or_else(|| "undefined".to_string());
                         self.write(&format!("let {} = {};", Self::js_ident(&name.lexeme), val));
                     }
                     BindingQualifier::Prop => {
                         self.write(&format!("/* prop {} */", Self::js_ident(&name.lexeme)));
                     }
                     BindingQualifier::Memo => {
-                        let val = value.as_deref().map(|v| self.emit_expr(v)).unwrap_or_else(|| "undefined".to_string());
+                        let val = value
+                            .as_deref()
+                            .map(|v| self.emit_expr(v))
+                            .unwrap_or_else(|| "undefined".to_string());
                         self.write(&format!("let {} = {};", Self::js_ident(&name.lexeme), val));
                     }
                     BindingQualifier::Ref => {
-                        let val = value.as_deref().map(|v| self.emit_expr(v)).unwrap_or_else(|| "null".to_string());
+                        let val = value
+                            .as_deref()
+                            .map(|v| self.emit_expr(v))
+                            .unwrap_or_else(|| "null".to_string());
                         self.write(&format!("let {} = {};", Self::js_ident(&name.lexeme), val));
                     }
                 }
@@ -546,26 +614,59 @@ impl CodegenJs {
         }
 
         let ind = self.indent_str();
-        self.write(&format!("{}function {}_create(host) {{\n", ind, Self::js_ident(name)));
+        self.write(&format!(
+            "{}function {}_create(host) {{\n",
+            ind,
+            Self::js_ident(name)
+        ));
         self.indent += 1;
         let ind2 = self.indent_str();
 
         // Emit binding declarations
         for b in bindings {
-            if let S::QualifiedBinding { qualifier, name: n, value, .. } = b {
-                let val = value.as_deref().map(|v| self.emit_expr(v)).unwrap_or_else(|| "undefined".to_string());
+            if let S::QualifiedBinding {
+                qualifier,
+                name: n,
+                value,
+                ..
+            } = b
+            {
+                let val = value
+                    .as_deref()
+                    .map(|v| self.emit_expr(v))
+                    .unwrap_or_else(|| "undefined".to_string());
                 match qualifier {
                     BindingQualifier::State => {
-                        self.write(&format!("{}let {} = {};\n", ind2, Self::js_ident(&n.lexeme), val));
+                        self.write(&format!(
+                            "{}let {} = {};\n",
+                            ind2,
+                            Self::js_ident(&n.lexeme),
+                            val
+                        ));
                     }
                     BindingQualifier::Memo => {
-                        self.write(&format!("{}let {} = {};\n", ind2, Self::js_ident(&n.lexeme), val));
+                        self.write(&format!(
+                            "{}let {} = {};\n",
+                            ind2,
+                            Self::js_ident(&n.lexeme),
+                            val
+                        ));
                     }
                     BindingQualifier::Prop => {
-                        self.write(&format!("{}const {} = host.getAttribute(\"{}\");\n", ind2, Self::js_ident(&n.lexeme), n.lexeme));
+                        self.write(&format!(
+                            "{}const {} = host.getAttribute(\"{}\");\n",
+                            ind2,
+                            Self::js_ident(&n.lexeme),
+                            n.lexeme
+                        ));
                     }
                     BindingQualifier::Ref => {
-                        self.write(&format!("{}let {} = {};\n", ind2, Self::js_ident(&n.lexeme), val));
+                        self.write(&format!(
+                            "{}let {} = {};\n",
+                            ind2,
+                            Self::js_ident(&n.lexeme),
+                            val
+                        ));
                     }
                 }
             }
@@ -573,7 +674,10 @@ impl CodegenJs {
 
         // Emit DOM construction — reactive Expr nodes generate named text node vars
         if !view.is_empty() {
-            self.write(&format!("{}const __root = document.createDocumentFragment();\n", ind2));
+            self.write(&format!(
+                "{}const __root = document.createDocumentFragment();\n",
+                ind2
+            ));
             for node in view {
                 self.emit_template_node_create(node, "__root");
             }
@@ -585,12 +689,18 @@ impl CodegenJs {
 
         // Generate set_X(v) for each state binding using the dep graph
         for b in bindings {
-            if let S::QualifiedBinding { qualifier: BindingQualifier::State, name: n, .. } = b {
+            if let S::QualifiedBinding {
+                qualifier: BindingQualifier::State,
+                name: n,
+                ..
+            } = b
+            {
                 let state_name = n.lexeme.clone();
                 let js_state = Self::js_ident(&state_name);
 
                 // Collect memos that transitively depend on this state, in topo order
-                let dep_memos: Vec<String> = if let Some(state_id) = graph.node_by_name(&state_name) {
+                let dep_memos: Vec<String> = if let Some(state_id) = graph.node_by_name(&state_name)
+                {
                     let dependents = graph.dependents_of(state_id);
                     let mut memo_names: Vec<String> = dependents
                         .iter()
@@ -609,9 +719,10 @@ impl CodegenJs {
                 };
 
                 // Collect text nodes that show this state or any affected memo
-                let affected_names: std::collections::HashSet<&str> = std::iter::once(state_name.as_str())
-                    .chain(dep_memos.iter().map(|s| s.as_str()))
-                    .collect();
+                let affected_names: std::collections::HashSet<&str> =
+                    std::iter::once(state_name.as_str())
+                        .chain(dep_memos.iter().map(|s| s.as_str()))
+                        .collect();
                 let affected_txts: Vec<(&str, &str)> = txt_nodes
                     .iter()
                     .filter(|(bname, _)| affected_names.contains(bname.as_str()))
@@ -646,11 +757,25 @@ impl CodegenJs {
                 }
 
                 for (bname, tvar) in &affected_txts_clone {
-                    self.write(&format!("{}{}.textContent = String({});\n", ind4, tvar, Self::js_ident(bname)));
+                    self.write(&format!(
+                        "{}{}.textContent = String({});\n",
+                        ind4,
+                        tvar,
+                        Self::js_ident(bname)
+                    ));
                 }
                 // Notify on_update listeners
-                let changed_list = affected_names.iter().map(|n| format!("\"{}\"", n)).collect::<Vec<_>>().join(", ");
-                self.write(&format!("{}__run_update({}_component, [{}]);\n", ind4, Self::js_ident(name), changed_list));
+                let changed_list = affected_names
+                    .iter()
+                    .map(|n| format!("\"{}\"", n))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                self.write(&format!(
+                    "{}__run_update({}_component, [{}]);\n",
+                    ind4,
+                    Self::js_ident(name),
+                    changed_list
+                ));
 
                 self.indent -= 1;
                 self.write(&format!("{}}});\n", ind3));
@@ -661,14 +786,22 @@ impl CodegenJs {
 
         // Expose component reference and call on_mount after DOM is ready
         let comp_ref = format!("{}_component", Self::js_ident(name));
-        self.write(&format!("{}const {} = {{ name: \"{}\" }};\n", ind2, comp_ref, name));
+        self.write(&format!(
+            "{}const {} = {{ name: \"{}\" }};\n",
+            ind2, comp_ref, name
+        ));
         self.write(&format!("{}tick(() => __run_mount({}));\n", ind2, comp_ref));
 
         // Return all state setters so parent components can drive this component
         let setters: Vec<String> = bindings
             .iter()
             .filter_map(|b| {
-                if let S::QualifiedBinding { qualifier: BindingQualifier::State, name: n, .. } = b {
+                if let S::QualifiedBinding {
+                    qualifier: BindingQualifier::State,
+                    name: n,
+                    ..
+                } = b
+                {
                     Some(format!("set_{}", Self::js_ident(&n.lexeme)))
                 } else {
                     None
@@ -693,31 +826,53 @@ impl CodegenJs {
         use core::ast::TemplateNode;
         let ind = self.indent_str();
         match node {
-            TemplateNode::Element { tag, attrs, children } => {
+            TemplateNode::Element {
+                tag,
+                attrs,
+                children,
+            } => {
                 let var = format!("__el_{}", tag);
-                self.write(&format!("{}const {} = document.createElement(\"{}\");\n", ind, var, tag));
+                self.write(&format!(
+                    "{}const {} = document.createElement(\"{}\");\n",
+                    ind, var, tag
+                ));
                 for attr in attrs {
                     use core::ast::TemplateAttrValue;
                     match &attr.value {
                         TemplateAttrValue::Static(s) => {
-                            self.write(&format!("{}{}.setAttribute(\"{}\", \"{}\");\n", ind, var, attr.name, s));
+                            self.write(&format!(
+                                "{}{}.setAttribute(\"{}\", \"{}\");\n",
+                                ind, var, attr.name, s
+                            ));
                         }
                         TemplateAttrValue::Dynamic(e) => {
                             let js = self.emit_expr(e);
                             if attr.name.starts_with("on:") {
                                 let event = &attr.name[3..];
-                                self.write(&format!("{}{}.addEventListener(\"{}\", {});\n", ind, var, event, js));
+                                self.write(&format!(
+                                    "{}{}.addEventListener(\"{}\", {});\n",
+                                    ind, var, event, js
+                                ));
                             } else {
-                                self.write(&format!("{}{}.setAttribute(\"{}\", {});\n", ind, var, attr.name, js));
+                                self.write(&format!(
+                                    "{}{}.setAttribute(\"{}\", {});\n",
+                                    ind, var, attr.name, js
+                                ));
                             }
                         }
                         TemplateAttrValue::EventHandler(e) => {
                             let js = self.emit_expr(e);
                             let event = attr.name.strip_prefix("on:").unwrap_or(&attr.name);
-                            self.write(&format!("{}{}.addEventListener(\"{}\", {});\n", ind, var, event, js));
+                            self.write(&format!(
+                                "{}{}.addEventListener(\"{}\", {});\n",
+                                ind, var, event, js
+                            ));
                         }
                         TemplateAttrValue::Flag => {
-                            self.write(&format!("{}{}.setAttribute(\"{}\", \"\");\n", ind, var, attr.name));
+                            self.write(&format!(
+                                "{}{}.setAttribute(\"{}\", \"\");\n",
+                                ind, var, attr.name
+                            ));
                         }
                     }
                 }
@@ -727,7 +882,10 @@ impl CodegenJs {
                 self.write(&format!("{}{}.appendChild({});\n", ind, parent, var));
             }
             TemplateNode::Text(t) => {
-                self.write(&format!("{}{}.appendChild(document.createTextNode(\"{}\"));\n", ind, parent, t));
+                self.write(&format!(
+                    "{}{}.appendChild(document.createTextNode(\"{}\"));\n",
+                    ind, parent, t
+                ));
             }
             TemplateNode::Expr(e) => {
                 let js = self.emit_expr(e);
@@ -736,30 +894,45 @@ impl CodegenJs {
                 let reactive_var = if let core::ast::Expr::Variable { name: vt } = e.as_ref() {
                     if self.reactive_names.contains(&vt.lexeme) {
                         Some(vt.lexeme.clone())
-                    } else { None }
-                } else { None };
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
                 if let Some(var_name) = reactive_var {
-                    let txt_var = format!("__txt_{}_{}", Self::js_ident(&var_name), self.txt_node_counter);
+                    let txt_var = format!(
+                        "__txt_{}_{}",
+                        Self::js_ident(&var_name),
+                        self.txt_node_counter
+                    );
                     self.txt_node_counter += 1;
-                    self.write(&format!("{}const {} = document.createTextNode(String({}));\n", ind, txt_var, js));
+                    self.write(&format!(
+                        "{}const {} = document.createTextNode(String({}));\n",
+                        ind, txt_var, js
+                    ));
                     self.write(&format!("{}{}.appendChild({});\n", ind, parent, txt_var));
                     self.reactive_txt_nodes.push((var_name, txt_var));
                 } else {
-                    self.write(&format!("{}{}.appendChild(document.createTextNode(String({})));\n", ind, parent, js));
+                    self.write(&format!(
+                        "{}{}.appendChild(document.createTextNode(String({})));\n",
+                        ind, parent, js
+                    ));
                 }
             }
             TemplateNode::Component { name: cname, .. } => {
-                self.write(&format!("{}{}_create({});\n", ind, Self::js_ident(cname), parent));
+                self.write(&format!(
+                    "{}{}_create({});\n",
+                    ind,
+                    Self::js_ident(cname),
+                    parent
+                ));
             }
             _ => {}
         }
     }
 
-    fn emit_match(
-        &mut self,
-        expr: &Expr,
-        cases: &[(MatchPattern, Option<Expr>, Stmt)],
-    ) {
+    fn emit_match(&mut self, expr: &Expr, cases: &[(MatchPattern, Option<Expr>, Stmt)]) {
         let ind = self.indent_str();
         let subject = self.emit_expr(expr);
         let tmp = "__match_val";
@@ -806,7 +979,9 @@ impl CodegenJs {
                 let lit = Self::emit_value_static(val);
                 format!("{} === {}", subject, lit)
             }
-            MatchPattern::EnumVariant { variant, params, .. } => {
+            MatchPattern::EnumVariant {
+                variant, params, ..
+            } => {
                 let tag = &variant.lexeme;
                 let base = format!("{}.tag === \"{}\"", subject, tag);
                 if let Some(pats) = params {
@@ -816,7 +991,11 @@ impl CodegenJs {
                         .filter_map(|(i, p)| {
                             let sub = format!("{}.payload[{}]", subject, i);
                             let c = self.emit_match_condition(p, &sub);
-                            if c == "true" { None } else { Some(c) }
+                            if c == "true" {
+                                None
+                            } else {
+                                Some(c)
+                            }
                         })
                         .collect();
                     if sub_conds.is_empty() {
@@ -835,7 +1014,11 @@ impl CodegenJs {
                     .filter_map(|(i, p)| {
                         let sub = format!("{}[{}]", subject, i);
                         let c = self.emit_match_condition(p, &sub);
-                        if c == "true" { None } else { Some(c) }
+                        if c == "true" {
+                            None
+                        } else {
+                            Some(c)
+                        }
                     })
                     .collect();
                 if sub_conds.is_empty() {
@@ -853,7 +1036,9 @@ impl CodegenJs {
                 let name = Self::js_ident(&tok.lexeme);
                 format!("const {} = {};", name, subject)
             }
-            MatchPattern::EnumVariant { params: Some(pats), .. } => {
+            MatchPattern::EnumVariant {
+                params: Some(pats), ..
+            } => {
                 let bindings: Vec<String> = pats
                     .iter()
                     .enumerate()
@@ -902,14 +1087,22 @@ impl CodegenJs {
                 format!("({})", inner)
             }
 
-            Expr::Binary { left, operator, right } => {
+            Expr::Binary {
+                left,
+                operator,
+                right,
+            } => {
                 let l = self.emit_expr(left);
                 let r = self.emit_expr(right);
                 let op = Self::map_operator(&operator.lexeme);
                 format!("{} {} {}", l, op, r)
             }
 
-            Expr::Logical { left, operator, right } => {
+            Expr::Logical {
+                left,
+                operator,
+                right,
+            } => {
                 let l = self.emit_expr(left);
                 let r = self.emit_expr(right);
                 let op = match operator.lexeme.as_str() {
@@ -929,10 +1122,11 @@ impl CodegenJs {
                 format!("{}{}", op, r)
             }
 
-            Expr::Call { callee, arguments, .. } => {
+            Expr::Call {
+                callee, arguments, ..
+            } => {
                 let fn_expr = self.emit_expr(callee);
-                let args: Vec<String> =
-                    arguments.iter().map(|a| self.emit_expr(a)).collect();
+                let args: Vec<String> = arguments.iter().map(|a| self.emit_expr(a)).collect();
                 format!("{}({})", fn_expr, args.join(", "))
             }
 
@@ -954,14 +1148,14 @@ impl CodegenJs {
 
             Expr::StructInit { name, fields } => {
                 let cname = &name.lexeme;
-                let field_args: Vec<String> = fields
-                    .iter()
-                    .map(|(_, v)| self.emit_expr(v))
-                    .collect();
+                let field_args: Vec<String> =
+                    fields.iter().map(|(_, v)| self.emit_expr(v)).collect();
                 format!("new {}({})", cname, field_args.join(", "))
             }
 
-            Expr::EnumInit { variant, values, .. } => {
+            Expr::EnumInit {
+                variant, values, ..
+            } => {
                 let tag = &variant.lexeme;
                 if values.is_empty() {
                     format!("{{ tag: \"{}\" }}", tag)
@@ -1040,11 +1234,20 @@ impl CodegenJs {
         } else {
             let frag = format!("__frag_{}", counter);
             counter += 1;
-            buf.push_str(&format!("  const {} = document.createDocumentFragment();\n", frag));
+            buf.push_str(&format!(
+                "  const {} = document.createDocumentFragment();\n",
+                frag
+            ));
             for node in nodes {
                 let child_var = format!("__el_{}", counter);
                 counter += 1;
-                Self::emit_template_node_into(&mut buf, &child_var, &mut counter, node.clone(), self);
+                Self::emit_template_node_into(
+                    &mut buf,
+                    &child_var,
+                    &mut counter,
+                    node.clone(),
+                    self,
+                );
                 buf.push_str(&format!("  {}.appendChild({});\n", frag, child_var));
             }
             buf.push_str(&format!("  return {};\n", frag));
@@ -1062,19 +1265,34 @@ impl CodegenJs {
         cg: &mut CodegenJs,
     ) {
         match node {
-            TemplateNode::Element { tag, attrs, children } => {
-                buf.push_str(&format!("  const {} = document.createElement(\"{}\");\n", var, tag));
+            TemplateNode::Element {
+                tag,
+                attrs,
+                children,
+            } => {
+                buf.push_str(&format!(
+                    "  const {} = document.createElement(\"{}\");\n",
+                    var, tag
+                ));
                 Self::emit_attrs_into(buf, var, counter, &attrs, cg);
                 Self::emit_children_into(buf, var, counter, &children, cg);
             }
 
-            TemplateNode::Component { name, attrs, children } => {
+            TemplateNode::Component {
+                name,
+                attrs,
+                children,
+            } => {
                 let props: Vec<String> = attrs
                     .iter()
                     .map(|a| {
                         let val = match &a.value {
-                            TemplateAttrValue::Static(s) => format!("\"{}\"", CodegenJs::escape_string(s)),
-                            TemplateAttrValue::Dynamic(e) | TemplateAttrValue::EventHandler(e) => cg.emit_expr(e),
+                            TemplateAttrValue::Static(s) => {
+                                format!("\"{}\"", CodegenJs::escape_string(s))
+                            }
+                            TemplateAttrValue::Dynamic(e) | TemplateAttrValue::EventHandler(e) => {
+                                cg.emit_expr(e)
+                            }
                             TemplateAttrValue::Flag => "true".to_string(),
                         };
                         format!("{}: {}", a.name, val)
@@ -1084,32 +1302,61 @@ impl CodegenJs {
                 if has_children {
                     let frag = format!("__frag_{}", counter);
                     *counter += 1;
-                    buf.push_str(&format!("  const {} = document.createDocumentFragment();\n", frag));
+                    buf.push_str(&format!(
+                        "  const {} = document.createDocumentFragment();\n",
+                        frag
+                    ));
                     Self::emit_children_into(buf, &frag, counter, &children, cg);
-                    buf.push_str(&format!("  const {} = new {}({{ {}, children: {} }});\n",
-                        var, name, props.join(", "), frag));
+                    buf.push_str(&format!(
+                        "  const {} = new {}({{ {}, children: {} }});\n",
+                        var,
+                        name,
+                        props.join(", "),
+                        frag
+                    ));
                 } else {
-                    buf.push_str(&format!("  const {} = new {}({{ {} }});\n", var, name, props.join(", ")));
+                    buf.push_str(&format!(
+                        "  const {} = new {}({{ {} }});\n",
+                        var,
+                        name,
+                        props.join(", ")
+                    ));
                 }
             }
 
             TemplateNode::Text(text) => {
-                buf.push_str(&format!("  const {} = document.createTextNode(\"{}\");\n",
-                    var, CodegenJs::escape_string(&text)));
+                buf.push_str(&format!(
+                    "  const {} = document.createTextNode(\"{}\");\n",
+                    var,
+                    CodegenJs::escape_string(&text)
+                ));
             }
 
             TemplateNode::Expr(expr) => {
                 let val = cg.emit_expr(&expr);
-                buf.push_str(&format!("  const {} = document.createTextNode(String({}));\n", var, val));
+                buf.push_str(&format!(
+                    "  const {} = document.createTextNode(String({}));\n",
+                    var, val
+                ));
             }
 
-            TemplateNode::If { cond, then_children, else_children } => {
+            TemplateNode::If {
+                cond,
+                then_children,
+                else_children,
+            } => {
                 let cond_js = cg.emit_expr(&cond);
-                buf.push_str(&format!("  const {} = document.createDocumentFragment();\n", var));
+                buf.push_str(&format!(
+                    "  const {} = document.createDocumentFragment();\n",
+                    var
+                ));
                 buf.push_str(&format!("  if ({}) {{\n", cond_js));
                 let then_frag = format!("__then_{}", counter);
                 *counter += 1;
-                buf.push_str(&format!("    const {} = document.createDocumentFragment();\n", then_frag));
+                buf.push_str(&format!(
+                    "    const {} = document.createDocumentFragment();\n",
+                    then_frag
+                ));
                 for child in &then_children {
                     let cv = format!("__el_{}", counter);
                     *counter += 1;
@@ -1128,12 +1375,21 @@ impl CodegenJs {
                     buf.push_str("  } else {\n");
                     let else_frag = format!("__else_{}", counter);
                     *counter += 1;
-                    buf.push_str(&format!("    const {} = document.createDocumentFragment();\n", else_frag));
+                    buf.push_str(&format!(
+                        "    const {} = document.createDocumentFragment();\n",
+                        else_frag
+                    ));
                     for child in &else_children {
                         let cv = format!("__el_{}", counter);
                         *counter += 1;
                         let mut inner_buf = String::new();
-                        Self::emit_template_node_into(&mut inner_buf, &cv, counter, child.clone(), cg);
+                        Self::emit_template_node_into(
+                            &mut inner_buf,
+                            &cv,
+                            counter,
+                            child.clone(),
+                            cg,
+                        );
                         for line in inner_buf.lines() {
                             buf.push_str("  ");
                             buf.push_str(line);
@@ -1146,9 +1402,17 @@ impl CodegenJs {
                 buf.push_str("  }\n");
             }
 
-            TemplateNode::For { var: loop_var, items, key: _, children } => {
+            TemplateNode::For {
+                var: loop_var,
+                items,
+                key: _,
+                children,
+            } => {
                 let items_js = cg.emit_expr(&items);
-                buf.push_str(&format!("  const {} = document.createDocumentFragment();\n", var));
+                buf.push_str(&format!(
+                    "  const {} = document.createDocumentFragment();\n",
+                    var
+                ));
                 buf.push_str(&format!("  for (const {} of {}) {{\n", loop_var, items_js));
                 for child in &children {
                     let cv = format!("__el_{}", counter);
@@ -1168,9 +1432,14 @@ impl CodegenJs {
             TemplateNode::Slot { name, children } => {
                 let slot_id = name.as_deref().unwrap_or("default");
                 buf.push_str(&format!(
-                    "  const {} = document.createElement(\"slot\");\n", var));
+                    "  const {} = document.createElement(\"slot\");\n",
+                    var
+                ));
                 if slot_id != "default" {
-                    buf.push_str(&format!("  {}.setAttribute(\"name\", \"{}\");\n", var, slot_id));
+                    buf.push_str(&format!(
+                        "  {}.setAttribute(\"name\", \"{}\");\n",
+                        var, slot_id
+                    ));
                 }
                 Self::emit_children_into(buf, var, counter, &children, cg);
             }
@@ -1187,22 +1456,33 @@ impl CodegenJs {
         for attr in attrs {
             match &attr.value {
                 TemplateAttrValue::Static(s) => {
-                    buf.push_str(&format!("  {}.setAttribute(\"{}\", \"{}\");\n",
-                        var, attr.name, CodegenJs::escape_string(s)));
+                    buf.push_str(&format!(
+                        "  {}.setAttribute(\"{}\", \"{}\");\n",
+                        var,
+                        attr.name,
+                        CodegenJs::escape_string(s)
+                    ));
                 }
                 TemplateAttrValue::Dynamic(expr) => {
                     let val = cg.emit_expr(expr);
-                    buf.push_str(&format!("  {}.setAttribute(\"{}\", String({}));\n",
-                        var, attr.name, val));
+                    buf.push_str(&format!(
+                        "  {}.setAttribute(\"{}\", String({}));\n",
+                        var, attr.name, val
+                    ));
                 }
                 TemplateAttrValue::EventHandler(expr) => {
                     let event_name = attr.name.strip_prefix("on:").unwrap_or(&attr.name);
                     let handler = cg.emit_expr(expr);
-                    buf.push_str(&format!("  {}.addEventListener(\"{}\", () => {{ {}; }});\n",
-                        var, event_name, handler));
+                    buf.push_str(&format!(
+                        "  {}.addEventListener(\"{}\", () => {{ {}; }});\n",
+                        var, event_name, handler
+                    ));
                 }
                 TemplateAttrValue::Flag => {
-                    buf.push_str(&format!("  {}.setAttribute(\"{}\", \"\");\n", var, attr.name));
+                    buf.push_str(&format!(
+                        "  {}.setAttribute(\"{}\", \"\");\n",
+                        var, attr.name
+                    ));
                 }
             }
             let _ = counter; // suppress unused warning
@@ -1248,7 +1528,9 @@ impl CodegenJs {
                 let elems: Vec<String> = items.iter().map(Self::emit_value_static).collect();
                 format!("[{}]", elems.join(", "))
             }
-            ArtValue::EnumInstance { variant, values, .. } => {
+            ArtValue::EnumInstance {
+                variant, values, ..
+            } => {
                 if values.is_empty() {
                     format!("{{ tag: \"{}\" }}", variant)
                 } else {
@@ -1290,7 +1572,9 @@ mod tests {
     }
 
     fn emit(stmts: Vec<Stmt>) -> String {
-        CodegenJs::new(CodegenOptions::default()).emit_program(&stmts).code
+        CodegenJs::new(CodegenOptions::default())
+            .emit_program(&stmts)
+            .code
     }
 
     #[test]
@@ -1325,7 +1609,10 @@ mod tests {
         let stmts = vec![Stmt::Function {
             name: tok("greet"),
             type_params: None,
-            params: vec![FunctionParam { name: tok("name"), ty: None }],
+            params: vec![FunctionParam {
+                name: tok("name"),
+                ty: None,
+            }],
             return_type: None,
             body: Rc::new(body),
             method_owner: None,

@@ -6,12 +6,7 @@ fn parse(src: &str) -> Vec<diagnostics::Diagnostic> {
     let tokens = match lx.scan_tokens() {
         Ok(t) => t,
         Err(e) => {
-            assert!(
-                false,
-                "lexer scan_tokens in fstring_errors.rs failed: {:?}",
-                e
-            );
-            Vec::new()
+            panic!("lexer scan_tokens in fstring_errors.rs failed: {:?}", e);
         }
     };
     let mut p = Parser::new(tokens);

@@ -358,7 +358,10 @@ pub fn parse_template_nodes(parser: &mut Parser) -> Vec<TemplateNode> {
         } else if parser.check(&TokenType::LeftBrace) {
             parser.advance();
             let expr = expression(parser);
-            parser.consume(TokenType::RightBrace, "Expect '}' after template expression");
+            parser.consume(
+                TokenType::RightBrace,
+                "Expect '}' after template expression",
+            );
             nodes.push(TemplateNode::Expr(Box::new(expr)));
         } else {
             let tok = parser.advance();
@@ -392,9 +395,18 @@ fn parse_template_tag_name(parser: &mut Parser) -> String {
             let tok = parser.advance();
             tok.lexeme.clone()
         }
-        TokenType::If => { parser.advance(); "if".to_string() }
-        TokenType::For => { parser.advance(); "for".to_string() }
-        TokenType::Else => { parser.advance(); "else".to_string() }
+        TokenType::If => {
+            parser.advance();
+            "if".to_string()
+        }
+        TokenType::For => {
+            parser.advance();
+            "for".to_string()
+        }
+        TokenType::Else => {
+            parser.advance();
+            "else".to_string()
+        }
         _ => String::new(),
     }
 }
@@ -415,7 +427,10 @@ fn parse_element(parser: &mut Parser, tag: String, open_lt: Token) -> TemplateNo
 
     // Self-closing: />
     if parser.match_token(TokenType::Slash) {
-        parser.consume(TokenType::Greater, "Expect '>' after '/>' in self-closing tag.");
+        parser.consume(
+            TokenType::Greater,
+            "Expect '>' after '/>' in self-closing tag.",
+        );
         return make_element_or_component(tag, attrs, Vec::new());
     }
 
@@ -426,12 +441,28 @@ fn parse_element(parser: &mut Parser, tag: String, open_lt: Token) -> TemplateNo
     make_element_or_component(tag, attrs, children)
 }
 
-fn make_element_or_component(tag: String, attrs: Vec<TemplateAttr>, children: Vec<TemplateNode>) -> TemplateNode {
-    let is_component = tag.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
+fn make_element_or_component(
+    tag: String,
+    attrs: Vec<TemplateAttr>,
+    children: Vec<TemplateNode>,
+) -> TemplateNode {
+    let is_component = tag
+        .chars()
+        .next()
+        .map(|c| c.is_uppercase())
+        .unwrap_or(false);
     if is_component {
-        TemplateNode::Component { name: tag, attrs, children }
+        TemplateNode::Component {
+            name: tag,
+            attrs,
+            children,
+        }
     } else {
-        TemplateNode::Element { tag, attrs, children }
+        TemplateNode::Element {
+            tag,
+            attrs,
+            children,
+        }
     }
 }
 
@@ -455,7 +486,10 @@ fn parse_attrs(parser: &mut Parser) -> Vec<TemplateAttr> {
             let val = if parser.match_token(TokenType::Equal) {
                 parser.consume(TokenType::LeftBrace, "Expect '{' after event handler '='");
                 let expr = expression(parser);
-                parser.consume(TokenType::RightBrace, "Expect '}' after event handler expression");
+                parser.consume(
+                    TokenType::RightBrace,
+                    "Expect '}' after event handler expression",
+                );
                 TemplateAttrValue::EventHandler(Box::new(expr))
             } else {
                 TemplateAttrValue::Flag
@@ -468,7 +502,10 @@ fn parse_attrs(parser: &mut Parser) -> Vec<TemplateAttr> {
             if parser.check(&TokenType::LeftBrace) {
                 parser.advance(); // consume '{'
                 let expr = expression(parser);
-                parser.consume(TokenType::RightBrace, "Expect '}' after attribute expression");
+                parser.consume(
+                    TokenType::RightBrace,
+                    "Expect '}' after attribute expression",
+                );
                 attrs.push(TemplateAttr {
                     name: attr_name,
                     value: TemplateAttrValue::Dynamic(Box::new(expr)),
@@ -482,13 +519,24 @@ fn parse_attrs(parser: &mut Parser) -> Vec<TemplateAttr> {
             } else {
                 parser.diagnostics.push(diagnostics::Diagnostic::new(
                     diagnostics::DiagnosticKind::Parse,
-                    format!("Expected string or '{{' after '=' in attribute '{}'", attr_name),
-                    diagnostics::Span::new(name_tok.start, name_tok.end, name_tok.line, name_tok.col),
+                    format!(
+                        "Expected string or '{{' after '=' in attribute '{}'",
+                        attr_name
+                    ),
+                    diagnostics::Span::new(
+                        name_tok.start,
+                        name_tok.end,
+                        name_tok.line,
+                        name_tok.col,
+                    ),
                 ));
             }
         } else {
             // Boolean flag attribute
-            attrs.push(TemplateAttr { name: attr_name, value: TemplateAttrValue::Flag });
+            attrs.push(TemplateAttr {
+                name: attr_name,
+                value: TemplateAttrValue::Flag,
+            });
         }
     }
     attrs
@@ -515,7 +563,12 @@ fn parse_children(parser: &mut Parser) -> Vec<TemplateNode> {
                 parser.diagnostics.push(diagnostics::Diagnostic::new(
                     diagnostics::DiagnosticKind::Parse,
                     "Expected tag name in child element".to_string(),
-                    diagnostics::Span::new(child_lt.start, child_lt.end, child_lt.line, child_lt.col),
+                    diagnostics::Span::new(
+                        child_lt.start,
+                        child_lt.end,
+                        child_lt.line,
+                        child_lt.col,
+                    ),
                 ));
                 break;
             }
@@ -524,7 +577,10 @@ fn parse_children(parser: &mut Parser) -> Vec<TemplateNode> {
             // Inline expression: {expr}
             parser.advance(); // consume '{'
             let expr = expression(parser);
-            parser.consume(TokenType::RightBrace, "Expect '}' after template expression");
+            parser.consume(
+                TokenType::RightBrace,
+                "Expect '}' after template expression",
+            );
             children.push(TemplateNode::Expr(Box::new(expr)));
         } else {
             // Text content: consume tokens as text until '<' or '{'
@@ -571,7 +627,10 @@ fn parse_if_node(parser: &mut Parser, open_lt: Token) -> TemplateNode {
     // <if cond={expr}>...</if>
     // consume cond attr
     let mut cond_expr: Option<Expr> = None;
-    while !parser.is_at_end() && !parser.check(&TokenType::Greater) && !parser.check(&TokenType::Slash) {
+    while !parser.is_at_end()
+        && !parser.check(&TokenType::Greater)
+        && !parser.check(&TokenType::Slash)
+    {
         if let TokenType::Identifier = parser.peek().token_type {
             let name_tok = parser.advance();
             if name_tok.lexeme == "cond" && parser.match_token(TokenType::Equal) {
@@ -616,7 +675,10 @@ fn parse_for_node(parser: &mut Parser, open_lt: Token) -> TemplateNode {
     let mut items_expr: Option<Expr> = None;
     let mut key_expr: Option<Box<Expr>> = None;
 
-    while !parser.is_at_end() && !parser.check(&TokenType::Greater) && !parser.check(&TokenType::Slash) {
+    while !parser.is_at_end()
+        && !parser.check(&TokenType::Greater)
+        && !parser.check(&TokenType::Slash)
+    {
         match parser.peek().token_type.clone() {
             TokenType::Identifier => {
                 let name_tok = parser.advance();
@@ -634,7 +696,10 @@ fn parse_for_node(parser: &mut Parser, open_lt: Token) -> TemplateNode {
                     parser.advance(); // consume 'in'
                     parser.consume(TokenType::LeftBrace, "Expect '{' after 'in' in <for>");
                     items_expr = Some(expression(parser));
-                    parser.consume(TokenType::RightBrace, "Expect '}' after items expression in <for>");
+                    parser.consume(
+                        TokenType::RightBrace,
+                        "Expect '}' after items expression in <for>",
+                    );
                 } else {
                     var = attr_name; // bare identifier = loop var
                 }
@@ -652,7 +717,10 @@ fn parse_for_node(parser: &mut Parser, open_lt: Token) -> TemplateNode {
         parser.consume(TokenType::Greater, "Expect '>' after <for ...>");
     } else {
         parser.advance(); // consume '/'
-        parser.consume(TokenType::Greater, "Expect '>' after '/>' in self-closing <for>");
+        parser.consume(
+            TokenType::Greater,
+            "Expect '>' after '/>' in self-closing <for>",
+        );
         return TemplateNode::For {
             var,
             items: Box::new(items_expr.unwrap_or(Expr::Literal(core::ast::ArtValue::none()))),
@@ -683,7 +751,10 @@ fn parse_for_node(parser: &mut Parser, open_lt: Token) -> TemplateNode {
 fn parse_slot_node(parser: &mut Parser, open_lt: Token) -> TemplateNode {
     // <slot name='header'>...</slot>
     let mut slot_name: Option<String> = None;
-    while !parser.is_at_end() && !parser.check(&TokenType::Greater) && !parser.check(&TokenType::Slash) {
+    while !parser.is_at_end()
+        && !parser.check(&TokenType::Greater)
+        && !parser.check(&TokenType::Slash)
+    {
         if let TokenType::Identifier = parser.peek().token_type {
             let attr_tok = parser.advance();
             if attr_tok.lexeme == "name"
@@ -698,11 +769,20 @@ fn parse_slot_node(parser: &mut Parser, open_lt: Token) -> TemplateNode {
         }
     }
     if parser.match_token(TokenType::Slash) {
-        parser.consume(TokenType::Greater, "Expect '>' after '/>' in self-closing <slot>");
-        return TemplateNode::Slot { name: slot_name, children: Vec::new() };
+        parser.consume(
+            TokenType::Greater,
+            "Expect '>' after '/>' in self-closing <slot>",
+        );
+        return TemplateNode::Slot {
+            name: slot_name,
+            children: Vec::new(),
+        };
     }
     parser.consume(TokenType::Greater, "Expect '>' after <slot ...>");
     let children = parse_children(parser);
     consume_closing_tag(parser, "slot", &open_lt);
-    TemplateNode::Slot { name: slot_name, children }
+    TemplateNode::Slot {
+        name: slot_name,
+        children,
+    }
 }

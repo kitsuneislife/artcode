@@ -12,8 +12,7 @@ fn run(
     let tokens = match lx.scan_tokens() {
         Ok(t) => t,
         Err(e) => {
-            assert!(false, "lexer scan_tokens in match.rs failed: {:?}", e);
-            Vec::new()
+            panic!("lexer scan_tokens in match.rs failed: {:?}", e);
         }
     };
     let mut p = Parser::new(tokens);

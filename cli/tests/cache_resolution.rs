@@ -19,10 +19,12 @@ fn resolver_finds_package_in_cache() {
     let main = work.path().join("main.art");
     std::fs::write(&main, "import pkg;\nlet y = x;").expect("write main");
 
-    // Run art with HOME env pointing to our temp home so resolver finds cache
+    // ARTCODE_HOME redirects the package cache on every platform. HOME alone is
+    // not enough: on Windows `dirs::home_dir()` reads the profile folder from the
+    // Win32 API and ignores the environment entirely.
     let mut cmd = Command::cargo_bin("art").expect("binary");
     cmd.arg("run").arg(main.to_str().unwrap());
-    cmd.env("HOME", home.path());
+    cmd.env("ARTCODE_HOME", home.path());
     let out = cmd.output().expect("run art");
     assert!(
         out.status.success(),

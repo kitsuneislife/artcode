@@ -34,9 +34,7 @@ pub fn format_string(input: &str) -> String {
         // This is a naive heuristic for minimal idempotency.
         let mut local_indent = indent_level;
         if local_indent > 0
-            && ((trimmed.starts_with('}')
-                || trimmed.starts_with(']')
-                || trimmed.starts_with(')'))
+            && ((trimmed.starts_with('}') || trimmed.starts_with(']') || trimmed.starts_with(')'))
                 || trimmed.starts_with("else")
                 || trimmed.starts_with("case "))
         {

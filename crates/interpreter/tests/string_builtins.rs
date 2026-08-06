@@ -27,7 +27,11 @@ fn run_diags(src: &str) -> Vec<String> {
     let (program, _) = parser.parse();
     let mut interp = Interpreter::with_prelude();
     let _ = interp.interpret(program);
-    interp.take_diagnostics().into_iter().map(|d| d.message).collect()
+    interp
+        .take_diagnostics()
+        .into_iter()
+        .map(|d| d.message)
+        .collect()
 }
 
 fn arc(s: &str) -> ArtValue {
@@ -39,7 +43,9 @@ fn arc(s: &str) -> ArtValue {
 #[test]
 fn str_split_basic() {
     let v = run_get(r#"let x = str_split("a,b,c", ",");"#, "x");
-    let ArtValue::Array(parts) = v else { panic!("expected Array, got {:?}", v) };
+    let ArtValue::Array(parts) = v else {
+        panic!("expected Array, got {:?}", v)
+    };
     assert_eq!(parts.len(), 3);
     assert_eq!(parts[0], arc("a"));
     assert_eq!(parts[1], arc("b"));
@@ -49,7 +55,9 @@ fn str_split_basic() {
 #[test]
 fn str_split_no_separator_found() {
     let v = run_get(r#"let x = str_split("hello", ",");"#, "x");
-    let ArtValue::Array(parts) = v else { panic!("expected Array, got {:?}", v) };
+    let ArtValue::Array(parts) = v else {
+        panic!("expected Array, got {:?}", v)
+    };
     assert_eq!(parts.len(), 1);
     assert_eq!(parts[0], arc("hello"));
 }
@@ -57,7 +65,9 @@ fn str_split_no_separator_found() {
 #[test]
 fn str_split_empty_string() {
     let v = run_get(r#"let x = str_split("", ",");"#, "x");
-    let ArtValue::Array(parts) = v else { panic!("expected Array, got {:?}", v) };
+    let ArtValue::Array(parts) = v else {
+        panic!("expected Array, got {:?}", v)
+    };
     assert_eq!(parts.len(), 1);
 }
 
@@ -119,7 +129,10 @@ fn str_starts_with_false() {
 
 #[test]
 fn str_replace_basic() {
-    let v = run_get(r#"let x = str_replace("hello world", "world", "artcode");"#, "x");
+    let v = run_get(
+        r#"let x = str_replace("hello world", "world", "artcode");"#,
+        "x",
+    );
     assert_eq!(v, arc("hello artcode"));
 }
 
@@ -166,7 +179,10 @@ fn str_slice_negative_indices() {
 #[test]
 fn str_to_int_ok() {
     let v = run_get(r#"let x = str_to_int("42");"#, "x");
-    let ArtValue::EnumInstance { variant, values, .. } = v else {
+    let ArtValue::EnumInstance {
+        variant, values, ..
+    } = v
+    else {
         panic!("expected EnumInstance, got {:?}", v)
     };
     assert_eq!(variant, "Ok");
@@ -176,7 +192,10 @@ fn str_to_int_ok() {
 #[test]
 fn str_to_int_negative() {
     let v = run_get(r#"let x = str_to_int("-7");"#, "x");
-    let ArtValue::EnumInstance { variant, values, .. } = v else {
+    let ArtValue::EnumInstance {
+        variant, values, ..
+    } = v
+    else {
         panic!("expected EnumInstance, got {:?}", v)
     };
     assert_eq!(variant, "Ok");
@@ -196,13 +215,18 @@ fn str_to_int_err() {
 
 #[test]
 fn str_to_float_ok() {
-    let v = run_get(r#"let x = str_to_float("3.14");"#, "x");
-    let ArtValue::EnumInstance { variant, values, .. } = v else {
+    let v = run_get(r#"let x = str_to_float("3.45");"#, "x");
+    let ArtValue::EnumInstance {
+        variant, values, ..
+    } = v
+    else {
         panic!("expected EnumInstance, got {:?}", v)
     };
     assert_eq!(variant, "Ok");
-    let ArtValue::Float(f) = values[0] else { panic!("expected Float") };
-    assert!((f - 3.14).abs() < 1e-9);
+    let ArtValue::Float(f) = values[0] else {
+        panic!("expected Float")
+    };
+    assert!((f - 3.45).abs() < 1e-9);
 }
 
 #[test]

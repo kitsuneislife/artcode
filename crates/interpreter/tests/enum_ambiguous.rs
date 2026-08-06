@@ -9,12 +9,7 @@ fn enum_shorthand_ambiguous_diagnostic() {
     let tokens = match lx.scan_tokens() {
         Ok(t) => t,
         Err(e) => {
-            assert!(
-                false,
-                "lexer scan_tokens in enum_ambiguous.rs failed: {:?}",
-                e
-            );
-            Vec::new()
+            panic!("lexer scan_tokens in enum_ambiguous.rs failed: {:?}", e);
         }
     };
     let mut p = Parser::new(tokens);

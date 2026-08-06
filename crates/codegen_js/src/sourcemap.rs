@@ -39,10 +39,7 @@ impl SourceMapBuilder {
     pub fn build(&self, source_file: &str, source_content: Option<&str>) -> String {
         let mappings = self.encode_mappings();
         let sources_content = match source_content {
-            Some(c) => format!(
-                ",\"sourcesContent\":[{}]",
-                serde_json_string(c)
-            ),
+            Some(c) => format!(",\"sourcesContent\":[{}]", serde_json_string(c)),
             None => String::new(),
         };
         format!(

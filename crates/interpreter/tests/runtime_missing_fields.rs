@@ -12,12 +12,10 @@ fn struct_missing_field_diagnostic() {
     let tokens = match lx.scan_tokens() {
         Ok(t) => t,
         Err(e) => {
-            assert!(
-                false,
+            panic!(
                 "lexer scan_tokens in runtime_missing_fields.rs failed: {:?}",
                 e
             );
-            Vec::new()
         }
     };
     let mut parser = Parser::new(tokens);
@@ -42,12 +40,10 @@ fn enum_missing_field_diagnostic() {
     let tokens = match lx.scan_tokens() {
         Ok(t) => t,
         Err(e) => {
-            assert!(
-                false,
+            panic!(
                 "lexer scan_tokens in runtime_missing_fields.rs failed: {:?}",
                 e
             );
-            Vec::new()
         }
     };
     let mut parser = Parser::new(tokens);

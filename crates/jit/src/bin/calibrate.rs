@@ -39,13 +39,7 @@ fn analyze_ir(path: &Path) -> Option<(usize, usize, usize, usize)> {
 }
 
 // simple projected gradient descent for non-negative least-squares with tiny L2 regularization
-fn nnls_projected_gradient(
-    x: &[Vec<f64>],
-    y: &[f64],
-    reg: f64,
-    iters: usize,
-    lr: f64,
-) -> Vec<f64> {
+fn nnls_projected_gradient(x: &[Vec<f64>], y: &[f64], reg: f64, iters: usize, lr: f64) -> Vec<f64> {
     let n = x[0].len();
     let m = x.len();
     let mut w = vec![0.1f64; n];

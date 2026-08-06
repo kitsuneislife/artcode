@@ -6,7 +6,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 impl Interpreter {
-    pub(super) fn call_builtin(&mut self, b: core::ast::BuiltinFn, arguments: Vec<Expr>) -> Result<ArtValue> {
+    pub(super) fn call_builtin(
+        &mut self,
+        b: core::ast::BuiltinFn,
+        arguments: Vec<Expr>,
+    ) -> Result<ArtValue> {
         match b {
             core::ast::BuiltinFn::Println => {
                 if !self.ensure_pure_allowed("println") {
@@ -1066,14 +1070,15 @@ impl Interpreter {
                     // If actor not found because it's currently executing and removed from map,
                     // try executing_actor
                     if let Some(exec) = &mut self.executing_actor
-                        && exec.id == aid {
-                            if let Some(env) = exec.mailbox.pop_front() {
-                                return Ok(env.payload);
-                            } else {
-                                exec.parked = true;
-                                return Ok(ArtValue::Optional(Box::new(None)));
-                            }
+                        && exec.id == aid
+                    {
+                        if let Some(env) = exec.mailbox.pop_front() {
+                            return Ok(env.payload);
+                        } else {
+                            exec.parked = true;
+                            return Ok(ArtValue::Optional(Box::new(None)));
                         }
+                    }
                 }
                 self.diagnostics.push(Diagnostic::new(
                     DiagnosticKind::Runtime,
@@ -1108,29 +1113,28 @@ impl Interpreter {
                         }
                     }
                     if let Some(exec) = &mut self.executing_actor
-                        && exec.id == aid {
-                            if let Some(env) = exec.mailbox.pop_front() {
-                                let mut fields = std::collections::HashMap::new();
-                                let sender_val = match env.sender {
-                                    Some(s) => ArtValue::Int(s as i64),
-                                    None => ArtValue::Optional(Box::new(None)),
-                                };
-                                fields.insert("sender".to_string(), sender_val);
-                                fields.insert("payload".to_string(), env.payload);
-                                fields.insert(
-                                    "priority".to_string(),
-                                    ArtValue::Int(env.priority as i64),
-                                );
-                                let struct_val = ArtValue::StructInstance {
-                                    struct_name: "Envelope".to_string(),
-                                    fields,
-                                };
-                                return Ok(struct_val);
-                            } else {
-                                exec.parked = true;
-                                return Ok(ArtValue::Optional(Box::new(None)));
-                            }
+                        && exec.id == aid
+                    {
+                        if let Some(env) = exec.mailbox.pop_front() {
+                            let mut fields = std::collections::HashMap::new();
+                            let sender_val = match env.sender {
+                                Some(s) => ArtValue::Int(s as i64),
+                                None => ArtValue::Optional(Box::new(None)),
+                            };
+                            fields.insert("sender".to_string(), sender_val);
+                            fields.insert("payload".to_string(), env.payload);
+                            fields
+                                .insert("priority".to_string(), ArtValue::Int(env.priority as i64));
+                            let struct_val = ArtValue::StructInstance {
+                                struct_name: "Envelope".to_string(),
+                                fields,
+                            };
+                            return Ok(struct_val);
+                        } else {
+                            exec.parked = true;
+                            return Ok(ArtValue::Optional(Box::new(None)));
                         }
+                    }
                 }
                 self.diagnostics.push(Diagnostic::new(
                     DiagnosticKind::Runtime,
@@ -1327,9 +1331,10 @@ impl Interpreter {
                 let a = self.evaluate(arguments[0].clone())?;
                 let delta = self.evaluate(arguments[1].clone())?;
                 if let (ArtValue::Atomic(h), ArtValue::Int(d)) = (a, delta)
-                    && let Some(new) = self.heap_atomic_add(h, d) {
-                        return Ok(ArtValue::Int(new));
-                    }
+                    && let Some(new) = self.heap_atomic_add(h, d)
+                {
+                    return Ok(ArtValue::Int(new));
+                }
                 Ok(ArtValue::none())
             }
             core::ast::BuiltinFn::MutexNew => {
@@ -1749,7 +1754,6 @@ impl Interpreter {
             }
 
             // ── String builtins ──────────────────────────────────────────────
-
             core::ast::BuiltinFn::StrSplit => {
                 let mut args = arguments.into_iter();
                 match (args.next(), args.next()) {
@@ -1855,13 +1859,11 @@ impl Interpreter {
                             self.evaluate(from_expr)?,
                             self.evaluate(to_expr)?,
                         ) {
-                            (
-                                ArtValue::String(s),
-                                ArtValue::String(from),
-                                ArtValue::String(to),
-                            ) => Ok(ArtValue::String(Arc::from(
-                                s.replace(from.as_ref(), to.as_ref()),
-                            ))),
+                            (ArtValue::String(s), ArtValue::String(from), ArtValue::String(to)) => {
+                                Ok(ArtValue::String(Arc::from(
+                                    s.replace(from.as_ref(), to.as_ref()),
+                                )))
+                            }
                             _ => {
                                 self.diagnostics.push(Diagnostic::new(
                                     DiagnosticKind::Runtime,
@@ -1888,12 +1890,16 @@ impl Interpreter {
                             (ArtValue::String(s), ArtValue::Int(start), ArtValue::Int(end)) => {
                                 let chars: Vec<char> = s.chars().collect();
                                 let len = chars.len() as i64;
-                                let start =
-                                    if start < 0 { (len + start).max(0) } else { start.min(len) }
-                                        as usize;
-                                let end =
-                                    if end < 0 { (len + end).max(0) } else { end.min(len) }
-                                        as usize;
+                                let start = if start < 0 {
+                                    (len + start).max(0)
+                                } else {
+                                    start.min(len)
+                                } as usize;
+                                let end = if end < 0 {
+                                    (len + end).max(0)
+                                } else {
+                                    end.min(len)
+                                } as usize;
                                 let end = end.max(start);
                                 let result: String = chars[start..end].iter().collect();
                                 Ok(ArtValue::String(Arc::from(result)))

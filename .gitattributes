@@ -1,0 +1,13 @@
+# Normalize line endings so Windows checkouts stop rewriting every file.
+# Without this, `core.autocrlf` converts the whole tree to CRLF on checkout and
+# `git status` reports the entire repository as modified.
+* text=auto eol=lf
+
+# Shell scripts are executed by CI on Linux — CRLF would break the shebang.
+*.sh text eol=lf
+*.art text eol=lf
+
+# Binary assets must never be line-ending converted.
+*.png binary
+*.pdf binary
+*.wasm binary

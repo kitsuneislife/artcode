@@ -31,4 +31,11 @@ crates/jit/artcache
 .claude
 
 # Temporary workspace files
-tmp/
+tmp/dist/
+
+# Package lockfile written by `art add`; the integration tests rewrite it with
+# absolute temp paths on every run, so it is local state and not source.
+.art-lock
+
+# `art doc` output
+docs/generated/

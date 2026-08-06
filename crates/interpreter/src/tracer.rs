@@ -17,7 +17,10 @@ impl Tracer {
     pub fn new(path: &str) -> std::io::Result<Self> {
         let mut file = File::create(path)?;
         file.write_all(b"ARTLOG01")?;
-        Ok(Self { file, last_snapshot: None })
+        Ok(Self {
+            file,
+            last_snapshot: None,
+        })
     }
 
     /// Grava um evento interceptado gerando um Record persistente (Event Sourcing)

@@ -81,9 +81,7 @@ pub fn emit_llvm_module(funcs: &[Function], entry_func: &str) -> String {
         out.push_str("define i32 @main() {\n");
         out.push_str("entry:\n");
         let _ = writeln!(out, "  %r = call i64 @{}()", callee);
-        out.push_str(
-            "  %p = getelementptr inbounds [6 x i8], ptr @.fmt, i64 0, i64 0\n",
-        );
+        out.push_str("  %p = getelementptr inbounds [6 x i8], ptr @.fmt, i64 0, i64 0\n");
         out.push_str("  call i32 (ptr, ...) @printf(ptr %p, i64 %r)\n");
         out.push_str("  ret i32 0\n");
         out.push_str("}\n");
@@ -108,7 +106,13 @@ fn emit_llvm_function(f: &Function) -> String {
             format!("{} %{}", cty, pname)
         })
         .collect();
-    let _ = writeln!(out, "define {} @{}({}) {{", ret_ty, fname, params.join(", "));
+    let _ = writeln!(
+        out,
+        "define {} @{}({}) {{",
+        ret_ty,
+        fname,
+        params.join(", ")
+    );
 
     // The lowering may begin with straight-line instructions before any label;
     // those form the entry block. If the body opens with an explicit label we
@@ -132,16 +136,40 @@ fn emit_llvm_function(f: &Function) -> String {
                 let _ = writeln!(out, "  {} = add i64 0, {}", operand(dest), val);
             }
             Instr::Add(dest, a, b) => {
-                let _ = writeln!(out, "  {} = add i64 {}, {}", operand(dest), operand(a), operand(b));
+                let _ = writeln!(
+                    out,
+                    "  {} = add i64 {}, {}",
+                    operand(dest),
+                    operand(a),
+                    operand(b)
+                );
             }
             Instr::Sub(dest, a, b) => {
-                let _ = writeln!(out, "  {} = sub i64 {}, {}", operand(dest), operand(a), operand(b));
+                let _ = writeln!(
+                    out,
+                    "  {} = sub i64 {}, {}",
+                    operand(dest),
+                    operand(a),
+                    operand(b)
+                );
             }
             Instr::Mul(dest, a, b) => {
-                let _ = writeln!(out, "  {} = mul i64 {}, {}", operand(dest), operand(a), operand(b));
+                let _ = writeln!(
+                    out,
+                    "  {} = mul i64 {}, {}",
+                    operand(dest),
+                    operand(a),
+                    operand(b)
+                );
             }
             Instr::Div(dest, a, b) => {
-                let _ = writeln!(out, "  {} = sdiv i64 {}, {}", operand(dest), operand(a), operand(b));
+                let _ = writeln!(
+                    out,
+                    "  {} = sdiv i64 {}, {}",
+                    operand(dest),
+                    operand(a),
+                    operand(b)
+                );
             }
             Instr::Call(dest, target, args) => {
                 let arg_str = args
@@ -169,7 +197,14 @@ fn emit_llvm_function(f: &Function) -> String {
                 // Produce an i64 0/1 so it composes with `BrCond`'s `icmp ne 0`.
                 let bit = format!("%icmp.{}", cmp_id);
                 cmp_id += 1;
-                let _ = writeln!(out, "  {} = icmp {} i64 {}, {}", bit, p, operand(a), operand(b));
+                let _ = writeln!(
+                    out,
+                    "  {} = icmp {} i64 {}, {}",
+                    bit,
+                    p,
+                    operand(a),
+                    operand(b)
+                );
                 let _ = writeln!(out, "  {} = zext i1 {} to i64", operand(dest), bit);
             }
             Instr::Alloca(slot) => {

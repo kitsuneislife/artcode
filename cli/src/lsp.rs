@@ -13,24 +13,59 @@ const TOKEN_TYPES: [&str; 6] = [
 ];
 
 const BUILTIN_NAMES: &[&str] = &[
-    "println", "len", "type_of",
-    "map_new", "map_set", "map_get", "map_has",
-    "set_new", "set_add", "set_has",
-    "math_abs", "math_pow", "math_clamp",
-    "dag_topo_sort", "time_now",
-    "io_read_text", "io_write_text", "http_get_text",
-    "random_seed", "random_next",
-    "gc_stats", "runtime_version",
-    "str_split", "str_join", "str_contains", "str_starts_with",
-    "str_replace", "str_slice", "str_to_int", "str_to_float",
-    "buffer_new", "serialize", "deserialize",
-    "capability_acquire", "capability_kind",
-    "arena_new", "arena_release", "arena_with",
-    "atomic_new", "atomic_load", "atomic_store", "atomic_add",
-    "mutex_new", "mutex_lock", "mutex_unlock",
-    "actor_send", "actor_receive", "actor_receive_envelope",
-    "actor_yield", "actor_set_mailbox_limit", "run_actors",
-    "envelope", "make_envelope",
+    "println",
+    "len",
+    "type_of",
+    "map_new",
+    "map_set",
+    "map_get",
+    "map_has",
+    "set_new",
+    "set_add",
+    "set_has",
+    "math_abs",
+    "math_pow",
+    "math_clamp",
+    "dag_topo_sort",
+    "time_now",
+    "io_read_text",
+    "io_write_text",
+    "http_get_text",
+    "random_seed",
+    "random_next",
+    "gc_stats",
+    "runtime_version",
+    "str_split",
+    "str_join",
+    "str_contains",
+    "str_starts_with",
+    "str_replace",
+    "str_slice",
+    "str_to_int",
+    "str_to_float",
+    "buffer_new",
+    "serialize",
+    "deserialize",
+    "capability_acquire",
+    "capability_kind",
+    "arena_new",
+    "arena_release",
+    "arena_with",
+    "atomic_new",
+    "atomic_load",
+    "atomic_store",
+    "atomic_add",
+    "mutex_new",
+    "mutex_lock",
+    "mutex_unlock",
+    "actor_send",
+    "actor_receive",
+    "actor_receive_envelope",
+    "actor_yield",
+    "actor_set_mailbox_limit",
+    "run_actors",
+    "envelope",
+    "make_envelope",
 ];
 
 const KEYWORDS: &[&str] = &[
@@ -148,17 +183,16 @@ fn collect_declarations(text: &str) -> HashMap<String, SymbolDecl> {
     while i < tokens.len() {
         let tok = &tokens[i];
         match tok.token_type {
-            TokenType::Let
-                if i + 1 < tokens.len() => {
-                    let id = &tokens[i + 1];
-                    if matches!(id.token_type, TokenType::Identifier) {
-                        map.entry(id.lexeme.clone()).or_insert(SymbolDecl {
-                            line: id.line.saturating_sub(1),
-                            start_char: id.col.saturating_sub(1),
-                            end_char: id.col.saturating_sub(1) + id.lexeme.chars().count(),
-                        });
-                    }
+            TokenType::Let if i + 1 < tokens.len() => {
+                let id = &tokens[i + 1];
+                if matches!(id.token_type, TokenType::Identifier) {
+                    map.entry(id.lexeme.clone()).or_insert(SymbolDecl {
+                        line: id.line.saturating_sub(1),
+                        start_char: id.col.saturating_sub(1),
+                        end_char: id.col.saturating_sub(1) + id.lexeme.chars().count(),
+                    });
                 }
+            }
             TokenType::Func => {
                 // function name
                 if i + 1 < tokens.len() {
@@ -192,28 +226,26 @@ fn collect_declarations(text: &str) -> HashMap<String, SymbolDecl> {
                     }
                 }
             }
-            TokenType::For
-                if i + 1 < tokens.len() => {
-                    let id = &tokens[i + 1];
-                    if matches!(id.token_type, TokenType::Identifier) {
-                        map.entry(id.lexeme.clone()).or_insert(SymbolDecl {
-                            line: id.line.saturating_sub(1),
-                            start_char: id.col.saturating_sub(1),
-                            end_char: id.col.saturating_sub(1) + id.lexeme.chars().count(),
-                        });
-                    }
+            TokenType::For if i + 1 < tokens.len() => {
+                let id = &tokens[i + 1];
+                if matches!(id.token_type, TokenType::Identifier) {
+                    map.entry(id.lexeme.clone()).or_insert(SymbolDecl {
+                        line: id.line.saturating_sub(1),
+                        start_char: id.col.saturating_sub(1),
+                        end_char: id.col.saturating_sub(1) + id.lexeme.chars().count(),
+                    });
                 }
-            TokenType::Struct | TokenType::Enum
-                if i + 1 < tokens.len() => {
-                    let id = &tokens[i + 1];
-                    if matches!(id.token_type, TokenType::Identifier) {
-                        map.entry(id.lexeme.clone()).or_insert(SymbolDecl {
-                            line: id.line.saturating_sub(1),
-                            start_char: id.col.saturating_sub(1),
-                            end_char: id.col.saturating_sub(1) + id.lexeme.chars().count(),
-                        });
-                    }
+            }
+            TokenType::Struct | TokenType::Enum if i + 1 < tokens.len() => {
+                let id = &tokens[i + 1];
+                if matches!(id.token_type, TokenType::Identifier) {
+                    map.entry(id.lexeme.clone()).or_insert(SymbolDecl {
+                        line: id.line.saturating_sub(1),
+                        start_char: id.col.saturating_sub(1),
+                        end_char: id.col.saturating_sub(1) + id.lexeme.chars().count(),
+                    });
                 }
+            }
             _ => {}
         }
         i += 1;
@@ -247,11 +279,14 @@ fn collect_hover_info(text: &str) -> HashMap<String, HoverInfo> {
     };
 
     for name in BUILTIN_NAMES {
-        map.insert(name.to_string(), HoverInfo {
-            kind: HoverKind::Builtin,
-            name: name.to_string(),
-            detail: format!("builtin function `{}`", name),
-        });
+        map.insert(
+            name.to_string(),
+            HoverInfo {
+                kind: HoverKind::Builtin,
+                name: name.to_string(),
+                detail: format!("builtin function `{}`", name),
+            },
+        );
     }
 
     let mut i = 0usize;
@@ -385,19 +420,69 @@ fn collect_workspace_declarations(
     out
 }
 
+/// Percent-decodes every `%XX` escape in a file URI path component.
+///
+/// Editors escape more than the three characters the previous hand-rolled
+/// version handled — notably VS Code sends Windows drive letters as `c%3A`.
+fn percent_decode(raw: &str) -> String {
+    let bytes = raw.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).ok();
+            if let Some(byte) = hex.and_then(|h| u8::from_str_radix(h, 16).ok()) {
+                out.push(byte);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
 fn decode_file_uri_path(uri: &str) -> Option<PathBuf> {
     let raw = uri.strip_prefix("file://")?;
-    // Minimal decode for common VSCode file URIs.
-    let decoded = raw
-        .replace("%20", " ")
-        .replace("%23", "#")
-        .replace("%25", "%");
+    let decoded = percent_decode(raw);
+
+    // On Windows a file URI is `file:///C:/dir/file.art`, so after stripping
+    // `file://` the remainder is `/C:/dir/file.art` — the leading slash is part
+    // of the URI grammar, not of the path, and must go before `PathBuf` sees it.
+    #[cfg(windows)]
+    let decoded = {
+        let trimmed = decoded.strip_prefix('/').unwrap_or(&decoded);
+        let bytes = trimmed.as_bytes();
+        let is_drive_path = bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':';
+        let path = if is_drive_path { trimmed } else { &decoded };
+        path.replace('/', "\\")
+    };
+
     Some(PathBuf::from(decoded))
 }
 
 fn to_file_uri(path: &Path) -> Option<String> {
     let canonical = std::fs::canonicalize(path).ok()?;
-    Some(format!("file://{}", canonical.to_string_lossy()))
+    let mut text = canonical.to_string_lossy().into_owned();
+
+    // `canonicalize` returns extended-length paths (`\\?\C:\dir`) on Windows.
+    // That prefix is a Win32 API detail and is not valid inside a file URI.
+    #[cfg(windows)]
+    {
+        text = text
+            .strip_prefix(r"\\?\")
+            .unwrap_or(text.as_str())
+            .replace('\\', "/");
+    }
+
+    // Unix paths already start with `/`; Windows paths start with a drive
+    // letter and need the extra slash that separates authority from path.
+    if text.starts_with('/') {
+        Some(format!("file://{}", text))
+    } else {
+        Some(format!("file:///{}", text))
+    }
 }
 
 fn parse_import_paths(text: &str) -> Vec<String> {
@@ -868,7 +953,12 @@ pub fn start_server() {
     }
 }
 
-fn hover_markdown(documents: &HashMap<String, String>, uri: &str, line: usize, character: usize) -> String {
+fn hover_markdown(
+    documents: &HashMap<String, String>,
+    uri: &str,
+    line: usize,
+    character: usize,
+) -> String {
     let text = match documents.get(uri) {
         Some(t) => t,
         None => return "**Artcode**".to_string(),
@@ -905,10 +995,7 @@ fn hover_markdown(documents: &HashMap<String, String>, uri: &str, line: usize, c
     }
 }
 
-fn process_request(
-    req: &Value,
-    documents: &mut HashMap<String, String>,
-) -> Option<Value> {
+fn process_request(req: &Value, documents: &mut HashMap<String, String>) -> Option<Value> {
     let id = req.get("id")?;
     let method = req.get("method").and_then(|m| m.as_str()).unwrap_or("");
 
@@ -961,7 +1048,8 @@ fn process_request(
         }
 
         "textDocument/completion" => {
-            let uri = req.get("params")
+            let uri = req
+                .get("params")
                 .and_then(|p| p.get("textDocument"))
                 .and_then(|d| d.get("uri"))
                 .and_then(|u| u.as_str());
@@ -984,11 +1072,13 @@ fn process_request(
         }
 
         "textDocument/semanticTokens/full" => {
-            let uri = req.get("params")
+            let uri = req
+                .get("params")
                 .and_then(|p| p.get("textDocument"))
                 .and_then(|d| d.get("uri"))
                 .and_then(|u| u.as_str());
-            let data = uri.and_then(|u| documents.get(u))
+            let data = uri
+                .and_then(|u| documents.get(u))
                 .map(|t| semantic_tokens_data(t))
                 .unwrap_or_default();
             serde_json::json!({ "data": data })
@@ -1240,6 +1330,35 @@ mod tests {
     }
 
     #[test]
+    fn file_uri_roundtrips_to_the_same_path() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let file_path = tmp.path().join("round trip.art");
+        std::fs::write(&file_path, "let x = 1;\n").expect("write file");
+
+        let uri = to_file_uri(&file_path).expect("uri");
+        assert!(uri.starts_with("file:///"), "unexpected uri: {}", uri);
+        assert!(!uri.contains(r"\\?\"), "verbatim prefix leaked: {}", uri);
+
+        let decoded = decode_file_uri_path(&uri).expect("decode");
+        assert_eq!(
+            std::fs::canonicalize(&decoded).expect("canonicalize decoded"),
+            std::fs::canonicalize(&file_path).expect("canonicalize original"),
+        );
+    }
+
+    #[test]
+    fn percent_encoded_drive_letter_decodes() {
+        // VS Code sends Windows paths as `file:///c%3A/dir/file.art`.
+        let decoded = decode_file_uri_path("file:///c%3A/dir/file.art").expect("decode");
+        let expected = if cfg!(windows) {
+            r"c:\dir\file.art"
+        } else {
+            "/c:/dir/file.art"
+        };
+        assert_eq!(decoded, PathBuf::from(expected));
+    }
+
+    #[test]
     fn definition_resolves_imported_file_not_open() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let main_path = tmp.path().join("main.art");
@@ -1248,8 +1367,10 @@ mod tests {
         std::fs::write(&main_path, "import lib;\nprintln(answer);\n").expect("write main");
         std::fs::write(&lib_path, "let answer = 42;\n").expect("write lib");
 
-        let main_uri = format!("file://{}", main_path.to_string_lossy());
-        let lib_uri = format!("file://{}", lib_path.to_string_lossy());
+        // Build the URIs the same way the server does, so the assertions stay
+        // valid on Windows (drive letters, backslashes) as well as on Unix.
+        let main_uri = to_file_uri(&main_path).expect("main uri");
+        let lib_uri = to_file_uri(&lib_path).expect("lib uri");
         let mut docs = HashMap::new();
         docs.insert(
             main_uri.clone(),
@@ -1271,8 +1392,10 @@ mod tests {
         std::fs::write(&main_path, "import lib;\nprintln(answer);\n").expect("write main");
         std::fs::write(&lib_path, "let answer = 42;\nprintln(answer);\n").expect("write lib");
 
-        let main_uri = format!("file://{}", main_path.to_string_lossy());
-        let lib_uri = format!("file://{}", lib_path.to_string_lossy());
+        // Build the URIs the same way the server does, so the assertions stay
+        // valid on Windows (drive letters, backslashes) as well as on Unix.
+        let main_uri = to_file_uri(&main_path).expect("main uri");
+        let lib_uri = to_file_uri(&lib_path).expect("lib uri");
         let mut docs = HashMap::new();
         docs.insert(
             main_uri.clone(),
@@ -1319,12 +1442,15 @@ mod tests {
         );
         let resp = process_request(&req, &mut docs).expect("completion must return a response");
         let items = resp["result"]["items"].as_array().expect("items array");
-        let labels: Vec<&str> = items
-            .iter()
-            .filter_map(|i| i["label"].as_str())
-            .collect();
-        assert!(labels.contains(&"println"), "println should be a completion item");
-        assert!(labels.contains(&"str_split"), "str_split should be a completion item");
+        let labels: Vec<&str> = items.iter().filter_map(|i| i["label"].as_str()).collect();
+        assert!(
+            labels.contains(&"println"),
+            "println should be a completion item"
+        );
+        assert!(
+            labels.contains(&"str_split"),
+            "str_split should be a completion item"
+        );
     }
 
     #[test]
@@ -1338,7 +1464,9 @@ mod tests {
             serde_json::json!({ "textDocument": { "uri": "file:///b.art" }, "position": { "line": 0, "character": 5 } }),
         );
         let resp = process_request(&req, &mut docs).expect("hover must return a response");
-        let md = resp["result"]["contents"]["value"].as_str().expect("markdown value");
+        let md = resp["result"]["contents"]["value"]
+            .as_str()
+            .expect("markdown value");
         assert!(md.contains("greet"), "hover should mention function name");
     }
 

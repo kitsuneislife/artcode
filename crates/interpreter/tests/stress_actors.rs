@@ -55,7 +55,7 @@ fn test_scheduler_actor_massive_message_stress() {
             // Isso encherá as filas locais sem consumir ainda (exceto as preemptadas).
             for (i, _aid) in actor_ids.iter().enumerate() {
                 for m in 0..messages_per_actor {
-                    let target = actor_ids[(i + (m as usize)) % actors_qty as usize];
+                    let target = actor_ids[(i + m) % actors_qty];
 
                     // actor_send(target, message_value)
                     interp.interpret(vec![Stmt::Expression(Expr::Call {
@@ -73,7 +73,7 @@ fn test_scheduler_actor_massive_message_stress() {
 
             // 3. Forçar o agendador nativo a resolver todo o pool assíncrono enfileirado nas threads C.
             // `run_actors_round_robin(N)` irá drenar as pilhas iterativamente pelo Agendador Nativo VM.
-            interp.run_actors_round_robin((total_messages_expected + 10000) as usize);
+            interp.run_actors_round_robin(total_messages_expected + 10000);
 
             // 4. Verificação final de estado: 
             // Todos os mailboxes devem estar vazios sem panics do Rust Lock (sem deadlock de mutex).

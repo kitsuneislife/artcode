@@ -12,7 +12,10 @@ pub fn generate_html<P: AsRef<Path>>(input_path: P) -> io::Result<()> {
     let path = input_path.as_ref();
     let content = fs::read_to_string(path)?;
     let items = parse_doc_items(&content);
-    let module_name = path.file_stem().and_then(|s| s.to_str()).unwrap_or("Module");
+    let module_name = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("Module");
     let html = build_html_document(module_name, &items);
 
     let out_dir = Path::new("docs/generated");

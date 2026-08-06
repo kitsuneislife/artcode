@@ -15,8 +15,8 @@ fn tuple_destructuring_assignment() {
         ]),
         ty: None,
         initializer: Expr::Tuple(vec![
-            Expr::Literal(ArtValue::Int(1)).into(),
-            Expr::Literal(ArtValue::Int(2)).into(),
+            Expr::Literal(ArtValue::Int(1)),
+            Expr::Literal(ArtValue::Int(2)),
         ]),
     }];
 
@@ -51,12 +51,11 @@ fn nested_tuple_destructuring_assignment() {
         ]),
         ty: None,
         initializer: Expr::Tuple(vec![
-            Expr::Literal(ArtValue::Int(1)).into(),
+            Expr::Literal(ArtValue::Int(1)),
             Expr::Tuple(vec![
-                Expr::Literal(ArtValue::Int(2)).into(),
-                Expr::Literal(ArtValue::Int(3)).into(),
-            ])
-            .into(),
+                Expr::Literal(ArtValue::Int(2)),
+                Expr::Literal(ArtValue::Int(3)),
+            ]),
         ]),
     }];
 

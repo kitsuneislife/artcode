@@ -147,7 +147,11 @@ fn compile_file(
     let (program, diags) = Parser::new(tokens).parse();
     if !diags.is_empty() {
         for d in &diags {
-            errors.push(format!("parse error in '{}': {}", canon.display(), d.message));
+            errors.push(format!(
+                "parse error in '{}': {}",
+                canon.display(),
+                d.message
+            ));
         }
         return;
     }

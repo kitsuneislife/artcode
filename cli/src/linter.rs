@@ -245,9 +245,10 @@ fn lint_stmt(
                     MatchPattern::Wildcard
                     | MatchPattern::Binding(_)
                     | MatchPattern::Variable(_)
-                        if guard.is_none() => {
-                            irrefutable_found = true;
-                        }
+                        if guard.is_none() =>
+                    {
+                        irrefutable_found = true;
+                    }
                     _ => {}
                 }
 

@@ -10,7 +10,6 @@ use std::process::{Command, Stdio};
 use std::rc::Rc;
 use std::sync::Arc;
 
-
 /// Computes the Levenshtein distance between two strings
 fn levenshtein(a: &str, b: &str) -> usize {
     let a_chars: Vec<char> = a.chars().collect();
@@ -60,9 +59,9 @@ pub use actors::{ActorState, Mailbox, decode_val, encode_val};
 pub mod builtins;
 pub mod cycle_detection;
 pub use cycle_detection::{CycleDetectionResult, CycleInfo, CycleReport};
-pub mod gc;
-pub mod exec;
 pub mod eval;
+pub mod exec;
+pub mod gc;
 
 #[cfg(test)]
 pub mod test_helpers;
@@ -214,7 +213,7 @@ mod tests {
         interp.edge_counters.insert("<root>->foo".to_string(), 3);
         interp.edge_counters.insert("foo->bar".to_string(), 4);
         let tmp = std::env::temp_dir().join("art_profile_test.json");
-        let _ = interp.write_profile(&tmp).expect("write profile");
+        interp.write_profile(&tmp).expect("write profile");
         let s = std::fs::read_to_string(&tmp).expect("read profile");
         let v: serde_json::Value = serde_json::from_str(&s).expect("parse profile json");
         assert!(v.get("functions").is_some());
@@ -225,7 +224,6 @@ mod tests {
         let _ = std::fs::remove_file(&tmp);
     }
 }
-
 
 thread_local! {
     pub(crate) static PRELUDE_VALUES: HashMap<&'static str, ArtValue> = {
@@ -948,15 +946,16 @@ impl Interpreter {
                 let mut inner_val = None;
 
                 if let Some(obj) = self.heap_objects.get(&h.0)
-                    && let Some(obj_aid) = obj.arena_id {
-                        let should_promote = match target_aid {
-                            None => true,
-                            Some(ta) => obj_aid != ta && obj_aid > ta,
-                        };
-                        if should_promote {
-                            inner_val = Some(obj.value.clone());
-                        }
+                    && let Some(obj_aid) = obj.arena_id
+                {
+                    let should_promote = match target_aid {
+                        None => true,
+                        Some(ta) => obj_aid != ta && obj_aid > ta,
+                    };
+                    if should_promote {
+                        inner_val = Some(obj.value.clone());
                     }
+                }
 
                 if let Some(mut iv) = inner_val {
                     // Deep recursion: promote children first
@@ -1100,51 +1099,53 @@ impl Interpreter {
 
     fn heap_atomic_store(&mut self, h: ObjHandle, val: ArtValue) -> bool {
         if let Some(obj) = self.heap_objects.get_mut(&h.0)
-            && let ArtValue::StructInstance { fields, .. } = &mut obj.value {
-                fields.insert("value".to_string(), val);
-                return true;
-            }
+            && let ArtValue::StructInstance { fields, .. } = &mut obj.value
+        {
+            fields.insert("value".to_string(), val);
+            return true;
+        }
         false
     }
 
     fn heap_atomic_add(&mut self, h: ObjHandle, delta: i64) -> Option<i64> {
         if let Some(obj) = self.heap_objects.get_mut(&h.0)
-            && let ArtValue::StructInstance { fields, .. } = &mut obj.value {
-                match fields.get("value") {
-                    Some(ArtValue::Int(curr)) => {
-                        if let Some(new) = curr.checked_add(delta) {
-                            fields.insert("value".to_string(), ArtValue::Int(new));
-                            return Some(new);
-                        } else {
-                            self.diagnostics.push(Diagnostic::new(
-                                DiagnosticKind::Runtime,
-                                format!("atomic_add: overflow when adding {} to {}", delta, curr),
-                                Span::new(0, 0, 0, 0),
-                            ));
-                            return None;
-                        }
-                    }
-                    Some(other) => {
+            && let ArtValue::StructInstance { fields, .. } = &mut obj.value
+        {
+            match fields.get("value") {
+                Some(ArtValue::Int(curr)) => {
+                    if let Some(new) = curr.checked_add(delta) {
+                        fields.insert("value".to_string(), ArtValue::Int(new));
+                        return Some(new);
+                    } else {
                         self.diagnostics.push(Diagnostic::new(
                             DiagnosticKind::Runtime,
-                            format!(
-                                "atomic_add: underlying atomic value is not an Int: {:?}",
-                                other
-                            ),
-                            Span::new(0, 0, 0, 0),
-                        ));
-                        return None;
-                    }
-                    None => {
-                        self.diagnostics.push(Diagnostic::new(
-                            DiagnosticKind::Runtime,
-                            "atomic_add: atomic has no 'value' field".to_string(),
+                            format!("atomic_add: overflow when adding {} to {}", delta, curr),
                             Span::new(0, 0, 0, 0),
                         ));
                         return None;
                     }
                 }
+                Some(other) => {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        format!(
+                            "atomic_add: underlying atomic value is not an Int: {:?}",
+                            other
+                        ),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return None;
+                }
+                None => {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "atomic_add: atomic has no 'value' field".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return None;
+                }
             }
+        }
         None
     }
 
@@ -1178,43 +1179,45 @@ impl Interpreter {
 
     fn heap_mutex_lock(&mut self, h: ObjHandle) -> bool {
         if let Some(obj) = self.heap_objects.get_mut(&h.0)
-            && let ArtValue::StructInstance { fields, .. } = &mut obj.value {
-                match fields.get("locked") {
-                    Some(ArtValue::Bool(true)) => {
-                        self.diagnostics.push(Diagnostic::new(
-                            DiagnosticKind::Runtime,
-                            "mutex_lock: mutex already locked".to_string(),
-                            Span::new(0, 0, 0, 0),
-                        ));
-                        return false;
-                    }
-                    _ => {
-                        fields.insert("locked".to_string(), ArtValue::Bool(true));
-                        return true;
-                    }
+            && let ArtValue::StructInstance { fields, .. } = &mut obj.value
+        {
+            match fields.get("locked") {
+                Some(ArtValue::Bool(true)) => {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "mutex_lock: mutex already locked".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return false;
+                }
+                _ => {
+                    fields.insert("locked".to_string(), ArtValue::Bool(true));
+                    return true;
                 }
             }
+        }
         false
     }
 
     fn heap_mutex_unlock(&mut self, h: ObjHandle) -> bool {
         if let Some(obj) = self.heap_objects.get_mut(&h.0)
-            && let ArtValue::StructInstance { fields, .. } = &mut obj.value {
-                match fields.get("locked") {
-                    Some(ArtValue::Bool(false)) => {
-                        self.diagnostics.push(Diagnostic::new(
-                            DiagnosticKind::Runtime,
-                            "mutex_unlock: mutex was not locked".to_string(),
-                            Span::new(0, 0, 0, 0),
-                        ));
-                        return false;
-                    }
-                    _ => {
-                        fields.insert("locked".to_string(), ArtValue::Bool(false));
-                        return true;
-                    }
+            && let ArtValue::StructInstance { fields, .. } = &mut obj.value
+        {
+            match fields.get("locked") {
+                Some(ArtValue::Bool(false)) => {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticKind::Runtime,
+                        "mutex_unlock: mutex was not locked".to_string(),
+                        Span::new(0, 0, 0, 0),
+                    ));
+                    return false;
+                }
+                _ => {
+                    fields.insert("locked".to_string(), ArtValue::Bool(false));
+                    return true;
                 }
             }
+        }
         false
     }
     /// Finaliza (libera) todos objetos alocados na arena especificada.
@@ -1373,7 +1376,6 @@ impl Interpreter {
         }
     }
 
-
     /// Test helper: define valor no ambiente global
     pub fn debug_define_global(&mut self, name: &str, val: ArtValue) {
         // Mimic the real `let` semantics: if a previous value exists, decrement its heap refs
@@ -1487,7 +1489,7 @@ impl Interpreter {
                 _ => {}
             }
         }
-        for (_k, v) in self.environment.borrow().values.iter() {
+        for v in self.environment.borrow().values.values() {
             scan(
                 v,
                 self,
@@ -1545,7 +1547,7 @@ impl Interpreter {
                 _ => {}
             }
         }
-        for (_id, c) in in_counts.iter() {
+        for c in in_counts.values() {
             in_deg_sum += *c;
         }
         let heap_alive = self.heap_objects.iter().filter(|(_, o)| o.alive).count();
@@ -1643,7 +1645,6 @@ impl Interpreter {
         std::fs::write(path, out)
     }
 
-
     /// Run actors in a simple round-robin scheduler. Each actor executes at most one
     /// statement per turn. Actors with empty body but non-empty mailbox will be considered runnable
     /// (so user code can `actor_receive()` in the body to consume messages). max_steps limits total turns.
@@ -1733,7 +1734,6 @@ impl Interpreter {
         }
     }
 }
-
 
 impl Default for Interpreter {
     fn default() -> Self {

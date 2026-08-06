@@ -9,12 +9,12 @@ fn performant_block_allocates_in_arena_and_finalizes() {
             Stmt::Let {
                 pattern: core::ast::MatchPattern::Variable(core::Token::dummy("a")),
                 ty: None,
-                initializer: Expr::Array(vec![Expr::Literal(core::ast::ArtValue::Int(1)).into()]),
+                initializer: Expr::Array(vec![Expr::Literal(core::ast::ArtValue::Int(1))]),
             },
             Stmt::Let {
                 pattern: core::ast::MatchPattern::Variable(core::Token::dummy("b")),
                 ty: None,
-                initializer: Expr::Array(vec![Expr::Literal(core::ast::ArtValue::Int(2)).into()]),
+                initializer: Expr::Array(vec![Expr::Literal(core::ast::ArtValue::Int(2))]),
             },
         ],
     }];

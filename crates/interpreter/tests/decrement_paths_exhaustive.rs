@@ -97,7 +97,7 @@ fn rebind_decrements_and_updates_weak_unowned() {
             );
         }
         other => {
-            assert!(false, "weak global 'w' has unexpected type: {:?}", other);
+            panic!("weak global 'w' has unexpected type: {:?}", other);
         }
     }
     // unowned deve apontar para nada (dangling) e debug_heap_get_unowned deve retornar None
@@ -113,7 +113,7 @@ fn rebind_decrements_and_updates_weak_unowned() {
             );
         }
         other => {
-            assert!(false, "unowned global 'u' has unexpected type: {:?}", other);
+            panic!("unowned global 'u' has unexpected type: {:?}", other);
         }
     }
 }
@@ -244,8 +244,7 @@ fn field_assignment_triggers_decrement_and_finalizer() {
     if let Some(ArtValue::HeapComposite(hx)) = interp.debug_get_global("x") {
         new_fields.insert("child".to_string(), ArtValue::HeapComposite(hx));
     } else {
-        assert!(
-            false,
+        panic!(
             "x not found as heap composite; debug_get_global('x') returned: {:?}",
             interp.debug_get_global("x")
         );

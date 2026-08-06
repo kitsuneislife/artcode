@@ -47,14 +47,12 @@ impl Interpreter {
             unowned_dangling: &mut Vec<u64>,
         ) {
             match v {
-                ArtValue::WeakRef(h)
-                    if !this.is_object_alive(h.0) => {
-                        weak_dead.push(h.0);
-                    }
-                ArtValue::UnownedRef(h)
-                    if !this.is_object_alive(h.0) => {
-                        unowned_dangling.push(h.0);
-                    }
+                ArtValue::WeakRef(h) if !this.is_object_alive(h.0) => {
+                    weak_dead.push(h.0);
+                }
+                ArtValue::UnownedRef(h) if !this.is_object_alive(h.0) => {
+                    unowned_dangling.push(h.0);
+                }
                 ArtValue::HeapComposite(h) => {
                     if let Some(obj) = this.heap_objects.get(&h.0) {
                         scan_ids(&obj.value, this, weak_dead, unowned_dangling);
@@ -78,7 +76,7 @@ impl Interpreter {
                 _ => {}
             }
         }
-        for (_k, v) in self.environment.borrow().values.iter() {
+        for v in self.environment.borrow().values.values() {
             scan_ids(v, self, &mut weak_dead, &mut unowned_dangling);
         }
         // Build edge graph using heap ids (alive objects only)

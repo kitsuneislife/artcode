@@ -7,7 +7,7 @@
 	<a href="https://github.com/kitsuneislife/artcode"><img alt="stars - artcode" src="https://img.shields.io/github/stars/kitsuneislife/artcode?style=social" /></a>
 </p>
 
-Implementação experimental de uma linguagem interpretada em Rust — **v0.4.0** (2026-05-27) · v0.5 em desenvolvimento.
+Implementação experimental de uma linguagem interpretada em Rust — **v0.5.1** (2026-05-27) · v0.6 em desenvolvimento.
 
 # Complexidade Progressiva
 

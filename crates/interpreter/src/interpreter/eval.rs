@@ -1,10 +1,10 @@
-use super::{did_you_mean, PRELUDE_VALUES};
-use super::actors::{ActorState, Mailbox};
 use super::Interpreter;
+use super::actors::{ActorState, Mailbox};
+use super::{PRELUDE_VALUES, did_you_mean};
 use crate::values::{Result, RuntimeError};
+use core::Token;
 use core::ast::{ArtValue, Expr, Function};
 use core::environment::Environment;
-use core::Token;
 use diagnostics::{Diagnostic, DiagnosticKind, Span};
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
@@ -663,13 +663,14 @@ impl Interpreter {
         }
         // record edge from caller -> callee
         if let Some(caller) = self.fn_stack.last().and_then(|opt| opt.clone())
-            && let Some(callee) = &callee_name_opt {
-                let edge = format!("{}->{}", caller, callee);
-                self.edge_counters
-                    .entry(edge)
-                    .and_modify(|c| *c += 1)
-                    .or_insert(1);
-            }
+            && let Some(callee) = &callee_name_opt
+        {
+            let edge = format!("{}->{}", caller, callee);
+            self.edge_counters
+                .entry(edge)
+                .and_modify(|c| *c += 1)
+                .or_insert(1);
+        }
         self.fn_stack.push(callee_name_opt.clone());
 
         let argc = arguments.len();
@@ -691,41 +692,42 @@ impl Interpreter {
 
         // Generic type parameter validation
         if let Some(type_params) = &func.type_params
-            && !type_params.is_empty() {
-                // Infer concrete types: explicit type_args take priority, else infer from values
-                let concrete: Vec<String> = if let Some(explicit) = &type_args {
-                    explicit.clone()
-                } else {
-                    // For each type param, find the first function param annotated with that name
-                    // and use the runtime type of the corresponding argument.
-                    type_params
-                        .iter()
-                        .map(|(tname, _)| {
-                            func.params
-                                .iter()
-                                .position(|p| p.ty.as_deref() == Some(tname.as_str()))
-                                .and_then(|idx| evaluated_args.get(idx))
-                                .map(|v| v.type_name())
-                                .unwrap_or_else(|| "Unknown".to_string())
-                        })
-                        .collect()
-                };
-                // Validate constraints
-                for (i, (tname, constraint)) in type_params.iter().enumerate() {
-                    if let Some(bound) = constraint {
-                        let concrete_ty = concrete.get(i).map(String::as_str).unwrap_or("Unknown");
-                        let ok = match bound.as_str() {
-                            "Numeric" => matches!(concrete_ty, "Int" | "Float"),
-                            "Eq" | "Hash" => {
-                                matches!(concrete_ty, "Int" | "Float" | "String" | "Bool")
-                            }
-                            "Comparable" => {
-                                matches!(concrete_ty, "Int" | "Float" | "String")
-                            }
-                            _ => true,
-                        };
-                        if !ok {
-                            self.diagnostics.push(Diagnostic::new(
+            && !type_params.is_empty()
+        {
+            // Infer concrete types: explicit type_args take priority, else infer from values
+            let concrete: Vec<String> = if let Some(explicit) = &type_args {
+                explicit.clone()
+            } else {
+                // For each type param, find the first function param annotated with that name
+                // and use the runtime type of the corresponding argument.
+                type_params
+                    .iter()
+                    .map(|(tname, _)| {
+                        func.params
+                            .iter()
+                            .position(|p| p.ty.as_deref() == Some(tname.as_str()))
+                            .and_then(|idx| evaluated_args.get(idx))
+                            .map(|v| v.type_name())
+                            .unwrap_or_else(|| "Unknown".to_string())
+                    })
+                    .collect()
+            };
+            // Validate constraints
+            for (i, (tname, constraint)) in type_params.iter().enumerate() {
+                if let Some(bound) = constraint {
+                    let concrete_ty = concrete.get(i).map(String::as_str).unwrap_or("Unknown");
+                    let ok = match bound.as_str() {
+                        "Numeric" => matches!(concrete_ty, "Int" | "Float"),
+                        "Eq" | "Hash" => {
+                            matches!(concrete_ty, "Int" | "Float" | "String" | "Bool")
+                        }
+                        "Comparable" => {
+                            matches!(concrete_ty, "Int" | "Float" | "String")
+                        }
+                        _ => true,
+                    };
+                    if !ok {
+                        self.diagnostics.push(Diagnostic::new(
                                 DiagnosticKind::Runtime,
                                 format!(
                                     "Type '{}' does not satisfy constraint '{}' for type parameter '{}'",
@@ -733,10 +735,10 @@ impl Interpreter {
                                 ),
                                 self.call_span,
                             ));
-                        }
                     }
                 }
             }
+        }
 
         let previous_env = self.environment.clone();
         let base_env = match func.closure.upgrade() {
@@ -798,17 +800,18 @@ impl Interpreter {
         // Escape analysis para closures
         if let ArtValue::Function(f) = &return_val
             && f.retained_env.is_none()
-                && let Some(captured_env) = f.closure.upgrade() {
-                    let escaped = Function {
-                        name: f.name.clone(),
-                        type_params: f.type_params.clone(),
-                        params: f.params.clone(),
-                        body: f.body.clone(),
-                        closure: f.closure.clone(),
-                        retained_env: Some(captured_env),
-                    };
-                    return_val = ArtValue::Function(Rc::new(escaped));
-                }
+            && let Some(captured_env) = f.closure.upgrade()
+        {
+            let escaped = Function {
+                name: f.name.clone(),
+                type_params: f.type_params.clone(),
+                params: f.params.clone(),
+                body: f.body.clone(),
+                closure: f.closure.clone(),
+                retained_env: Some(captured_env),
+            };
+            return_val = ArtValue::Function(Rc::new(escaped));
+        }
 
         self.drop_scope_heap_objects(&call_env);
         if pushed_arena {
@@ -819,5 +822,4 @@ impl Interpreter {
 
         Ok(return_val)
     }
-
 }
