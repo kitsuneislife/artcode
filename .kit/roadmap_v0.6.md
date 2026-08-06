@@ -246,6 +246,13 @@ Sequência recomendada:
 
 ## Riscos Ativos
 
+- **Interner global vaza sem limite** (`crates/core/src/interner.rs`): `intern` faz `Box::leak`
+  de cada símbolo novo num pool permanente. Aceitável para a CLI, que é efêmera; problema real
+  em `art lsp`, que vive por toda a sessão de edição e re-lexa a cada tecla. O `Fuzz CI` expõe
+  isso porque fuzza in-process: o custo por iteração sobe ~6x até o libFuzzer declarar timeout,
+  e o input de 2 bytes que ele reporta é apenas quem estava na vez. Enquanto não for corrigido,
+  `Fuzz CI` fica vermelho — é achado legítimo, não falha de infraestrutura.
+
 - LLVM dev libs no CI runner: inkwell requer LLVM 15 instalado — job AOT deve ser condicional via `[build-llvm]` label ou runner dedicado
 - emcc no CI: job WASM condicional a Emscripten disponível — runner `ubuntu-latest` precisa de `apt install emscripten` ou action dedicada
 - Monomorphização sem LRU: explosão de instâncias genéricas em código pathológico — limitar a 256 instâncias por função e emitir warning se excedido
