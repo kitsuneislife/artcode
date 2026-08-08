@@ -1,7 +1,9 @@
 [package]
 name = "xtask"
-version = "0.2.0"
+version = "0.5.1"
 edition = "2021"
+# Developer task runner: built from this repository only, never released.
+publish = false
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
