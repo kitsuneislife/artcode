@@ -1,10 +1,10 @@
+use core::Token;
 /// Golden tests for the general lowering engine in `lower_fn`.
 ///
 /// These cover AOT lowering of procedural constructs — `let` bindings,
 /// `while` loops, `if`/`else` with locals, and comparisons — which are
 /// outside the narrow subset handled by `lower_plain` / `lower_if_function`.
 use core::ast::{ArtValue, Expr, FunctionParam, MatchPattern, Stmt};
-use core::Token;
 use ir::llvm_emitter::emit_llvm_module;
 use ir::lower_fn::lower_function;
 

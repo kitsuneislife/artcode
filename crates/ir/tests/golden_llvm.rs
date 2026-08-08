@@ -1,6 +1,6 @@
-use core::ast::{ArtValue, Expr, FunctionParam, Stmt};
 use core::Token;
-use ir::{lower_stmt, Function};
+use core::ast::{ArtValue, Expr, FunctionParam, Stmt};
+use ir::{Function, lower_stmt};
 
 fn var(name: &str) -> Expr {
     Expr::Variable {

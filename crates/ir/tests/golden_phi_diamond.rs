@@ -1,6 +1,6 @@
-use ir::ssa;
 use ir::Function;
 use ir::Instr;
+use ir::ssa;
 
 #[test]
 fn diamond_phi_insertion() {

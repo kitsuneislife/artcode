@@ -80,7 +80,7 @@ pub mod trampolines;
 // we re-export the top-level dispatcher.
 pub use cache::ArtCache;
 pub use lowering::lower_stmt;
-pub use trampolines::{call_jit_fn, Sig};
+pub use trampolines::{Sig, call_jit_fn};
 
 /// Parses the signature out of textual IR: `func @name(params) -> ret`.
 ///

@@ -161,14 +161,20 @@ fn run_with_source(
             "[metrics] handled_errors={} executed_statements={} crash_free={:.1}%",
             interpreter.handled_errors, interpreter.executed_statements, percent
         );
-        eprintln!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
-            interpreter.weak_created, interpreter.weak_upgrades, interpreter.weak_dangling,
-            interpreter.unowned_created, interpreter.unowned_dangling, interpreter.cycle_reports_run.get());
+        eprintln!(
+            "[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
+            interpreter.weak_created,
+            interpreter.weak_upgrades,
+            interpreter.weak_dangling,
+            interpreter.unowned_created,
+            interpreter.unowned_dangling,
+            interpreter.cycle_reports_run.get()
+        );
     }
-    if !source.trim().ends_with(";") {
-        if let Some(val) = interpreter.last_value {
-            println!("=> {}", val);
-        }
+    if !source.trim().ends_with(";")
+        && let Some(val) = interpreter.last_value
+    {
+        println!("=> {}", val);
     }
 }
 
@@ -384,10 +390,10 @@ fn run_file(
 
             let mut interpreter = Interpreter::with_prelude();
             interpreter.set_pure_mode(pure_mode);
-            if let Some(rf) = record_file {
-                if let Err(e) = interpreter.enable_tracer(rf) {
-                    eprintln!("Warning: failed to enable tracer: {}", e);
-                }
+            if let Some(rf) = record_file
+                && let Err(e) = interpreter.enable_tracer(rf)
+            {
+                eprintln!("Warning: failed to enable tracer: {}", e);
             }
             if let Err(e) = interpreter.interpret(program) {
                 eprintln!("Erro de execução: {}", e);
@@ -586,7 +592,10 @@ fn run_aot(path: &str, out: Option<&str>, wasm: bool, llvm: bool, emit_llvm_ir: 
                             out_bin
                         );
                         if let Err(e) = fs::copy(out_bin, &final_bin_in_cache) {
-                            eprintln!("[AOT/Cache] Aviso: Não foi possível injetar o binário no cache: {}", e);
+                            eprintln!(
+                                "[AOT/Cache] Aviso: Não foi possível injetar o binário no cache: {}",
+                                e
+                            );
                         }
                     } else {
                         eprintln!("[AOT] Ocorreu um erro ao compilar com {}", compiler);
@@ -597,7 +606,10 @@ fn run_aot(path: &str, out: Option<&str>, wasm: bool, llvm: bool, emit_llvm_ir: 
                     }
                 }
                 Err(e) => {
-                    eprintln!("[AOT] Falha ao invocar compilação nativa. Processo '{}' indisponível localmente: {}", compiler, e);
+                    eprintln!(
+                        "[AOT] Falha ao invocar compilação nativa. Processo '{}' indisponível localmente: {}",
+                        compiler, e
+                    );
                     process::exit(1);
                 }
             }
@@ -675,10 +687,9 @@ fn run_debug_repl(script_path: &str, replay_path: &str) {
                 .replayer
                 .as_ref()
                 .and_then(|r| r.find_checkpoint_before(target_tick))
+                && ck_tick > 0
             {
-                if ck_tick > 0 {
-                    println!("  seeking via checkpoint at tick {} ...", ck_tick);
-                }
+                println!("  seeking via checkpoint at tick {} ...", ck_tick);
             }
         } else {
             interpreter.set_debug_mode(true);
@@ -899,10 +910,8 @@ fn save_cached_tag(tag: &str) {
 }
 
 fn latest_tag_with_cache(force_refresh: bool) -> Option<String> {
-    if !force_refresh {
-        if let Some(tag) = load_cached_tag(24 * 60 * 60) {
-            return Some(tag);
-        }
+    if !force_refresh && let Some(tag) = load_cached_tag(24 * 60 * 60) {
+        return Some(tag);
     }
     let tag = fetch_latest_release_tag()?;
     save_cached_tag(&tag);
@@ -936,7 +945,9 @@ fn run_update(args: &[String]) {
     if check_only {
         println!("current={} latest={}", current, latest_tag);
         if is_newer_version(&latest_tag, current) {
-            println!("Update available. Run: curl -fsSL https://raw.githubusercontent.com/kitsuneislife/artcode/main/install.sh | bash");
+            println!(
+                "Update available. Run: curl -fsSL https://raw.githubusercontent.com/kitsuneislife/artcode/main/install.sh | bash"
+            );
         } else {
             println!("You are on the latest version.");
         }
@@ -984,13 +995,13 @@ fn maybe_warn_new_release(args: &[String]) {
     }
 
     let current = env!("CARGO_PKG_VERSION");
-    if let Some(latest) = latest_tag_with_cache(false) {
-        if is_newer_version(&latest, current) {
-            eprintln!(
-                "[update] New release available: {} (current {}). Run `art update --check`.",
-                latest, current
-            );
-        }
+    if let Some(latest) = latest_tag_with_cache(false)
+        && is_newer_version(&latest, current)
+    {
+        eprintln!(
+            "[update] New release available: {} (current {}). Run `art update --check`.",
+            latest, current
+        );
     }
 }
 
@@ -1168,7 +1179,9 @@ fn real_main() {
         let input = match source_file {
             Some(f) => f,
             None => {
-                eprintln!("Usage: art build <file.art> --target js [--out dist/] [--sourcemap] [--bundle]");
+                eprintln!(
+                    "Usage: art build <file.art> --target js [--out dist/] [--sourcemap] [--bundle]"
+                );
                 process::exit(64);
             }
         };
@@ -1551,10 +1564,14 @@ fn real_main() {
                             let cycle_summary = interpreter.cycle_report();
                             let cycle_detection = interpreter.detect_cycles();
 
-                            println!("[metrics] handled_errors={} executed_statements={} crash_free={:.1}% finalizer_promotions={}",
+                            println!(
+                                "[metrics] handled_errors={} executed_statements={} crash_free={:.1}% finalizer_promotions={}",
                                 interpreter.handled_errors,
                                 interpreter.executed_statements,
-                                100.0 * (1.0 - (interpreter.handled_errors as f64 / interpreter.executed_statements.max(1) as f64)),
+                                100.0
+                                    * (1.0
+                                        - (interpreter.handled_errors as f64
+                                            / interpreter.executed_statements.max(1) as f64)),
                                 interpreter.get_finalizer_promotions()
                             );
                             // print a compact arena summary
@@ -1574,9 +1591,15 @@ fn real_main() {
                                     .collect();
                                 println!("[arena_finalized] {}", fin.join(","));
                             }
-                            println!("[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
-                                interpreter.weak_created, interpreter.weak_upgrades, interpreter.weak_dangling,
-                                interpreter.unowned_created, interpreter.unowned_dangling, interpreter.cycle_reports_run.get());
+                            println!(
+                                "[mem] weak_created={} weak_upgrades={} weak_dangling={} unowned_created={} unowned_dangling={} cycle_reports_run={}",
+                                interpreter.weak_created,
+                                interpreter.weak_upgrades,
+                                interpreter.weak_dangling,
+                                interpreter.unowned_created,
+                                interpreter.unowned_dangling,
+                                interpreter.cycle_reports_run.get()
+                            );
                             println!(
                                 "[cycle] weak_total={} weak_alive={} weak_dead={} unowned_total={} unowned_dangling={} components={} leaks_detected={}",
                                 cycle_summary.weak_total,
@@ -1681,19 +1704,18 @@ fn real_main() {
         let mut dest_version = "0.0.0".to_string();
         let mut _main_field: Option<String> = None;
         let art_toml = working_src.join("Art.toml");
-        if art_toml.exists() {
-            if let Ok(s) = std::fs::read_to_string(&art_toml) {
-                if let Ok(v) = toml::from_str::<TomlValue>(&s) {
-                    if let Some(name_v) = v.get("name").and_then(|n| n.as_str()) {
-                        dest_name = name_v.to_string();
-                    }
-                    if let Some(ver_v) = v.get("version").and_then(|n| n.as_str()) {
-                        dest_version = ver_v.to_string();
-                    }
-                    if let Some(main_v) = v.get("main").and_then(|m| m.as_str()) {
-                        _main_field = Some(main_v.to_string());
-                    }
-                }
+        if art_toml.exists()
+            && let Ok(s) = std::fs::read_to_string(&art_toml)
+            && let Ok(v) = toml::from_str::<TomlValue>(&s)
+        {
+            if let Some(name_v) = v.get("name").and_then(|n| n.as_str()) {
+                dest_name = name_v.to_string();
+            }
+            if let Some(ver_v) = v.get("version").and_then(|n| n.as_str()) {
+                dest_version = ver_v.to_string();
+            }
+            if let Some(main_v) = v.get("main").and_then(|m| m.as_str()) {
+                _main_field = Some(main_v.to_string());
             }
         }
         let dest = cache_dir.join(format!("{}-{}", dest_name, dest_version));
@@ -1716,12 +1738,11 @@ fn real_main() {
                 .arg("rev-parse")
                 .arg("HEAD")
                 .output();
-            if let Ok(o) = out {
-                if o.status.success() {
-                    if let Ok(s) = String::from_utf8(o.stdout) {
-                        commit = Some(s.trim().to_string());
-                    }
-                }
+            if let Ok(o) = out
+                && o.status.success()
+                && let Ok(s) = String::from_utf8(o.stdout)
+            {
+                commit = Some(s.trim().to_string());
             }
         } else {
             // if source is a local git repo, try to get commit
@@ -1734,12 +1755,11 @@ fn real_main() {
                         .arg("rev-parse")
                         .arg("HEAD")
                         .output();
-                    if let Ok(o) = out {
-                        if o.status.success() {
-                            if let Ok(s) = String::from_utf8(o.stdout) {
-                                commit = Some(s.trim().to_string());
-                            }
-                        }
+                    if let Ok(o) = out
+                        && o.status.success()
+                        && let Ok(s) = String::from_utf8(o.stdout)
+                    {
+                        commit = Some(s.trim().to_string());
                     }
                 }
             }
@@ -1860,11 +1880,27 @@ fn real_main() {
                 } else {
                     let summary = interp.cycle_report();
                     let det = interp.detect_cycles();
-                    println!("cycle_summary: weak_total={} weak_alive={} weak_dead={} unowned_total={} unowned_dangling={} cycle_leaks_detected={}", summary.weak_total, summary.weak_alive, summary.weak_dead, summary.unowned_total, summary.unowned_dangling, interp.cycle_leaks_detected);
+                    println!(
+                        "cycle_summary: weak_total={} weak_alive={} weak_dead={} unowned_total={} unowned_dangling={} cycle_leaks_detected={}",
+                        summary.weak_total,
+                        summary.weak_alive,
+                        summary.weak_dead,
+                        summary.unowned_total,
+                        summary.unowned_dangling,
+                        interp.cycle_leaks_detected
+                    );
                     if !det.cycles.is_empty() {
                         println!("cycles:");
                         for info in det.cycles {
-                            println!("  - nodes={:?} isolated={} reachable_root={} leak_candidate={} suggestions={:?} ranked={:?}", info.nodes, info.isolated, info.reachable_from_root, info.leak_candidate, info.suggested_break_edges, info.ranked_suggestions);
+                            println!(
+                                "  - nodes={:?} isolated={} reachable_root={} leak_candidate={} suggestions={:?} ranked={:?}",
+                                info.nodes,
+                                info.isolated,
+                                info.reachable_from_root,
+                                info.leak_candidate,
+                                info.suggested_break_edges,
+                                info.ranked_suggestions
+                            );
                         }
                     } else {
                         println!("cycles: none");

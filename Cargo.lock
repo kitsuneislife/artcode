@@ -232,7 +232,6 @@ name = "cli"
 version = "0.5.1"
 dependencies = [
  "assert_cmd",
- "clap",
  "codegen_js",
  "core",
  "diagnostics",
@@ -532,7 +531,6 @@ dependencies = [
  "criterion",
  "diagnostics",
  "lexer",
- "once_cell",
  "parser",
  "serde_json",
 ]

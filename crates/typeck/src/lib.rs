@@ -320,10 +320,9 @@ impl TypeChecker {
             if let Stmt::QualifiedBinding {
                 qualifier, name, ..
             } = b
+                && matches!(qualifier, BindingQualifier::State | BindingQualifier::Prop)
             {
-                if matches!(qualifier, BindingQualifier::State | BindingQualifier::Prop) {
-                    state_prop_names.insert(name.lexeme.clone());
-                }
+                state_prop_names.insert(name.lexeme.clone());
             }
         }
         env.push();
@@ -552,45 +551,43 @@ impl TypeChecker {
 
         let arg_types: Vec<Type> = args.iter().map(|a| self.infer_expr(a, env)).collect();
 
-        if let Some(name) = &func_name {
-            if let Some(sig) = self.functions.get(name).cloned() {
-                let span = self.callee_span(callee);
-                let bindings = self.resolve_generic_bindings(&sig, type_args, &arg_types);
+        if let Some(name) = &func_name
+            && let Some(sig) = self.functions.get(name).cloned()
+        {
+            let span = self.callee_span(callee);
+            let bindings = self.resolve_generic_bindings(&sig, type_args, &arg_types);
 
-                let non_self_params: Vec<_> =
-                    sig.params.iter().filter(|(n, _)| n != "self").collect();
+            let non_self_params: Vec<_> = sig.params.iter().filter(|(n, _)| n != "self").collect();
 
-                // Only verify argument count when fully annotated (no Unknown params)
-                let all_annotated = non_self_params
-                    .iter()
-                    .all(|(_, t)| !matches!(t, Type::Unknown));
+            // Only verify argument count when fully annotated (no Unknown params)
+            let all_annotated = non_self_params
+                .iter()
+                .all(|(_, t)| !matches!(t, Type::Unknown));
 
-                if all_annotated && non_self_params.len() == args.len() {
-                    for (i, ((param_name, param_ty), arg_ty)) in
-                        non_self_params.iter().zip(arg_types.iter()).enumerate()
+            if all_annotated && non_self_params.len() == args.len() {
+                for (i, ((param_name, param_ty), arg_ty)) in
+                    non_self_params.iter().zip(arg_types.iter()).enumerate()
+                {
+                    let resolved = self.substitute(param_ty, &bindings);
+                    if !self.types_compatible(&resolved, arg_ty) && !matches!(arg_ty, Type::Unknown)
                     {
-                        let resolved = self.substitute(param_ty, &bindings);
-                        if !self.types_compatible(&resolved, arg_ty)
-                            && !matches!(arg_ty, Type::Unknown)
-                        {
-                            self.diagnostics.push(Diagnostic::new(
-                                DiagnosticKind::Type,
-                                format!(
-                                    "argument {} ('{}') of '{}': expected {}, got {}",
-                                    i + 1,
-                                    param_name,
-                                    name,
-                                    resolved.name(),
-                                    arg_ty.name()
-                                ),
-                                span,
-                            ));
-                        }
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticKind::Type,
+                            format!(
+                                "argument {} ('{}') of '{}': expected {}, got {}",
+                                i + 1,
+                                param_name,
+                                name,
+                                resolved.name(),
+                                arg_ty.name()
+                            ),
+                            span,
+                        ));
                     }
                 }
-
-                return self.substitute(&sig.return_type, &bindings);
             }
+
+            return self.substitute(&sig.return_type, &bindings);
         }
 
         Type::Unknown
@@ -1087,7 +1084,9 @@ greet(42)"#,
     #[test]
     fn component_memo_with_state_dep_no_warn() {
         let mut tc = TypeChecker::new();
-        let prog = parse("component Calc {\n  state x: Int = 1\n  memo doubled: Int = x * 2\n  view { <p>{doubled}</p> }\n}");
+        let prog = parse(
+            "component Calc {\n  state x: Int = 1\n  memo doubled: Int = x * 2\n  view { <p>{doubled}</p> }\n}",
+        );
         tc.check(&prog);
         let stale_warns: Vec<_> = tc
             .diagnostics
@@ -1121,7 +1120,9 @@ greet(42)"#,
     #[test]
     fn parser_component_block_is_ast_node() {
         use core::ast::Stmt;
-        let prog = parse("component Btn {\n  state clicked: Bool = false\n  view { <button>{clicked}</button> }\n}");
+        let prog = parse(
+            "component Btn {\n  state clicked: Bool = false\n  view { <button>{clicked}</button> }\n}",
+        );
         assert_eq!(prog.len(), 1);
         assert!(
             matches!(prog[0], Stmt::ComponentBlock { .. }),
@@ -1169,7 +1170,9 @@ greet(42)"#,
     #[test]
     fn parser_multiple_qualifiers_in_component() {
         use core::ast::{BindingQualifier, Stmt};
-        let prog = parse("component Multi {\n  state x: Int = 0\n  prop y: String\n  memo z: Int = x + 1\n  view { <div></div> }\n}");
+        let prog = parse(
+            "component Multi {\n  state x: Int = 0\n  prop y: String\n  memo z: Int = x + 1\n  view { <div></div> }\n}",
+        );
         if let Stmt::ComponentBlock { bindings, .. } = &prog[0] {
             assert_eq!(bindings.len(), 3);
             assert!(matches!(

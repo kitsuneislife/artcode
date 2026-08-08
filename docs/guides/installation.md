@@ -98,39 +98,61 @@ rustup component add rustfmt clippy
  - Instalar LLVM/Clang para Windows se precisar de cobertura; configuração extra pode ser necessária.
  - Alternativa: usar MSYS2 / pacman para instalar dependências nativas.
 
-### Windows: repositório dentro de OneDrive
+### Windows: Smart App Control bloqueando binários compilados
 
-Se o clone estiver numa pasta sincronizada pelo OneDrive, mande a saída de build
-para fora dela. Binários escritos em pasta sincronizada recebem metadados de
-nuvem, e o Smart App Control os trata como conteúdo baixado — executáveis recém
-compilados passam a ser bloqueados:
+Em máquinas com Smart App Control ativo, executáveis recém compilados podem ser
+recusados pelo sistema:
 
 ```
 error: ... Uma política de Controle de Aplicativo bloqueou este arquivo. (os error 4551)
 ```
 
-O sintoma é intermitente e confuso: o bloqueio é por hash, então cada `cargo`
-com unificação de features diferente gera um binário novo que pode ou não
-passar. Isso atinge principalmente os testes que executam o binário `art`.
+Confirme o estado da política com:
 
-Crie `.cargo/config.toml` na raiz do repositório (o arquivo é gitignorado, pois
-o caminho é específico da máquina):
+```powershell
+Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' |
+  Select-Object VerifiedAndReputablePolicyState   # 1 = enforcement
+```
+
+O bloqueio é **por hash do arquivo** e depende de reputação na nuvem da
+Microsoft, não de assinatura nem do diretório onde o binário foi escrito.
+Binários gerados localmente não têm reputação, então o efeito parece aleatório:
+o mesmo `cargo test` pode passar e, depois de qualquer mudança que altere a
+unificação de features, ter vários alvos bloqueados. Medição neste repositório:
+14 alvos bloqueados com o target dentro do OneDrive e 18 fora — a diferença é
+ruído, não o diretório.
+
+Não existe allowlist: adicionar exceção é justamente o que o Smart App Control
+não oferece. `Unblock-File` também não ajuda, porque não há Mark of the Web
+envolvido. As saídas reais:
+
+- **Rodar os testes por crate** (`cargo test -p interpreter`) em vez de
+  `--workspace`. A unificação de features por crate gera binários diferentes, e
+  na prática esses passam. É o contorno mais barato.
+- **Desenvolver no WSL2**, onde a política não governa binários Linux. Também
+  aproxima o ambiente local do CI.
+- **Desligar o Smart App Control** pela Segurança do Windows. Resolve de vez,
+  mas é irreversível: religá-lo exige reinstalar o Windows.
+
+De qualquer forma, o CI (Ubuntu) valida a suíte completa a cada push.
+
+Um caso à parte: componentes do rustup recém-lançados podem não ter reputação e
+serem bloqueados. Reinstalar baixa um artefato com hash já conhecido e resolve:
+
+```powershell
+rustup component remove clippy; rustup component add clippy
+```
+
+### Windows: repositório dentro de OneDrive
+
+Independente do acima, vale mandar a saída de build para fora da pasta
+sincronizada — evita que gigabytes de artefatos subam para a nuvem a cada
+compilação. Crie `.cargo/config.toml` na raiz (gitignorado, pois o caminho é
+específico da máquina):
 
 ```toml
 [build]
 target-dir = "C:/dev/artcode-target"
-```
-
-Além de resolver o bloqueio, isso evita que gigabytes de artefatos de build
-sincronizem para a nuvem. Não é necessário desligar o Smart App Control — e não
-convém: desligá-lo é irreversível sem reinstalar o Windows.
-
-Um caso relacionado: componentes do rustup recém-lançados podem não ter
-reputação ainda e serem bloqueados mesmo fora do OneDrive. Reinstalar o
-componente resolve, porque baixa um artefato já conhecido:
-
-```powershell
-rustup component remove clippy; rustup component add clippy
 ```
 
 ### Verificar o ambiente

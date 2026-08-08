@@ -1,5 +1,5 @@
-use core::ast::{Expr, FunctionParam, Stmt};
 use core::Token;
+use core::ast::{Expr, FunctionParam, Stmt};
 use ir::lower_stmt;
 
 #[test]

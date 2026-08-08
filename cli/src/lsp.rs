@@ -926,10 +926,10 @@ pub fn start_server() {
             }
             if buffer.to_lowercase().starts_with("content-length:") {
                 let parts: Vec<&str> = buffer.split(':').collect();
-                if parts.len() == 2 {
-                    if let Ok(len) = parts[1].trim().parse::<usize>() {
-                        content_length = Some(len);
-                    }
+                if parts.len() == 2
+                    && let Ok(len) = parts[1].trim().parse::<usize>()
+                {
+                    content_length = Some(len);
                 }
             }
         }
@@ -1110,31 +1110,27 @@ fn handle_message(
             // Client is ready, nothing to reply to (Notification)
         }
         "textDocument/didOpen" => {
-            if let Some(doc) = req.get("params").and_then(|p| p.get("textDocument")) {
-                if let (Some(uri), Some(text)) = (
+            if let Some(doc) = req.get("params").and_then(|p| p.get("textDocument"))
+                && let (Some(uri), Some(text)) = (
                     doc.get("uri").and_then(|u| u.as_str()),
                     doc.get("text").and_then(|t| t.as_str()),
-                ) {
-                    documents.insert(uri.to_string(), text.to_string());
-                    publish_diagnostics(uri, text, stdout);
-                }
+                )
+            {
+                documents.insert(uri.to_string(), text.to_string());
+                publish_diagnostics(uri, text, stdout);
             }
         }
         "textDocument/didChange" => {
-            if let Some(params) = req.get("params") {
-                if let Some(uri) = params
+            if let Some(params) = req.get("params")
+                && let Some(uri) = params
                     .get("textDocument")
                     .and_then(|d| d.get("uri").and_then(|u| u.as_str()))
-                {
-                    if let Some(changes) = params.get("contentChanges").and_then(|c| c.as_array()) {
-                        if let Some(change) = changes.last() {
-                            if let Some(text) = change.get("text").and_then(|t| t.as_str()) {
-                                documents.insert(uri.to_string(), text.to_string());
-                                publish_diagnostics(uri, text, stdout);
-                            }
-                        }
-                    }
-                }
+                && let Some(changes) = params.get("contentChanges").and_then(|c| c.as_array())
+                && let Some(change) = changes.last()
+                && let Some(text) = change.get("text").and_then(|t| t.as_str())
+            {
+                documents.insert(uri.to_string(), text.to_string());
+                publish_diagnostics(uri, text, stdout);
             }
         }
         "textDocument/didClose" => {
@@ -1324,9 +1320,11 @@ mod tests {
         );
 
         let items = workspace_completion_items(&docs);
-        assert!(items
-            .iter()
-            .any(|i| i.get("label").and_then(|l| l.as_str()) == Some("helper")));
+        assert!(
+            items
+                .iter()
+                .any(|i| i.get("label").and_then(|l| l.as_str()) == Some("helper"))
+        );
     }
 
     #[test]

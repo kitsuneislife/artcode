@@ -30,38 +30,38 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
         if line.starts_with("func @") {
             seen_header = true;
             // name
-            if let Some(start) = line.find('@') {
-                if let Some(rest) = line[start + 1..].split_whitespace().next() {
-                    // rest might be like "name(params)"
-                    let name = rest
-                        .split('(')
-                        .next()
-                        .unwrap_or(rest)
-                        .trim_end_matches('{')
-                        .to_string();
-                    fname = name;
-                }
+            if let Some(start) = line.find('@')
+                && let Some(rest) = line[start + 1..].split_whitespace().next()
+            {
+                // rest might be like "name(params)"
+                let name = rest
+                    .split('(')
+                    .next()
+                    .unwrap_or(rest)
+                    .trim_end_matches('{')
+                    .to_string();
+                fname = name;
             }
             // params
-            if let Some(lp) = line.find('(') {
-                if let Some(rp_rel) = line[lp..].find(')') {
-                    let inside = &line[lp + 1..lp + rp_rel];
-                    for part in inside
-                        .split(',')
-                        .map(|s| s.trim())
-                        .filter(|s| !s.is_empty())
+            if let Some(lp) = line.find('(')
+                && let Some(rp_rel) = line[lp..].find(')')
+            {
+                let inside = &line[lp + 1..lp + rp_rel];
+                for part in inside
+                    .split(',')
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                {
+                    let mut toks = part.split_whitespace();
+                    if let Some(ty) = toks.next()
+                        && let Some(name) = toks.next()
                     {
-                        let mut toks = part.split_whitespace();
-                        if let Some(ty) = toks.next() {
-                            if let Some(name) = toks.next() {
-                                let t = match ty {
-                                    "i64" => Type::I64,
-                                    "f64" => Type::F64,
-                                    _ => Type::I64,
-                                };
-                                params.push((name.to_string(), t));
-                            }
-                        }
+                        let t = match ty {
+                            "i64" => Type::I64,
+                            "f64" => Type::F64,
+                            _ => Type::I64,
+                        };
+                        params.push((name.to_string(), t));
                     }
                 }
             }
@@ -129,13 +129,13 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
             let rhs = rhs.trim_start_matches('=').trim();
 
             // const i64
-            if rhs.starts_with("const ") && rhs.contains("i64") {
-                if let Some(vstr) = rhs.split_whitespace().last() {
-                    if let Ok(v) = vstr.parse::<i64>() {
-                        body.push(Instr::ConstI64(dest, v));
-                        continue;
-                    }
-                }
+            if rhs.starts_with("const ")
+                && rhs.contains("i64")
+                && let Some(vstr) = rhs.split_whitespace().last()
+                && let Ok(v) = vstr.parse::<i64>()
+            {
+                body.push(Instr::ConstI64(dest, v));
+                continue;
             }
 
             // arithmetic: add/sub/mul/div
@@ -206,27 +206,27 @@ pub fn parse_ir_file(path: &Path) -> Option<IrAnalysis> {
             }
 
             // call pattern: call name(args)
-            if rhs.starts_with("call") || rhs.contains("= call") || rhs.contains(" call ") {
-                if let Some(pos) = rhs.find("call") {
-                    let after = rhs[pos + 4..].trim();
-                    let fnname = after.split('(').next().unwrap_or(after).trim().to_string();
-                    let args = if let Some(start) = after.find('(') {
-                        let inner = &after[start + 1..];
-                        if let Some(end) = inner.find(')') {
-                            inner[..end]
-                                .split(',')
-                                .map(|s| s.trim().to_string())
-                                .filter(|s| !s.is_empty())
-                                .collect()
-                        } else {
-                            vec![]
-                        }
+            if (rhs.starts_with("call") || rhs.contains("= call") || rhs.contains(" call "))
+                && let Some(pos) = rhs.find("call")
+            {
+                let after = rhs[pos + 4..].trim();
+                let fnname = after.split('(').next().unwrap_or(after).trim().to_string();
+                let args = if let Some(start) = after.find('(') {
+                    let inner = &after[start + 1..];
+                    if let Some(end) = inner.find(')') {
+                        inner[..end]
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect()
                     } else {
                         vec![]
-                    };
-                    body.push(Instr::Call(dest, fnname, args));
-                    continue;
-                }
+                    }
+                } else {
+                    vec![]
+                };
+                body.push(Instr::Call(dest, fnname, args));
+                continue;
             }
 
             // fallback: detect allocation intrinsics

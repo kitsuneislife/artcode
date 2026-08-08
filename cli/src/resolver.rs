@@ -51,13 +51,13 @@ fn read_lock_map(entry_path: &Path) -> HashMap<String, PathBuf> {
         return lock_map;
     }
 
-    if let Ok(s) = std::fs::read_to_string(&lock) {
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&s) {
-            let name = v.get("name").and_then(|n| n.as_str());
-            let path = v.get("path").and_then(|p| p.as_str());
-            if let (Some(name), Some(path)) = (name, path) {
-                lock_map.insert(name.to_string(), PathBuf::from(path));
-            }
+    if let Ok(s) = std::fs::read_to_string(&lock)
+        && let Ok(v) = serde_json::from_str::<serde_json::Value>(&s)
+    {
+        let name = v.get("name").and_then(|n| n.as_str());
+        let path = v.get("path").and_then(|p| p.as_str());
+        if let (Some(name), Some(path)) = (name, path) {
+            lock_map.insert(name.to_string(), PathBuf::from(path));
         }
     }
     lock_map
@@ -98,16 +98,14 @@ fn resolve_candidate(base: &Path, rel: &str) -> Option<PathBuf> {
                 return Some(cand_cache);
             }
             let art_toml = cand_cache.join("Art.toml");
-            if art_toml.exists() {
-                if let Ok(s) = std::fs::read_to_string(&art_toml) {
-                    if let Ok(v) = toml::from_str::<toml::Value>(&s) {
-                        if let Some(mainf) = v.get("main").and_then(|m| m.as_str()) {
-                            let candidate_main = cand_cache.join(mainf);
-                            if candidate_main.exists() {
-                                return Some(candidate_main);
-                            }
-                        }
-                    }
+            if art_toml.exists()
+                && let Ok(s) = std::fs::read_to_string(&art_toml)
+                && let Ok(v) = toml::from_str::<toml::Value>(&s)
+                && let Some(mainf) = v.get("main").and_then(|m| m.as_str())
+            {
+                let candidate_main = cand_cache.join(mainf);
+                if candidate_main.exists() {
+                    return Some(candidate_main);
                 }
             }
             let m1 = cand_cache.join("main.art");
@@ -125,35 +123,18 @@ fn resolve_candidate(base: &Path, rel: &str) -> Option<PathBuf> {
                 let p = e.path();
                 if p.is_dir() {
                     let art_toml = p.join("Art.toml");
-                    if art_toml.exists() {
-                        if let Ok(s) = std::fs::read_to_string(&art_toml) {
-                            if let Ok(v) = toml::from_str::<toml::Value>(&s) {
-                                if let Some(name_v) = v.get("name").and_then(|n| n.as_str()) {
-                                    if name_v == rel {
-                                        if let Some(mainf) = v.get("main").and_then(|m| m.as_str())
-                                        {
-                                            let candidate_main = p.join(mainf);
-                                            if candidate_main.exists() {
-                                                return Some(candidate_main);
-                                            }
-                                        }
-                                        let m1 = p.join("main.art");
-                                        if m1.exists() {
-                                            return Some(m1);
-                                        }
-                                        let m2 = p.join("mod.art");
-                                        if m2.exists() {
-                                            return Some(m2);
-                                        }
-                                    }
-                                }
+                    if art_toml.exists()
+                        && let Ok(s) = std::fs::read_to_string(&art_toml)
+                        && let Ok(v) = toml::from_str::<toml::Value>(&s)
+                        && let Some(name_v) = v.get("name").and_then(|n| n.as_str())
+                        && name_v == rel
+                    {
+                        if let Some(mainf) = v.get("main").and_then(|m| m.as_str()) {
+                            let candidate_main = p.join(mainf);
+                            if candidate_main.exists() {
+                                return Some(candidate_main);
                             }
                         }
-                    }
-                }
-
-                if let Some(fname) = p.file_name().and_then(|s| s.to_str()) {
-                    if fname.starts_with(rel) {
                         let m1 = p.join("main.art");
                         if m1.exists() {
                             return Some(m1);
@@ -162,6 +143,19 @@ fn resolve_candidate(base: &Path, rel: &str) -> Option<PathBuf> {
                         if m2.exists() {
                             return Some(m2);
                         }
+                    }
+                }
+
+                if let Some(fname) = p.file_name().and_then(|s| s.to_str())
+                    && fname.starts_with(rel)
+                {
+                    let m1 = p.join("main.art");
+                    if m1.exists() {
+                        return Some(m1);
+                    }
+                    let m2 = p.join("mod.art");
+                    if m2.exists() {
+                        return Some(m2);
                     }
                 }
             }

@@ -1,5 +1,5 @@
-use core::ast::{ArtValue, Expr, FunctionParam, MatchPattern, Stmt};
 use core::Token;
+use core::ast::{ArtValue, Expr, FunctionParam, MatchPattern, Stmt};
 use ir::lower_stmt;
 
 // Test lowering for a match that returns different integer literals per arm.

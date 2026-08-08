@@ -1,7 +1,7 @@
 [package]
 name = "xtask"
 version = "0.5.1"
-edition = "2021"
+edition = "2024"
 # Developer task runner: built from this repository only, never released.
 publish = false
 

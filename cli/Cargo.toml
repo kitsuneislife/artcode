@@ -2,7 +2,7 @@
 [package]
 name = "cli"
 version = "0.5.1"
-edition = "2021"
+edition = "2024"
 
 [lib]
 name = "cli"
@@ -22,7 +22,6 @@ ir = { path = "../crates/ir" }
 codegen_js = { path = "../crates/codegen_js" }
 typeck = { path = "../crates/typeck" }
 
-clap = { version = "4.5.4", features = ["derive"] }
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

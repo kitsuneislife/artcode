@@ -991,11 +991,7 @@ impl CodegenJs {
                         .filter_map(|(i, p)| {
                             let sub = format!("{}.payload[{}]", subject, i);
                             let c = self.emit_match_condition(p, &sub);
-                            if c == "true" {
-                                None
-                            } else {
-                                Some(c)
-                            }
+                            if c == "true" { None } else { Some(c) }
                         })
                         .collect();
                     if sub_conds.is_empty() {
@@ -1014,11 +1010,7 @@ impl CodegenJs {
                     .filter_map(|(i, p)| {
                         let sub = format!("{}[{}]", subject, i);
                         let c = self.emit_match_condition(p, &sub);
-                        if c == "true" {
-                            None
-                        } else {
-                            Some(c)
-                        }
+                        if c == "true" { None } else { Some(c) }
                     })
                     .collect();
                 if sub_conds.is_empty() {
@@ -1563,8 +1555,8 @@ impl Default for CodegenJs {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::ast::{FunctionParam, MatchPattern};
     use core::Token;
+    use core::ast::{FunctionParam, MatchPattern};
     use std::rc::Rc;
 
     fn tok(s: &str) -> Token {

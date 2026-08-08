@@ -81,17 +81,17 @@ fn main() {
     let mut y: Vec<f64> = Vec::new();
     for c in plan.inline_candidates.iter() {
         let irp = ir_dir.join(format!("{}.ir", c.name));
-        if irp.exists() {
-            if let Some((instr, blocks, calls, allocs)) = analyze_ir(&irp) {
-                x.push(vec![
-                    instr as f64,
-                    calls as f64,
-                    allocs as f64,
-                    blocks as f64,
-                ]);
-                let score = profile.functions.get(&c.name).cloned().unwrap_or(0) as f64;
-                y.push(score);
-            }
+        if irp.exists()
+            && let Some((instr, blocks, calls, allocs)) = analyze_ir(&irp)
+        {
+            x.push(vec![
+                instr as f64,
+                calls as f64,
+                allocs as f64,
+                blocks as f64,
+            ]);
+            let score = profile.functions.get(&c.name).cloned().unwrap_or(0) as f64;
+            y.push(score);
         }
     }
     if x.is_empty() {

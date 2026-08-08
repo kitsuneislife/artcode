@@ -1,5 +1,5 @@
-use core::ast::{Expr, InterpolatedPart, MatchPattern, Stmt};
 use core::Token;
+use core::ast::{Expr, InterpolatedPart, MatchPattern, Stmt};
 use diagnostics::{Diagnostic, DiagnosticKind, Span};
 use std::collections::{HashMap, HashSet};
 
@@ -564,19 +564,18 @@ mod tests {
     #[test]
     fn warns_when_weak_upgrade_is_applied_to_non_weak_expr() {
         let msgs = lint_messages("let arr = [1];\nlet v = arr?;\n");
-        assert!(msgs
-            .iter()
-            .any(|m| m.contains("Weak upgrade misuse: postfix `?` expects a weak reference")));
+        assert!(
+            msgs.iter()
+                .any(|m| m.contains("Weak upgrade misuse: postfix `?` expects a weak reference"))
+        );
     }
 
     #[test]
     fn warns_when_unowned_access_is_applied_to_non_unowned_expr() {
         let msgs = lint_messages("let arr = [1];\nlet v = arr!;\n");
-        assert!(
-            msgs.iter()
-                .any(|m| m
-                    .contains("Unowned access misuse: postfix `!` expects an unowned reference"))
-        );
+        assert!(msgs.iter().any(|m| {
+            m.contains("Unowned access misuse: postfix `!` expects an unowned reference")
+        }));
     }
 
     #[test]
@@ -584,8 +583,10 @@ mod tests {
         let msgs = lint_messages(
             "let arr = [1];\nlet w = weak arr;\nlet x = w?;\nlet u = unowned arr;\nlet y = u!;\nprintln(x);\nprintln(y);\n",
         );
-        assert!(!msgs
-            .iter()
-            .any(|m| m.contains("Weak upgrade misuse") || m.contains("Unowned access misuse")));
+        assert!(
+            !msgs
+                .iter()
+                .any(|m| m.contains("Weak upgrade misuse") || m.contains("Unowned access misuse"))
+        );
     }
 }

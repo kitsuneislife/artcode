@@ -9,12 +9,12 @@ pub fn generate_aot_plan_from_profile_str(
         serde_json::from_str(profile_str).map_err(|e| format!("parse error: {}", e))?;
     // collect functions map
     let mut func_map: Vec<(String, u64)> = Vec::new();
-    if let Some(funcs) = parsed.get("functions") {
-        if let Some(map) = funcs.as_object() {
-            for (k, v) in map.iter() {
-                if let Some(n) = v.as_u64() {
-                    func_map.push((k.clone(), n));
-                }
+    if let Some(funcs) = parsed.get("functions")
+        && let Some(map) = funcs.as_object()
+    {
+        for (k, v) in map.iter() {
+            if let Some(n) = v.as_u64() {
+                func_map.push((k.clone(), n));
             }
         }
     }
@@ -36,19 +36,19 @@ pub fn generate_aot_plan_from_profile_str(
                     }
                 }
             }
-        } else if edges_val.is_object() {
-            if let Some(map) = edges_val.as_object() {
-                for (k, v) in map.iter() {
-                    if let Some(cnt) = v.as_u64() {
-                        if let Some(pos) = k.find("->") {
-                            let caller = &k[..pos];
-                            let callee = &k[pos + 2..];
-                            callers_by_callee
-                                .entry(callee.to_string())
-                                .or_default()
-                                .push((caller.to_string(), cnt));
-                        }
-                    }
+        } else if edges_val.is_object()
+            && let Some(map) = edges_val.as_object()
+        {
+            for (k, v) in map.iter() {
+                if let Some(cnt) = v.as_u64()
+                    && let Some(pos) = k.find("->")
+                {
+                    let caller = &k[..pos];
+                    let callee = &k[pos + 2..];
+                    callers_by_callee
+                        .entry(callee.to_string())
+                        .or_default()
+                        .push((caller.to_string(), cnt));
                 }
             }
         }
@@ -134,45 +134,42 @@ pub fn write_minimal_aot_artifact(plan_path: &Path, out_artifact: &Path) -> Resu
     .map_err(|e| format!("write artifact: {}", e))?;
     // Optional: if ART_BUILD_PACKAGE=1 environment variable is set, attempt to
     // create a tar.gz package from a sibling directory named `<plan>.artifact_files/`.
-    if std::env::var("ART_BUILD_PACKAGE").unwrap_or_default() == "1" {
-        if let Some(plan_stem) = plan_path.file_stem().and_then(|s| s.to_str()) {
-            let pkg_dir = plan_path.with_file_name(format!("{}.artifact_files", plan_stem));
-            if pkg_dir.exists() && pkg_dir.is_dir() {
-                let tar_name = out_artifact.with_extension("tar.gz");
-                // call system `tar` to avoid adding tar crate dependency
-                let status = std::process::Command::new("tar")
-                    .arg("-czf")
-                    .arg(&tar_name)
-                    .arg("-C")
-                    .arg(&pkg_dir)
-                    .arg(".")
-                    .status();
-                match status {
-                    Ok(s) if s.success() => {
-                        // compute sha256
-                        if let Ok(f) = std::fs::read(&tar_name) {
-                            use sha2::{Digest, Sha256};
-                            let mut hasher = Sha256::new();
-                            hasher.update(&f);
-                            let sum = hasher.finalize();
-                            let hex = hex::encode(sum);
-                            // update artifact to include package reference
-                            let mut artifact_map =
-                                artifact.as_object().cloned().unwrap_or_default();
-                            artifact_map.insert("package".to_string(), serde_json::json!({"path": tar_name.file_name().and_then(|n| n.to_str()).unwrap_or("artifact.tar.gz"), "sha256": hex}));
-                            std::fs::write(
-                                out_artifact,
-                                serde_json::to_string_pretty(&serde_json::Value::Object(
-                                    artifact_map,
-                                ))
+    if std::env::var("ART_BUILD_PACKAGE").unwrap_or_default() == "1"
+        && let Some(plan_stem) = plan_path.file_stem().and_then(|s| s.to_str())
+    {
+        let pkg_dir = plan_path.with_file_name(format!("{}.artifact_files", plan_stem));
+        if pkg_dir.exists() && pkg_dir.is_dir() {
+            let tar_name = out_artifact.with_extension("tar.gz");
+            // call system `tar` to avoid adding tar crate dependency
+            let status = std::process::Command::new("tar")
+                .arg("-czf")
+                .arg(&tar_name)
+                .arg("-C")
+                .arg(&pkg_dir)
+                .arg(".")
+                .status();
+            match status {
+                Ok(s) if s.success() => {
+                    // compute sha256
+                    if let Ok(f) = std::fs::read(&tar_name) {
+                        use sha2::{Digest, Sha256};
+                        let mut hasher = Sha256::new();
+                        hasher.update(&f);
+                        let sum = hasher.finalize();
+                        let hex = hex::encode(sum);
+                        // update artifact to include package reference
+                        let mut artifact_map = artifact.as_object().cloned().unwrap_or_default();
+                        artifact_map.insert("package".to_string(), serde_json::json!({"path": tar_name.file_name().and_then(|n| n.to_str()).unwrap_or("artifact.tar.gz"), "sha256": hex}));
+                        std::fs::write(
+                            out_artifact,
+                            serde_json::to_string_pretty(&serde_json::Value::Object(artifact_map))
                                 .map_err(|e| format!("serialize artifact: {}", e))?,
-                            )
-                            .map_err(|e| format!("write artifact: {}", e))?;
-                        }
+                        )
+                        .map_err(|e| format!("write artifact: {}", e))?;
                     }
-                    _ => {
-                        // best-effort: don't fail the whole operation if tar not available
-                    }
+                }
+                _ => {
+                    // best-effort: don't fail the whole operation if tar not available
                 }
             }
         }

@@ -2,8 +2,8 @@ use std::env;
 use std::fs::write;
 use std::path::PathBuf;
 
-use core::ast::{Expr, FunctionParam, Stmt};
 use core::Token;
+use core::ast::{Expr, FunctionParam, Stmt};
 use ir::{lower_stmt, ssa};
 
 fn build_add() -> (String, String) {
