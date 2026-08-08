@@ -16,8 +16,8 @@ Dependências Rust (crates)
 Componentes do Rust toolchain (mínimos)
 - Rust (stable) e Cargo — instalar via rustup.
 - Componentes recomendados:
-  - `rustfmt` (cargo fmt) — usado por `scripts/devcheck.sh`.
-  - `clippy` (cargo clippy) — usado por `scripts/devcheck.sh`.
+  - `rustfmt` (cargo fmt) — usado por `cargo run -p xtask -- devcheck`.
+  - `clippy` (cargo clippy) — usado por `cargo run -p xtask -- devcheck`.
 
 Dependências de sistema / utilitários (recomendados)
 - build-essential / base-devel (compilador C/C++ e ferramentas de build)
@@ -32,9 +32,9 @@ Comandos úteis do projeto
 ```bash
 cargo test --all
 ```
-- Rodar exemplos validados (script do repositório):
+- Rodar todos os exemplos:
 ```bash
-scripts/test_examples.sh
+cargo run -p xtask -- run-examples
 ```
 - Rodar CLI em um exemplo:
 ```bash
@@ -116,35 +116,36 @@ cargo test --all
 cargo test -p interpreter --test runtime -- test_name
 ```
 
-2) Validar exemplos (script do repositório)
+2) Validar exemplos
 
 ```bash
-# Compila o binário se necessário e executa todos os exemplos validados
-scripts/test_examples.sh
+# Compila o binário se necessário e executa todos os exemplos de examples/
+cargo run -p xtask -- run-examples
 
 # Executar um único exemplo via binário (válido se target/debug/art existir)
 cargo run --bin art -- run examples/00_hello.art
 ```
 
-3) Smoke / Dev checks (format, clippy, testes)
+3) Portão de qualidade completo
+
+`devcheck` é o mesmo conjunto de verificações que o CI executa: formatação,
+clippy com `-D warnings`, testes, todos os exemplos e varredura de panics.
+Rodar isto antes de commitar é o que evita descobrir uma regressão só no CI.
 
 ```bash
-# Verifica formatação (rustfmt), clippy e executa testes (script de dev)
-scripts/devcheck.sh
-
-# Ou rodar passos manualmente
-cargo fmt --all -- --check
-cargo clippy --all -q
-cargo test --all
-```
-
-4) xtask (tarefas específicas do projeto)
-
-```bash
-# Executa a subcomando devcheck do crate xtask
 cargo run -p xtask -- devcheck
 
-# Dependendo do setup, o repositório também pode documentar um wrapper 'xtask' local; o comando acima é portátil.
+# Com relatório de cobertura (requer cargo-llvm-cov)
+cargo run -p xtask -- devcheck --coverage
+```
+
+Para rodar um passo isolado:
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
+cargo run -p xtask -- scan            # só a varredura de panics
 ```
 
 5) Benchmarks
@@ -205,7 +206,7 @@ Notas:
 
 Notas rápidas
 - Muitos testes dependem do workspace estar compilado (`cargo build --all`) e do binário `art` estar disponível em `target/debug/art`.
-- Em CI, recomenda-se executar: `cargo fmt --all -- --check`, `cargo clippy --all -q`, `cargo test --all`, `scripts/test_examples.sh`, e (opcional) `cargo llvm-cov`.
+- Em CI e localmente, o portão único é `cargo run -p xtask -- devcheck`, que cobre formatação, clippy, testes, exemplos e varredura de panics. Cobertura fica opcional via `--coverage`.
 
 ## Requisitos do sistema (comparativo)
 

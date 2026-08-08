@@ -21,20 +21,22 @@
 
 ### Ferramentas Auxiliares
 - `xtask` oferece:
-	- `ci`: roda format checagem, clippy, testes e scan de panics.
+	- `devcheck`: o portão completo — fmt, clippy `-D warnings`, testes, exemplos e scan de panics. É o mesmo conjunto que o CI executa; rode antes de commitar.
+	- `run-examples`: apenas a execução de todos os exemplos.
 	- `scan`: apenas relatório de `panic!/unwrap/expect`.
 	- `coverage`: se `cargo-llvm-cov` instalado, gera relatório de cobertura (use `--html` para saída HTML local).
 
-### Exemplos Numerados
-Todos os exemplos de linguagem residem em `examples` com prefixo numérico (`00_..`, `01_..`, ...).
+### Exemplos
+Os exemplos de linguagem residem em `examples` com prefixo numérico (`00_..`, `01_..`, ...);
+`examples/artkit/` e `examples/modules/` guardam os casos de componente e de módulo.
 
-Rode manualmente:
+Rode todos:
 ```
-scripts/test_examples.sh
+cargo run -p xtask -- run-examples
 ```
-O script gera saídas em `examples/_outputs/{stdout,stderr}` e falha se houver `panic`/crash.
-
-Eles também são validados via teste integrado (`tests/examples_runner.rs`) ao executar `cargo test`.
+Executa cada `.art` sob `examples/`, recursivamente, escreve as saídas em
+`target/example-output/` e falha se algum retornar erro, imprimir `panic` ou
+derrubar uma thread. O job `examples` do CI roda exatamente este comando.
 
 Ao adicionar um novo recurso, inclua um exemplo incremental novo (não reescreva os existentes, mantenha progressão pedagógica).
 
@@ -46,7 +48,9 @@ cargo run -p xtask -- coverage --html
 Gerará diretório `coverage/` (padrão cargo-llvm-cov) com relatório.
 
 ### CI
-Workflow GitHub Actions (`.github/workflows/ci.yml`) executa: fmt, clippy (erros em warnings), testes, scan de panics e cobertura (job separado). Mantenha build verde.
+Workflow GitHub Actions (`.github/workflows/ci.yml`) executa: fmt, clippy (erros em warnings),
+testes, exemplos, métricas, smoke de Node e ArtKit, e regressão de performance. Cobertura roda
+em job separado, sob `workflow_dispatch`. Mantenha build verde.
 
 ### Hook de AST
 Ao alterar `crates/core/src/ast.rs`, atualize também documentação relevante (`docs/overview.md`, `docs/functions.md` ou `docs/fstrings.md`).

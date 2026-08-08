@@ -253,8 +253,7 @@
                         <span class="code-block__dot code-block__dot--green"></span>
                         <span class="code-block__title">release-check</span>
                     </div>
-                    <pre>cargo test --all
-bash scripts/devcheck.sh
+                    <pre>cargo run -p xtask -- devcheck
 bash scripts/perf_compare.sh
 art run --record examples/44_ttd_keyframes.artlog examples/44_ttd_keyframes.art</pre>
                 </div>

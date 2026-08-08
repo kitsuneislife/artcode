@@ -201,8 +201,8 @@
                                 class="code-block__dot code-block__dot--yellow"></span><span
                                 class="code-block__dot code-block__dot--green"></span><span
                                 class="code-block__title">terminal</span></div>
-                        <pre><span class="fn">cargo</span> xtask ci                    <span class="cm"># fmt + clippy + testes + scan de panics + cobertura</span>
-<span class="fn">bash</span> scripts/devcheck.sh           <span class="cm"># atalho rápido de verificação</span>
+                        <pre><span class="fn">cargo</span> run -p xtask -- devcheck     <span class="cm"># portão completo: fmt + clippy + testes + exemplos + scan</span>
+<span class="fn">cargo</span> run -p xtask -- run-examples <span class="cm"># apenas os exemplos</span>
 <span class="fn">bash</span> scripts/gen_coverage_badge.sh <span class="cm"># gera badge SVG de cobertura atualizado</span>
 <span class="fn">bash</span> scripts/check_ast_docs.sh     <span class="cm"># garante sync de docs quando AST mudar</span>
 <span class="fn">bash</span> scripts/run_fuzz_ci.sh 60     <span class="cm"># fuzzing parser/loops com janela curta</span></pre>
@@ -1409,8 +1409,8 @@ else_:
                     </ul>
                     <h2>Scripts de Dev</h2>
                     <ul>
-                        <li><code>cargo xtask ci</code> — Pipeline local (fmt, clippy, testes, scan de panics)</li>
-                        <li><code>scripts/devcheck.sh</code> — Atalho rápido de verificação</li>
+                        <li><code>cargo run -p xtask -- devcheck</code> — Portão completo (fmt, clippy, testes, exemplos, scan de panics)</li>
+                        <li><code>cargo run -p xtask -- run-examples</code> — Executa todos os exemplos</li>
                         <li><code>scripts/gen_coverage_badge.sh</code> — Gera badge SVG de cobertura</li>
                     </ul>
                 </article>
