@@ -26,6 +26,8 @@ enum Commands {
         #[arg(long, default_value_t = false)]
         coverage: bool,
     },
+    /// Run every example under `examples/` and fail on any regression
+    RunExamples,
     /// Only scan for potential panics (panic!/unwrap/expect)
     Scan,
     /// Run coverage via cargo-llvm-cov (if installed)
@@ -97,61 +99,141 @@ fn run(cmd: &mut Command) -> ExitStatus {
     }
 }
 
+/// Runs a command and aborts the whole gate when it fails.
+///
+/// Every quality check funnels through here so that a failure can never be
+/// silently discarded — the previous `let _ = run(..)` on fmt and clippy made
+/// `devcheck` unable to fail on the two things CI enforces with `-D warnings`,
+/// which is how a clippy regression reached CI while the local gate was green.
+fn run_or_exit(cmd: &mut Command) {
+    let status = run(cmd);
+    if !status.success() {
+        std::process::exit(status.code().unwrap_or(1));
+    }
+}
+
 fn fmt(no_fmt: bool) {
     if no_fmt {
         return;
     }
-    let _ = run(Command::new("cargo").args(["fmt", "--all", "--", "--check"]));
+    run_or_exit(Command::new("cargo").args(["fmt", "--all", "--", "--check"]));
 }
 
+/// Same flags as the `lint` job in `.github/workflows/ci.yml`.
+///
+/// `--all-targets` matters: without it tests, benches and examples are never
+/// linted locally, so a warning in a test file only surfaces in CI.
 fn clippy() {
-    let _ = run(Command::new("cargo").args(["clippy", "--all", "--", "-D", "warnings"]));
+    run_or_exit(Command::new("cargo").args([
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--locked",
+        "--",
+        "-D",
+        "warnings",
+    ]));
 }
+
 fn test_all() {
-    let status = run(Command::new("cargo").arg("test"));
-    if !status.success() {
-        std::process::exit(status.code().unwrap_or(1));
-    }
+    run_or_exit(Command::new("cargo").args(["test", "--workspace", "--locked"]));
 }
 
-fn run_examples() {
-    let mut cmd = Command::new("bash");
-    cmd.arg("-c").arg("scripts/test_examples.sh");
-    let status = run(&mut cmd);
-    if !status.success() {
-        std::process::exit(status.code().unwrap_or(1));
-    }
-}
-
-fn type_check_examples() {
-    // Run the CLI on each example to ensure TypeInfer does not emit type diagnostics.
-    let entries = match std::fs::read_dir("examples") {
+/// Collects every `.art` file under `examples/`, recursively, sorted.
+///
+/// Recursion is deliberate: the previous shell runner globbed
+/// `examples/[0-9][0-9]_*.art`, which silently skipped `examples/artkit/` and
+/// `examples/modules/`. All of them run under `art run`.
+fn collect_examples(dir: &PathBuf, out: &mut Vec<PathBuf>) {
+    let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
-        Err(_) => return,
+        Err(e) => {
+            eprintln!("cannot read {}: {}", dir.display(), e);
+            std::process::exit(1);
+        }
     };
-    for ent in entries.flatten() {
-        let path = ent.path();
-        if path.extension().map(|e| e == "art").unwrap_or(false) {
-            // Run the CLI binary explicitly to avoid cargo ambiguity
-            let mut cmd = Command::new("cargo");
-            cmd.args(["run", "-p", "cli", "--quiet", "--", "run"])
-                .arg(path.as_os_str());
-            let status = run(&mut cmd);
-            if !status.success() {
-                // If example fails to parse or run, log and continue. We want examples to be helpful
-                // but not to block the CI while some didactic examples are being updated.
-                eprintln!(
-                    "Type check skipped (failed) for example: {}",
-                    path.display()
-                );
-                continue;
-            }
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_examples(&path, out);
+        } else if path.extension().map(|e| e == "art").unwrap_or(false) {
+            out.push(path);
         }
     }
 }
 
+/// Executes every example and fails if any of them regresses.
+///
+/// Ported from `scripts/test_examples.sh` so the gate runs on Windows too,
+/// where the project is developed but bash is not guaranteed. Output goes to
+/// `target/` instead of `examples/_outputs/` so running the gate never dirties
+/// the working tree.
+fn run_examples() {
+    run_or_exit(Command::new("cargo").args(["build", "--locked", "-p", "cli", "--bin", "art"]));
+
+    let bin = PathBuf::from("target")
+        .join("debug")
+        .join(format!("art{}", std::env::consts::EXE_SUFFIX));
+
+    let mut examples = Vec::new();
+    collect_examples(&PathBuf::from("examples"), &mut examples);
+    examples.sort();
+
+    let out_dir = PathBuf::from("target").join("example-output");
+    if let Err(e) = std::fs::create_dir_all(&out_dir) {
+        eprintln!("cannot create {}: {}", out_dir.display(), e);
+        std::process::exit(1);
+    }
+
+    let mut failed: Vec<String> = Vec::new();
+    for path in &examples {
+        let name = path.file_name().unwrap_or_default().to_string_lossy();
+        println!("[run] {}", path.display());
+
+        let output = match Command::new(&bin).arg("run").arg(path).output() {
+            Ok(o) => o,
+            Err(e) => {
+                eprintln!("failed to spawn {}: {}", bin.display(), e);
+                std::process::exit(1);
+            }
+        };
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let _ = std::fs::write(out_dir.join(format!("{}.out", name)), &output.stdout);
+        let _ = std::fs::write(out_dir.join(format!("{}.err", name)), stderr.as_bytes());
+
+        // A zero exit status is not enough: the interpreter can report a panic
+        // on stderr while the process still terminates cleanly.
+        let reason = if !output.status.success() {
+            Some(format!("exit status {}", output.status))
+        } else if stderr.to_lowercase().contains("panic") {
+            Some("panic on stderr".to_string())
+        } else if stderr.contains("thread '") {
+            Some("thread crash on stderr".to_string())
+        } else {
+            None
+        };
+
+        if let Some(reason) = reason {
+            eprintln!("[fail] {}: {}", path.display(), reason);
+            eprintln!("{}", stderr);
+            failed.push(path.display().to_string());
+        }
+    }
+
+    if failed.is_empty() {
+        println!("All {} examples ran successfully.", examples.len());
+    } else {
+        eprintln!("{} of {} examples failed:", failed.len(), examples.len());
+        for f in &failed {
+            eprintln!("  {}", f);
+        }
+        std::process::exit(1);
+    }
+}
+
 fn scan_panics() {
-    let mut paths = vec!["crates".into(), "src".into()];
+    let mut paths = vec!["crates".into(), "cli".into(), "xtask".into()];
     let re = match Regex::new(r"panic!|unwrap\(|expect\(") {
         Ok(r) => r,
         Err(e) => {
@@ -206,7 +288,7 @@ fn main() {
             fmt(no_fmt);
             clippy();
             test_all();
-            type_check_examples();
+            run_examples();
             scan_panics();
             // Run AOT inspection; optionally fail the CI when issues are found.
             let mut cmd = Command::new("cargo");
@@ -229,7 +311,6 @@ fn main() {
             fmt(false);
             clippy();
             test_all();
-            type_check_examples();
             run_examples();
             scan_panics();
             if coverage {
@@ -335,6 +416,7 @@ fn main() {
                 std::process::exit(status.code().unwrap_or(1));
             }
         }
+        Commands::RunExamples => run_examples(),
         Commands::Scan => scan_panics(),
         Commands::BenchStartup {
             script,

@@ -1,4 +1,6 @@
-// This file has terrible formatting!
+// This file has terrible formatting on purpose: it is the fixture for
+// `art format`. Run `art format examples/22_fmt_test.art` to see the
+// formatter normalize the spacing while preserving every comment.
 let x= 10;
 if x >5{
     println("Bigger!");
@@ -10,11 +12,14 @@ if x >5{
     }
 }
 
-fn calculate() {
-    let m = {
-        a: 1,
-        b: 2
-    };
+func calculate() {
+    let m= map_new();
+    map_set(m,"a",1);
+    map_set(m,     "b",2);
+    println(map_get(m,"a"));
+    println(map_get(m,   "b"));
 
     // end
 }
+
+calculate();

@@ -1,23 +1,19 @@
-// artcode example 45: JIT Fallback Debugging
+// artcode example 45: performant blocks and interpreter fallback
 //
-// Este exemplo demonstra conceitualmente como o modo de execução performático do 
-// JIT é capaz de devolver o controle ao interpretador (via a instrução de fallback `deopt`)
-// quando ocorrem violações de restrições ou chamadas não otimizadas.
+// Um bloco `performant` marca código que o backend pode compilar de forma mais
+// agressiva. Quando ele não consegue compilar alguma construção, a execução
+// permanece no interpretador e o resultado é exatamente o mesmo — `performant`
+// muda como o código roda, nunca o que ele produz.
 //
-// Quando rodando sem a feature LLVM completa, o compilador JIT dummy emite 
-// automaticamente `deopt` ao encontrar elementos que fogem das operações básicas suportadas.
+// Duas regras do bloco, verificadas em tempo de compilação para impedir que
+// referências alocadas na arena escapem:
+//   1. `return` não é permitido dentro do bloco;
+//   2. bindings locais são prefixados com `_`, e atribuir a nomes de fora é erro.
+// Veja `examples/19_performant_arena.art` para o modelo de arena completo.
 
-fn perform_native_math(a: Int, b: Int) -> Int {
-    performant {
-        // Num JIT plenamente habilitado, o loop abaixo rodará nativamente.
-        // Contudo, se "b" violar alguma propriedade na execução JIT, 
-        // o código de máquina executará a instrução `deopt` e devolverá
-        // a stack frame instantaneamente para o interpretador terminar o trabalho de forma segura.
-        
-        let sum = a + b    
-        return sum
-    }
+performant {
+    let _a = 10;
+    let _b = 32;
+    let _sum = _a + _b;
+    println(_sum);
 }
-
-let result = perform_native_math(10, 32)
-println(result)
