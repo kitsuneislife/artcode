@@ -180,12 +180,12 @@ impl Interpreter {
                             let _ = self.execute(body_stmt);
                         }
                         // Merge simples: mover variáveis definidas neste frame para raiz
-                        let local_vals: Vec<(String, ArtValue)> = self
+                        let local_vals: Vec<(std::sync::Arc<str>, ArtValue)> = self
                             .environment
                             .borrow()
                             .values
                             .iter()
-                            .map(|(k, v)| ((*k).to_string(), v.clone()))
+                            .map(|(k, v)| (k.clone(), v.clone()))
                             .collect();
                         // Transferir handles fortes deste frame para o root para preservar referências
                         let local_handles = self.environment.borrow().strong_handles.clone();
@@ -201,10 +201,11 @@ impl Interpreter {
                             root.borrow_mut().strong_handles.push(*h);
                         }
                         // Mover valores para o root (mantendo mesma identidade)
+                        // Promover para o root reaproveitando o `Arc` da chave: a
+                        // versão anterior fazia `Box::leak` de cada nome promovido,
+                        // vazando um símbolo por finalizer executado.
                         for (k, v) in local_vals {
-                            root.borrow_mut()
-                                .values
-                                .insert(Box::leak(k.into_boxed_str()), v);
+                            root.borrow_mut().values.insert(k, v);
                         }
                         // Limpar handles do frame antes de dropar o escopo para evitar double-decrement
                         self.environment.borrow_mut().strong_handles.clear();

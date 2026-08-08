@@ -10,7 +10,7 @@ Estado: v0.5.1 concluído e versionado (manifestos, README e website alinhados).
 
 ---
 
-## Progresso geral  [███░░░░░░░]  20 / 62
+## Progresso geral  [█████░░░░░]  33 / 71
 
 ---
 
@@ -43,27 +43,46 @@ mais minimalista (sem dependência pesada), portável e desacoplado da versão d
 
 ---
 
-## M — Interner e Processos Longevos  [░░░░░░░░░░]  0 / 5
+## M — Interner e Processos Longevos  [█████████░]  4 / 5
 
-**Prioridade alta.** `core::interner::intern` faz `Box::leak` de todo símbolo distinto num
-pool global `OnceLock<Mutex<HashSet<&'static str>>>` que nunca é liberado. O comentário do
-código assume que "o conjunto de símbolos é pequeno comparado ao tempo de vida do processo" —
-premissa válida para `art run script.art`, inválida para qualquer processo que viva mais que
-uma execução. `art lsp` re-lexa o arquivo a cada tecla, então vaza todo identificador parcial
-digitado durante a sessão inteira, além de toda string literal via `intern_arc`.
+`core::interner::intern` fazia `Box::leak` de todo símbolo distinto num pool global que nunca
+era liberado. O comentário do código assumia que "o conjunto de símbolos é pequeno comparado ao
+tempo de vida do processo" — válido para `art run script.art`, inválido para qualquer processo
+que viva mais de uma execução. `art lsp` re-lexa a cada tecla; os fuzzers rodam milhares de
+programas sem reiniciar.
 
-Descoberto pelo `Fuzz CI`, que fuzza in-process: o custo por iteração sobe ~6x
-(990ms → 6.1s por 2000 iterações) até um input qualquer cruzar o `-timeout` do libFuzzer.
-Enquanto não for corrigido, `Fuzz CI` permanece vermelho — achado legítimo, não infraestrutura.
+A causa era maior do que parecia. Havia três fontes, e a maior delas não tinha consumidor:
 
-- [ ] M.1 Medir o crescimento: teste que roda N iterações do pipeline lex→parse→interpret num
-      só processo e falha se o tempo por iteração degradar acima de um limite
-- [ ] M.2 Substituir o pool global por interner com tempo de vida explícito (por sessão/arena),
-      ou pool limitado com política LRU e teto configurável
-- [ ] M.3 Mesmo tratamento para `intern_arc` (`ARC_POOL`), que retém `String` + `Arc<str>` por
-      literal — chamado de `parser/expressions.rs:37` e `statements.rs:373`
-- [ ] M.4 Auditar `art lsp` sob edição prolongada: RSS estável após N reparses do mesmo arquivo
-- [ ] M.5 `Fuzz CI` verde de novo, sem aumentar `-timeout` para mascarar o sintoma
+1. `token.rs:130` internava todo identificador e toda keyword para preencher `Token.symbol` —
+   **campo que nenhum código lia**. Removê-lo não exigiu mudança em nenhum outro arquivo.
+2. `environment.rs:47` internava todo nome de binding, 1 símbolo por variável definida
+   (medido: 360 entradas para 120 programas de 3 variáveis).
+3. `gc.rs:207` fazia `Box::leak` de cada nome promovido ao root por finalizer.
+
+- [x] M.1 Teste `crates/interpreter/tests/interner_growth.rs`, em três fases: reparse de arquivo
+      inalterado, digitação de identificadores descartáveis, e execução de programas inteiros.
+      Falhava nas três antes da correção
+- [x] M.2 `Token.symbol` removido; `Environment.values` passou de `HashMap<&'static str, _>`
+      para `HashMap<Arc<str>, _>`, liberando os nomes com o escopo. `Arc<str>: Borrow<str>`
+      mantém as buscas por `&str` sem alocar, e o rebind reaproveita a chave existente.
+      `intern` ficou sem chamadores e foi removido
+- [x] M.3 `intern_arc` passou a guardar `Weak<str>`: a entrada vive exatamente enquanto algum
+      valor referenciar a string, e entradas mortas são varridas quando o mapa cresce além de
+      um limiar móvel. Preserva o dedup onde ele vale — `type_of` devolve de um conjunto fechado
+      de ~15 nomes de tipo, variantes de enum são limitadas pelos enums declarados
+- [x] M.4 Caminho de reparse do LSP (`didChange` → `publish_diagnostics`) é lex + parse +
+      typecheck; auditado, nenhum dos três retém estado global. A fase 1 do teste fixa isso:
+      200 reparses de um arquivo inalterado deixam o pool idêntico
+- [ ] M.5 `Fuzz CI` verde — depende do CI para confirmar. Localmente a degradação sumiu: o custo
+      por lote de 2000 iterações ficou plano (25ms → 20ms, razão 0.79x) contra os ~6x anteriores,
+      com o pool oscilando entre 15 e 230 entradas em vez de crescer sem limite
+
+**Efeito colateral em performance:** `define` deixou de travar um mutex global por binding.
+`perf-regression` mede 396.715 stmts/s contra piso de 50.000, com contagem de statements
+idêntica ao baseline (76.621).
+
+Pendência anotada fora do bloco: `core/src/ffi.rs` mantém `CSTR_CACHE: HashMap<usize, CString>`
+chaveado por ponteiro, que endereços reciclados podem colidir. Fora do caminho de LSP e fuzz.
 
 ---
 
@@ -273,11 +292,13 @@ S (Stdlib)       ─── independente
 
 ```
 Sequência recomendada:
-1. M.1–M.5  (interner)                 ← primeiro: devolve o Fuzz CI ao verde
-2. A.11     (inlining guiado por PGO — fecha o bloco A)
-3. W.1–W.8  (WASM pipeline completo)
-4. G.1–G.9  (Generics)
-5. D + T + P + S  (paralelo — sem dependência entre si)
+1. M.1–M.4  (interner)                 ← feito; M.5 aguarda confirmação do CI
+2. Unificação da camada de tipos       ← TypeInfer absorvido por `typeck`
+3. Quebra dos monolitos                (cli/main.rs, interpreter/builtins.rs)
+4. A.11     (inlining guiado por PGO — fecha o bloco A)
+5. W.1–W.8  (WASM pipeline completo)
+6. G.1–G.9  (Generics)
+7. D + T + P + S  (paralelo — sem dependência entre si)
 ```
 
 ---

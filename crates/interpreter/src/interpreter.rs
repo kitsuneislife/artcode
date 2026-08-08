@@ -226,10 +226,16 @@ mod tests {
 }
 
 thread_local! {
-    pub(crate) static PRELUDE_VALUES: HashMap<&'static str, ArtValue> = {
+    // Built once per thread and cloned into each interpreter's global scope.
+    // The keys are `Arc<str>` to match `Environment::values`; cloning the map
+    // therefore bumps refcounts instead of allocating the names again.
+    pub(crate) static PRELUDE_VALUES: HashMap<std::sync::Arc<str>, ArtValue> = {
         let mut m = HashMap::with_capacity(Interpreter::PRELUDE_NAMES.len());
         for &name in Interpreter::PRELUDE_NAMES {
-            m.insert(name, ArtValue::Builtin(Interpreter::name_to_builtin(name)));
+            m.insert(
+                std::sync::Arc::from(name),
+                ArtValue::Builtin(Interpreter::name_to_builtin(name)),
+            );
         }
         m
     };

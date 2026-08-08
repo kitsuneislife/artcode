@@ -7,6 +7,7 @@ pub mod types;
 
 pub use crate::types::*;
 pub use ast::*;
-pub use interner::intern;
+
 pub use interner::intern_arc;
+pub use interner::{interned_arc_count, sweep_interned};
 pub use token::*;

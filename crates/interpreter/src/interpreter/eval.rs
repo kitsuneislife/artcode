@@ -99,7 +99,7 @@ impl Interpreter {
 
                 // Não encontrado nem no ambiente léxico nem nos builtins
                 let env_borrow = self.environment.borrow();
-                let candidates = env_borrow.values.keys().copied();
+                let candidates = env_borrow.values.keys().map(|k| &**k);
                 let suggestion = if let Some(best) = did_you_mean(&name_str, candidates) {
                     format!(" Did you mean '{}'?", best)
                 } else {

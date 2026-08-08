@@ -39,6 +39,28 @@ O formato segue [Keep a Changelog](https://keepachangelog.com) e SemVer.
   - 4 testes em `crates/ir/tests/golden_lower_general.rs`: estrutura IR, roundtrip `let`+add (42), while counter (7), if com local (clamp_pos → 0).
 - **Novos opcodes IR:** `Instr::ICmp`, `Instr::Alloca`, `Instr::Load`, `Instr::Store` — emitidos por `llvm_emitter.rs` (LLVM IR válido), `c_emitter.rs` (C equivalente) e registrados em `ssa.rs` (`rename_temps`).
 
+### Fixed
+- **Interner deixou de vazar em processos longevos (Bloco M).** Interning fazia `Box::leak` de
+  todo símbolo distinto num pool global que nunca era liberado. O comentário do código assumia
+  que "o conjunto de símbolos é pequeno comparado ao tempo de vida do processo" — verdade para
+  `art run script.art`, falso para `art lsp`, que re-lexa o arquivo a cada tecla, e para os
+  fuzzers, que executam milhares de programas sem reiniciar. Eram três fontes:
+  - `Token.symbol` era preenchido via `intern` para todo identificador e keyword, e **nenhum
+    código lia o campo**. Removê-lo não exigiu alteração em nenhum outro arquivo.
+  - `Environment::define` internava todo nome de binding — medido em 360 entradas para 120
+    programas de 3 variáveis. `Environment.values` passou de `HashMap<&'static str, ArtValue>`
+    para `HashMap<Arc<str>, ArtValue>`, liberando os nomes junto com o escopo;
+    `Arc<str>: Borrow<str>` mantém as buscas por `&str` sem alocar.
+  - A promoção de valores ao root em `gc.rs` fazia `Box::leak` de cada nome promovido por
+    finalizer executado.
+
+  Com `intern` sem chamadores, a função foi removida. `intern_arc` passou a guardar `Weak<str>`,
+  varrendo entradas mortas quando o mapa cresce além de um limiar móvel: o dedup continua onde
+  vale (`type_of` devolve de um conjunto fechado de ~15 nomes de tipo) sem reter nada além do
+  último uso. Medição local no formato do fuzzer: custo por lote de 2000 iterações ficou plano
+  (25ms → 20ms) contra a degradação de ~6x anterior, com o pool oscilando entre 15 e 230
+  entradas. Efeito colateral: `define` deixou de travar um mutex global por binding.
+
 ### Removed
 - **Crate `jit` removido; o que tinha valor foi absorvido por `ir`.** A parte "JIT" nunca compilou código: sob `--features=jit`, `llvm_builder.rs` procurava substrings no texto do IR (`ir_text.contains(" add ")`, `contains("const i64")`) e caía num `return 0` silencioso para qualquer construção fora desses quatro padrões — errado, não apenas incompleto. Nenhum workflow jamais compilou a feature, e `lib.rs:103` referenciava `LlvmBuilderImpl` fora de escopo, então ela provavelmente nem compilava. O caminho nativo que funciona é AOT via `crates/ir/src/llvm_emitter.rs`, entregue nesta versão.
   - Movidos para `ir`: `analyzer` (métrica de custo), `loader` (parser de IR textual), `cache` (`ArtCache`, FNV-1a por conteúdo), `trampolines` (ABI de chamada nativa e protocolo de deopt), `parse_ir_signature`, e os binários `aot_inspect`, `aot_consumer` e `calibrate`. `xtask` passou a invocá-los por `-p ir`.

@@ -1,13 +1,24 @@
 use crate::ast::{ArtValue, ObjHandle};
-use crate::interner::intern;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Environment {
     pub enclosing: Option<Rc<RefCell<Environment>>>,
-    pub values: HashMap<&'static str, ArtValue>,
+    /// Bindings in this scope.
+    ///
+    /// The key is `Arc<str>` rather than `&'static str` so that names are
+    /// released when the scope is dropped. The previous type forced every
+    /// binding name through a global interner that `Box::leak`ed it, which made
+    /// memory grow with the number of programs executed — unbounded in
+    /// `art lsp` and in the fuzzers, both of which run many programs in one
+    /// process.
+    ///
+    /// `Arc<str>: Borrow<str>`, so lookups still take a plain `&str` and never
+    /// allocate.
+    pub values: HashMap<Arc<str>, ArtValue>,
     pub strong_handles: Vec<ObjHandle>, // rastreia HeapComposite definidos neste escopo
     pub depth: usize,
     pub associated_arena: Option<u32>,
@@ -30,7 +41,7 @@ impl Environment {
 
     pub fn with_values(
         enclosing: Option<Rc<RefCell<Environment>>>,
-        values: HashMap<&'static str, ArtValue>,
+        values: HashMap<Arc<str>, ArtValue>,
         depth: usize,
         associated_arena: Option<u32>,
     ) -> Self {
@@ -44,13 +55,12 @@ impl Environment {
     }
 
     pub fn define(&mut self, name: &str, value: ArtValue) {
-        let sym = intern(name);
         // Se já existia um valor neste escopo, e esse valor era um HeapComposite,
         // removemos uma ocorrência do handle registrado em `strong_handles`.
         // Isso evita que o mesmo objeto seja decrementado duas vezes: uma no
         // momento do rebind (Interpreter costuma chamar `dec_value_if_heap`)
         // e outra no `drop_scope_heap_objects` ao sair do escopo.
-        if let Some(ArtValue::HeapComposite(h)) = self.values.get(sym)
+        if let Some(ArtValue::HeapComposite(h)) = self.values.get(name)
             && let Some(pos) = self.strong_handles.iter().position(|hh| hh.0 == h.0)
         {
             self.strong_handles.remove(pos);
@@ -59,8 +69,12 @@ impl Environment {
         if let ArtValue::HeapComposite(h) = &value {
             self.strong_handles.push(*h)
         }
-        // Inserir/atualizar o valor no mapa (retorno antigo será tratado acima)
-        self.values.insert(sym, value);
+        // Rebind reaproveita a chave existente: só um binding novo aloca.
+        if let Some(slot) = self.values.get_mut(name) {
+            *slot = value;
+        } else {
+            self.values.insert(Arc::from(name), value);
+        }
     }
 
     pub fn has_locally(&self, name: &str) -> bool {

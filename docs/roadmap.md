@@ -126,12 +126,28 @@
   da raiz — que nunca foi alvo de build — removidos do versionamento; exceções do
   `.gitignore` tornadas explícitas.
 
+#### Interner e processos longevos — Bloco M
+- **Vazamento eliminado.** Interning fazia `Box::leak` de cada símbolo num pool global
+  permanente. Seguro para a CLI, que é efêmera; sem limite em `art lsp`, que re-lexa a cada
+  tecla, e nos fuzzers, que rodam milhares de programas num processo só.
+- A maior das três fontes não tinha consumidor: `Token.symbol` era preenchido para todo
+  identificador e keyword e **nenhum código o lia**. Removê-lo não exigiu mudança em nenhum
+  outro arquivo. As outras duas eram `Environment::define`, que internava todo nome de binding,
+  e uma promoção de finalizer no GC que vazava um nome por execução.
+- `Environment.values` passou de `HashMap<&'static str, _>` para `HashMap<Arc<str>, _>`: os
+  nomes são liberados junto com o escopo, e `Arc<str>: Borrow<str>` mantém as buscas por `&str`
+  sem alocação.
+- `intern_arc` guarda `Weak<str>` e varre entradas mortas, preservando o dedup onde ele vale
+  (`type_of` devolve de um conjunto fechado de nomes de tipo) sem reter nada além do último uso.
+- Efeito colateral: `define` deixou de travar um mutex global por binding.
+
 ### Próximos objetivos
 
-- **Interner com tempo de vida explícito (Bloco M — prioridade alta).** `core::interner::intern`
-  faz `Box::leak` de cada símbolo novo num pool global permanente. É seguro para a CLI, que é
-  efêmera, mas vaza sem limite em `art lsp`, que vive a sessão de edição inteira e re-lexa a
-  cada tecla. Encontrado pelo `Fuzz CI`, que fuzza in-process e degrada ~6x até dar timeout.
+- Unificar a camada de tipos: `interpreter::type_infer::TypeInfer` e `typeck::TypeChecker` são
+  duas análises independentes sobre a mesma AST, ambas emitindo `Diagnostic`. Regra nova
+  precisa ser escrita duas vezes ou fica inconsistente entre `art run` e `art check`.
+- Quebrar os monolitos: `cli/src/main.rs` (1958 linhas, com dispatch manual de argv) e
+  `crates/interpreter/src/interpreter/builtins.rs` (2042 linhas).
 - WASM target — pipeline IR→C→emcc + WASI standalone (Bloco W)
 - Generics no interpreter — monomorphização básica na chamada de função (Bloco G)
 - Diagnósticos com linha/coluna precisa — erros de parse mostram posição exata (Bloco D)

@@ -1,4 +1,3 @@
-use crate::intern;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -76,7 +75,6 @@ pub enum TokenType {
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
-    pub symbol: Option<&'static str>, // intern para identifiers/keywords
     pub line: usize,
     pub col: usize,
     pub start: usize,
@@ -92,46 +90,9 @@ impl Token {
         start: usize,
         end: usize,
     ) -> Self {
-        let symbol = matches!(
-            token_type,
-            TokenType::Identifier
-                | TokenType::Let
-                | TokenType::If
-                | TokenType::Else
-                | TokenType::True
-                | TokenType::False
-                | TokenType::Struct
-                | TokenType::Enum
-                | TokenType::And
-                | TokenType::Or
-                | TokenType::Match
-                | TokenType::Case
-                | TokenType::Func
-                | TokenType::Return
-                | TokenType::Yield
-                | TokenType::None
-                | TokenType::As
-                | TokenType::Weak
-                | TokenType::Unowned
-                | TokenType::Spawn
-                | TokenType::Actor
-                | TokenType::While
-                | TokenType::For
-                | TokenType::In
-                | TokenType::Try
-                | TokenType::Catch
-                | TokenType::Component
-                | TokenType::View
-                | TokenType::State
-                | TokenType::Prop
-                | TokenType::Memo
-                | TokenType::Ref
-        )
-        .then(|| intern(&lexeme));
         Token {
             token_type,
             lexeme,
-            symbol,
             line,
             col,
             start,
@@ -143,7 +104,6 @@ impl Token {
         Token {
             token_type: TokenType::Identifier,
             lexeme: lexeme.to_string(),
-            symbol: None,
             line: 0,
             col: 0,
             start: 0,
