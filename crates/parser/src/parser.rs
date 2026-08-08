@@ -134,6 +134,14 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
+        let mut tokens = tokens;
+        // `peek` and `previous` index the buffer directly, and every parse rule
+        // assumes there is always a token to look at. An empty stream would make
+        // the very first `peek` panic, so the terminator is guaranteed here
+        // rather than trusted from the caller.
+        if !matches!(tokens.last().map(|t| &t.token_type), Some(TokenType::Eof)) {
+            tokens.push(Token::new(TokenType::Eof, String::new(), 0, 0, 0, 0));
+        }
         Parser {
             tokens,
             current: 0,
@@ -463,12 +471,27 @@ impl Parser {
         matches!(self.peek().token_type, TokenType::Eof)
     }
 
+    /// Token at the cursor, or the terminator once the cursor runs past the end.
+    ///
+    /// `set_current_pos` lets callers rewind and replay, so the cursor is not
+    /// guaranteed to stay within bounds by construction.
     pub fn peek(&self) -> Token {
-        self.tokens[self.current].clone()
+        match self.tokens.get(self.current) {
+            Some(t) => t.clone(),
+            // `new` guarantees a trailing Eof, so this cannot be empty.
+            None => self.tokens[self.tokens.len() - 1].clone(),
+        }
     }
 
+    /// Token before the cursor, or the first token when the cursor is at zero.
+    ///
+    /// The subtraction used to be unguarded: a rule that reached `previous`
+    /// without having advanced computed `0usize - 1`, which panics with
+    /// "attempt to subtract with overflow" in debug and indexes out of bounds
+    /// in release. A fuzzed 88-byte input found exactly that path.
     pub fn previous(&self) -> Token {
-        self.tokens[self.current - 1].clone()
+        let index = self.current.saturating_sub(1);
+        self.tokens[index].clone()
     }
 
     pub fn current_pos(&self) -> usize {
