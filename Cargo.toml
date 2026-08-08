@@ -12,7 +12,6 @@ members = [
     "crates/diagnostics",
     "cli",
     "xtask",
-    "crates/jit",
     "crates/codegen_js",
     "crates/typeck",
     "crates/reactivity",

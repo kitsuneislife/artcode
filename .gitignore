@@ -30,7 +30,6 @@ perf.md
 # Local cache
 .artcache/
 */.artcache/
-crates/jit/artcache
 
 # Local working notes and planning material.
 #

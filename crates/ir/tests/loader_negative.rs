@@ -15,7 +15,7 @@ fn rejects_missing_header() {
     }
     "#;
     f.write_all(contents.as_bytes()).expect("write");
-    assert!(jit::ir_loader::parse_ir_file(&path).is_none());
+    assert!(ir::loader::parse_ir_file(&path).is_none());
 }
 
 #[test]
@@ -32,5 +32,5 @@ fn rejects_unknown_assignment() {
     }
     "#;
     f.write_all(contents.as_bytes()).expect("write");
-    assert!(jit::ir_loader::parse_ir_file(&path).is_none());
+    assert!(ir::loader::parse_ir_file(&path).is_none());
 }

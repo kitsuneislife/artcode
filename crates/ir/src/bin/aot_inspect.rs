@@ -1,11 +1,9 @@
+use ir::analyzer::analyze_ir_text;
+use ir::loader::parse_ir_file;
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-mod ir_analyzer;
-use ir_analyzer::analyze_ir_text;
-mod ir_loader;
-use ir_loader::parse_ir_file;
-use rayon::prelude::*;
 
 #[derive(Debug, serde::Deserialize)]
 struct Profile {
@@ -54,7 +52,7 @@ fn normalize_plan(mut plan: AotPlan, ir_dir: Option<&std::path::Path>) -> AotPla
     use std::sync::Arc;
 
     // Build analysis cache: name -> IrAnalysis
-    let mut analysis_map: HashMap<String, ir_analyzer::IrAnalysis> = HashMap::new();
+    let mut analysis_map: HashMap<String, ir::analyzer::IrAnalysis> = HashMap::new();
     if let Some(dir) = ir_dir {
         for c in &plan.inline_candidates {
             let candidate = dir.join(format!("{}.ir", c.name));
@@ -89,10 +87,10 @@ fn normalize_plan(mut plan: AotPlan, ir_dir: Option<&std::path::Path>) -> AotPla
             // estimate cost from analysis_map if available using feature weights
             let mut est_cost: Option<usize> = None;
             if let Some(a) = analysis_map.get(&c.name) {
-                let est_f = (a.instr_count as f64 * ir_analyzer::DEFAULT_WEIGHT as f64)
-                    + (a.call_count as f64 * ir_analyzer::CALL_WEIGHT as f64)
-                    + (a.alloc_count as f64 * ir_analyzer::ALLOC_WEIGHT as f64)
-                    + (a.block_count as f64 * ir_analyzer::BLOCK_WEIGHT as f64);
+                let est_f = (a.instr_count as f64 * ir::analyzer::DEFAULT_WEIGHT as f64)
+                    + (a.call_count as f64 * ir::analyzer::CALL_WEIGHT as f64)
+                    + (a.alloc_count as f64 * ir::analyzer::ALLOC_WEIGHT as f64)
+                    + (a.block_count as f64 * ir::analyzer::BLOCK_WEIGHT as f64);
                 let est = est_f.max(0.0).round() as usize;
                 est_cost = Some(est);
             }

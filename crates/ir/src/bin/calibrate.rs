@@ -31,7 +31,7 @@ struct CalibrationSuggestion {
 }
 
 fn analyze_ir(path: &Path) -> Option<(usize, usize, usize, usize)> {
-    if let Some(a) = jit::ir_loader::parse_ir_file(path) {
+    if let Some(a) = ir::loader::parse_ir_file(path) {
         // parse_ir_file now returns raw counts
         return Some((a.instr_count, a.block_count, a.call_count, a.alloc_count));
     }

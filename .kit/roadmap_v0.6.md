@@ -157,7 +157,7 @@ Infraestrutura de medição contínua — sem mais baseline manual.
 
 ---
 
-## Q — Qualidade, CI e Higiene do Repositório  [█████████░]  8 / 9
+## Q — Qualidade, CI e Higiene do Repositório  [██████████]  17 / 18
 
 Bloco não previsto no plano original, aberto para fechar o buraco que deixou o CI vermelho e
 as versões dessincronizadas. O CI não executava `clippy` em lugar nenhum, então a alegação de
@@ -206,10 +206,42 @@ as versões dessincronizadas. O CI não executava `clippy` em lugar nenhum, ent�
       binários resultantes sob o nome dessa tag — release e artefatos podiam divergir. Ambos os
       jobs passaram a usar `ref: ${{ github.event.inputs.tag }}`.
 
+**Portão único (auditoria de padrões de projeto)**
+- [x] `xtask devcheck` passou a poder falhar: `fmt` e `clippy` descartavam o exit status com
+      `let _ = run(..)`, então o portão local ficava verde enquanto uma regressão de clippy
+      chegava ao CI. Flags alinhadas com o job `lint` (`--workspace --all-targets --locked`)
+- [x] `scan_panics` varre `crates`, `cli` e `xtask` — varria um `src` inexistente na raiz e
+      nunca tocava em `cli` (6986 linhas). Ignora testes/benches e `#[cfg(test)]`, e separa
+      `expect(` dos aborts reais: 707 achados ilegíveis viraram 15 acionáveis
+- [x] Job `examples` no CI executando os 56 exemplos via `xtask run-examples`. Eram 2 os
+      verificados. Ligar o job revelou `22_fmt_test.art` e `45_jit_fallback.art`, que nunca
+      haviam parseado (`fn` em vez de `func`; `return` dentro de `performant`)
+- [x] Runner de exemplos portado de bash para Rust: roda no Windows e percorre `examples/`
+      recursivamente — o glob `[0-9][0-9]_*.art` pulava `artkit/` e `modules/`
+- [x] `scripts/devcheck.sh` e `test_examples.sh` aposentados; o primeiro rodava fmt e clippy
+      sob `|| true`, incapaz de reportar falha nas duas checagens que o CI exige
+- [x] `CONTRIBUTING.md` unificado (havia dois documentos divergentes), com convenção de
+      commits documentada e o aviso de que o `tests/` da raiz não é alvo de build
+- [x] `tests/` da raiz removido: três arquivos que nunca compilaram, todos duplicatas
+- [x] `.gitmessage` e `.githooks/prepare-commit-msg` removidos — injetavam trailer
+      `Co-authored-by`, nunca estiveram ativos e o hook escrevia `\n` literal
+
 **Higiene**
 - [x] `.gitattributes` normalizando fim de linha (`eol=lf`) — sem ele todo checkout no Windows
       marcava o repositório inteiro como modificado; `core.fileMode false` elimina o ruído dos
       14 scripts alternando 755/644
+- [x] `examples/_outputs/` fora do versionamento: seis arquivos gerados estavam commitados e o
+      `.gitignore` interno cobria subdiretórios que não existem mais
+- [x] `.gitignore`: `/.kit` → `/.kit/*` + `!/.kit/roadmap_*.md`. O roadmap só continuava
+      rastreado por force-add; o próximo sumiria do `git status` — mesma armadilha do
+      `baseline/perf_fib20.json`. Roadmaps v0.4 e v0.5 versionados junto
+- [x] Crate `jit` absorvido por `ir`. O "JIT" fazia string matching no texto do IR e caía em
+      `return 0` silencioso fora de quatro padrões; nenhum workflow jamais compilou a feature.
+      Preservados `analyzer`, `loader`, `cache`, `trampolines`, `parse_ir_signature` e os três
+      binários AOT. Removidos `llvm_builder.rs`, `inkwell`, a feature `jit`, o Dockerfile LLVM
+      e dois scripts órfãos
+- [ ] Deps declaradas e não usadas (`clap` em `cli`, `once_cell` em `interpreter`), órfão
+      `crates/core/src/type.rs`, e editions misturadas (2021 vs 2024)
 - [x] `cli/.art-lock` removido do versionamento: é reescrito pelos testes com caminhos absolutos
       de `/tmp`. `.art-lock` e `docs/generated/` agora no `.gitignore`
 - [x] Versões unificadas em `0.5.1` nos 11 manifestos, README e website (estavam em três valores

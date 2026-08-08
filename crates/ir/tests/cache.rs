@@ -1,4 +1,4 @@
-use jit::ArtCache;
+use ir::ArtCache;
 
 #[test]
 fn compute_hash_is_deterministic() {

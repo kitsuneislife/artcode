@@ -2,6 +2,26 @@
 name = "ir"
 version = "0.5.1"
 edition = "2021"
+publish = false
 
 [dependencies]
 core = { path = "../core" }
+rayon = "1.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# AOT tooling, absorbed from the former `jit` crate.
+[[bin]]
+name = "aot_inspect"
+path = "src/bin/aot_inspect.rs"
+
+[[bin]]
+name = "aot_consumer"
+path = "src/bin/aot_consumer.rs"
+
+[[bin]]
+name = "calibrate"
+path = "src/bin/calibrate.rs"
+
+[dev-dependencies]
+tempfile = "3"

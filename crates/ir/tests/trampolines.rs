@@ -1,4 +1,4 @@
-use jit::{call_jit_fn, Sig};
+use ir::{call_jit_fn, Sig};
 
 // helper: get function pointer as usize for a known function type
 

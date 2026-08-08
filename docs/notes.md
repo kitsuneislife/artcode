@@ -2,7 +2,9 @@
 
 ## JIT/AOT
 
-- O crate `jit` está scaffolded mas não funciona sem LLVM instalado e `--features=jit` ativo.
+- Não existe JIT. O caminho nativo é AOT: `art build-aot --llvm` emite LLVM IR textual
+  (`crates/ir/src/llvm_emitter.rs`) e compila com `clang`. Só funções puramente numéricas
+  são suportadas; o resto permanece interpretado.
 - `art aot` gera planos de compilação, mas a compilação nativa real ainda não é funcional.
 - Os exemplos `45_jit_fallback.art` e `46_aot_compilation.art` demonstram a semântica de
   `performant` e do plano AOT, não uma compilação nativa em execução.

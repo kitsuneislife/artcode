@@ -36,8 +36,7 @@ cli  ──► parser ──────► core (AST + tokens + env)
 | `typeck` | Type checker estático; 4 regras de diagnóstico para componentes |
 | `reactivity` | ReactivityPass: analisa `ComponentBlock`, constrói DAG, detecta ciclos (Tarjan SCC) |
 | `codegen_js` | Transpila AST para JavaScript ES2022; source maps V3; updaters cirúrgicos para componentes reativos |
-| `ir` | Representação intermediária (scaffolded) |
-| `jit` | JIT stub via LLVM (requer `--features=jit`) |
+| `ir` | Representação intermediária, emissores C e LLVM, e ferramental AOT (`aot_inspect`, `calibrate`) |
 | `cli` | Binário `art` com todos os subcomandos + bundler + JS_RUNTIME |
 
 ## Fluxo de Execução

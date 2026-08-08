@@ -1,5 +1,5 @@
-use crate::ir_analyzer::IrAnalysis;
-use ir::{Function, Instr, Type};
+use crate::analyzer::IrAnalysis;
+use crate::{Function, Instr, Type};
 use std::fs;
 use std::path::Path;
 

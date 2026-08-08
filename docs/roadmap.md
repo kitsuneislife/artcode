@@ -104,6 +104,28 @@
   que não existe sob `cargo llvm-cov`. Passam a derivar o diretório do executável de teste.
 - `release.yml` compila a tag informada, e não o branch do dispatch.
 
+#### Auditoria de padrões de projeto — Bloco Q
+- **Portão único.** `xtask devcheck` cobre fmt, clippy `-D warnings`, testes, exemplos e
+  varredura de panics; é o mesmo conjunto que o CI executa. Antes ele descartava o exit
+  status de `fmt` e `clippy`, então não conseguia falhar justamente nas duas checagens que
+  o CI exige. `scripts/devcheck.sh`, que tinha o mesmo defeito explícito com `|| true`,
+  foi aposentado.
+- **Exemplos verificados.** Novo job `examples` roda os 56 exemplos; antes apenas 2 eram
+  executados no CI. Ligar o job revelou dois exemplos que nunca haviam parseado. O runner
+  foi portado de bash para Rust, roda no Windows e cobre `examples/` recursivamente.
+- **Varredura de panics utilizável:** 707 achados (86% em código de teste) reduzidos a 15
+  sítios reais em código de produção.
+- **Crate `jit` absorvido por `ir`.** O caminho `inkwell` fazia string matching no texto do
+  IR e devolvia `return 0` silenciosamente fora de quatro padrões; nenhum workflow jamais
+  compilou a feature. `analyzer`, `loader`, `cache`, `trampolines` e os binários AOT
+  (`aot_inspect`, `aot_consumer`, `calibrate`) vivem agora em `ir`.
+- **Documentação unificada.** Havia dois guias de contribuição divergentes; o da raiz nem
+  citava clippy ou fmt. `CONTRIBUTING.md` é o documento canônico e agora fixa a convenção
+  de commits.
+- **Higiene do repositório.** Saída gerada em `examples/_outputs/` e o diretório `tests/`
+  da raiz — que nunca foi alvo de build — removidos do versionamento; exceções do
+  `.gitignore` tornadas explícitas.
+
 ### Próximos objetivos
 
 - **Interner com tempo de vida explícito (Bloco M — prioridade alta).** `core::interner::intern`
@@ -131,11 +153,12 @@
 
 | Métrica | Estado atual |
 |---------|------|
-| `cargo test --all` | Verde — 0 falhas |
-| `cargo clippy -- -D warnings` | Limpo — 0 warnings |
+| `cargo test --workspace` | Verde — 370 testes, 0 falhas |
+| `cargo clippy --workspace --all-targets -- -D warnings` | Limpo — 0 warnings |
 | `cargo build --release` | Limpo |
-| Exemplos | 57 exemplos funcionais |
-| CI jobs | build-and-test, metrics, node-smoke, artkit-smoke, perf-regression, coverage |
+| Exemplos | 56 exemplos, todos executados no CI |
+| Panics em código de produção | 15 sítios |
+| CI jobs | lint, build-and-test, examples, metrics, node-smoke, artkit-smoke, perf-regression, coverage |
 
 ---
 

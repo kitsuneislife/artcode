@@ -69,9 +69,51 @@ pub mod lower_fn;
 pub mod lowering;
 pub mod ssa;
 
+// AOT tooling, absorbed from the former `jit` crate. These operate on emitted
+// textual IR rather than on the AST, so they belong next to the emitters.
+pub mod analyzer;
+pub mod cache;
+pub mod loader;
+pub mod trampolines;
+
 // Keep existing name `lower_stmt` exported; if the module implements fallback
 // we re-export the top-level dispatcher.
+pub use cache::ArtCache;
 pub use lowering::lower_stmt;
+pub use trampolines::{call_jit_fn, Sig};
+
+/// Parses the signature out of textual IR: `func @name(params) -> ret`.
+///
+/// Returns the parameter count and the return type. Callers use it to check
+/// that generated code matches the native ABI they are about to call through,
+/// which prevents transmuting a function pointer to an incompatible prototype.
+pub fn parse_ir_signature(ir_text: &str) -> Result<(usize, String), String> {
+    let idx = ir_text.find("func @").ok_or("missing 'func @' prefix")?;
+    let after = &ir_text[idx + "func @".len()..];
+
+    let open = after.find('(').ok_or("missing '(' in signature")?;
+    if after[..open].trim().is_empty() {
+        return Err("empty function name".to_string());
+    }
+
+    let rest = &after[open + 1..];
+    let close = rest.find(')').ok_or("missing ')' in signature")?;
+    let params = rest[..close].trim();
+    let param_count = if params.is_empty() {
+        0
+    } else {
+        params.split(',').count()
+    };
+
+    let after_close = &rest[close + 1..];
+    let arrow = after_close.find("->").ok_or("missing '->' return type")?;
+    let ret_ty = after_close[arrow + 2..]
+        .split_whitespace()
+        .next()
+        .ok_or("missing return type")?;
+
+    Ok((param_count, ret_ty.to_string()))
+}
 
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -357,7 +357,7 @@ fn main() {
             scan_panics();
             // Run AOT inspection; optionally fail the CI when issues are found.
             let mut cmd = Command::new("cargo");
-            cmd.args(["run", "-p", "jit", "--bin", "aot_inspect", "--quiet"]);
+            cmd.args(["run", "-p", "ir", "--bin", "aot_inspect", "--quiet"]);
             cmd.arg("--");
             cmd.arg("profile.json");
             cmd.arg("aot_plan.json");
@@ -461,7 +461,7 @@ fn main() {
             ir_dir,
         } => {
             let mut cmd = Command::new("cargo");
-            cmd.args(["run", "-p", "jit", "--bin", "aot_inspect", "--quiet"]);
+            cmd.args(["run", "-p", "ir", "--bin", "aot_inspect", "--quiet"]);
             cmd.arg("--");
             if let Some(p) = profile {
                 cmd.arg(p.as_os_str());

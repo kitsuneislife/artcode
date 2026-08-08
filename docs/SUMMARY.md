@@ -32,8 +32,7 @@
 - [FFI](internals/ffi.md)
 - [DAG de Dependências](internals/dependency_dag.md)
 - [Cobertura](internals/coverage.md)
-- [JIT](internals/dev/jit.md)
-- [LLVM Docker](internals/dev/llvm-docker.md)
+- [Ferramental AOT](internals/dev/aot_tooling.md)
 - [Comparação de Performance](internals/perf_compare.md)
 
 ## Guias
