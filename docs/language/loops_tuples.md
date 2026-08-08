@@ -89,4 +89,4 @@ for x in gen {
 - `crates/parser/src/statements.rs`
 - `crates/parser/src/expressions.rs`
 - `crates/interpreter/src/interpreter.rs`
-- `crates/interpreter/src/type_infer.rs`
+- `crates/typeck/src/type_infer.rs`

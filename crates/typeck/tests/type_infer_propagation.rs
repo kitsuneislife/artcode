@@ -1,6 +1,6 @@
 use core::Token;
 use core::ast::{ArtValue, Expr, Stmt};
-use interpreter::type_infer::{TypeEnv, TypeInfer};
+use typeck::type_infer::{TypeEnv, TypeInfer};
 
 // let a = [1]; let b = a; actor_send(1, b) -> should be send-safe
 #[test]

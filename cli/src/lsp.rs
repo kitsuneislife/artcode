@@ -1,12 +1,12 @@
 use core::TokenType;
 use diagnostics::{Diagnostic, DiagnosticKind};
-use interpreter::type_infer::{TypeEnv, TypeInfer};
 use lexer::lexer::Lexer;
 use parser::parser::Parser;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::io::{self, BufRead, Read, Write};
 use std::path::{Path, PathBuf};
+use typeck::type_infer::{TypeEnv, TypeInfer};
 
 const TOKEN_TYPES: [&str; 6] = [
     "keyword", "variable", "function", "string", "number", "operator",

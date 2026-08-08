@@ -1,6 +1,6 @@
-use interpreter::type_infer::{TypeEnv, TypeInfer};
 use lexer::Lexer;
 use parser::Parser;
+use typeck::type_infer::{TypeEnv, TypeInfer};
 
 fn infer(src: &str) -> TypeEnv {
     let mut lx = Lexer::new(src.to_string());

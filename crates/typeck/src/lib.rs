@@ -1,3 +1,22 @@
+//! Static analysis over the Artcode AST.
+//!
+//! The crate holds two rule sets that grew up apart and are being brought
+//! together:
+//!
+//! - [`TypeChecker`] — inference plus declaration and call-site checking, and
+//!   the `component`/template rules.
+//! - [`type_infer::TypeInfer`] — the runtime-facing rules: `performant` block
+//!   restrictions, actor send-safety, capability move tracking, generic
+//!   constraints and enum variant arity.
+//!
+//! They are disjoint in what they report but each carries its own `infer_expr`
+//! over the same `core::types::Type`, so the same expression can be typed twice
+//! and differently. Collapsing those onto one inference pass is the point of
+//! keeping them in one crate; until that lands the two entry points stay
+//! separate and callers run both.
+
+pub mod type_infer;
+
 use core::ast::{ArtValue, Expr, MatchPattern, Stmt, TemplateAttrValue, TemplateNode};
 use core::types::Type;
 use diagnostics::{Diagnostic, DiagnosticKind, Span};

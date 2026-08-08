@@ -1,6 +1,6 @@
 use core::Token;
 use core::ast::{ArtValue, Expr, Program, Stmt};
-use interpreter::type_infer::{TypeEnv, TypeInfer};
+use typeck::type_infer::{TypeEnv, TypeInfer};
 
 #[test]
 fn performant_return_is_type_error() {

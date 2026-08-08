@@ -143,9 +143,12 @@
 
 ### Próximos objetivos
 
-- Unificar a camada de tipos: `interpreter::type_infer::TypeInfer` e `typeck::TypeChecker` são
-  duas análises independentes sobre a mesma AST, ambas emitindo `Diagnostic`. Regra nova
-  precisa ser escrita duas vezes ou fica inconsistente entre `art run` e `art check`.
+- Unificar a camada de tipos. `TypeInfer` e `TypeChecker` já vivem no mesmo crate (`typeck`),
+  mas ainda são duas passadas: os conjuntos de regras são quase disjuntos — `TypeChecker` cobre
+  declaração, call site e componentes; `TypeInfer` cobre `performant`, send-safety de atores,
+  capabilities, constraints de generics e aridade de enum — enquanto cada um carrega seu próprio
+  `infer_expr` sobre o mesmo `core::types::Type`. Falta colapsar em uma passada de inferência,
+  para que a mesma expressão não seja tipada duas vezes e de formas diferentes.
 - Quebrar os monolitos: `cli/src/main.rs` (1958 linhas, com dispatch manual de argv) e
   `crates/interpreter/src/interpreter/builtins.rs` (2042 linhas).
 - WASM target — pipeline IR→C→emcc + WASI standalone (Bloco W)

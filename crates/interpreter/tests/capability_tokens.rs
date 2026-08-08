@@ -1,8 +1,8 @@
 use core::ast::ArtValue;
 use interpreter::Interpreter;
-use interpreter::type_infer::{TypeEnv, TypeInfer};
 use lexer::Lexer;
 use parser::Parser;
+use typeck::type_infer::{TypeEnv, TypeInfer};
 
 // ==========================================================================
 // Helpers

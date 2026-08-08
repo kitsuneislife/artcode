@@ -533,6 +533,7 @@ dependencies = [
  "lexer",
  "parser",
  "serde_json",
+ "typeck",
 ]
 
 [[package]]

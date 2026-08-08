@@ -1,7 +1,7 @@
 use core::ast::{Expr, Stmt};
 use core::token::Token;
-use interpreter::type_infer::TypeEnv;
-use interpreter::type_infer::TypeInfer;
+use typeck::type_infer::TypeEnv;
+use typeck::type_infer::TypeInfer;
 
 #[test]
 fn typeinfer_restores_outer_bindings_on_shadow() {

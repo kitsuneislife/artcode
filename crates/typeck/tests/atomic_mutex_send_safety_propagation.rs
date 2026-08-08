@@ -1,15 +1,22 @@
 use core::Token;
 use core::ast::{ArtValue, Expr, Stmt};
-use interpreter::type_infer::{TypeEnv, TypeInfer};
+use typeck::type_infer::{TypeEnv, TypeInfer};
 
-// Test that actor_send with a non-send-safe payload emits a type diagnostic
+// Test simple variable-to-variable propagation: let a = [1]; let b = a; actor_send(1, b)
+// With simple propagation via TypeEnv, `b` should have a known Array<Int> type and be send-safe.
 #[test]
-fn actor_send_non_send_payload_emits_diag() {
-    // Build program: let arr = [1]; actor_send(1, arr)
-    let call_arr = Stmt::Let {
-        pattern: core::ast::MatchPattern::Variable(Token::dummy("arr")),
+fn actor_send_propagation_allows_forwarded_array() {
+    let let_a = Stmt::Let {
+        pattern: core::ast::MatchPattern::Variable(Token::dummy("a")),
         ty: None,
         initializer: Expr::Array(vec![Expr::Literal(ArtValue::Int(1))]),
+    };
+    let let_b = Stmt::Let {
+        pattern: core::ast::MatchPattern::Variable(Token::dummy("b")),
+        ty: None,
+        initializer: Expr::Variable {
+            name: Token::dummy("a"),
+        },
     };
     let send_call = Stmt::Expression(Expr::Call {
         type_args: None,
@@ -19,17 +26,16 @@ fn actor_send_non_send_payload_emits_diag() {
         arguments: vec![
             Expr::Literal(ArtValue::Int(1)),
             Expr::Variable {
-                name: Token::dummy("arr"),
+                name: Token::dummy("b"),
             },
         ],
     });
-    let prog = vec![call_arr, send_call];
+    let prog = vec![let_a, let_b, send_call];
 
     let mut tenv = TypeEnv::new();
     let mut inf = TypeInfer::new(&mut tenv);
     let _res = inf.run(&prog);
-    // With TypeEnv propagation, the array binding is inferred as Array<Int> and
-    // should be considered send-safe; there should be no type diagnostics.
+
     let type_diags: Vec<_> = inf
         .diags
         .iter()
@@ -37,7 +43,7 @@ fn actor_send_non_send_payload_emits_diag() {
         .collect();
     assert!(
         type_diags.is_empty(),
-        "did not expect type diagnostic for a known-send-safe payload: found {:?}",
+        "expected no type diagnostic for forwarded send-safe array, found: {:?}",
         type_diags
     );
 }

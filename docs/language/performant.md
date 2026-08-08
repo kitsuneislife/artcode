@@ -2,7 +2,7 @@
 
 Este documento descreve as regras conservadoras atualmente aplicadas ao bloco `performant` em Artcode.
 
-Resumo das regras ativas (implementadas em `crates/interpreter/src/type_infer.rs`):
+Resumo das regras ativas (implementadas em `crates/typeck/src/type_infer.rs`):
 
 - `return` não é permitido dentro de `performant`.
   - Motivo: retornar diretamente pode expor referências de objetos alocados na arena para o código externo, abrindo caminho para uso após finalização.
@@ -73,5 +73,5 @@ Observação sobre testes e `unwrap()`/`panic!()`
 Grande parte dos 71 locais detectados pela varredura de panics estão em testes e benches — isto é aceitável. A triagem deve priorizar ocorrências em código de produção/cli/xtask. Para testes, prefira mensagens de `expect()`s claras onde for útil.
 
 
-Arquivo de implementação: `crates/interpreter/src/type_infer.rs`.
+Arquivo de implementação: `crates/typeck/src/type_infer.rs`.
 

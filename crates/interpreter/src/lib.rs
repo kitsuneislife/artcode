@@ -12,7 +12,6 @@ pub mod tracer;
 // keep top-level compatibility: re-export interpreter::test_helpers as test_helpers only for tests
 #[cfg(test)]
 pub use interpreter::test_helpers;
-pub mod type_infer;
 pub mod type_registry;
 pub mod values;
 

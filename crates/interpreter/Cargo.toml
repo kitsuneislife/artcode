@@ -15,6 +15,9 @@ criterion = { version = "0.5", features = ["html_reports"] }
 lexer = { path = "../lexer" }
 parser = { path = "../parser" }
 serde_json = "1.0"
+# `capability_tokens` exercises the move-tracking rule and the runtime side of
+# capabilities in one file, so it needs both crates.
+typeck = { path = "../typeck" }
 
 [[bench]]
 name = "perf"
