@@ -98,6 +98,40 @@ rustup component add rustfmt clippy
  - Instalar LLVM/Clang para Windows se precisar de cobertura; configuração extra pode ser necessária.
  - Alternativa: usar MSYS2 / pacman para instalar dependências nativas.
 
+### Windows: repositório dentro de OneDrive
+
+Se o clone estiver numa pasta sincronizada pelo OneDrive, mande a saída de build
+para fora dela. Binários escritos em pasta sincronizada recebem metadados de
+nuvem, e o Smart App Control os trata como conteúdo baixado — executáveis recém
+compilados passam a ser bloqueados:
+
+```
+error: ... Uma política de Controle de Aplicativo bloqueou este arquivo. (os error 4551)
+```
+
+O sintoma é intermitente e confuso: o bloqueio é por hash, então cada `cargo`
+com unificação de features diferente gera um binário novo que pode ou não
+passar. Isso atinge principalmente os testes que executam o binário `art`.
+
+Crie `.cargo/config.toml` na raiz do repositório (o arquivo é gitignorado, pois
+o caminho é específico da máquina):
+
+```toml
+[build]
+target-dir = "C:/dev/artcode-target"
+```
+
+Além de resolver o bloqueio, isso evita que gigabytes de artefatos de build
+sincronizem para a nuvem. Não é necessário desligar o Smart App Control — e não
+convém: desligá-lo é irreversível sem reinstalar o Windows.
+
+Um caso relacionado: componentes do rustup recém-lançados podem não ter
+reputação ainda e serem bloqueados mesmo fora do OneDrive. Reinstalar o
+componente resolve, porque baixa um artefato já conhecido:
+
+```powershell
+rustup component remove clippy; rustup component add clippy
+```
 
 ## Comandos de teste
 

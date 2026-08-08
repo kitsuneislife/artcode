@@ -1,6 +1,10 @@
 /src
 /target
 
+# Machine-specific build configuration (see docs/guides/installation.md for the
+# OneDrive / Smart App Control note that makes it necessary on some Windows setups).
+/.cargo/config.toml
+
 # Coverage and profiling
 lcov.info
 *.json
