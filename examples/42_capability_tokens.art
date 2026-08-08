@@ -1,5 +1,12 @@
 // Exemplo 42: Capability Tokens com Move-Semantics
-// Demonstra: capability_acquire / capability_kind + enforcement no runtime
+//
+// Demonstra `capability_acquire` / `capability_kind` e o rastreio de move feito
+// pelo type checker: usar um token depois de passá-lo adiante é erro de compilação.
+//
+// ATENÇÃO: hoje o token não confere autoridade nenhuma. Qualquer código pode
+// chamar `capability_acquire`, e nenhum builtin de IO consulta capability antes
+// de agir — `io_read_text` e `$ shell` funcionam sem token algum. Ligar os dois
+// é o que a RFC 0009 (docs/rfcs/0009-capability-sandbox.md) propõe.
 
 // --- Aquisição de capability ---
 let net_cap = capability_acquire("NetBind")

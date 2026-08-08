@@ -54,3 +54,4 @@
 - [0006 — Time-Travel Debugging](rfcs/0006-time-travel-debugging.md)
 - [0007 — Generics](rfcs/0007-generics.md)
 - [0008 — FFI Interop](rfcs/0008-ffi-interop.md)
+- [0009 — Autoridade por Capability](rfcs/0009-capability-sandbox.md)
