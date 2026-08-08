@@ -232,48 +232,113 @@ fn run_examples() {
     }
 }
 
+/// Reports the sites that can abort the process, in production code only.
+///
+/// Test code is excluded deliberately. A panicking assertion *is* the failure
+/// mechanism there, so counting it produced 606 of 707 hits — noise that made
+/// the report unreadable and therefore ignored.
+///
+/// `expect(` is reported separately rather than mixed in: CONTRIBUTING accepts
+/// it when the message documents the invariant, so it is a weaker signal than
+/// a bare `unwrap()` or an outright `panic!`.
 fn scan_panics() {
-    let mut paths = vec!["crates".into(), "cli".into(), "xtask".into()];
-    let re = match Regex::new(r"panic!|unwrap\(|expect\(") {
+    let roots: Vec<PathBuf> = vec!["crates".into(), "cli".into(), "xtask".into()];
+    // The macro names are joined with the `!` added here rather than written
+    // out literally, so this line does not match its own pattern when the
+    // scanner walks `xtask/src`.
+    let macros = ["panic", "unreachable", "todo", "unimplemented"];
+    let risky = match Regex::new(&format!(r"({})!|unwrap\(\)", macros.join("|"))) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("invalid panic-scan regex: {}", e);
             std::process::exit(1);
         }
     };
-    let mut found = 0usize;
-    for p in paths.drain(..) {
-        visit(&p, &re, &mut found);
+    let documented = match Regex::new(r"expect\(") {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("invalid panic-scan regex: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let mut hits = Vec::new();
+    let mut documented_count = 0usize;
+    for root in &roots {
+        visit(root, &risky, &documented, &mut hits, &mut documented_count);
     }
-    if found == 0 {
-        println!("No potential panics found.");
+
+    for (path, line_no, line) in &hits {
+        println!("{}:{}: {}", path.display(), line_no, line);
+    }
+
+    if hits.is_empty() {
+        println!("No aborting call sites in production code.");
     } else {
-        eprintln!("Found {found} potential panic sites.");
+        println!(
+            "\n{} aborting call sites in production code ({} documented `expect(` not listed).",
+            hits.len(),
+            documented_count
+        );
     }
 }
 
-fn visit(path: &PathBuf, re: &Regex, found: &mut usize) {
+/// Walks `path`, collecting matches from `.rs` files under `src/` directories.
+fn visit(
+    path: &PathBuf,
+    risky: &Regex,
+    documented: &Regex,
+    hits: &mut Vec<(PathBuf, usize, String)>,
+    documented_count: &mut usize,
+) {
     if path.is_dir() {
-        if let Ok(rd) = std::fs::read_dir(path) {
-            for entry_res in rd {
-                match entry_res {
-                    Ok(entry) => visit(&entry.path(), re, found),
-                    Err(e) => eprintln!("skipping entry in {:?}: {}", path, e),
-                }
-            }
-        } else {
-            eprintln!("cannot read dir {:?}", path);
+        // `tests`, `benches` and `examples` are allowed to abort on failure.
+        if matches!(
+            path.file_name().and_then(|n| n.to_str()),
+            Some("tests") | Some("benches") | Some("examples") | Some("target")
+        ) {
+            return;
         }
-    } else if let Some(ext) = path.extension() {
-        if ext == "rs" {
-            if let Ok(txt) = std::fs::read_to_string(path) {
-                for (i, line) in txt.lines().enumerate() {
-                    if re.is_match(line) {
-                        *found += 1;
-                        println!("{}:{}:{}", path.display(), i + 1, line.trim());
+        match std::fs::read_dir(path) {
+            Ok(rd) => {
+                for entry_res in rd {
+                    match entry_res {
+                        Ok(entry) => {
+                            visit(&entry.path(), risky, documented, hits, documented_count)
+                        }
+                        Err(e) => eprintln!("skipping entry in {:?}: {}", path, e),
                     }
                 }
             }
+            Err(e) => eprintln!("cannot read dir {:?}: {}", path, e),
+        }
+        return;
+    }
+
+    if path.extension().map(|e| e != "rs").unwrap_or(true) {
+        return;
+    }
+
+    let Ok(txt) = std::fs::read_to_string(path) else {
+        return;
+    };
+
+    // Unit tests live inside `src/` behind `#[cfg(test)]`; skip from the
+    // attribute to the end of file, which is where the convention places them.
+    let body = match txt.find("#[cfg(test)]") {
+        Some(idx) => &txt[..idx],
+        None => txt.as_str(),
+    };
+
+    for (i, line) in body.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("//") || trimmed.starts_with("///") {
+            continue;
+        }
+        if risky.is_match(line) {
+            hits.push((path.clone(), i + 1, trimmed.to_string()));
+        } else if documented.is_match(line) {
+            *documented_count += 1;
         }
     }
 }
