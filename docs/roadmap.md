@@ -143,4 +143,4 @@
 
 Abrir RFC para features que alterem sintaxe, semântica ou runtime. Pequenos ajustes (refactors internos, bugfixes) podem ir direto com testes.
 
-Consulte `docs/versioning.md` para a política de compatibilidade e `docs/guides/contributing.md` para o fluxo RFC → ADR → implementação.
+Consulte `docs/guides/versioning.md` para a política de compatibilidade e `CONTRIBUTING.md` para o fluxo RFC → ADR → implementação.

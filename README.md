@@ -144,7 +144,7 @@ Links rápidos:
 - [Concorrência e Actors](docs/language/concurrency.md)
 - [Capabilities](docs/language/capabilities.md)
 - [Time-Travel Debugging](docs/guides/debugging.md)
-- [Contribuindo](docs/guides/contributing.md)
+- [Contribuindo](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 
 ---
@@ -172,7 +172,7 @@ examples/
 
 ## Contribuindo
 
-- Leia `docs/guides/contributing.md` antes de mudanças maiores.
+- Leia `CONTRIBUTING.md` antes de mudanças maiores.
 - Para mudanças de design, abra uma RFC em `docs/rfcs/` usando `0000-template.md`.
 - Rode `cargo test --all` antes de submeter PR.
 

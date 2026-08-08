@@ -43,7 +43,7 @@
 - [Time-Travel Debugging](guides/debugging.md)
 - [Guia de Migração](guides/migration.md)
 - [Versionamento](guides/versioning.md)
-- [Contribuindo](guides/contributing.md)
+- [Contribuindo](../CONTRIBUTING.md)
 
 ## RFCs
 
