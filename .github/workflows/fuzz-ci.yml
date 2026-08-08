@@ -50,3 +50,16 @@ jobs:
       # job and look like an infrastructure problem rather than a bug.
       - name: Run fuzz worker
         run: cargo fuzz run ${{ matrix.target }} --fuzz-dir fuzz/cargo_fuzz -- -max_total_time=60 -timeout=25
+
+      # libFuzzer writes the offending input to `artifacts/` and names it after
+      # its hash. Without this the file dies with the runner, so a finding can
+      # only be reproduced by guessing at it from the log — which is how the
+      # first timeout went unexplained for two CI cycles.
+      - name: Upload crashing and timing-out inputs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-findings-${{ matrix.target }}
+          path: fuzz/cargo_fuzz/artifacts/
+          if-no-files-found: ignore
+          retention-days: 30

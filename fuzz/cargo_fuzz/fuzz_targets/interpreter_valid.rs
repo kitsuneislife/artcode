@@ -24,7 +24,11 @@ fuzz_target!(|data: &[u8]| {
         .iter()
         .any(|d| matches!(d.kind, diagnostics::DiagnosticKind::Parse | diagnostics::DiagnosticKind::Lex));
     if !has_errors {
+        // Pure mode keeps the fuzzer inside the language: Artcode's shell
+        // syntax otherwise reaches `Command::new(cmd).output()`, spawning a
+        // real process and blocking on it. See `parser_loops.rs`.
         let mut interpreter = Interpreter::with_prelude();
+        interpreter.set_pure_mode(true);
         let _ = interpreter.interpret(program);
     }
 });
