@@ -32,8 +32,16 @@ perf.md
 */.artcache/
 crates/jit/artcache
 
-# Local working notes/tools
-/.kit
+# Local working notes and planning material.
+#
+# The roadmaps are the exception: they are versioned deliverables that the
+# documentation links to. Listing them explicitly matters — ignoring `/.kit`
+# wholesale meant a tracked roadmap only stayed tracked because it had been
+# force-added, so the next one would vanish from `git status` unnoticed. That
+# is the same trap that kept `baseline/perf_fib20.json` out of the repository
+# and broke the perf-regression job for its entire existence.
+/.kit/*
+!/.kit/roadmap_*.md
 *.pdf
 .claude
 

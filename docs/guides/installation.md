@@ -133,6 +133,16 @@ componente resolve, porque baixa um artefato já conhecido:
 rustup component remove clippy; rustup component add clippy
 ```
 
+### Verificar o ambiente
+
+`scripts/check_system.sh` percorre as dependências acima e relata o que falta,
+separando o que é crítico do que é opcional. Requer bash (no Windows, Git Bash
+ou WSL).
+
+```bash
+bash scripts/check_system.sh
+```
+
 ## Comandos de teste
 
 Esta seção reúne os comandos de build/test/validação usados no desenvolvimento e CI do projeto. Todos os comandos abaixo devem ser executados a partir da raiz do workspace (`/workspaces/artcode`).

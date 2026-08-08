@@ -1,4 +1,0 @@
-func @sum_work() -> void {
-entry:
-  ret
-}
