@@ -746,19 +746,39 @@ impl<'a> TypeInfer<'a> {
             } => {
                 let lt = self.infer_expr(left);
                 let rt = self.infer_expr(right);
-                match (lt, rt) {
-                    (Type::Int, Type::Int) => Type::Int,
-                    (Type::Float, Type::Float) => Type::Float,
-                    (Type::Int, Type::Float) | (Type::Float, Type::Int) => Type::Float,
-                    (Type::String, Type::String) => Type::String,
-                    _ => {
-                        self.diags.push(Diagnostic::new(
-                            DiagnosticKind::Type,
-                            "Invalid types for binary operator".to_string(),
-                            Span::new(operator.start, operator.end, operator.line, operator.col),
-                        ));
-                        Type::Unknown
-                    }
+
+                // The operator decides the result type before the operands do.
+                // Matching on the operand pair alone typed `a < b` over two
+                // Ints as `Int`, which is what every comparison in the language
+                // used to infer.
+                match operator.lexeme.as_str() {
+                    "==" | "!=" | "<" | "<=" | ">" | ">=" => Type::Bool,
+                    // `+` doubles as concatenation: a String on either side
+                    // widens the result, matching `TypeChecker`.
+                    "+" if matches!(lt, Type::String) || matches!(rt, Type::String) => Type::String,
+                    _ => match (lt, rt) {
+                        (Type::Int, Type::Int) => Type::Int,
+                        (Type::Float, Type::Float) => Type::Float,
+                        (Type::Int, Type::Float) | (Type::Float, Type::Int) => Type::Float,
+                        (Type::String, Type::String) => Type::String,
+                        // An operand of unknown type cannot be judged; staying
+                        // silent avoids reporting an error the other pass does
+                        // not report.
+                        (Type::Unknown, _) | (_, Type::Unknown) => Type::Unknown,
+                        _ => {
+                            self.diags.push(Diagnostic::new(
+                                DiagnosticKind::Type,
+                                "Invalid types for binary operator".to_string(),
+                                Span::new(
+                                    operator.start,
+                                    operator.end,
+                                    operator.line,
+                                    operator.col,
+                                ),
+                            ));
+                            Type::Unknown
+                        }
+                    },
                 }
             }
             Logical { left, right, .. } => {
@@ -897,7 +917,7 @@ impl<'a> TypeInfer<'a> {
                 }
                 Type::Unknown
             }
-            StructInit { .. } => Type::Unknown,
+            StructInit { name, .. } => Type::Struct(name.lexeme.clone()),
             EnumInit {
                 name,
                 variant,
